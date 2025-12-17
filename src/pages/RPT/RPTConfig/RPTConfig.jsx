@@ -546,13 +546,22 @@ const API_BASE = isProduction
   };
 
   // Statistics
-  const activeLandConfigs = landConfigurations.filter(config => config.status === 'active').length;
-  const activePropertyConfigs = propertyConfigurations.filter(config => config.status === 'active').length;
-  const activeBuildingAssessmentConfigs = buildingAssessmentLevels.filter(config => config.status === 'active').length;
-  const activeTaxConfigs = taxConfigurations.filter(config => config.status === 'active').length;
-  const activeDiscountConfigs = discountConfigurations.filter(config => config.status === 'active').length;
-  const activePenaltyConfigs = penaltyConfigurations.filter(config => config.status === 'active').length;
+  // Statistics - PROTECTED VERSION
+const getSafeArray = (data) => Array.isArray(data) ? data : [];
 
+const landConfigurationsSafe = getSafeArray(landConfigurations);
+const propertyConfigurationsSafe = getSafeArray(propertyConfigurations);
+const buildingAssessmentLevelsSafe = getSafeArray(buildingAssessmentLevels);
+const taxConfigurationsSafe = getSafeArray(taxConfigurations);
+const discountConfigurationsSafe = getSafeArray(discountConfigurations);
+const penaltyConfigurationsSafe = getSafeArray(penaltyConfigurations);
+
+const activeLandConfigs = landConfigurationsSafe.filter(config => config.status === 'active').length;
+const activePropertyConfigs = propertyConfigurationsSafe.filter(config => config.status === 'active').length;
+const activeBuildingAssessmentConfigs = buildingAssessmentLevelsSafe.filter(config => config.status === 'active').length;
+const activeTaxConfigs = taxConfigurationsSafe.filter(config => config.status === 'active').length;
+const activeDiscountConfigs = discountConfigurationsSafe.filter(config => config.status === 'active').length;
+const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.status === 'active').length;
   // Check if Basic Tax and SEF Tax already exist
   const basicTaxExists = taxConfigurations.some(tax => tax.tax_name === 'Basic Tax' && tax.status === 'active');
   const sefTaxExists = taxConfigurations.some(tax => tax.tax_name === 'SEF Tax' && tax.status === 'active');
