@@ -330,7 +330,11 @@
 
     <!-- Updated JavaScript -->
     <script>
-        const API_BASE = window.location.origin + '/revenue/Login/api/';
+        // Adjust API path for localhost vs domain
+const API_BASE = window.location.hostname === 'localhost'
+    ? '/revenue/Login/api/'  // localhost path
+    : '/Login/api/';          // domain path
+
 
         let currentUserId = null;
         let otpTimer = null;
