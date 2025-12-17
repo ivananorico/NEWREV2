@@ -5,13 +5,14 @@ export default function RPTValidationInfo() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Dynamic API configuration
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const API_BASE = process.env.REACT_APP_API_BASE 
-    ? `${process.env.REACT_APP_API_BASE}/RPT/RPTValidationTable`
-    : isDevelopment 
-      ? "http://localhost/revenue/backend/RPT/RPTValidationTable"
-      : "/backend/RPT/RPTValidationTable";
+  // Dynamic API configuration - Use same pattern as RPTValidationTable
+  const API_BASE =
+    window.location.hostname === "localhost"
+      ? "http://localhost/revenue/backend"
+      : "https://revenuetreasury.goserveph.com/backend";
+
+  const API_PATH = "/RPT/RPTValidationTable";
+  const isDevelopment = window.location.hostname === "localhost";
 
   // State declarations
   const [registration, setRegistration] = useState(null);
@@ -107,12 +108,14 @@ export default function RPTValidationInfo() {
   useEffect(() => {
     console.log("🔧 Environment:", isDevelopment ? "Development" : "Production");
     console.log("🌐 API Base URL:", API_BASE);
+    console.log("📁 API Path:", API_PATH);
     console.log("📌 Registration ID from URL:", id);
     console.log("🔗 Full path:", window.location.href);
     
     setDebugInfo({
       environment: isDevelopment ? "Development" : "Production",
       apiBase: API_BASE,
+      apiPath: API_PATH,
       id: id,
       timestamp: new Date().toISOString()
     });
@@ -251,17 +254,40 @@ export default function RPTValidationInfo() {
     return true;
   };
 
-  // Data fetching functions
+  // Helper function to extract data from API response
+  const extractDataFromResponse = (data, dataKey = null) => {
+    // Format 1: {success: true, data: ...}
+    if (data.success !== undefined && data.data !== undefined) {
+      if (dataKey) {
+        return data.data[dataKey] || data.data;
+      }
+      return data.data;
+    }
+    // Format 2: {status: "success", ...}
+    else if (data.status === "success") {
+      if (dataKey) {
+        return data[dataKey] || data;
+      }
+      return data;
+    }
+    // Format 3: Direct data
+    else {
+      return data;
+    }
+  };
+
+  // Data fetching functions - UPDATED for new API format
   const fetchRegistrationDetails = async () => {
     try {
-      console.log(`📋 Fetching registration details from: ${API_BASE}/get_registration_details.php?id=${id}`);
+      const url = `${API_BASE}${API_PATH}/get_registration_details.php?id=${id}`;
+      console.log(`📋 Fetching registration details from: ${url}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`${API_BASE}/get_registration_details.php?id=${id}`, {
+      const response = await fetch(url, {
         signal: controller.signal,
-        credentials: isDevelopment ? 'omit' : 'include',
+        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache',
@@ -289,21 +315,37 @@ export default function RPTValidationInfo() {
         throw new Error("Invalid response from server. Please check backend configuration.");
       }
       
-      console.log("✅ Parsed data status:", data.status);
+      console.log("✅ Parsed data:", data);
 
-      if (data.status === "success") {
+      // Extract registration data from response (handles multiple formats)
+      let registrationData = null;
+      
+      // Check for success flag (new format)
+      if (data.success === true || data.success === "true") {
+        registrationData = extractDataFromResponse(data, 'registration') || extractDataFromResponse(data);
+      }
+      // Check for status (old format)
+      else if (data.status === "success") {
+        registrationData = data.registration || data;
+      }
+      // Direct data
+      else if (data.id) {
+        registrationData = data;
+      }
+      
+      if (registrationData) {
         const completeRegistration = {
-          ...data.registration,
-          province: data.registration.province || 'N/A',
-          property_type: data.registration.property_type || 'Residential',
-          last_updated: data.registration.last_updated || data.registration.date_registered,
-          remarks: data.registration.remarks || 'No remarks'
+          ...registrationData,
+          province: registrationData.province || 'N/A',
+          property_type: registrationData.property_type || 'Residential',
+          last_updated: registrationData.last_updated || registrationData.date_registered,
+          remarks: registrationData.remarks || 'No remarks'
         };
         
         setRegistration(completeRegistration);
-        console.log("✅ Registration loaded successfully");
+        console.log("✅ Registration loaded successfully:", completeRegistration);
       } else {
-        throw new Error(data.message || "Failed to fetch registration details");
+        throw new Error(data.message || data.error || "Failed to fetch registration details");
       }
     } catch (err) {
       console.error("❌ Error in fetchRegistrationDetails:", err);
@@ -321,10 +363,10 @@ export default function RPTValidationInfo() {
 
     const promises = endpoints.map(async ({ key, url, setter, dataKey }) => {
       try {
-        console.log(`⚙️ Fetching ${key} config from: ${API_BASE}/${url}`);
+        console.log(`⚙️ Fetching ${key} config from: ${API_BASE}${API_PATH}/${url}`);
         
-        const response = await fetch(`${API_BASE}/${url}`, {
-          credentials: isDevelopment ? 'omit' : 'include',
+        const response = await fetch(`${API_BASE}${API_PATH}/${url}`, {
+          credentials: 'include',
           headers: { 'Accept': 'application/json' }
         });
         
@@ -334,14 +376,31 @@ export default function RPTValidationInfo() {
         }
         
         const data = await response.json();
+        console.log(`📥 ${key} config response:`, data);
         
-        if (data.status === "success") {
-          const activeItems = (data[dataKey] || []).filter(item => item.status === 'active');
+        // Extract data based on response format
+        let configData = [];
+        
+        if (data.success !== undefined) {
+          // New format: {success: true, data: [...]}
+          configData = extractDataFromResponse(data, dataKey) || extractDataFromResponse(data);
+        } else if (data.status === "success") {
+          // Old format: {status: "success", [dataKey]: [...]}
+          configData = data[dataKey] || data;
+        } else if (Array.isArray(data)) {
+          // Direct array
+          configData = data;
+        }
+        
+        if (Array.isArray(configData)) {
+          const activeItems = configData.filter(item => item.status === 'active');
           setter(activeItems);
           console.log(`✅ ${key} config loaded:`, activeItems.length, "items");
           return activeItems;
+        } else {
+          console.warn(`⚠️ ${key} config data is not an array:`, configData);
+          return null;
         }
-        return null;
       } catch (err) {
         console.error(`❌ Error fetching ${key} config:`, err);
         return null;
@@ -354,10 +413,11 @@ export default function RPTValidationInfo() {
 
   const fetchAssessmentData = async () => {
     try {
-      console.log(`📊 Fetching assessment data from: ${API_BASE}/get_assessment_data.php?id=${id}`);
+      const url = `${API_BASE}${API_PATH}/get_assessment_data.php?id=${id}`;
+      console.log(`📊 Fetching assessment data from: ${url}`);
       
-      const response = await fetch(`${API_BASE}/get_assessment_data.php?id=${id}`, {
-        credentials: isDevelopment ? 'omit' : 'include',
+      const response = await fetch(url, {
+        credentials: 'include',
         headers: { 'Accept': 'application/json' }
       });
       
@@ -367,35 +427,50 @@ export default function RPTValidationInfo() {
       }
       
       const data = await response.json();
+      console.log("📥 Assessment data response:", data);
       
-      if (data.status === "success") {
-        setLandAssessment(data.land_assessment || null);
-        setBuildingAssessment(data.building_assessment || null);
+      // Extract assessment data based on response format
+      let assessmentData = null;
+      
+      if (data.success !== undefined) {
+        // New format: {success: true, data: {land_assessment: ..., building_assessment: ...}}
+        assessmentData = extractDataFromResponse(data);
+      } else if (data.status === "success") {
+        // Old format: {status: "success", land_assessment: ..., building_assessment: ...}
+        assessmentData = data;
+      }
+      
+      if (assessmentData) {
+        const landAssessmentData = assessmentData.land_assessment || assessmentData.data?.land_assessment || null;
+        const buildingAssessmentData = assessmentData.building_assessment || assessmentData.data?.building_assessment || null;
         
-        if (data.land_assessment) {
+        setLandAssessment(landAssessmentData);
+        setBuildingAssessment(buildingAssessmentData);
+        
+        if (landAssessmentData) {
           setAssessmentForm(prev => ({
             ...prev,
-            land_tdn: data.land_assessment.tdn || "",
-            land_property_type: data.land_assessment.property_type || "",
-            land_area_sqm: data.land_assessment.land_area_sqm || "",
-            land_market_value: data.land_assessment.land_market_value || "",
-            land_assessed_value: data.land_assessment.land_assessed_value || "",
-            land_assessment_level: data.land_assessment.assessment_level || ""
+            land_tdn: landAssessmentData.tdn || "",
+            land_property_type: landAssessmentData.property_type || "",
+            land_area_sqm: landAssessmentData.land_area_sqm || "",
+            land_market_value: landAssessmentData.land_market_value || "",
+            land_assessed_value: landAssessmentData.land_assessed_value || "",
+            land_assessment_level: landAssessmentData.assessment_level || ""
           }));
         }
         
-        if (data.building_assessment) {
+        if (buildingAssessmentData) {
           setAssessmentForm(prev => ({
             ...prev,
-            building_tdn: data.building_assessment.tdn || "",
-            construction_type: data.building_assessment.construction_type || "",
-            floor_area_sqm: data.building_assessment.floor_area_sqm || "",
-            year_built: data.building_assessment.year_built || new Date().getFullYear(),
-            building_market_value: data.building_assessment.building_market_value || "",
-            building_depreciated_value: data.building_assessment.building_depreciated_value || "",
-            depreciation_percent: data.building_assessment.depreciation_percent || "",
-            building_assessed_value: data.building_assessment.building_assessed_value || "",
-            building_assessment_level: data.building_assessment.assessment_level || ""
+            building_tdn: buildingAssessmentData.tdn || "",
+            construction_type: buildingAssessmentData.construction_type || "",
+            floor_area_sqm: buildingAssessmentData.floor_area_sqm || "",
+            year_built: buildingAssessmentData.year_built || new Date().getFullYear(),
+            building_market_value: buildingAssessmentData.building_market_value || "",
+            building_depreciated_value: buildingAssessmentData.building_depreciated_value || "",
+            depreciation_percent: buildingAssessmentData.depreciation_percent || "",
+            building_assessed_value: buildingAssessmentData.building_assessed_value || "",
+            building_assessment_level: buildingAssessmentData.assessment_level || ""
           }));
         }
         
@@ -687,19 +762,19 @@ export default function RPTValidationInfo() {
     }
   };
 
-  // Action handlers
+  // Action handlers - UPDATED for new API format
   const handleInspectionSubmit = async (e) => {
     e.preventDefault();
     try {
       console.log("📅 Submitting inspection form");
       
-      const response = await fetch(`${API_BASE}/schedule_inspection.php`, {
+      const response = await fetch(`${API_BASE}${API_PATH}/schedule_inspection.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: isDevelopment ? 'omit' : 'include',
+        credentials: 'include',
         body: JSON.stringify({
           registration_id: id,
           ...inspectionForm
@@ -709,13 +784,16 @@ export default function RPTValidationInfo() {
       const data = await response.json();
       console.log("📅 Inspection response:", data);
 
-      if (data.status === "success") {
+      // Handle both response formats
+      const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
+      
+      if (isSuccess) {
         alert("✅ Inspection scheduled successfully!");
         setShowInspectionForm(false);
         setInspectionForm({ scheduled_date: "", assessor_name: "" });
         await updateRegistrationStatus('for_inspection');
       } else {
-        throw new Error(data.message || "Failed to schedule inspection");
+        throw new Error(data.message || data.error || "Failed to schedule inspection");
       }
     } catch (err) {
       alert(`❌ Error: ${err.message}`);
@@ -760,21 +838,25 @@ export default function RPTValidationInfo() {
         })
       };
 
-      const response = await fetch(`${API_BASE}/assess_property.php`, {
+      const response = await fetch(`${API_BASE}${API_PATH}/assess_property.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: isDevelopment ? 'omit' : 'include',
+        credentials: 'include',
         body: JSON.stringify(submissionData)
       });
 
       const data = await response.json();
       console.log("📥 Assessment response:", data);
 
-      if (data.status === "success") {
-        alert(`✅ Assessment ${data.action || 'saved'} successfully!`);
+      // Handle both response formats
+      const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
+      
+      if (isSuccess) {
+        const action = data.action || data.data?.action || 'saved';
+        alert(`✅ Assessment ${action} successfully!`);
         await fetchAssessmentData();
         
         const shouldClose = window.confirm("Close assessment form?");
@@ -782,7 +864,7 @@ export default function RPTValidationInfo() {
           setShowAssessmentForm(false);
         }
       } else {
-        throw new Error(data.message || "Failed to assess property");
+        throw new Error(data.message || data.error || "Failed to assess property");
       }
     } catch (err) {
       alert(`❌ Error: ${err.message}`);
@@ -797,13 +879,13 @@ export default function RPTValidationInfo() {
       try {
         console.log("✅ Approving property");
         
-        const response = await fetch(`${API_BASE}/approve_property.php`, {
+        const response = await fetch(`${API_BASE}${API_PATH}/approve_property.php`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          credentials: isDevelopment ? 'omit' : 'include',
+          credentials: 'include',
           body: JSON.stringify({
             registration_id: id,
             land_annual_tax: taxCalculations.land_annual_tax,
@@ -815,12 +897,16 @@ export default function RPTValidationInfo() {
         const data = await response.json();
         console.log("✅ Approval response:", data);
 
-        if (data.status === "success") {
-          alert(`✅ Property approved!\n\nLand TDN: ${data.tdns?.land_tdn || 'N/A'}\nBuilding TDN: ${data.tdns?.building_tdn || 'N/A'}`);
+        // Handle both response formats
+        const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
+        
+        if (isSuccess) {
+          const tdns = data.tdns || data.data?.tdns || {};
+          alert(`✅ Property approved!\n\nLand TDN: ${tdns.land_tdn || 'N/A'}\nBuilding TDN: ${tdns.building_tdn || 'N/A'}`);
           await fetchRegistrationDetails();
           await fetchAssessmentData();
         } else {
-          throw new Error(data.message || "Failed to approve property");
+          throw new Error(data.message || data.error || "Failed to approve property");
         }
       } catch (err) {
         alert(`❌ Error: ${err.message}`);
@@ -832,13 +918,13 @@ export default function RPTValidationInfo() {
   const handleUpdateToAssessed = async () => {
     if (window.confirm("Mark this property as assessed?")) {
       try {
-        const response = await fetch(`${API_BASE}/update_registration_status.php`, {
+        const response = await fetch(`${API_BASE}${API_PATH}/update_registration_status.php`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          credentials: isDevelopment ? 'omit' : 'include',
+          credentials: 'include',
           body: JSON.stringify({
             registration_id: id,
             status: 'assessed'
@@ -847,12 +933,15 @@ export default function RPTValidationInfo() {
 
         const data = await response.json();
 
-        if (data.status === "success") {
+        // Handle both response formats
+        const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
+        
+        if (isSuccess) {
           alert("✅ Property marked as assessed!");
           await fetchRegistrationDetails();
           setShowAssessmentForm(true);
         } else {
-          throw new Error(data.message || "Failed to update status");
+          throw new Error(data.message || data.error || "Failed to update status");
         }
       } catch (err) {
         alert(`❌ Error: ${err.message}`);
@@ -862,13 +951,13 @@ export default function RPTValidationInfo() {
 
   const updateRegistrationStatus = async (status) => {
     try {
-      const response = await fetch(`${API_BASE}/update_registration_status.php`, {
+      const response = await fetch(`${API_BASE}${API_PATH}/update_registration_status.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: isDevelopment ? 'omit' : 'include',
+        credentials: 'include',
         body: JSON.stringify({
           registration_id: id,
           status: status
@@ -899,7 +988,10 @@ export default function RPTValidationInfo() {
               <p className="text-gray-700 font-medium mb-2">Loading registration details...</p>
               <p className="text-sm text-gray-500">ID: {id}</p>
               {isDevelopment && (
-                <p className="text-xs text-blue-500 mt-2">API: {API_BASE}</p>
+                <div className="mt-2 text-xs text-blue-500">
+                  <p>API: {API_BASE}</p>
+                  <p>Path: {API_PATH}</p>
+                </div>
               )}
             </div>
           </div>
@@ -922,14 +1014,16 @@ export default function RPTValidationInfo() {
               {error || "The requested registration could not be found."}
             </p>
             
-            {isDevelopment && (
-              <div className="bg-gray-100 p-3 rounded mb-4 text-left">
-                <p className="text-sm font-semibold mb-1">Debug Info:</p>
-                <p className="text-xs">ID: {id}</p>
-                <p className="text-xs">API: {API_BASE}</p>
-                <p className="text-xs">Env: {isDevelopment ? "Development" : "Production"}</p>
-              </div>
-            )}
+            <div className="bg-gray-100 p-3 rounded mb-4 text-left">
+              <p className="text-sm font-semibold mb-1">Debug Info:</p>
+              <p className="text-xs">ID: {id}</p>
+              <p className="text-xs">API Base: {API_BASE}</p>
+              <p className="text-xs">API Path: {API_PATH}</p>
+              <p className="text-xs">Env: {isDevelopment ? "Development" : "Production"}</p>
+              {debugInfo.timestamp && (
+                <p className="text-xs">Time: {new Date(debugInfo.timestamp).toLocaleTimeString()}</p>
+              )}
+            </div>
             
             <div className="space-x-4">
               <button
