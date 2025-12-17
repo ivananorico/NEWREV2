@@ -41,25 +41,22 @@ switch ($method) {
 function getConfigurations() {
     global $pdo;
     
+    // Get current date or use provided date
     $currentDate = isset($_GET['current_date']) ? $_GET['current_date'] : date('Y-m-d');
     
     try {
-        // Get all configurations and calculate status based on dates
+        // Show configurations that are effective on or before the current date
         $stmt = $pdo->prepare("
-            SELECT *, 
-                CASE 
-                    WHEN expiration_date IS NOT NULL AND expiration_date < ? THEN 'expired'
-                    ELSE 'active'
-                END as status
-            FROM rpt_tax_config 
-            WHERE effective_date <= ?
-            ORDER BY status ASC, effective_date DESC, tax_name
+            SELECT * FROM tax_configurations 
+            WHERE status = 'active'
+            AND effective_date <= ?
+            AND (expiration_date IS NULL OR expiration_date >= ?)
+            ORDER BY tax_name, effective_date DESC
         ");
         $stmt->execute([$currentDate, $currentDate]);
         $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         echo json_encode($configurations);
-        
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(["error" => "Database error: " . $e->getMessage()]);
@@ -69,75 +66,67 @@ function getConfigurations() {
 function createConfiguration() {
     global $pdo;
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Get JSON input
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
     // Validate required fields
-    if (!isset($input['tax_name']) || !isset($input['tax_percent']) || !isset($input['effective_date'])) {
-        http_response_code(400);
-        echo json_encode(["error" => "Missing required fields: tax_name, tax_percent, effective_date"]);
-        return;
+    $requiredFields = ['tax_name', 'tax_percent', 'effective_date'];
+    
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing required field: " . $field]);
+            return;
+        }
     }
     
-    // Validate tax name - only allow Basic Tax or SEF Tax
+    // Validate tax_name
     if (!in_array($input['tax_name'], ['Basic Tax', 'SEF Tax'])) {
         http_response_code(400);
         echo json_encode(["error" => "Tax name must be either 'Basic Tax' or 'SEF Tax'"]);
         return;
     }
     
-    // Validate tax percentage
-    if (!is_numeric($input['tax_percent']) || $input['tax_percent'] < 0 || $input['tax_percent'] > 100) {
+    // Validate numeric value
+    if (!is_numeric($input['tax_percent'])) {
         http_response_code(400);
-        echo json_encode(["error" => "Tax percentage must be a number between 0 and 100"]);
+        echo json_encode(["error" => "Invalid numeric value for tax_percent"]);
         return;
     }
     
     try {
-        // Check if active configuration already exists for this tax type
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM rpt_tax_config 
-            WHERE tax_name = ? 
-            AND status = 'active'
-        ");
-        $checkStmt->execute([$input['tax_name']]);
-        
-        if ($checkStmt->rowCount() > 0) {
-            http_response_code(400);
-            echo json_encode(["error" => "An active configuration already exists for " . $input['tax_name']]);
-            return;
-        }
-        
-        // Calculate status based on expiration date
-        $status = 'active';
-        if (!empty($input['expiration_date']) && $input['expiration_date'] < date('Y-m-d')) {
-            $status = 'expired';
-        }
-        
         $stmt = $pdo->prepare("
-            INSERT INTO rpt_tax_config (
-                tax_name, tax_percent, effective_date, expiration_date, status
-            ) VALUES (?, ?, ?, ?, ?)
+            INSERT INTO tax_configurations (
+                tax_name, tax_percent, effective_date, expiration_date, 
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $input['tax_name'],
             $input['tax_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
-            $status
+            $input['status'] ?? 'active'
         ]);
         
-        echo json_encode([
-            "message" => "Tax configuration created successfully", 
-            "id" => $pdo->lastInsertId()
-        ]);
-        
+        if ($result) {
+            $newId = $pdo->lastInsertId();
+            echo json_encode([
+                "message" => "Tax configuration created successfully", 
+                "id" => $newId
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Failed to create tax configuration"]);
+        }
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(["error" => "Failed to create tax configuration: " . $e->getMessage()]);
@@ -154,77 +143,48 @@ function updateConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
-    // Validate tax name if provided
-    if (isset($input['tax_name']) && !in_array($input['tax_name'], ['Basic Tax', 'SEF Tax'])) {
+    // Validate required fields
+    $requiredFields = ['tax_name', 'tax_percent', 'effective_date'];
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing required field: " . $field]);
+            return;
+        }
+    }
+    
+    // Validate tax_name
+    if (!in_array($input['tax_name'], ['Basic Tax', 'SEF Tax'])) {
         http_response_code(400);
         echo json_encode(["error" => "Tax name must be either 'Basic Tax' or 'SEF Tax'"]);
         return;
     }
     
     try {
-        // Check if updating tax name would create duplicate active configuration
-        if (isset($input['tax_name'])) {
-            $checkStmt = $pdo->prepare("
-                SELECT id FROM rpt_tax_config 
-                WHERE tax_name = ? 
-                AND status = 'active'
-                AND id != ?
-            ");
-            $checkStmt->execute([$input['tax_name'], $id]);
-            
-            if ($checkStmt->rowCount() > 0) {
-                http_response_code(400);
-                echo json_encode(["error" => "An active configuration already exists for " . $input['tax_name']]);
-                return;
-            }
-        }
+        $stmt = $pdo->prepare("
+            UPDATE tax_configurations SET 
+                tax_name = ?, tax_percent = ?, effective_date = ?, 
+                expiration_date = ?, status = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
         
-        // Build dynamic update query
-        $fields = [];
-        $values = [];
-        
-        if (isset($input['tax_name'])) {
-            $fields[] = "tax_name = ?";
-            $values[] = $input['tax_name'];
-        }
-        if (isset($input['tax_percent'])) {
-            $fields[] = "tax_percent = ?";
-            $values[] = $input['tax_percent'];
-        }
-        if (isset($input['effective_date'])) {
-            $fields[] = "effective_date = ?";
-            $values[] = $input['effective_date'];
-        }
-        if (isset($input['expiration_date'])) {
-            $fields[] = "expiration_date = ?";
-            $values[] = !empty($input['expiration_date']) ? $input['expiration_date'] : null;
-        }
-        if (isset($input['status'])) {
-            $fields[] = "status = ?";
-            $values[] = $input['status'];
-        }
-        
-        if (empty($fields)) {
-            http_response_code(400);
-            echo json_encode(["error" => "No fields to update"]);
-            return;
-        }
-        
-        $fields[] = "updated_at = NOW()";
-        $values[] = $id;
-        
-        $sql = "UPDATE rpt_tax_config SET " . implode(', ', $fields) . " WHERE id = ?";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($values);
+        $result = $stmt->execute([
+            $input['tax_name'],
+            $input['tax_percent'],
+            $input['effective_date'],
+            !empty($input['expiration_date']) ? $input['expiration_date'] : null,
+            $input['status'] ?? 'active',
+            $id
+        ]);
         
         if ($stmt->rowCount() > 0) {
             echo json_encode(["message" => "Tax configuration updated successfully"]);
@@ -232,7 +192,6 @@ function updateConfiguration() {
             http_response_code(404);
             echo json_encode(["error" => "Tax configuration not found"]);
         }
-        
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(["error" => "Failed to update tax configuration: " . $e->getMessage()]);
@@ -249,7 +208,8 @@ function patchConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
@@ -257,40 +217,37 @@ function patchConfiguration() {
         return;
     }
     
-    try {
-        // Handle status expiration
-        if (isset($input['status']) && $input['status'] === 'expired') {
-            $stmt = $pdo->prepare("
-                UPDATE rpt_tax_config 
-                SET status = 'expired', expiration_date = CURDATE(), updated_at = NOW() 
-                WHERE id = ?
-            ");
-            $stmt->execute([$id]);
-        } else {
-            // Handle other patch operations
-            $fields = [];
-            $values = [];
-            
-            $allowedFields = ['expiration_date', 'tax_percent', 'status'];
-            foreach ($allowedFields as $field) {
-                if (isset($input[$field])) {
-                    $fields[] = "$field = ?";
-                    $values[] = $input[$field];
-                }
-            }
-            
-            if (empty($fields)) {
+    $fields = [];
+    $values = [];
+    $allowedFields = ['status', 'expiration_date', 'tax_percent', 'tax_name', 'effective_date'];
+    
+    foreach ($allowedFields as $field) {
+        if (isset($input[$field])) {
+            // Validate tax_name if being updated
+            if ($field === 'tax_name' && !in_array($input[$field], ['Basic Tax', 'SEF Tax'])) {
                 http_response_code(400);
-                echo json_encode(["error" => "No valid fields to update"]);
+                echo json_encode(["error" => "Tax name must be either 'Basic Tax' or 'SEF Tax'"]);
                 return;
             }
-            
-            $values[] = $id;
-            $sql = "UPDATE rpt_tax_config SET " . implode(', ', $fields) . ", updated_at = NOW() WHERE id = ?";
-            
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($values);
+            $fields[] = "$field = ?";
+            $values[] = $input[$field];
         }
+    }
+    
+    $fields[] = "updated_at = NOW()";
+    
+    if (empty($fields)) {
+        http_response_code(400);
+        echo json_encode(["error" => "No valid fields to update"]);
+        return;
+    }
+    
+    $values[] = $id;
+    $sql = "UPDATE tax_configurations SET " . implode(', ', $fields) . " WHERE id = ?";
+    
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($values);
         
         if ($stmt->rowCount() > 0) {
             echo json_encode(["message" => "Tax configuration updated successfully"]);
@@ -315,7 +272,7 @@ function deleteConfiguration() {
     }
     
     try {
-        $stmt = $pdo->prepare("DELETE FROM rpt_tax_config WHERE id = ?");
+        $stmt = $pdo->prepare("DELETE FROM tax_configurations WHERE id = ?");
         $stmt->execute([$id]);
         
         if ($stmt->rowCount() > 0) {

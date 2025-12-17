@@ -19,36 +19,39 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
-        getDiscountConfigurations();
+        getConfigurations();
         break;
     case 'POST':
-        createDiscountConfiguration();
+        createConfiguration();
         break;
     case 'PUT':
-        updateDiscountConfiguration();
+        updateConfiguration();
         break;
     case 'PATCH':
-        patchDiscountConfiguration();
+        patchConfiguration();
         break;
     case 'DELETE':
-        deleteDiscountConfiguration();
+        deleteConfiguration();
         break;
     default:
         http_response_code(405);
         echo json_encode(["error" => "Method not allowed"]);
 }
 
-function getDiscountConfigurations() {
+function getConfigurations() {
     global $pdo;
     
+    // Get current date or use provided date
     $currentDate = isset($_GET['current_date']) ? $_GET['current_date'] : date('Y-m-d');
     
     try {
+        // Show configurations that are effective on or before the current date
         $stmt = $pdo->prepare("
             SELECT * FROM discount_configurations 
-            WHERE effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ? OR status = 'expired')
-            ORDER BY status ASC, effective_date DESC
+            WHERE status = 'active'
+            AND effective_date <= ?
+            AND (expiration_date IS NULL OR expiration_date >= ?)
+            ORDER BY effective_date DESC
         ");
         $stmt->execute([$currentDate, $currentDate]);
         $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -60,67 +63,69 @@ function getDiscountConfigurations() {
     }
 }
 
-function createDiscountConfiguration() {
+function createConfiguration() {
     global $pdo;
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Get JSON input
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
     // Validate required fields
-    if (!isset($input['discount_percent']) || !isset($input['effective_date'])) {
+    $requiredFields = ['discount_percent', 'effective_date'];
+    
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing required field: " . $field]);
+            return;
+        }
+    }
+    
+    // Validate numeric value
+    if (!is_numeric($input['discount_percent'])) {
         http_response_code(400);
-        echo json_encode(["error" => "Missing required fields: discount_percent and effective_date are required"]);
+        echo json_encode(["error" => "Invalid numeric value for discount_percent"]);
         return;
     }
     
-    // Check for overlapping active configurations
     try {
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM discount_configurations 
-            WHERE status = 'active'
-            AND effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ?)
-        ");
-        $checkStmt->execute([
-            $input['effective_date'],
-            $input['effective_date']
-        ]);
-        
-        if ($checkStmt->rowCount() > 0) {
-            http_response_code(400);
-            echo json_encode(["error" => "Active discount configuration already exists for the selected date"]);
-            return;
-        }
-        
         $stmt = $pdo->prepare("
             INSERT INTO discount_configurations (
-                discount_percent, effective_date, expiration_date, status
-            ) VALUES (?, ?, ?, ?)
+                discount_percent, effective_date, expiration_date, 
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, NOW(), NOW())
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $input['discount_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
             $input['status'] ?? 'active'
         ]);
         
-        echo json_encode([
-            "message" => "Discount configuration created successfully", 
-            "id" => $pdo->lastInsertId()
-        ]);
+        if ($result) {
+            $newId = $pdo->lastInsertId();
+            echo json_encode([
+                "message" => "Discount configuration created successfully", 
+                "id" => $newId
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Failed to create discount configuration"]);
+        }
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(["error" => "Failed to create discount configuration: " . $e->getMessage()]);
     }
 }
 
-function updateDiscountConfiguration() {
+function updateConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;
@@ -130,42 +135,34 @@ function updateDiscountConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
-    // Check for overlapping active configurations (excluding current record)
-    try {
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM discount_configurations 
-            WHERE status = 'active'
-            AND effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ?)
-            AND id != ?
-        ");
-        $checkStmt->execute([
-            $input['effective_date'],
-            $input['effective_date'],
-            $id
-        ]);
-        
-        if ($checkStmt->rowCount() > 0) {
+    // Validate required fields
+    $requiredFields = ['discount_percent', 'effective_date'];
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
             http_response_code(400);
-            echo json_encode(["error" => "Active discount configuration already exists for the selected date"]);
+            echo json_encode(["error" => "Missing required field: " . $field]);
             return;
         }
-        
+    }
+    
+    try {
         $stmt = $pdo->prepare("
             UPDATE discount_configurations SET 
-                discount_percent = ?, effective_date = ?, expiration_date = ?, status = ?
+                discount_percent = ?, effective_date = ?, 
+                expiration_date = ?, status = ?, updated_at = NOW()
             WHERE id = ?
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $input['discount_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
@@ -185,7 +182,7 @@ function updateDiscountConfiguration() {
     }
 }
 
-function patchDiscountConfiguration() {
+function patchConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;
@@ -195,7 +192,8 @@ function patchDiscountConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
@@ -203,17 +201,18 @@ function patchDiscountConfiguration() {
         return;
     }
     
-    // Build dynamic update query
     $fields = [];
     $values = [];
+    $allowedFields = ['status', 'expiration_date', 'discount_percent', 'effective_date'];
     
-    $allowedFields = ['status', 'expiration_date', 'discount_percent'];
     foreach ($allowedFields as $field) {
         if (isset($input[$field])) {
             $fields[] = "$field = ?";
             $values[] = $input[$field];
         }
     }
+    
+    $fields[] = "updated_at = NOW()";
     
     if (empty($fields)) {
         http_response_code(400);
@@ -240,7 +239,7 @@ function patchDiscountConfiguration() {
     }
 }
 
-function deleteDiscountConfiguration() {
+function deleteConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;

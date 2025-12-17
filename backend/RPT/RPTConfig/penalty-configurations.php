@@ -19,36 +19,39 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
-        getPenaltyConfigurations();
+        getConfigurations();
         break;
     case 'POST':
-        createPenaltyConfiguration();
+        createConfiguration();
         break;
     case 'PUT':
-        updatePenaltyConfiguration();
+        updateConfiguration();
         break;
     case 'PATCH':
-        patchPenaltyConfiguration();
+        patchConfiguration();
         break;
     case 'DELETE':
-        deletePenaltyConfiguration();
+        deleteConfiguration();
         break;
     default:
         http_response_code(405);
         echo json_encode(["error" => "Method not allowed"]);
 }
 
-function getPenaltyConfigurations() {
+function getConfigurations() {
     global $pdo;
     
+    // Get current date or use provided date
     $currentDate = isset($_GET['current_date']) ? $_GET['current_date'] : date('Y-m-d');
     
     try {
+        // Show configurations that are effective on or before the current date
         $stmt = $pdo->prepare("
             SELECT * FROM penalty_configurations 
-            WHERE effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ? OR status = 'expired')
-            ORDER BY status ASC, effective_date DESC
+            WHERE status = 'active'
+            AND effective_date <= ?
+            AND (expiration_date IS NULL OR expiration_date >= ?)
+            ORDER BY effective_date DESC
         ");
         $stmt->execute([$currentDate, $currentDate]);
         $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -60,67 +63,69 @@ function getPenaltyConfigurations() {
     }
 }
 
-function createPenaltyConfiguration() {
+function createConfiguration() {
     global $pdo;
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Get JSON input
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
     // Validate required fields
-    if (!isset($input['penalty_percent']) || !isset($input['effective_date'])) {
+    $requiredFields = ['penalty_percent', 'effective_date'];
+    
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
+            http_response_code(400);
+            echo json_encode(["error" => "Missing required field: " . $field]);
+            return;
+        }
+    }
+    
+    // Validate numeric value
+    if (!is_numeric($input['penalty_percent'])) {
         http_response_code(400);
-        echo json_encode(["error" => "Missing required fields: penalty_percent and effective_date are required"]);
+        echo json_encode(["error" => "Invalid numeric value for penalty_percent"]);
         return;
     }
     
-    // Check for overlapping active configurations
     try {
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM penalty_configurations 
-            WHERE status = 'active'
-            AND effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ?)
-        ");
-        $checkStmt->execute([
-            $input['effective_date'],
-            $input['effective_date']
-        ]);
-        
-        if ($checkStmt->rowCount() > 0) {
-            http_response_code(400);
-            echo json_encode(["error" => "Active penalty configuration already exists for the selected date"]);
-            return;
-        }
-        
         $stmt = $pdo->prepare("
             INSERT INTO penalty_configurations (
-                penalty_percent, effective_date, expiration_date, status
-            ) VALUES (?, ?, ?, ?)
+                penalty_percent, effective_date, expiration_date, 
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, NOW(), NOW())
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $input['penalty_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
             $input['status'] ?? 'active'
         ]);
         
-        echo json_encode([
-            "message" => "Penalty configuration created successfully", 
-            "id" => $pdo->lastInsertId()
-        ]);
+        if ($result) {
+            $newId = $pdo->lastInsertId();
+            echo json_encode([
+                "message" => "Penalty configuration created successfully", 
+                "id" => $newId
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["error" => "Failed to create penalty configuration"]);
+        }
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(["error" => "Failed to create penalty configuration: " . $e->getMessage()]);
     }
 }
 
-function updatePenaltyConfiguration() {
+function updateConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;
@@ -130,42 +135,34 @@ function updatePenaltyConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
-    // Check for overlapping active configurations (excluding current record)
-    try {
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM penalty_configurations 
-            WHERE status = 'active'
-            AND effective_date <= ? 
-            AND (expiration_date IS NULL OR expiration_date >= ?)
-            AND id != ?
-        ");
-        $checkStmt->execute([
-            $input['effective_date'],
-            $input['effective_date'],
-            $id
-        ]);
-        
-        if ($checkStmt->rowCount() > 0) {
+    // Validate required fields
+    $requiredFields = ['penalty_percent', 'effective_date'];
+    foreach ($requiredFields as $field) {
+        if (!isset($input[$field]) || $input[$field] === '') {
             http_response_code(400);
-            echo json_encode(["error" => "Active penalty configuration already exists for the selected date"]);
+            echo json_encode(["error" => "Missing required field: " . $field]);
             return;
         }
-        
+    }
+    
+    try {
         $stmt = $pdo->prepare("
             UPDATE penalty_configurations SET 
-                penalty_percent = ?, effective_date = ?, expiration_date = ?, status = ?
+                penalty_percent = ?, effective_date = ?, 
+                expiration_date = ?, status = ?, updated_at = NOW()
             WHERE id = ?
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $input['penalty_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
@@ -185,7 +182,7 @@ function updatePenaltyConfiguration() {
     }
 }
 
-function patchPenaltyConfiguration() {
+function patchConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;
@@ -195,7 +192,8 @@ function patchPenaltyConfiguration() {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $json = file_get_contents('php://input');
+    $input = json_decode($json, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
@@ -203,17 +201,18 @@ function patchPenaltyConfiguration() {
         return;
     }
     
-    // Build dynamic update query
     $fields = [];
     $values = [];
+    $allowedFields = ['status', 'expiration_date', 'penalty_percent', 'effective_date'];
     
-    $allowedFields = ['status', 'expiration_date', 'penalty_percent'];
     foreach ($allowedFields as $field) {
         if (isset($input[$field])) {
             $fields[] = "$field = ?";
             $values[] = $input[$field];
         }
     }
+    
+    $fields[] = "updated_at = NOW()";
     
     if (empty($fields)) {
         http_response_code(400);
@@ -240,7 +239,7 @@ function patchPenaltyConfiguration() {
     }
 }
 
-function deletePenaltyConfiguration() {
+function deleteConfiguration() {
     global $pdo;
     
     $id = $_GET['id'] ?? null;
