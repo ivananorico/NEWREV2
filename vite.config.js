@@ -2,11 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// https://vite.dev/config/
+// Use relative path for both localhost and domain
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base:'dist',
-  build:{
-    outDir:'dist'
+  base: './',   // <-- important
+  build: {
+    outDir: 'dist'
   }
 })

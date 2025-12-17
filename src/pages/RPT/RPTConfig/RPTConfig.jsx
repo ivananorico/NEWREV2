@@ -75,8 +75,11 @@ export default function RPTConfig() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
 
-  const API_BASE = "http://localhost/revenue/backend/RPT/RPTConfig";
-
+  // Detect environment
+const isProduction = window.location.hostname.includes('goserveph.com');
+const API_BASE = isProduction 
+  ? "/backend/RPT/RPTConfig"
+  : "http://localhost/revenue/backend/RPT/RPTConfig";
   // Fetch all data
   const fetchLandConfigurations = async () => {
     try {

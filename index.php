@@ -505,29 +505,27 @@
                     console.log('✅ Login successful');
                     
                     // Check if user is admin
-                    if (data.user_role === 'admin') {
-                        console.log('👑 Admin user detected, redirecting to admin panel');
-                        showNotification('Admin login successful! Redirecting...', 'success');
-                        
-                        // Redirect admin directly to admin page
-                        setTimeout(() => {
-                            window.location.href = 'dist';
-                        }, 1000);
-                    } else {
-                        // Regular user - proceed with OTP
-                        console.log('👤 Regular user, opening OTP modal');
-                        currentUserId = data.user_id;
-                        
-                        // Show debug OTP if available
-                        if (data.debug_otp) {
-                            console.log('🔑 DEBUG OTP:', data.debug_otp);
-                            showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
-                        } else {
-                            showNotification('Login successful! OTP sent to your email.', 'success');
-                        }
-                        
-                        openOtpModal();
-                    }
+                   if (data.user_role === 'admin') {
+    console.log('👑 Admin user detected, redirecting to admin panel');
+    showNotification('Admin login successful! Redirecting...', 'success');
+
+    // Use relative path to automatically find index.html
+    setTimeout(() => {
+    window.location.href = 'dist/index.html';
+}, 1000);
+} else {
+    // Regular user - proceed with OTP
+    console.log('👤 Regular user, opening OTP modal');
+    currentUserId = data.user_id;
+    if (data.debug_otp) {
+        console.log('🔑 DEBUG OTP:', data.debug_otp);
+        showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
+    } else {
+        showNotification('Login successful! OTP sent to your email.', 'success');
+    }
+    openOtpModal();
+}
+
                 } else {
                     console.log('❌ Login failed:', data.message);
                     showNotification(data.message || 'Invalid email or password', 'error');
