@@ -14,18 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Include database connection
-$db_path = __DIR__ . "/../../../db/RPT/rpt_db.php";
-if (!file_exists($db_path)) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Database configuration not found"
-    ]);
-    exit;
-}
-
-include_once $db_path;
+include_once __DIR__ . '/../../../db/RPT/rpt_db.php';
 
 if (!isset($pdo)) {
+    http_response_code(500);
     echo json_encode([
         "status" => "error",
         "message" => "Database connection failed"
@@ -64,8 +56,8 @@ try {
             ) as building_count
         FROM property_registrations pr
         LEFT JOIN property_owners po ON pr.owner_id = po.id
-        LEFT JOIN land_properties lp ON pr.id = lp.registration_id AND lp.status = 'active'
-        LEFT JOIN property_totals pt ON pr.id = pt.registration_id AND pt.status = 'active'
+        LEFT JOIN land_properties lp ON pr.id = lp.registration_id
+        LEFT JOIN property_totals pt ON pr.id = pt.registration_id
         LEFT JOIN land_configurations lc ON lp.land_config_id = lc.id
         WHERE pr.status = 'approved'
         GROUP BY pr.id
@@ -84,6 +76,7 @@ try {
     ]);
     
 } catch (PDOException $exception) {
+    http_response_code(500);
     echo json_encode([
         "status" => "error",
         "message" => "Database error: " . $exception->getMessage()

@@ -7,13 +7,11 @@ export default function RPTStatus() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // 🔥 SIMPLE FIX: Works both local & domain
-  const isLocalhost = window.location.hostname === "localhost" || 
-                      window.location.hostname === "127.0.0.1";
-  
-  const API_BASE = isLocalhost
-    ? "http://localhost/revenue/backend/RPT/RPTStatus"
-    : "/revenue/backend/RPT/RPTStatus"; // Changed from /backend to /revenue/backend
+  // 🔥 SAME PATTERN AS RPTValidationTable
+  const API_BASE =
+    window.location.hostname === "localhost"
+      ? "http://localhost/revenue/backend"
+      : "https://revenuetreasury.goserveph.com/backend";
 
   useEffect(() => {
     fetchApprovedProperties();
@@ -24,7 +22,9 @@ export default function RPTStatus() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE}/get_approved_properties.php`);
+      const response = await fetch(
+        `${API_BASE}/RPT/RPTStatus/get_approved_properties.php`
+      );
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
