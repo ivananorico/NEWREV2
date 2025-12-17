@@ -1,232 +1,273 @@
 <?php
-// Enable CORS with proper headers
-header("Access-Control-Allow-Origin: http://localhost:5173");
+// ================================================
+// BUILDING ASSESSMENT LEVELS API
+// ================================================
+
+// Enable CORS and JSON response
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Credentials: true");
-header("Content-Type: application/json");
+header("Content-Type: application/json; charset=UTF-8");
 
 // Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Include database connection
-require_once '../../../db/RPT/rpt_db.php';
+// Try to include DB connection with proper error handling
+$dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
 
+if (!file_exists($dbPath)) {
+    http_response_code(500);
+    echo json_encode(["error" => "Database config file not found at: " . $dbPath]);
+    exit();
+}
+
+require_once $dbPath;
+
+// Get PDO connection
+$pdo = getDatabaseConnection();
+if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
+    http_response_code(500);
+    $errorMsg = is_array($pdo) ? $pdo['message'] : "Failed to connect to database";
+    echo json_encode(["error" => "Database connection failed: " . $errorMsg]);
+    exit();
+}
+
+// Determine HTTP method
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Get ID parameter if exists
+$id = isset($_GET['id']) ? $_GET['id'] : null;
+
+// Route based on method
 switch ($method) {
     case 'GET':
-        getBuildingAssessmentLevels();
+        if ($id) {
+            getConfiguration($pdo, $id);
+        } else {
+            getConfigurations($pdo);
+        }
         break;
     case 'POST':
-        createBuildingAssessmentLevel();
+        createConfiguration($pdo);
         break;
     case 'PUT':
-        updateBuildingAssessmentLevel();
+        updateConfiguration($pdo, $id);
         break;
     case 'PATCH':
-        patchBuildingAssessmentLevel();
+        patchConfiguration($pdo, $id);
         break;
     case 'DELETE':
-        deleteBuildingAssessmentLevel();
+        deleteConfiguration($pdo, $id);
         break;
     default:
         http_response_code(405);
         echo json_encode(["error" => "Method not allowed"]);
+        break;
 }
 
-function getBuildingAssessmentLevels() {
-    global $pdo;
-    
-    // Get current date or use provided date
-    $currentDate = isset($_GET['current_date']) ? $_GET['current_date'] : date('Y-m-d');
-    
-    error_log("Fetching building assessment levels for date: " . $currentDate);
-    
+// ==========================
+// FUNCTIONS
+// ==========================
+
+function getConfigurations($pdo) {
     try {
-        // Show all active configurations
+        // Check if table exists
+        $checkTable = $pdo->query("SHOW TABLES LIKE 'building_assessment_levels'");
+        if ($checkTable->rowCount() === 0) {
+            // Table doesn't exist, return empty array
+            echo json_encode([]);
+            return;
+        }
+        
         $stmt = $pdo->prepare("
-            SELECT * FROM building_assessment_levels 
-            WHERE status = 'active'
-            ORDER BY classification, min_assessed_value ASC
+            SELECT * FROM building_assessment_levels
+            ORDER BY 
+                CASE WHEN status = 'active' THEN 1 ELSE 2 END,
+                classification,
+                min_assessed_value ASC
         ");
         $stmt->execute();
-        $levels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $configs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Always return array, even if empty
+        if ($configs === false) {
+            $configs = [];
+        }
         
-        error_log("Found " . count($levels) . " building assessment levels");
+        echo json_encode($configs);
         
-        echo json_encode($levels);
     } catch (PDOException $e) {
-        error_log("Database error: " . $e->getMessage());
         http_response_code(500);
         echo json_encode(["error" => "Database error: " . $e->getMessage()]);
     }
 }
 
-function createBuildingAssessmentLevel() {
-    global $pdo;
-    
-    // Get JSON input
-    $json = file_get_contents('php://input');
-    $input = json_decode($json, true);
-    
-    error_log("Received data for building assessment: " . print_r($input, true));
-    
+function getConfiguration($pdo, $id) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM building_assessment_levels WHERE id = ?");
+        $stmt->execute([$id]);
+        $config = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($config) {
+            echo json_encode($config);
+        } else {
+            http_response_code(404);
+            echo json_encode(["error" => "Configuration not found"]);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+    }
+}
+
+function createConfiguration($pdo) {
+    // Get input data
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
     if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("JSON error: " . json_last_error_msg());
         http_response_code(400);
         echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
-    
+
     // Validate required fields
     $requiredFields = ['classification', 'min_assessed_value', 'max_assessed_value', 'level_percent', 'effective_date'];
     foreach ($requiredFields as $field) {
-        if (!isset($input[$field]) || $input[$field] === '') {
-            error_log("Missing field: " . $field);
+        if (!isset($data[$field]) || empty(trim($data[$field]))) {
             http_response_code(400);
             echo json_encode(["error" => "Missing required field: " . $field]);
             return;
         }
     }
-    
-    try {
-        // Check for overlapping ranges
-        $checkStmt = $pdo->prepare("
-            SELECT COUNT(*) as count FROM building_assessment_levels 
-            WHERE classification = ? 
-            AND status = 'active'
-            AND (
-                (min_assessed_value <= ? AND max_assessed_value >= ?) OR
-                (min_assessed_value >= ? AND min_assessed_value <= ?) OR
-                (max_assessed_value >= ? AND max_assessed_value <= ?)
-            )
-        ");
-        $checkStmt->execute([
-            $input['classification'],
-            $input['max_assessed_value'],
-            $input['min_assessed_value'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value']
-        ]);
-        $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($result['count'] > 0) {
+
+    // Validate numeric values
+    $numericFields = ['min_assessed_value', 'max_assessed_value', 'level_percent'];
+    foreach ($numericFields as $field) {
+        if (!is_numeric($data[$field])) {
             http_response_code(400);
-            echo json_encode(["error" => "Overlapping value range for this classification already exists"]);
+            echo json_encode(["error" => "Invalid numeric value for field: " . $field]);
             return;
         }
-        
+    }
+
+    try {
+        // Check if table exists, create it if not
+        $checkTable = $pdo->query("SHOW TABLES LIKE 'building_assessment_levels'");
+        if ($checkTable->rowCount() === 0) {
+            // Create table if it doesn't exist
+            $createTable = $pdo->exec("
+                CREATE TABLE building_assessment_levels (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    classification VARCHAR(100) NOT NULL,
+                    min_assessed_value DECIMAL(15,2) NOT NULL,
+                    max_assessed_value DECIMAL(15,2) NOT NULL,
+                    level_percent DECIMAL(5,2) NOT NULL,
+                    effective_date DATE NOT NULL,
+                    expiration_date DATE NULL,
+                    status ENUM('active', 'expired') DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            ");
+        }
+
+        // Insert new configuration
         $stmt = $pdo->prepare("
             INSERT INTO building_assessment_levels (
-                classification, min_assessed_value, max_assessed_value, level_percent, 
-                effective_date, expiration_date, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                classification, min_assessed_value, max_assessed_value, level_percent,
+                effective_date, expiration_date, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
-        
-        $result = $stmt->execute([
-            $input['classification'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value'],
-            $input['level_percent'],
-            $input['effective_date'],
-            !empty($input['expiration_date']) ? $input['expiration_date'] : null,
-            $input['status'] ?? 'active'
+
+        $expiration_date = !empty($data['expiration_date']) ? $data['expiration_date'] : null;
+        $status = $data['status'] ?? 'active';
+
+        $success = $stmt->execute([
+            trim($data['classification']),
+            floatval($data['min_assessed_value']),
+            floatval($data['max_assessed_value']),
+            floatval($data['level_percent']),
+            $data['effective_date'],
+            $expiration_date,
+            $status
         ]);
-        
-        if ($result) {
+
+        if ($success) {
             $newId = $pdo->lastInsertId();
-            error_log("Successfully created building assessment level with ID: " . $newId);
             echo json_encode([
-                "message" => "Building assessment level created successfully", 
+                "success" => true,
+                "message" => "Building assessment level created successfully",
                 "id" => $newId
             ]);
         } else {
-            error_log("Insert failed");
             http_response_code(500);
             echo json_encode(["error" => "Failed to create building assessment level"]);
         }
     } catch (PDOException $e) {
-        error_log("Database error on create: " . $e->getMessage());
         http_response_code(500);
         echo json_encode(["error" => "Failed to create building assessment level: " . $e->getMessage()]);
     }
 }
 
-function updateBuildingAssessmentLevel() {
-    global $pdo;
-    
-    $id = $_GET['id'] ?? null;
-    if (!$id) {
+function updateConfiguration($pdo, $id) {
+    if (!$id || !is_numeric($id)) {
         http_response_code(400);
-        echo json_encode(["error" => "Missing ID parameter"]);
+        echo json_encode(["error" => "Missing or invalid ID parameter"]);
         return;
     }
-    
-    $input = json_decode(file_get_contents('php://input'), true);
+
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data"]);
+        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
-    
+
     try {
-        // Check for overlapping ranges (excluding current record)
-        $checkStmt = $pdo->prepare("
-            SELECT COUNT(*) as count FROM building_assessment_levels 
-            WHERE classification = ? 
-            AND id != ?
-            AND status = 'active'
-            AND (
-                (min_assessed_value <= ? AND max_assessed_value >= ?) OR
-                (min_assessed_value >= ? AND min_assessed_value <= ?) OR
-                (max_assessed_value >= ? AND max_assessed_value <= ?)
-            )
-        ");
-        $checkStmt->execute([
-            $input['classification'],
-            $id,
-            $input['max_assessed_value'],
-            $input['min_assessed_value'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value']
-        ]);
-        $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        $fields = [];
+        $values = [];
+        $allowedFields = ['classification', 'min_assessed_value', 'max_assessed_value', 
+                         'level_percent', 'effective_date', 'expiration_date', 'status'];
         
-        if ($result['count'] > 0) {
+        foreach ($allowedFields as $field) {
+            if (isset($data[$field])) {
+                $fields[] = "$field = ?";
+                if (in_array($field, ['min_assessed_value', 'max_assessed_value', 'level_percent'])) {
+                    $values[] = floatval($data[$field]);
+                } else if ($field === 'expiration_date' && empty($data[$field])) {
+                    $values[] = null;
+                } else {
+                    $values[] = $data[$field];
+                }
+            }
+        }
+        
+        $fields[] = "updated_at = NOW()";
+        
+        if (empty($fields)) {
             http_response_code(400);
-            echo json_encode(["error" => "Overlapping value range for this classification already exists"]);
+            echo json_encode(["error" => "No fields to update"]);
             return;
         }
         
-        $stmt = $pdo->prepare("
-            UPDATE building_assessment_levels SET 
-                classification = ?, min_assessed_value = ?, max_assessed_value = ?, 
-                level_percent = ?, effective_date = ?, expiration_date = ?, status = ?
-            WHERE id = ?
-        ");
+        $values[] = $id;
+        $sql = "UPDATE building_assessment_levels SET " . implode(', ', $fields) . " WHERE id = ?";
         
-        $stmt->execute([
-            $input['classification'],
-            $input['min_assessed_value'],
-            $input['max_assessed_value'],
-            $input['level_percent'],
-            $input['effective_date'],
-            !empty($input['expiration_date']) ? $input['expiration_date'] : null,
-            $input['status'] ?? 'active',
-            $id
-        ]);
-        
-        if ($stmt->rowCount() > 0) {
-            echo json_encode(["message" => "Building assessment level updated successfully"]);
+        $stmt = $pdo->prepare($sql);
+        $success = $stmt->execute($values);
+
+        if ($success && $stmt->rowCount() > 0) {
+            echo json_encode([
+                "success" => true,
+                "message" => "Building assessment level updated successfully"
+            ]);
         } else {
             http_response_code(404);
             echo json_encode(["error" => "Building assessment level not found"]);
@@ -237,51 +278,61 @@ function updateBuildingAssessmentLevel() {
     }
 }
 
-function patchBuildingAssessmentLevel() {
-    global $pdo;
-    
-    $id = $_GET['id'] ?? null;
+function patchConfiguration($pdo, $id) {
     if (!$id) {
         http_response_code(400);
         echo json_encode(["error" => "Missing ID parameter"]);
         return;
     }
-    
-    $input = json_decode(file_get_contents('php://input'), true);
+
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
         echo json_encode(["error" => "Invalid JSON data"]);
         return;
     }
-    
-    // Build dynamic update query
+
     $fields = [];
     $values = [];
-    
-    $allowedFields = ['status', 'expiration_date', 'level_percent', 'min_assessed_value', 'max_assessed_value'];
+    $allowedFields = ['status', 'expiration_date', 'min_assessed_value', 'max_assessed_value', 
+                     'level_percent', 'classification', 'effective_date'];
+
     foreach ($allowedFields as $field) {
-        if (isset($input[$field])) {
+        if (isset($data[$field])) {
             $fields[] = "$field = ?";
-            $values[] = $input[$field];
+            
+            if (in_array($field, ['min_assessed_value', 'max_assessed_value', 'level_percent'])) {
+                $values[] = floatval($data[$field]);
+            } else if ($field === 'expiration_date' && empty($data[$field])) {
+                $values[] = null;
+            } else {
+                $values[] = $data[$field];
+            }
         }
     }
-    
+
+    $fields[] = "updated_at = NOW()";
+
     if (empty($fields)) {
         http_response_code(400);
         echo json_encode(["error" => "No valid fields to update"]);
         return;
     }
-    
+
     $values[] = $id;
     $sql = "UPDATE building_assessment_levels SET " . implode(', ', $fields) . " WHERE id = ?";
-    
+
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($values);
-        
+
         if ($stmt->rowCount() > 0) {
-            echo json_encode(["message" => "Building assessment level updated successfully"]);
+            echo json_encode([
+                "success" => true,
+                "message" => "Building assessment level updated successfully"
+            ]);
         } else {
             http_response_code(404);
             echo json_encode(["error" => "Building assessment level not found"]);
@@ -292,36 +343,22 @@ function patchBuildingAssessmentLevel() {
     }
 }
 
-function deleteBuildingAssessmentLevel() {
-    global $pdo;
-    
-    $id = $_GET['id'] ?? null;
+function deleteConfiguration($pdo, $id) {
     if (!$id) {
         http_response_code(400);
         echo json_encode(["error" => "Missing ID parameter"]);
         return;
     }
-    
+
     try {
-        // First check if this assessment level is being used
-        $checkStmt = $pdo->prepare("
-            SELECT COUNT(*) as count FROM building_properties 
-            WHERE assessment_level = (SELECT level_percent FROM building_assessment_levels WHERE id = ?)
-        ");
-        $checkStmt->execute([$id]);
-        $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($result['count'] > 0) {
-            http_response_code(400);
-            echo json_encode(["error" => "Cannot delete: This assessment level is being used in building properties"]);
-            return;
-        }
-        
         $stmt = $pdo->prepare("DELETE FROM building_assessment_levels WHERE id = ?");
         $stmt->execute([$id]);
-        
+
         if ($stmt->rowCount() > 0) {
-            echo json_encode(["message" => "Building assessment level deleted successfully"]);
+            echo json_encode([
+                "success" => true,
+                "message" => "Building assessment level deleted successfully"
+            ]);
         } else {
             http_response_code(404);
             echo json_encode(["error" => "Building assessment level not found"]);
