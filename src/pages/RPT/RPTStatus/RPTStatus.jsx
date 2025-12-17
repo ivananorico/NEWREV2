@@ -7,7 +7,13 @@ export default function RPTStatus() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const API_BASE = "http://localhost/revenue/backend/RPT/RPTStatus";
+  // 🔥 SIMPLE FIX: Works both local & domain
+  const isLocalhost = window.location.hostname === "localhost" || 
+                      window.location.hostname === "127.0.0.1";
+  
+  const API_BASE = isLocalhost
+    ? "http://localhost/revenue/backend/RPT/RPTStatus"
+    : "/revenue/backend/RPT/RPTStatus"; // Changed from /backend to /revenue/backend
 
   useEffect(() => {
     fetchApprovedProperties();
