@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
-import Sidebar from './components/sidebar/Sidebar'
+import Sidebar from './components/sidebar/sidebar'
 import Header from './components/header/Header'
 import sidebarItems from './components/sidebar/sidebarItems'
 
