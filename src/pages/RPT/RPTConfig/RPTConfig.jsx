@@ -11,7 +11,6 @@ export default function RPTConfig() {
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null);
 
   // Land Configuration Form
   const [landFormData, setLandFormData] = useState({
@@ -84,50 +83,25 @@ export default function RPTConfig() {
   const discountConfigurationsSafe = Array.isArray(discountConfigurations) ? discountConfigurations : [];
   const penaltyConfigurationsSafe = Array.isArray(penaltyConfigurations) ? penaltyConfigurations : [];
 
-  // API Base URL - IMPORTANT: Update this to match your actual file structure
+  // API Base URL
   const isProduction = window.location.hostname.includes('goserveph.com');
   const API_BASE = isProduction 
     ? "/backend/RPT/RPTConfig"
     : "http://localhost/revenue/backend/RPT/RPTConfig";
-
-  // Debug function to check API connectivity
-  const testAPI = async () => {
-    try {
-      console.log('Testing API connection to:', `${API_BASE}/land-configurations.php`);
-      const response = await fetch(`${API_BASE}/land-configurations.php`);
-      console.log('API Test Response status:', response.status);
-      const data = await response.json();
-      console.log('API Test Response data:', data);
-      setDebugInfo({
-        apiUrl: `${API_BASE}/land-configurations.php`,
-        status: response.status,
-        data: data
-      });
-    } catch (error) {
-      console.error('API Test Error:', error);
-      setDebugInfo({
-        error: error.message,
-        apiUrl: `${API_BASE}/land-configurations.php`
-      });
-    }
-  };
 
   // Fetch all data
   const fetchLandConfigurations = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching land configs from:', `${API_BASE}/land-configurations.php`);
       
       const response = await fetch(`${API_BASE}/land-configurations.php`);
-      console.log('Fetch Response:', response);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Fetched land configs:', data);
       
       // Handle both array and object responses
       if (Array.isArray(data)) {
@@ -135,7 +109,6 @@ export default function RPTConfig() {
       } else if (data && data.error) {
         throw new Error(data.error);
       } else {
-        // If it's an object but not an array, wrap it in array
         setLandConfigurations([data]);
       }
     } catch (error) {
@@ -151,11 +124,9 @@ export default function RPTConfig() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching property configs from:', `${API_BASE}/property-configurations.php`);
       const response = await fetch(`${API_BASE}/property-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Fetched property configs:', data);
       setPropertyConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching property configurations:', error);
@@ -170,11 +141,9 @@ export default function RPTConfig() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching building assessment levels from:', `${API_BASE}/building-assessment-levels.php`);
       const response = await fetch(`${API_BASE}/building-assessment-levels.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Fetched building assessment levels:', data);
       setBuildingAssessmentLevels(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching building assessment levels:', error);
@@ -189,11 +158,9 @@ export default function RPTConfig() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching tax configs from:', `${API_BASE}/tax-configurations.php`);
       const response = await fetch(`${API_BASE}/tax-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Fetched tax configs:', data);
       setTaxConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching tax configurations:', error);
@@ -208,11 +175,9 @@ export default function RPTConfig() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching discount configs from:', `${API_BASE}/discount-configurations.php`);
       const response = await fetch(`${API_BASE}/discount-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Fetched discount configs:', data);
       setDiscountConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching discount configurations:', error);
@@ -227,11 +192,9 @@ export default function RPTConfig() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching penalty configs from:', `${API_BASE}/penalty-configurations.php`);
       const response = await fetch(`${API_BASE}/penalty-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Fetched penalty configs:', data);
       setPenaltyConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching penalty configurations:', error);
@@ -244,22 +207,13 @@ export default function RPTConfig() {
 
   // Fetch all data on component mount
   useEffect(() => {
-    console.log('Component mounted, fetching data...');
-    fetchAllData();
-    
-    // Test API connection
-    testAPI();
-  }, []);
-
-  // Function to fetch all data
-  const fetchAllData = () => {
     fetchLandConfigurations();
     fetchPropertyConfigurations();
     fetchBuildingAssessmentLevels();
     fetchTaxConfigurations();
     fetchDiscountConfigurations();
     fetchPenaltyConfigurations();
-  };
+  }, []);
 
   // Refresh data when tab changes
   useEffect(() => {
@@ -283,14 +237,11 @@ export default function RPTConfig() {
     }
   }, [activeTab]);
 
-  // Form Handlers with better error handling
+  // Form Handlers
   const handleLandSubmit = async (e) => {
     e.preventDefault();
     const url = editingId ? `${API_BASE}/land-configurations.php?id=${editingId}` : `${API_BASE}/land-configurations.php`;
     const method = editingId ? 'PUT' : 'POST';
-
-    console.log('Submitting land data:', landFormData);
-    console.log('Using URL:', url, 'Method:', method);
 
     try {
       const response = await fetch(url, {
@@ -302,10 +253,7 @@ export default function RPTConfig() {
         body: JSON.stringify(landFormData)
       });
       
-      console.log('Submit response status:', response.status);
-      
       const result = await response.json();
-      console.log('Submit response data:', result);
       
       if (response.ok || result.success) {
         fetchLandConfigurations();
@@ -326,14 +274,12 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
-      console.log('Submitting property data:', propertyFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(propertyFormData)
       });
       const result = await response.json();
-      console.log('Property submit response:', result);
       if (response.ok || result.success) {
         fetchPropertyConfigurations();
         resetPropertyForm();
@@ -353,14 +299,12 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
-      console.log('Submitting building assessment data:', buildingAssessmentFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildingAssessmentFormData)
       });
       const result = await response.json();
-      console.log('Building assessment submit response:', result);
       if (response.ok || result.success) {
         fetchBuildingAssessmentLevels();
         resetBuildingAssessmentForm();
@@ -386,14 +330,12 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
-      console.log('Submitting tax data:', taxFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taxFormData)
       });
       const result = await response.json();
-      console.log('Tax submit response:', result);
       if (response.ok || result.success) {
         fetchTaxConfigurations();
         resetTaxForm();
@@ -413,14 +355,12 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
-      console.log('Submitting discount data:', discountFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(discountFormData)
       });
       const result = await response.json();
-      console.log('Discount submit response:', result);
       if (response.ok || result.success) {
         fetchDiscountConfigurations();
         resetDiscountForm();
@@ -440,14 +380,12 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
-      console.log('Submitting penalty data:', penaltyFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(penaltyFormData)
       });
       const result = await response.json();
-      console.log('Penalty submit response:', result);
       if (response.ok || result.success) {
         fetchPenaltyConfigurations();
         resetPenaltyForm();
@@ -463,7 +401,6 @@ export default function RPTConfig() {
 
   // Edit Handlers
   const handleLandEdit = (config) => {
-    console.log('Editing land config:', config);
     setLandFormData({
       classification: config.classification || '',
       market_value: config.market_value || '',
@@ -478,7 +415,6 @@ export default function RPTConfig() {
   };
 
   const handlePropertyEdit = (config) => {
-    console.log('Editing property config:', config);
     setPropertyFormData({
       classification: config.classification || '',
       material_type: config.material_type || '',
@@ -495,7 +431,6 @@ export default function RPTConfig() {
   };
 
   const handleBuildingAssessmentEdit = (config) => {
-    console.log('Editing building assessment config:', config);
     setBuildingAssessmentFormData({
       classification: config.classification || '',
       min_assessed_value: config.min_assessed_value || '',
@@ -510,7 +445,6 @@ export default function RPTConfig() {
   };
 
   const handleTaxEdit = (config) => {
-    console.log('Editing tax config:', config);
     setTaxFormData({
       tax_name: config.tax_name || '',
       tax_percent: config.tax_percent || '',
@@ -523,7 +457,6 @@ export default function RPTConfig() {
   };
 
   const handleDiscountEdit = (config) => {
-    console.log('Editing discount config:', config);
     setDiscountFormData({
       discount_percent: config.discount_percent || '',
       effective_date: config.effective_date || new Date().toISOString().split('T')[0],
@@ -535,7 +468,6 @@ export default function RPTConfig() {
   };
 
   const handlePenaltyEdit = (config) => {
-    console.log('Editing penalty config:', config);
     setPenaltyFormData({
       penalty_percent: config.penalty_percent || '',
       effective_date: config.effective_date || new Date().toISOString().split('T')[0],
@@ -551,13 +483,11 @@ export default function RPTConfig() {
     const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
     if (window.confirm(`Are you sure you want to delete this ${typeName} configuration?`)) {
       try {
-        console.log('Deleting:', id, type);
         const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, { 
           method: 'DELETE' 
         });
         
         const result = await response.json();
-        console.log('Delete response:', result);
         
         if (response.ok || result.success) {
           // Refresh the current tab's data
@@ -596,7 +526,6 @@ export default function RPTConfig() {
     const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
     if (window.confirm(`Are you sure you want to expire this ${typeName}?`)) {
       try {
-        console.log('Expiring:', id, type);
         const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -606,7 +535,6 @@ export default function RPTConfig() {
           })
         });
         const result = await response.json();
-        console.log('Expire response:', result);
         if (response.ok || result.success) {
           switch(type) {
             case 'land-configurations':
@@ -630,11 +558,11 @@ export default function RPTConfig() {
           }
           alert(`${typeName} configuration expired successfully!`);
         } else {
-          alert('Error: ' + (result.error || 'Failed to expire'));
+          alert('Error: ' + result.error);
         }
       } catch (error) {
         console.error(`Error expiring ${type}:`, error);
-        alert('Error expiring configuration: ' + error.message);
+        alert('Error expiring configuration');
       }
     }
   };
@@ -741,32 +669,6 @@ export default function RPTConfig() {
             <div className="ml-2 text-red-700">{error}</div>
             <button onClick={() => setError(null)} className="ml-auto text-red-600 hover:text-red-800">×</button>
           </div>
-        </div>
-      )}
-
-      {/* Debug Info - Remove in production */}
-      {debugInfo && (
-        <div className="mb-4 p-4 bg-gray-100 border border-gray-300 rounded-lg text-xs">
-          <h3 className="font-bold mb-2">Debug Info:</h3>
-          <pre className="whitespace-pre-wrap">{JSON.stringify(debugInfo, null, 2)}</pre>
-          <button 
-            onClick={() => testAPI()} 
-            className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm"
-          >
-            Test API Connection
-          </button>
-          <button 
-            onClick={() => fetchAllData()} 
-            className="mt-2 ml-2 px-3 py-1 bg-green-500 text-white rounded text-sm"
-          >
-            Refresh All Data
-          </button>
-          <button 
-            onClick={() => setDebugInfo(null)} 
-            className="mt-2 ml-2 px-3 py-1 bg-gray-500 text-white rounded text-sm"
-          >
-            Hide
-          </button>
         </div>
       )}
 
