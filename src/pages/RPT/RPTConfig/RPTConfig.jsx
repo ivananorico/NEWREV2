@@ -11,6 +11,7 @@ export default function RPTConfig() {
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   // Land Configuration Form
   const [landFormData, setLandFormData] = useState({
@@ -18,12 +19,12 @@ export default function RPTConfig() {
     market_value: '',
     assessment_level: '',
     description: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
 
-  // Property Configuration Form (without assessment level)
+  // Property Configuration Form
   const [propertyFormData, setPropertyFormData] = useState({
     classification: '',
     material_type: '',
@@ -31,7 +32,7 @@ export default function RPTConfig() {
     depreciation_rate: '',
     min_value: '',
     max_value: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
@@ -42,7 +43,7 @@ export default function RPTConfig() {
     min_assessed_value: '',
     max_assessed_value: '',
     level_percent: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
@@ -51,7 +52,7 @@ export default function RPTConfig() {
   const [taxFormData, setTaxFormData] = useState({
     tax_name: '',
     tax_percent: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
@@ -59,7 +60,7 @@ export default function RPTConfig() {
   // Discount Configuration Form
   const [discountFormData, setDiscountFormData] = useState({
     discount_percent: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
@@ -67,7 +68,7 @@ export default function RPTConfig() {
   // Penalty Configuration Form
   const [penaltyFormData, setPenaltyFormData] = useState({
     penalty_percent: '',
-    effective_date: '',
+    effective_date: new Date().toISOString().split('T')[0],
     expiration_date: '',
     status: 'active'
   });
@@ -83,20 +84,60 @@ export default function RPTConfig() {
   const discountConfigurationsSafe = Array.isArray(discountConfigurations) ? discountConfigurations : [];
   const penaltyConfigurationsSafe = Array.isArray(penaltyConfigurations) ? penaltyConfigurations : [];
 
-  // Detect environment
+  // API Base URL - IMPORTANT: Update this to match your actual file structure
   const isProduction = window.location.hostname.includes('goserveph.com');
   const API_BASE = isProduction 
     ? "/backend/RPT/RPTConfig"
     : "http://localhost/revenue/backend/RPT/RPTConfig";
 
+  // Debug function to check API connectivity
+  const testAPI = async () => {
+    try {
+      console.log('Testing API connection to:', `${API_BASE}/land-configurations.php`);
+      const response = await fetch(`${API_BASE}/land-configurations.php`);
+      console.log('API Test Response status:', response.status);
+      const data = await response.json();
+      console.log('API Test Response data:', data);
+      setDebugInfo({
+        apiUrl: `${API_BASE}/land-configurations.php`,
+        status: response.status,
+        data: data
+      });
+    } catch (error) {
+      console.error('API Test Error:', error);
+      setDebugInfo({
+        error: error.message,
+        apiUrl: `${API_BASE}/land-configurations.php`
+      });
+    }
+  };
+
   // Fetch all data
   const fetchLandConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/land-configurations.php?current_date=${currentDate}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      setError(null);
+      console.log('Fetching land configs from:', `${API_BASE}/land-configurations.php`);
+      
+      const response = await fetch(`${API_BASE}/land-configurations.php`);
+      console.log('Fetch Response:', response);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setLandConfigurations(data);
+      console.log('Fetched land configs:', data);
+      
+      // Handle both array and object responses
+      if (Array.isArray(data)) {
+        setLandConfigurations(data);
+      } else if (data && data.error) {
+        throw new Error(data.error);
+      } else {
+        // If it's an object but not an array, wrap it in array
+        setLandConfigurations([data]);
+      }
     } catch (error) {
       console.error('Error fetching land configurations:', error);
       setError('Failed to load land configurations: ' + error.message);
@@ -109,10 +150,13 @@ export default function RPTConfig() {
   const fetchPropertyConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/property-configurations.php?current_date=${currentDate}`);
+      setError(null);
+      console.log('Fetching property configs from:', `${API_BASE}/property-configurations.php`);
+      const response = await fetch(`${API_BASE}/property-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setPropertyConfigurations(data);
+      console.log('Fetched property configs:', data);
+      setPropertyConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching property configurations:', error);
       setError('Failed to load property configurations: ' + error.message);
@@ -125,10 +169,13 @@ export default function RPTConfig() {
   const fetchBuildingAssessmentLevels = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/building-assessment-levels.php?current_date=${currentDate}`);
+      setError(null);
+      console.log('Fetching building assessment levels from:', `${API_BASE}/building-assessment-levels.php`);
+      const response = await fetch(`${API_BASE}/building-assessment-levels.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setBuildingAssessmentLevels(data);
+      console.log('Fetched building assessment levels:', data);
+      setBuildingAssessmentLevels(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching building assessment levels:', error);
       setError('Failed to load building assessment levels: ' + error.message);
@@ -141,10 +188,13 @@ export default function RPTConfig() {
   const fetchTaxConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/tax-configurations.php?current_date=${currentDate}`);
+      setError(null);
+      console.log('Fetching tax configs from:', `${API_BASE}/tax-configurations.php`);
+      const response = await fetch(`${API_BASE}/tax-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setTaxConfigurations(data);
+      console.log('Fetched tax configs:', data);
+      setTaxConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching tax configurations:', error);
       setError('Failed to load tax configurations: ' + error.message);
@@ -157,10 +207,13 @@ export default function RPTConfig() {
   const fetchDiscountConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/discount-configurations.php?current_date=${currentDate}`);
+      setError(null);
+      console.log('Fetching discount configs from:', `${API_BASE}/discount-configurations.php`);
+      const response = await fetch(`${API_BASE}/discount-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setDiscountConfigurations(data);
+      console.log('Fetched discount configs:', data);
+      setDiscountConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching discount configurations:', error);
       setError('Failed to load discount configurations: ' + error.message);
@@ -173,10 +226,13 @@ export default function RPTConfig() {
   const fetchPenaltyConfigurations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/penalty-configurations.php?current_date=${currentDate}`);
+      setError(null);
+      console.log('Fetching penalty configs from:', `${API_BASE}/penalty-configurations.php`);
+      const response = await fetch(`${API_BASE}/penalty-configurations.php`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setPenaltyConfigurations(data);
+      console.log('Fetched penalty configs:', data);
+      setPenaltyConfigurations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching penalty configurations:', error);
       setError('Failed to load penalty configurations: ' + error.message);
@@ -186,38 +242,81 @@ export default function RPTConfig() {
     }
   };
 
+  // Fetch all data on component mount
   useEffect(() => {
+    console.log('Component mounted, fetching data...');
+    fetchAllData();
+    
+    // Test API connection
+    testAPI();
+  }, []);
+
+  // Function to fetch all data
+  const fetchAllData = () => {
     fetchLandConfigurations();
     fetchPropertyConfigurations();
     fetchBuildingAssessmentLevels();
     fetchTaxConfigurations();
     fetchDiscountConfigurations();
     fetchPenaltyConfigurations();
-  }, [currentDate]);
+  };
 
-  // Form Handlers
+  // Refresh data when tab changes
+  useEffect(() => {
+    switch(activeTab) {
+      case 'land':
+        fetchLandConfigurations();
+        break;
+      case 'property':
+        fetchPropertyConfigurations();
+        break;
+      case 'building-assessment':
+        fetchBuildingAssessmentLevels();
+        break;
+      case 'tax':
+        fetchTaxConfigurations();
+        break;
+      case 'discount-penalty':
+        fetchDiscountConfigurations();
+        fetchPenaltyConfigurations();
+        break;
+    }
+  }, [activeTab]);
+
+  // Form Handlers with better error handling
   const handleLandSubmit = async (e) => {
     e.preventDefault();
     const url = editingId ? `${API_BASE}/land-configurations.php?id=${editingId}` : `${API_BASE}/land-configurations.php`;
     const method = editingId ? 'PUT' : 'POST';
 
+    console.log('Submitting land data:', landFormData);
+    console.log('Using URL:', url, 'Method:', method);
+
     try {
       const response = await fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(landFormData)
       });
+      
+      console.log('Submit response status:', response.status);
+      
       const result = await response.json();
-      if (response.ok) {
+      console.log('Submit response data:', result);
+      
+      if (response.ok || result.success) {
         fetchLandConfigurations();
         resetLandForm();
         alert(editingId ? 'Land configuration updated!' : 'Land configuration created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving land configuration:', error);
-      alert('Error saving land configuration');
+      alert('Error saving land configuration: ' + error.message);
     }
   };
 
@@ -227,22 +326,24 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
+      console.log('Submitting property data:', propertyFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(propertyFormData)
       });
       const result = await response.json();
-      if (response.ok) {
+      console.log('Property submit response:', result);
+      if (response.ok || result.success) {
         fetchPropertyConfigurations();
         resetPropertyForm();
         alert(editingId ? 'Property configuration updated!' : 'Property configuration created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving property configuration:', error);
-      alert('Error saving property configuration');
+      alert('Error saving property configuration: ' + error.message);
     }
   };
 
@@ -252,22 +353,24 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
+      console.log('Submitting building assessment data:', buildingAssessmentFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildingAssessmentFormData)
       });
       const result = await response.json();
-      if (response.ok) {
+      console.log('Building assessment submit response:', result);
+      if (response.ok || result.success) {
         fetchBuildingAssessmentLevels();
         resetBuildingAssessmentForm();
         alert(editingId ? 'Building assessment level updated!' : 'Building assessment level created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving building assessment level:', error);
-      alert('Error saving building assessment level');
+      alert('Error saving building assessment level: ' + error.message);
     }
   };
 
@@ -283,22 +386,24 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
+      console.log('Submitting tax data:', taxFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taxFormData)
       });
       const result = await response.json();
-      if (response.ok) {
+      console.log('Tax submit response:', result);
+      if (response.ok || result.success) {
         fetchTaxConfigurations();
         resetTaxForm();
         alert(editingId ? 'Tax configuration updated!' : 'Tax configuration created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving tax configuration:', error);
-      alert('Error saving tax configuration');
+      alert('Error saving tax configuration: ' + error.message);
     }
   };
 
@@ -308,22 +413,24 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
+      console.log('Submitting discount data:', discountFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(discountFormData)
       });
       const result = await response.json();
-      if (response.ok) {
+      console.log('Discount submit response:', result);
+      if (response.ok || result.success) {
         fetchDiscountConfigurations();
         resetDiscountForm();
         alert(editingId ? 'Discount configuration updated!' : 'Discount configuration created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving discount configuration:', error);
-      alert('Error saving discount configuration');
+      alert('Error saving discount configuration: ' + error.message);
     }
   };
 
@@ -333,99 +440,107 @@ export default function RPTConfig() {
     const method = editingId ? 'PUT' : 'POST';
 
     try {
+      console.log('Submitting penalty data:', penaltyFormData);
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(penaltyFormData)
       });
       const result = await response.json();
-      if (response.ok) {
+      console.log('Penalty submit response:', result);
+      if (response.ok || result.success) {
         fetchPenaltyConfigurations();
         resetPenaltyForm();
         alert(editingId ? 'Penalty configuration updated!' : 'Penalty configuration created!');
       } else {
-        alert('Error: ' + result.error);
+        alert('Error: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving penalty configuration:', error);
-      alert('Error saving penalty configuration');
+      alert('Error saving penalty configuration: ' + error.message);
     }
   };
 
   // Edit Handlers
   const handleLandEdit = (config) => {
+    console.log('Editing land config:', config);
     setLandFormData({
-      classification: config.classification,
-      market_value: config.market_value,
-      assessment_level: config.assessment_level,
-      description: config.description,
-      effective_date: config.effective_date,
+      classification: config.classification || '',
+      market_value: config.market_value || '',
+      assessment_level: config.assessment_level || '',
+      description: config.description || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('land');
   };
 
   const handlePropertyEdit = (config) => {
+    console.log('Editing property config:', config);
     setPropertyFormData({
-      classification: config.classification,
-      material_type: config.material_type,
-      unit_cost: config.unit_cost,
-      depreciation_rate: config.depreciation_rate,
-      min_value: config.min_value,
-      max_value: config.max_value,
-      effective_date: config.effective_date,
+      classification: config.classification || '',
+      material_type: config.material_type || '',
+      unit_cost: config.unit_cost || '',
+      depreciation_rate: config.depreciation_rate || '',
+      min_value: config.min_value || '',
+      max_value: config.max_value || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('property');
   };
 
   const handleBuildingAssessmentEdit = (config) => {
+    console.log('Editing building assessment config:', config);
     setBuildingAssessmentFormData({
-      classification: config.classification,
-      min_assessed_value: config.min_assessed_value,
-      max_assessed_value: config.max_assessed_value,
-      level_percent: config.level_percent,
-      effective_date: config.effective_date,
+      classification: config.classification || '',
+      min_assessed_value: config.min_assessed_value || '',
+      max_assessed_value: config.max_assessed_value || '',
+      level_percent: config.level_percent || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('building-assessment');
   };
 
   const handleTaxEdit = (config) => {
+    console.log('Editing tax config:', config);
     setTaxFormData({
-      tax_name: config.tax_name,
-      tax_percent: config.tax_percent,
-      effective_date: config.effective_date,
+      tax_name: config.tax_name || '',
+      tax_percent: config.tax_percent || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('tax');
   };
 
   const handleDiscountEdit = (config) => {
+    console.log('Editing discount config:', config);
     setDiscountFormData({
-      discount_percent: config.discount_percent,
-      effective_date: config.effective_date,
+      discount_percent: config.discount_percent || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('discount');
   };
 
   const handlePenaltyEdit = (config) => {
+    console.log('Editing penalty config:', config);
     setPenaltyFormData({
-      penalty_percent: config.penalty_percent,
-      effective_date: config.effective_date,
+      penalty_percent: config.penalty_percent || '',
+      effective_date: config.effective_date || new Date().toISOString().split('T')[0],
       expiration_date: config.expiration_date || '',
-      status: config.status
+      status: config.status || 'active'
     });
     setEditingId(config.id);
     setEditingType('penalty');
@@ -436,19 +551,43 @@ export default function RPTConfig() {
     const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
     if (window.confirm(`Are you sure you want to delete this ${typeName} configuration?`)) {
       try {
-        const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, { method: 'DELETE' });
-        if (response.ok) {
-          if (type === 'land-configurations') fetchLandConfigurations();
-          else if (type === 'property-configurations') fetchPropertyConfigurations();
-          else if (type === 'building-assessment-levels') fetchBuildingAssessmentLevels();
-          else if (type === 'tax-configurations') fetchTaxConfigurations();
-          else if (type === 'discount-configurations') fetchDiscountConfigurations();
-          else if (type === 'penalty-configurations') fetchPenaltyConfigurations();
+        console.log('Deleting:', id, type);
+        const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, { 
+          method: 'DELETE' 
+        });
+        
+        const result = await response.json();
+        console.log('Delete response:', result);
+        
+        if (response.ok || result.success) {
+          // Refresh the current tab's data
+          switch(type) {
+            case 'land-configurations':
+              fetchLandConfigurations();
+              break;
+            case 'property-configurations':
+              fetchPropertyConfigurations();
+              break;
+            case 'building-assessment-levels':
+              fetchBuildingAssessmentLevels();
+              break;
+            case 'tax-configurations':
+              fetchTaxConfigurations();
+              break;
+            case 'discount-configurations':
+              fetchDiscountConfigurations();
+              break;
+            case 'penalty-configurations':
+              fetchPenaltyConfigurations();
+              break;
+          }
           alert(`${typeName} configuration deleted successfully!`);
+        } else {
+          alert('Error: ' + (result.error || 'Failed to delete'));
         }
       } catch (error) {
         console.error(`Error deleting ${type}:`, error);
-        alert('Error deleting configuration');
+        alert('Error deleting configuration: ' + error.message);
       }
     }
   };
@@ -457,6 +596,7 @@ export default function RPTConfig() {
     const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
     if (window.confirm(`Are you sure you want to expire this ${typeName}?`)) {
       try {
+        console.log('Expiring:', id, type);
         const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -465,18 +605,36 @@ export default function RPTConfig() {
             expiration_date: new Date().toISOString().split('T')[0]
           })
         });
-        if (response.ok) {
-          if (type === 'land-configurations') fetchLandConfigurations();
-          else if (type === 'property-configurations') fetchPropertyConfigurations();
-          else if (type === 'building-assessment-levels') fetchBuildingAssessmentLevels();
-          else if (type === 'tax-configurations') fetchTaxConfigurations();
-          else if (type === 'discount-configurations') fetchDiscountConfigurations();
-          else if (type === 'penalty-configurations') fetchPenaltyConfigurations();
+        const result = await response.json();
+        console.log('Expire response:', result);
+        if (response.ok || result.success) {
+          switch(type) {
+            case 'land-configurations':
+              fetchLandConfigurations();
+              break;
+            case 'property-configurations':
+              fetchPropertyConfigurations();
+              break;
+            case 'building-assessment-levels':
+              fetchBuildingAssessmentLevels();
+              break;
+            case 'tax-configurations':
+              fetchTaxConfigurations();
+              break;
+            case 'discount-configurations':
+              fetchDiscountConfigurations();
+              break;
+            case 'penalty-configurations':
+              fetchPenaltyConfigurations();
+              break;
+          }
           alert(`${typeName} configuration expired successfully!`);
+        } else {
+          alert('Error: ' + (result.error || 'Failed to expire'));
         }
       } catch (error) {
         console.error(`Error expiring ${type}:`, error);
-        alert('Error expiring configuration');
+        alert('Error expiring configuration: ' + error.message);
       }
     }
   };
@@ -488,7 +646,7 @@ export default function RPTConfig() {
       market_value: '',
       assessment_level: '',
       description: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -504,7 +662,7 @@ export default function RPTConfig() {
       depreciation_rate: '',
       min_value: '',
       max_value: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -518,7 +676,7 @@ export default function RPTConfig() {
       min_assessed_value: '',
       max_assessed_value: '',
       level_percent: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -530,7 +688,7 @@ export default function RPTConfig() {
     setTaxFormData({
       tax_name: '',
       tax_percent: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -541,7 +699,7 @@ export default function RPTConfig() {
   const resetDiscountForm = () => {
     setDiscountFormData({
       discount_percent: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -552,7 +710,7 @@ export default function RPTConfig() {
   const resetPenaltyForm = () => {
     setPenaltyFormData({
       penalty_percent: '',
-      effective_date: '',
+      effective_date: new Date().toISOString().split('T')[0],
       expiration_date: '',
       status: 'active'
     });
@@ -586,7 +744,33 @@ export default function RPTConfig() {
         </div>
       )}
 
-      {/* Tab Navigation - Added building-assessment tab */}
+      {/* Debug Info - Remove in production */}
+      {debugInfo && (
+        <div className="mb-4 p-4 bg-gray-100 border border-gray-300 rounded-lg text-xs">
+          <h3 className="font-bold mb-2">Debug Info:</h3>
+          <pre className="whitespace-pre-wrap">{JSON.stringify(debugInfo, null, 2)}</pre>
+          <button 
+            onClick={() => testAPI()} 
+            className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm"
+          >
+            Test API Connection
+          </button>
+          <button 
+            onClick={() => fetchAllData()} 
+            className="mt-2 ml-2 px-3 py-1 bg-green-500 text-white rounded text-sm"
+          >
+            Refresh All Data
+          </button>
+          <button 
+            onClick={() => setDebugInfo(null)} 
+            className="mt-2 ml-2 px-3 py-1 bg-gray-500 text-white rounded text-sm"
+          >
+            Hide
+          </button>
+        </div>
+      )}
+
+      {/* Tab Navigation */}
       <div className="mb-6 border-b border-gray-200 dark:border-slate-700">
         <nav className="-mb-px flex space-x-8">
           {['land', 'property', 'building-assessment', 'tax', 'discount-penalty'].map(tab => (
@@ -607,21 +791,7 @@ export default function RPTConfig() {
         </nav>
       </div>
 
-      {/* Date Filter */}
-      <div className="mb-6 p-4 border rounded-lg dark:border-slate-700">
-        <label className="block text-sm font-medium mb-2">View Configurations Effective On:</label>
-        <input
-          type="date"
-          value={currentDate}
-          onChange={(e) => setCurrentDate(e.target.value)}
-          className="p-2 border border-gray-300 rounded dark:bg-slate-800 dark:border-slate-600"
-        />
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-          Showing configurations effective on or before {currentDate}
-        </p>
-      </div>
-
-      {/* Statistics - Added building assessment stats */}
+      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-blue-800 dark:text-blue-300">Land Configs</h3>
@@ -754,6 +924,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetLandForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchLandConfigurations}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -761,12 +938,21 @@ export default function RPTConfig() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Land Configurations ({landConfigurationsSafe.length})</h2>
             {landConfigurationsSafe.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No land configurations found.</div>
+              <div className="text-center py-8 text-gray-500">
+                <p>No land configurations found.</p>
+                <button 
+                  onClick={fetchLandConfigurations} 
+                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Try Loading Again
+                </button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Classification</th>
                       <th className="border p-2 text-left">Market Value</th>
                       <th className="border p-2 text-left">Assessment Level</th>
@@ -779,6 +965,7 @@ export default function RPTConfig() {
                   <tbody>
                     {landConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">
                           <div className="font-medium">{config.classification}</div>
                           {config.description && <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{config.description}</div>}
@@ -822,7 +1009,7 @@ export default function RPTConfig() {
         </>
       )}
 
-      {/* Property Configuration Tab (without assessment level) */}
+      {/* Property Configuration Tab */}
       {activeTab === 'property' && !loading && (
         <>
           <div className="mb-8">
@@ -942,6 +1129,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetPropertyForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchPropertyConfigurations}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -955,6 +1149,7 @@ export default function RPTConfig() {
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Classification</th>
                       <th className="border p-2 text-left">Material Type</th>
                       <th className="border p-2 text-left">Unit Cost</th>
@@ -968,6 +1163,7 @@ export default function RPTConfig() {
                   <tbody>
                     {propertyConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">{config.classification}</td>
                         <td className="border p-2">{config.material_type}</td>
                         <td className="border p-2">₱{parseFloat(config.unit_cost || 0).toLocaleString()}</td>
@@ -1104,6 +1300,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetBuildingAssessmentForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchBuildingAssessmentLevels}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -1117,6 +1320,7 @@ export default function RPTConfig() {
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Classification</th>
                       <th className="border p-2 text-left">Value Range</th>
                       <th className="border p-2 text-left">Assessment Level</th>
@@ -1128,6 +1332,7 @@ export default function RPTConfig() {
                   <tbody>
                     {buildingAssessmentLevelsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">
                           <span className={`font-medium ${
                             config.classification === 'Commercial' ? 'text-blue-600' :
@@ -1262,6 +1467,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetTaxForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchTaxConfigurations}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -1275,6 +1487,7 @@ export default function RPTConfig() {
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Tax Name</th>
                       <th className="border p-2 text-left">Tax Percentage</th>
                       <th className="border p-2 text-left">Effective Date</th>
@@ -1286,6 +1499,7 @@ export default function RPTConfig() {
                   <tbody>
                     {taxConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">
                           <span className={`font-medium ${config.tax_name === 'Basic Tax' ? 'text-blue-600' : 'text-green-600'}`}>
                             {config.tax_name}
@@ -1384,6 +1598,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetDiscountForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchDiscountConfigurations}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -1398,6 +1619,7 @@ export default function RPTConfig() {
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Discount Percentage</th>
                       <th className="border p-2 text-left">Effective Date</th>
                       <th className="border p-2 text-left">Expiration Date</th>
@@ -1408,6 +1630,7 @@ export default function RPTConfig() {
                   <tbody>
                     {discountConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">{config.discount_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
                         <td className="border p-2">{config.expiration_date || '-'}</td>
@@ -1496,6 +1719,13 @@ export default function RPTConfig() {
                 <button type="button" onClick={resetPenaltyForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors">
                   Cancel
                 </button>
+                <button 
+                  type="button" 
+                  onClick={fetchPenaltyConfigurations}
+                  className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
+                >
+                  Refresh List
+                </button>
               </div>
             </form>
           </div>
@@ -1510,6 +1740,7 @@ export default function RPTConfig() {
                 <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-slate-800">
+                      <th className="border p-2 text-left">ID</th>
                       <th className="border p-2 text-left">Penalty Percentage</th>
                       <th className="border p-2 text-left">Effective Date</th>
                       <th className="border p-2 text-left">Expiration Date</th>
@@ -1520,6 +1751,7 @@ export default function RPTConfig() {
                   <tbody>
                     {penaltyConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
+                        <td className="border p-2">#{config.id}</td>
                         <td className="border p-2">{config.penalty_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
                         <td className="border p-2">{config.expiration_date || '-'}</td>
