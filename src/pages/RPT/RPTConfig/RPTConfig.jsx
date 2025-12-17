@@ -75,11 +75,20 @@ export default function RPTConfig() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
 
+  // Safe array variables to prevent errors
+  const landConfigurationsSafe = Array.isArray(landConfigurations) ? landConfigurations : [];
+  const propertyConfigurationsSafe = Array.isArray(propertyConfigurations) ? propertyConfigurations : [];
+  const buildingAssessmentLevelsSafe = Array.isArray(buildingAssessmentLevels) ? buildingAssessmentLevels : [];
+  const taxConfigurationsSafe = Array.isArray(taxConfigurations) ? taxConfigurations : [];
+  const discountConfigurationsSafe = Array.isArray(discountConfigurations) ? discountConfigurations : [];
+  const penaltyConfigurationsSafe = Array.isArray(penaltyConfigurations) ? penaltyConfigurations : [];
+
   // Detect environment
-const isProduction = window.location.hostname.includes('goserveph.com');
-const API_BASE = isProduction 
-  ? "/backend/RPT/RPTConfig"
-  : "http://localhost/revenue/backend/RPT/RPTConfig";
+  const isProduction = window.location.hostname.includes('goserveph.com');
+  const API_BASE = isProduction 
+    ? "/backend/RPT/RPTConfig"
+    : "http://localhost/revenue/backend/RPT/RPTConfig";
+
   // Fetch all data
   const fetchLandConfigurations = async () => {
     try {
@@ -91,6 +100,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching land configurations:', error);
       setError('Failed to load land configurations: ' + error.message);
+      setLandConfigurations([]);
     } finally {
       setLoading(false);
     }
@@ -106,6 +116,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching property configurations:', error);
       setError('Failed to load property configurations: ' + error.message);
+      setPropertyConfigurations([]);
     } finally {
       setLoading(false);
     }
@@ -121,6 +132,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching building assessment levels:', error);
       setError('Failed to load building assessment levels: ' + error.message);
+      setBuildingAssessmentLevels([]);
     } finally {
       setLoading(false);
     }
@@ -136,6 +148,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching tax configurations:', error);
       setError('Failed to load tax configurations: ' + error.message);
+      setTaxConfigurations([]);
     } finally {
       setLoading(false);
     }
@@ -151,6 +164,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching discount configurations:', error);
       setError('Failed to load discount configurations: ' + error.message);
+      setDiscountConfigurations([]);
     } finally {
       setLoading(false);
     }
@@ -166,6 +180,7 @@ const API_BASE = isProduction
     } catch (error) {
       console.error('Error fetching penalty configurations:', error);
       setError('Failed to load penalty configurations: ' + error.message);
+      setPenaltyConfigurations([]);
     } finally {
       setLoading(false);
     }
@@ -546,25 +561,16 @@ const API_BASE = isProduction
   };
 
   // Statistics
-  // Statistics - PROTECTED VERSION
-const getSafeArray = (data) => Array.isArray(data) ? data : [];
+  const activeLandConfigs = landConfigurationsSafe.filter(config => config.status === 'active').length;
+  const activePropertyConfigs = propertyConfigurationsSafe.filter(config => config.status === 'active').length;
+  const activeBuildingAssessmentConfigs = buildingAssessmentLevelsSafe.filter(config => config.status === 'active').length;
+  const activeTaxConfigs = taxConfigurationsSafe.filter(config => config.status === 'active').length;
+  const activeDiscountConfigs = discountConfigurationsSafe.filter(config => config.status === 'active').length;
+  const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.status === 'active').length;
 
-const landConfigurationsSafe = getSafeArray(landConfigurations);
-const propertyConfigurationsSafe = getSafeArray(propertyConfigurations);
-const buildingAssessmentLevelsSafe = getSafeArray(buildingAssessmentLevels);
-const taxConfigurationsSafe = getSafeArray(taxConfigurations);
-const discountConfigurationsSafe = getSafeArray(discountConfigurations);
-const penaltyConfigurationsSafe = getSafeArray(penaltyConfigurations);
-
-const activeLandConfigs = landConfigurationsSafe.filter(config => config.status === 'active').length;
-const activePropertyConfigs = propertyConfigurationsSafe.filter(config => config.status === 'active').length;
-const activeBuildingAssessmentConfigs = buildingAssessmentLevelsSafe.filter(config => config.status === 'active').length;
-const activeTaxConfigs = taxConfigurationsSafe.filter(config => config.status === 'active').length;
-const activeDiscountConfigs = discountConfigurationsSafe.filter(config => config.status === 'active').length;
-const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.status === 'active').length;
   // Check if Basic Tax and SEF Tax already exist
-  const basicTaxExists = taxConfigurations.some(tax => tax.tax_name === 'Basic Tax' && tax.status === 'active');
-  const sefTaxExists = taxConfigurations.some(tax => tax.tax_name === 'SEF Tax' && tax.status === 'active');
+  const basicTaxExists = taxConfigurationsSafe.some(tax => tax.tax_name === 'Basic Tax' && tax.status === 'active');
+  const sefTaxExists = taxConfigurationsSafe.some(tax => tax.tax_name === 'SEF Tax' && tax.status === 'active');
 
   return (
     <div className='mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg'>
@@ -619,27 +625,27 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-blue-800 dark:text-blue-300">Land Configs</h3>
-          <p className="text-2xl font-bold">{landConfigurations.length}</p>
+          <p className="text-2xl font-bold">{landConfigurationsSafe.length}</p>
           <p className="text-sm">Active: {activeLandConfigs}</p>
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-green-800 dark:text-green-300">Property Configs</h3>
-          <p className="text-2xl font-bold">{propertyConfigurations.length}</p>
+          <p className="text-2xl font-bold">{propertyConfigurationsSafe.length}</p>
           <p className="text-sm">Active: {activePropertyConfigs}</p>
         </div>
         <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-teal-800 dark:text-teal-300">Building Assessment</h3>
-          <p className="text-2xl font-bold">{buildingAssessmentLevels.length}</p>
+          <p className="text-2xl font-bold">{buildingAssessmentLevelsSafe.length}</p>
           <p className="text-sm">Active: {activeBuildingAssessmentConfigs}</p>
         </div>
         <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-purple-800 dark:text-purple-300">Tax Configs</h3>
-          <p className="text-2xl font-bold">{taxConfigurations.length}</p>
+          <p className="text-2xl font-bold">{taxConfigurationsSafe.length}</p>
           <p className="text-sm">Active: {activeTaxConfigs}</p>
         </div>
         <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
           <h3 className="font-semibold text-orange-800 dark:text-orange-300">Discount/Penalty</h3>
-          <p className="text-2xl font-bold">{discountConfigurations.length + penaltyConfigurations.length}</p>
+          <p className="text-2xl font-bold">{discountConfigurationsSafe.length + penaltyConfigurationsSafe.length}</p>
           <p className="text-sm">Active: {activeDiscountConfigs + activePenaltyConfigs}</p>
         </div>
         <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
@@ -753,8 +759,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">Land Configurations ({landConfigurations.length})</h2>
-            {landConfigurations.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Land Configurations ({landConfigurationsSafe.length})</h2>
+            {landConfigurationsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No land configurations found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -771,15 +777,20 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {landConfigurations.map((config) => (
+                    {landConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">
                           <div className="font-medium">{config.classification}</div>
                           {config.description && <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{config.description}</div>}
                         </td>
-                        <td className="border p-2">₱{parseFloat(config.market_value).toLocaleString()}</td>
+                        <td className="border p-2">₱{parseFloat(config.market_value || 0).toLocaleString()}</td>
                         <td className="border p-2">{config.assessment_level}%</td>
-                        <td className="border p-2">₱{(config.market_value * (config.assessment_level / 100)).toFixed(2)}</td>
+                        <td className="border p-2">
+                          ₱{
+                            (parseFloat(config.market_value || 0) * 
+                             (parseFloat(config.assessment_level || 0) / 100)).toFixed(2)
+                          }
+                        </td>
                         <td className="border p-2">{config.effective_date}</td>
                         <td className="border p-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${config.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
@@ -936,8 +947,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">Property Configurations ({propertyConfigurations.length})</h2>
-            {propertyConfigurations.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Property Configurations ({propertyConfigurationsSafe.length})</h2>
+            {propertyConfigurationsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No property configurations found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -955,13 +966,13 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {propertyConfigurations.map((config) => (
+                    {propertyConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">{config.classification}</td>
                         <td className="border p-2">{config.material_type}</td>
-                        <td className="border p-2">₱{parseFloat(config.unit_cost).toLocaleString()}</td>
+                        <td className="border p-2">₱{parseFloat(config.unit_cost || 0).toLocaleString()}</td>
                         <td className="border p-2">{config.depreciation_rate}%</td>
-                        <td className="border p-2">₱{parseFloat(config.min_value).toLocaleString()} - ₱{parseFloat(config.max_value).toLocaleString()}</td>
+                        <td className="border p-2">₱{parseFloat(config.min_value || 0).toLocaleString()} - ₱{parseFloat(config.max_value || 0).toLocaleString()}</td>
                         <td className="border p-2">{config.effective_date}</td>
                         <td className="border p-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${config.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
@@ -1098,8 +1109,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">Building Assessment Levels ({buildingAssessmentLevels.length})</h2>
-            {buildingAssessmentLevels.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Building Assessment Levels ({buildingAssessmentLevelsSafe.length})</h2>
+            {buildingAssessmentLevelsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No building assessment levels found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -1115,7 +1126,7 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {buildingAssessmentLevels.map((config) => (
+                    {buildingAssessmentLevelsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">
                           <span className={`font-medium ${
@@ -1127,7 +1138,7 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                           </span>
                         </td>
                         <td className="border p-2">
-                          ₱{parseFloat(config.min_assessed_value).toLocaleString()} - ₱{parseFloat(config.max_assessed_value).toLocaleString()}
+                          ₱{parseFloat(config.min_assessed_value || 0).toLocaleString()} - ₱{parseFloat(config.max_assessed_value || 0).toLocaleString()}
                         </td>
                         <td className="border p-2">{config.level_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
@@ -1256,8 +1267,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">Tax Configurations ({taxConfigurations.length})</h2>
-            {taxConfigurations.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Tax Configurations ({taxConfigurationsSafe.length})</h2>
+            {taxConfigurationsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No tax configurations found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -1273,7 +1284,7 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {taxConfigurations.map((config) => (
+                    {taxConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">
                           <span className={`font-medium ${config.tax_name === 'Basic Tax' ? 'text-blue-600' : 'text-green-600'}`}>
@@ -1379,8 +1390,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
 
           {/* Discount Configurations List */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Discount Configurations ({discountConfigurations.length})</h2>
-            {discountConfigurations.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Discount Configurations ({discountConfigurationsSafe.length})</h2>
+            {discountConfigurationsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No discount configurations found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -1395,7 +1406,7 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {discountConfigurations.map((config) => (
+                    {discountConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">{config.discount_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
@@ -1491,8 +1502,8 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
 
           {/* Penalty Configurations List */}
           <div>
-            <h2 className="text-xl font-semibold mb-4">Penalty Configurations ({penaltyConfigurations.length})</h2>
-            {penaltyConfigurations.length === 0 ? (
+            <h2 className="text-xl font-semibold mb-4">Penalty Configurations ({penaltyConfigurationsSafe.length})</h2>
+            {penaltyConfigurationsSafe.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No penalty configurations found.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -1507,7 +1518,7 @@ const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.s
                     </tr>
                   </thead>
                   <tbody>
-                    {penaltyConfigurations.map((config) => (
+                    {penaltyConfigurationsSafe.map((config) => (
                       <tr key={config.id} className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${config.status === 'expired' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-500' : ''}`}>
                         <td className="border p-2">{config.penalty_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
