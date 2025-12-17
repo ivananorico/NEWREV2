@@ -44,26 +44,20 @@ function getConfigurations() {
     // Get current date or use provided date
     $currentDate = isset($_GET['current_date']) ? $_GET['current_date'] : date('Y-m-d');
     
-    error_log("Fetching property configurations for date: " . $currentDate);
-    
     try {
         // Show configurations that are effective on or before the current date
-        // and either haven't expired or have no expiration date
         $stmt = $pdo->prepare("
-            SELECT * FROM property_configurations 
+            SELECT * FROM building_assessment_levels 
             WHERE status = 'active'
             AND effective_date <= ?
             AND (expiration_date IS NULL OR expiration_date >= ?)
-            ORDER BY classification, material_type, min_value ASC
+            ORDER BY classification, min_assessed_value ASC
         ");
         $stmt->execute([$currentDate, $currentDate]);
         $configurations = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        error_log("Found " . count($configurations) . " configurations for date: " . $currentDate);
-        
         echo json_encode($configurations);
     } catch (PDOException $e) {
-        error_log("Database error: " . $e->getMessage());
         http_response_code(500);
         echo json_encode(["error" => "Database error: " . $e->getMessage()]);
     }
@@ -76,22 +70,17 @@ function createConfiguration() {
     $json = file_get_contents('php://input');
     $input = json_decode($json, true);
     
-    error_log("Received data: " . print_r($input, true));
-    
     if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("JSON error: " . json_last_error_msg());
         http_response_code(400);
         echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
     
-    // Validate required fields based on ACTUAL database schema
-    // From your database dump: classification, material_type, unit_cost, depreciation_rate, min_value, max_value
-    $requiredFields = ['classification', 'material_type', 'unit_cost', 'depreciation_rate', 'min_value', 'max_value', 'effective_date'];
+    // Validate required fields
+    $requiredFields = ['classification', 'min_assessed_value', 'max_assessed_value', 'level_percent', 'effective_date'];
     
     foreach ($requiredFields as $field) {
         if (!isset($input[$field]) || $input[$field] === '') {
-            error_log("Missing field: " . $field);
             http_response_code(400);
             echo json_encode(["error" => "Missing required field: " . $field]);
             return;
@@ -99,40 +88,28 @@ function createConfiguration() {
     }
     
     // Validate numeric values
-    $numericFields = ['unit_cost', 'depreciation_rate', 'min_value', 'max_value'];
+    $numericFields = ['min_assessed_value', 'max_assessed_value', 'level_percent'];
     foreach ($numericFields as $field) {
         if (!is_numeric($input[$field])) {
-            error_log("Invalid numeric value for field: " . $field);
             http_response_code(400);
             echo json_encode(["error" => "Invalid numeric value for field: " . $field]);
             return;
         }
     }
     
-    // Ensure min_value is less than max_value
-    if ($input['min_value'] >= $input['max_value']) {
-        error_log("min_value must be less than max_value");
-        http_response_code(400);
-        echo json_encode(["error" => "Minimum value must be less than maximum value"]);
-        return;
-    }
-    
     try {
         $stmt = $pdo->prepare("
-            INSERT INTO property_configurations (
-                classification, material_type, unit_cost, depreciation_rate,
-                min_value, max_value, effective_date, expiration_date, status,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            INSERT INTO building_assessment_levels (
+                classification, min_assessed_value, max_assessed_value, level_percent,
+                effective_date, expiration_date, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
         
         $result = $stmt->execute([
             $input['classification'],
-            $input['material_type'],
-            $input['unit_cost'],
-            $input['depreciation_rate'],
-            $input['min_value'],
-            $input['max_value'],
+            $input['min_assessed_value'],
+            $input['max_assessed_value'],
+            $input['level_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
             $input['status'] ?? 'active'
@@ -140,20 +117,17 @@ function createConfiguration() {
         
         if ($result) {
             $newId = $pdo->lastInsertId();
-            error_log("Successfully created configuration with ID: " . $newId);
             echo json_encode([
-                "message" => "Property configuration created successfully", 
+                "message" => "Building assessment level created successfully", 
                 "id" => $newId
             ]);
         } else {
-            error_log("Insert failed");
             http_response_code(500);
-            echo json_encode(["error" => "Failed to create property configuration"]);
+            echo json_encode(["error" => "Failed to create building assessment level"]);
         }
     } catch (PDOException $e) {
-        error_log("Database error on create: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(["error" => "Failed to create property configuration: " . $e->getMessage()]);
+        echo json_encode(["error" => "Failed to create building assessment level: " . $e->getMessage()]);
     }
 }
 
@@ -176,13 +150,10 @@ function updateConfiguration() {
         return;
     }
     
-    error_log("Updating configuration ID: " . $id . " with data: " . print_r($input, true));
-    
     // Validate required fields
-    $requiredFields = ['classification', 'material_type', 'unit_cost', 'depreciation_rate', 'min_value', 'max_value', 'effective_date'];
+    $requiredFields = ['classification', 'min_assessed_value', 'max_assessed_value', 'level_percent', 'effective_date'];
     foreach ($requiredFields as $field) {
         if (!isset($input[$field]) || $input[$field] === '') {
-            error_log("Missing field during update: " . $field);
             http_response_code(400);
             echo json_encode(["error" => "Missing required field: " . $field]);
             return;
@@ -191,20 +162,18 @@ function updateConfiguration() {
     
     try {
         $stmt = $pdo->prepare("
-            UPDATE property_configurations SET 
-                classification = ?, material_type = ?, unit_cost = ?, depreciation_rate = ?,
-                min_value = ?, max_value = ?, effective_date = ?, 
-                expiration_date = ?, status = ?, updated_at = NOW()
+            UPDATE building_assessment_levels SET 
+                classification = ?, min_assessed_value = ?, max_assessed_value = ?, 
+                level_percent = ?, effective_date = ?, expiration_date = ?, 
+                status = ?, updated_at = NOW()
             WHERE id = ?
         ");
         
         $result = $stmt->execute([
             $input['classification'],
-            $input['material_type'],
-            $input['unit_cost'],
-            $input['depreciation_rate'],
-            $input['min_value'],
-            $input['max_value'],
+            $input['min_assessed_value'],
+            $input['max_assessed_value'],
+            $input['level_percent'],
             $input['effective_date'],
             !empty($input['expiration_date']) ? $input['expiration_date'] : null,
             $input['status'] ?? 'active',
@@ -212,17 +181,14 @@ function updateConfiguration() {
         ]);
         
         if ($stmt->rowCount() > 0) {
-            error_log("Successfully updated configuration ID: " . $id);
-            echo json_encode(["message" => "Property configuration updated successfully"]);
+            echo json_encode(["message" => "Building assessment level updated successfully"]);
         } else {
-            error_log("Configuration not found: " . $id);
             http_response_code(404);
-            echo json_encode(["error" => "Property configuration not found"]);
+            echo json_encode(["error" => "Building assessment level not found"]);
         }
     } catch (PDOException $e) {
-        error_log("Database error on update: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(["error" => "Failed to update property configuration: " . $e->getMessage()]);
+        echo json_encode(["error" => "Failed to update building assessment level: " . $e->getMessage()]);
     }
 }
 
@@ -241,17 +207,14 @@ function patchConfiguration() {
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
+        echo json_encode(["error" => "Invalid JSON data"]);
         return;
     }
     
-    // Build dynamic update query based on ACTUAL database columns
     $fields = [];
     $values = [];
-    
-    // Allowed fields from the property_configurations table schema
-    $allowedFields = ['status', 'expiration_date', 'unit_cost', 'depreciation_rate', 
-                     'min_value', 'max_value', 'classification', 'material_type', 'effective_date'];
+    $allowedFields = ['status', 'expiration_date', 'min_assessed_value', 'max_assessed_value', 
+                     'level_percent', 'classification', 'effective_date'];
     
     foreach ($allowedFields as $field) {
         if (isset($input[$field])) {
@@ -260,7 +223,6 @@ function patchConfiguration() {
         }
     }
     
-    // Always update the updated_at timestamp
     $fields[] = "updated_at = NOW()";
     
     if (empty($fields)) {
@@ -270,25 +232,21 @@ function patchConfiguration() {
     }
     
     $values[] = $id;
-    $sql = "UPDATE property_configurations SET " . implode(', ', $fields) . " WHERE id = ?";
-    
-    error_log("Patch SQL: " . $sql);
-    error_log("Patch values: " . print_r($values, true));
+    $sql = "UPDATE building_assessment_levels SET " . implode(', ', $fields) . " WHERE id = ?";
     
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($values);
         
         if ($stmt->rowCount() > 0) {
-            echo json_encode(["message" => "Property configuration updated successfully"]);
+            echo json_encode(["message" => "Building assessment level updated successfully"]);
         } else {
             http_response_code(404);
-            echo json_encode(["error" => "Property configuration not found"]);
+            echo json_encode(["error" => "Building assessment level not found"]);
         }
     } catch (PDOException $e) {
-        error_log("Database error on patch: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(["error" => "Failed to update property configuration: " . $e->getMessage()]);
+        echo json_encode(["error" => "Failed to update building assessment level: " . $e->getMessage()]);
     }
 }
 
@@ -303,19 +261,18 @@ function deleteConfiguration() {
     }
     
     try {
-        $stmt = $pdo->prepare("DELETE FROM property_configurations WHERE id = ?");
+        $stmt = $pdo->prepare("DELETE FROM building_assessment_levels WHERE id = ?");
         $stmt->execute([$id]);
         
         if ($stmt->rowCount() > 0) {
-            echo json_encode(["message" => "Property configuration deleted successfully"]);
+            echo json_encode(["message" => "Building assessment level deleted successfully"]);
         } else {
             http_response_code(404);
-            echo json_encode(["error" => "Property configuration not found"]);
+            echo json_encode(["error" => "Building assessment level not found"]);
         }
     } catch (PDOException $e) {
-        error_log("Database error on delete: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(["error" => "Failed to delete property configuration: " . $e->getMessage()]);
+        echo json_encode(["error" => "Failed to delete building assessment level: " . $e->getMessage()]);
     }
 }
 ?>
