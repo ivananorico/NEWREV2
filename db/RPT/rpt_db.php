@@ -1,9 +1,9 @@
 <?php
 $host = 'localhost';
 $port = 3307;         // your MySQL port from dump
-$dbname = 'rpt';      // changed from market_rent to rpt
-$user = 'root';
-$pass = '';
+$dbname = 'reve_rpt';      // changed from market_rent to rpt
+$user = 'reve_rpt';
+$pass = '9A^jzp1k*J192zp+';
 
 try {
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
