@@ -15,7 +15,7 @@ const sidebarItems = [
       { id: "rpt1", label: "RPT Configuration", path: "/RPT/RPTConfig" },
       { id: "rpt2", label: "RPT Validation", path: "/RPT/RPTValidationTable" },
       { id: "rpt3", label: "RPT Status", path: "/RPT/RPTStatus" },
-      { id: "rpt4", label: "RPT4s", path: "/RPT/RPT4s" },
+      { id: "rpt4", label: "RPT Chart", path: "/RPT/RPTChart" },
     ]
   },
   {
