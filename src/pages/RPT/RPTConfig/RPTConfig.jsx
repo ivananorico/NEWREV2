@@ -87,7 +87,7 @@ export default function RPTConfig() {
   const isProduction = window.location.hostname.includes('goserveph.com');
   const API_BASE = isProduction 
     ? "/backend/RPT/RPTConfig"
-    : "http://localhost/revenue/backend/RPT/RPTConfig";
+    : "http://localhost/revenue2/backend/RPT/RPTConfig";
 
   // Fetch all data
   const fetchLandConfigurations = async () => {

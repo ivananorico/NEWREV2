@@ -11,7 +11,7 @@ export default function MarketOutput() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const API_BASE = "http://localhost/revenue/backend/Market/MapCreator";
+  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
 
   console.log("MarketOutput mounted with ID:", id);
 

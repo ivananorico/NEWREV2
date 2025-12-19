@@ -14,7 +14,7 @@ const BusinessValidation = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://localhost/revenue/backend/Business/BusinessValidation/get_permits.php');
+      const response = await fetch('http://localhost/revenue2/backend/Business/BusinessValidation/get_permits.php');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

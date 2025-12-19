@@ -16,6 +16,7 @@ import RPTValidationInfo from './pages/RPT/RPTValidationTable/RPTValidationInfo'
 import RPTStatus from './pages/RPT/RPTStatus/RPTStatus'
 import RPTStatusInfo from './pages/RPT/RPTStatus/RPTStatusInfo'
 import RPTCharts from './pages/RPT/RPTCharts/RPTCharts'
+import RPTDashboard from './pages/RPT/RPTDashboard/RPTDashboard'
 
 // BUSINESS Pages
 import BusinessTaxConfig from './pages/BUSINESS/BusinessTaxConfig/BusinessTaxConfig'
@@ -74,6 +75,7 @@ function App() {
               <Route path="/rpt/rptstatus" element={<RPTStatus />} />
               <Route path="/rpt/rptstatusinfo/:id" element={<RPTStatusInfo />} />
               <Route path="/rpt/rptcharts" element={<RPTCharts />} />
+              <Route path="/rpt/rptdashboard" element={<RPTDashboard />} />
 
               {/* BUSINESS */}
               <Route path="/business/businesstaxconfig" element={<BusinessTaxConfig />} />

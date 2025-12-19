@@ -12,10 +12,12 @@ const sidebarItems = [
     label: "Real Property Tax Collection System",
     icon: LayoutDashboard,
     subItems: [
-      { id: "rpt1", label: "RPT Configuration", path: "/RPT/RPTConfig" },
-      { id: "rpt2", label: "RPT Validation", path: "/RPT/RPTValidationTable" },
-      { id: "rpt3", label: "RPT Status", path: "/RPT/RPTStatus" },
-      { id: "rpt4", label: "RPT Chart", path: "/RPT/RPTCharts" },
+      { id: "rpt1", label: "RPT Dashboard", path: "/RPT/RPTDashboard" },
+      { id: "rpt2", label: "RPT Configuration", path: "/RPT/RPTConfig" },
+      { id: "rpt3", label: "RPT Validation", path: "/RPT/RPTValidationTable" },
+      { id: "rpt4", label: "RPT Status", path: "/RPT/RPTStatus" },
+      { id: "rpt5", label: "RPT Chart", path: "/RPT/RPTCharts" },
+
     ]
   },
   {

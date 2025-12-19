@@ -10,8 +10,8 @@ export default function RPTValidationTable() {
 
   // Dynamic API configuration for both localhost and production
   const API_BASE = window.location.hostname === "localhost" 
-    ? "http://localhost/revenue/backend" 
-    : "/backend"; // Relative path for production
+    ? "http://localhost/revenue2/backend" 
+    : "https://revenuetreasury.goserveph.com/backend"; // Relative path for production
 
   const API_PATH = "/RPT/RPTValidationTable";
 

@@ -13,7 +13,7 @@ export default function RPTStatus() {
   // ✅ DYNAMIC API URL - Works for both localhost and production
   const isDevelopment = window.location.hostname === "localhost";
   const API_BASE = isDevelopment
-    ? "http://localhost/revenue/backend"
+    ? "http://localhost/revenue2/backend"
     : "https://revenuetreasury.goserveph.com/backend";
   
   const API_PATH = "/RPT/RPTStatus";

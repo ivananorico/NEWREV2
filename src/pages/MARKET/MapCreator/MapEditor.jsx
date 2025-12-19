@@ -29,7 +29,7 @@ export default function MapEditor() {
   const marketMapRef = useRef(null);
   const modalRef = useRef(null);
   
-  const API_BASE = "http://localhost/revenue/backend/Market/MapCreator";
+  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
 
   // Fetch map, stalls, stall classes, and sections data
   useEffect(() => {

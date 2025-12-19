@@ -8,7 +8,7 @@ export default function RPTValidationInfo() {
   // Dynamic API configuration - Use same pattern as RPTValidationTable
   const API_BASE =
     window.location.hostname === "localhost"
-      ? "http://localhost/revenue/backend"
+      ? "http://localhost/revenue2/backend"
       : "https://revenuetreasury.goserveph.com/backend";
 
   const API_PATH = "/RPT/RPTValidationTable";

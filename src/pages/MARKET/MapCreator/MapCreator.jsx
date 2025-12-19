@@ -27,7 +27,7 @@ export default function Market1() {
   const modalRef = useRef(null);
   const navigate = useNavigate();
   
-  const API_BASE = "http://localhost/revenue/backend/Market/MapCreator";
+  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
 
   useEffect(() => {
     fetchSections();

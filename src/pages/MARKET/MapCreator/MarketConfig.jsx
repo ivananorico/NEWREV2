@@ -66,7 +66,7 @@ function StallRightsConfig() {
     description: ""
   });
 
-  const API_BASE = "http://localhost/revenue/backend/Market/MapCreator";
+  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
 
   useEffect(() => {
     fetchStallClasses();

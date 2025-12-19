@@ -56,7 +56,7 @@ export default function BusinessTaxConfig() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
 
-  const API_BASE = "http://localhost/revenue/backend/Business/BusinessTaxConfig";
+  const API_BASE = "http://localhost/revenue2/backend/Business/BusinessTaxConfig";
 
   // Helper to normalize database dates
   const normalizeDate = (dateStr) => {

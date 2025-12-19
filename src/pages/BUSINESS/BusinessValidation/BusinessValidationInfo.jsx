@@ -18,7 +18,7 @@ const BusinessValidationInfo = () => {
         setLoading(true);
         
         // Fetch permit details
-        const permitUrl = `http://localhost/revenue/backend/Business/BusinessValidation/get_permit_details.php?id=${id}`;
+        const permitUrl = `http://localhost/revenue2/backend/Business/BusinessValidation/get_permit_details.php?id=${id}`;
         const permitRes = await fetch(permitUrl);
         const permitData = await permitRes.json();
         
