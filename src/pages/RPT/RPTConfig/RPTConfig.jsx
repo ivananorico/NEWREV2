@@ -1287,21 +1287,7 @@ export default function RPTConfig() {
               {editingType === 'tax' ? 'Edit Tax Configuration' : 'Add New Tax Configuration'}
             </h2>
             
-            {/* Tax Status Info */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={`p-4 rounded-lg border ${basicTaxExists ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
-                <h3 className="font-semibold mb-2">Basic Tax Status</h3>
-                <p className={basicTaxExists ? 'text-green-700' : 'text-yellow-700'}>
-                  {basicTaxExists ? '✅ Active configuration exists' : '⚠️ No active configuration'}
-                </p>
-              </div>
-              <div className={`p-4 rounded-lg border ${sefTaxExists ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
-                <h3 className="font-semibold mb-2">SEF Tax Status</h3>
-                <p className={sefTaxExists ? 'text-green-700' : 'text-yellow-700'}>
-                  {sefTaxExists ? '✅ Active configuration exists' : '⚠️ No active configuration'}
-                </p>
-              </div>
-            </div>
+            
 
             <form onSubmit={handleTaxSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

@@ -75,16 +75,18 @@ switch ($method) {
 
 function getConfigurations($pdo) {
     try {
-        // Check if table exists
-        $checkTable = $pdo->query("SHOW TABLES LIKE 'tax_configurations'");
+        // Check if table exists - try BOTH table names
+        $tableName = 'rpt_tax_config'; // Use the correct table name from your database dump
+        
+        $checkTable = $pdo->query("SHOW TABLES LIKE '{$tableName}'");
         if ($checkTable->rowCount() === 0) {
-            // Table doesn't exist, return empty array
+            // Return empty array if table doesn't exist
             echo json_encode([]);
             return;
         }
         
         $stmt = $pdo->prepare("
-            SELECT * FROM tax_configurations
+            SELECT * FROM {$tableName}
             ORDER BY 
                 CASE WHEN status = 'active' THEN 1 ELSE 2 END,
                 tax_name,
@@ -108,7 +110,8 @@ function getConfigurations($pdo) {
 
 function getConfiguration($pdo, $id) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM tax_configurations WHERE id = ?");
+        $tableName = 'rpt_tax_config';
+        $stmt = $pdo->prepare("SELECT * FROM {$tableName} WHERE id = ?");
         $stmt->execute([$id]);
         $config = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -160,18 +163,20 @@ function createConfiguration($pdo) {
     }
 
     try {
-        // Check if table exists, create it if not
-        $checkTable = $pdo->query("SHOW TABLES LIKE 'tax_configurations'");
+        $tableName = 'rpt_tax_config';
+        
+        // Check if table exists
+        $checkTable = $pdo->query("SHOW TABLES LIKE '{$tableName}'");
         if ($checkTable->rowCount() === 0) {
-            // Create table if it doesn't exist
+            // If table doesn't exist, use the correct CREATE statement from your database dump
             $createTable = $pdo->exec("
-                CREATE TABLE tax_configurations (
+                CREATE TABLE {$tableName} (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    tax_name VARCHAR(100) NOT NULL,
+                    tax_name VARCHAR(50) NOT NULL,
                     tax_percent DECIMAL(5,2) NOT NULL,
                     effective_date DATE NOT NULL,
                     expiration_date DATE NULL,
-                    status ENUM('active', 'expired') DEFAULT 'active',
+                    status ENUM('active','expired') DEFAULT 'active',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
@@ -180,7 +185,7 @@ function createConfiguration($pdo) {
 
         // Insert new configuration
         $stmt = $pdo->prepare("
-            INSERT INTO tax_configurations (
+            INSERT INTO {$tableName} (
                 tax_name, tax_percent, effective_date, expiration_date, 
                 status, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
@@ -231,6 +236,7 @@ function updateConfiguration($pdo, $id) {
     }
 
     try {
+        $tableName = 'rpt_tax_config';
         $fields = [];
         $values = [];
         $allowedFields = ['tax_name', 'tax_percent', 'effective_date', 'expiration_date', 'status'];
@@ -257,7 +263,7 @@ function updateConfiguration($pdo, $id) {
         }
         
         $values[] = $id;
-        $sql = "UPDATE tax_configurations SET " . implode(', ', $fields) . " WHERE id = ?";
+        $sql = "UPDATE {$tableName} SET " . implode(', ', $fields) . " WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
         $success = $stmt->execute($values);
@@ -293,36 +299,37 @@ function patchConfiguration($pdo, $id) {
         return;
     }
 
-    $fields = [];
-    $values = [];
-    $allowedFields = ['status', 'expiration_date', 'tax_percent', 'tax_name', 'effective_date'];
+    try {
+        $tableName = 'rpt_tax_config';
+        $fields = [];
+        $values = [];
+        $allowedFields = ['status', 'expiration_date', 'tax_percent', 'tax_name', 'effective_date'];
 
-    foreach ($allowedFields as $field) {
-        if (isset($data[$field])) {
-            $fields[] = "$field = ?";
-            
-            if ($field === 'tax_percent') {
-                $values[] = floatval($data[$field]);
-            } else if ($field === 'expiration_date' && empty($data[$field])) {
-                $values[] = null;
-            } else {
-                $values[] = $data[$field];
+        foreach ($allowedFields as $field) {
+            if (isset($data[$field])) {
+                $fields[] = "$field = ?";
+                
+                if ($field === 'tax_percent') {
+                    $values[] = floatval($data[$field]);
+                } else if ($field === 'expiration_date' && empty($data[$field])) {
+                    $values[] = null;
+                } else {
+                    $values[] = $data[$field];
+                }
             }
         }
-    }
 
-    $fields[] = "updated_at = NOW()";
+        $fields[] = "updated_at = NOW()";
 
-    if (empty($fields)) {
-        http_response_code(400);
-        echo json_encode(["error" => "No valid fields to update"]);
-        return;
-    }
+        if (empty($fields)) {
+            http_response_code(400);
+            echo json_encode(["error" => "No valid fields to update"]);
+            return;
+        }
 
-    $values[] = $id;
-    $sql = "UPDATE tax_configurations SET " . implode(', ', $fields) . " WHERE id = ?";
+        $values[] = $id;
+        $sql = "UPDATE {$tableName} SET " . implode(', ', $fields) . " WHERE id = ?";
 
-    try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($values);
 
@@ -349,7 +356,8 @@ function deleteConfiguration($pdo, $id) {
     }
 
     try {
-        $stmt = $pdo->prepare("DELETE FROM tax_configurations WHERE id = ?");
+        $tableName = 'rpt_tax_config';
+        $stmt = $pdo->prepare("DELETE FROM {$tableName} WHERE id = ?");
         $stmt->execute([$id]);
 
         if ($stmt->rowCount() > 0) {
