@@ -91,22 +91,18 @@ function assessProperty($pdo) {
     }
 
     try {
-        // Get tax config IDs and percentages
-        $tax_stmt = $pdo->prepare("SELECT id, tax_name, tax_percent FROM rpt_tax_config WHERE status = 'active'");
+        // Get tax percentages from rpt_tax_config table
+        $tax_stmt = $pdo->prepare("SELECT tax_name, tax_percent FROM rpt_tax_config WHERE status = 'active'");
         $tax_stmt->execute();
         $tax_configs = $tax_stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        $basic_tax_id = null;
-        $sef_tax_id = null;
         $basic_tax_percent = 0;
         $sef_tax_percent = 0;
         
         foreach ($tax_configs as $config) {
             if ($config['tax_name'] === 'Basic Tax') {
-                $basic_tax_id = $config['id'];
                 $basic_tax_percent = floatval($config['tax_percent']);
             } elseif ($config['tax_name'] === 'SEF Tax') {
-                $sef_tax_id = $config['id'];
                 $sef_tax_percent = floatval($config['tax_percent']);
             }
         }
@@ -172,8 +168,6 @@ function assessProperty($pdo) {
                     land_market_value = ?,
                     land_assessed_value = ?,
                     assessment_level = ?,
-                    basic_tax_config_id = ?,
-                    sef_tax_config_id = ?,
                     basic_tax_amount = ?,
                     sef_tax_amount = ?,
                     annual_tax = ?,
@@ -189,8 +183,6 @@ function assessProperty($pdo) {
                     $land_market_value, 
                     $land_assessed_value, 
                     $land_assessment_level,
-                    $basic_tax_id, 
-                    $sef_tax_id, 
                     $land_basic_tax, 
                     $land_sef_tax, 
                     $land_annual_tax,
@@ -200,28 +192,30 @@ function assessProperty($pdo) {
                 $land_id = $existing_land_id;
                 $land_action = 'updated';
             } else {
+                // Generate TDN for land
+                $tdn = generateTDN($pdo, 'L');
+                
                 // INSERT new land assessment
                 $land_query = "
                     INSERT INTO land_properties 
-                    (registration_id, inspection_id, property_type, land_config_id, 
+                    (registration_id, inspection_id, tdn, property_type, land_config_id, 
                      land_area_sqm, land_market_value, land_assessed_value, assessment_level,
-                     basic_tax_config_id, sef_tax_config_id, basic_tax_amount, sef_tax_amount, 
-                     annual_tax, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                     basic_tax_amount, sef_tax_amount, 
+                     annual_tax, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
                 ";
                 
                 $land_stmt = $pdo->prepare($land_query);
                 $land_stmt->execute([
                     $registration_id, 
                     $inspection_id, 
+                    $tdn,
                     $data['land_property_type'], 
                     $land_config_id,
                     $land_area_sqm, 
                     $land_market_value, 
                     $land_assessed_value, 
                     $land_assessment_level,
-                    $basic_tax_id, 
-                    $sef_tax_id, 
                     $land_basic_tax, 
                     $land_sef_tax, 
                     $land_annual_tax
@@ -358,8 +352,6 @@ function assessProperty($pdo) {
                         depreciation_percent = ?,
                         building_assessed_value = ?,
                         assessment_level = ?,
-                        basic_tax_config_id = ?,
-                        sef_tax_config_id = ?,
                         basic_tax_amount = ?,
                         sef_tax_amount = ?,
                         annual_tax = ?,
@@ -378,8 +370,6 @@ function assessProperty($pdo) {
                         $depreciation_percent, 
                         $building_assessed_value, 
                         $building_assessment_level,
-                        $basic_tax_id, 
-                        $sef_tax_id, 
                         $building_basic_tax, 
                         $building_sef_tax, 
                         $building_annual_tax,
@@ -388,21 +378,25 @@ function assessProperty($pdo) {
                     
                     $building_action = 'updated';
                 } else {
+                    // Generate TDN for building
+                    $building_tdn = generateTDN($pdo, 'B');
+                    
                     // INSERT new building assessment
                     $building_query = "
                         INSERT INTO building_properties 
-                        (land_id, inspection_id, construction_type, property_config_id,
+                        (land_id, inspection_id, tdn, construction_type, property_config_id,
                          floor_area_sqm, year_built, building_market_value, building_depreciated_value,
                          depreciation_percent, building_assessed_value, assessment_level,
-                         basic_tax_config_id, sef_tax_config_id, basic_tax_amount, sef_tax_amount, 
-                         annual_tax, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                         basic_tax_amount, sef_tax_amount, 
+                         annual_tax, status, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
                     ";
                     
                     $building_stmt = $pdo->prepare($building_query);
                     $building_stmt->execute([
                         $land_id, 
                         $inspection_id, 
+                        $building_tdn,
                         $data['construction_type'], 
                         $property_config_id,
                         $floor_area_sqm, 
@@ -412,8 +406,6 @@ function assessProperty($pdo) {
                         $depreciation_percent, 
                         $building_assessed_value, 
                         $building_assessment_level,
-                        $basic_tax_id, 
-                        $sef_tax_id, 
                         $building_basic_tax, 
                         $building_sef_tax, 
                         $building_annual_tax
@@ -527,4 +519,31 @@ function assessProperty($pdo) {
         http_response_code(500);
         echo json_encode(["error" => "Assessment error: " . $e->getMessage()]);
     }
+}
+
+// Helper function to generate TDN (Tax Declaration Number)
+function generateTDN($pdo, $type = 'L') {
+    $current_year = date('Y');
+    $prefix = "TDN-{$type}-{$current_year}-";
+    
+    // Get the last TDN for this type and year
+    $stmt = $pdo->prepare("
+        SELECT tdn 
+        FROM " . ($type == 'L' ? 'land_properties' : 'building_properties') . " 
+        WHERE tdn LIKE ? 
+        ORDER BY tdn DESC 
+        LIMIT 1
+    ");
+    $stmt->execute([$prefix . '%']);
+    $last_tdn = $stmt->fetch(PDO::FETCH_COLUMN);
+    
+    if ($last_tdn) {
+        // Extract the number part and increment
+        $last_number = intval(substr($last_tdn, strlen($prefix)));
+        $next_number = str_pad($last_number + 1, 4, '0', STR_PAD_LEFT);
+    } else {
+        $next_number = '0001';
+    }
+    
+    return $prefix . $next_number;
 }
