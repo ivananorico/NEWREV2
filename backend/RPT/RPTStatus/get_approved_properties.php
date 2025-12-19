@@ -1,13 +1,51 @@
 <?php
 // ================================================
-// GET APPROVED PROPERTIES API
+// GET APPROVED PROPERTIES API - UPDATED CORS FOR BOTH LOCALHOST AND PRODUCTION
 // ================================================
 
-// Enable CORS and JSON response
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true");
+// Get the origin from the request
+$http_origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// List of allowed origins (add your domains here)
+$allowed_origins = [
+    'http://localhost:5173',          // React dev server
+    'http://localhost:3000',          // Alternative React dev
+    'http://127.0.0.1:5173',          // Localhost IP
+    'http://127.0.0.1:3000',          // Localhost IP alternative
+    'https://revenuetreasury.goserveph.com',  // Your production domain
+    'https://www.revenuetreasury.goserveph.com',
+    'https://localhost',               // HTTPS localhost (if using SSL)
+    'https://127.0.0.1'                // HTTPS localhost IP
+];
+
+// Debug logging for development
+if (isset($_GET['debug'])) {
+    error_log("CORS Debug: Origin = " . $http_origin);
+    error_log("CORS Debug: Allowed origins = " . implode(", ", $allowed_origins));
+}
+
+// Set CORS headers - Allow all for development, specific for production
+if (in_array($http_origin, $allowed_origins)) {
+    // Specific allowed origin
+    header("Access-Control-Allow-Origin: " . $http_origin);
+    header("Access-Control-Allow-Credentials: true");
+} elseif (empty($http_origin)) {
+    // No origin header (server-side request or direct browser access)
+    // For development, allow all
+    if (strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false || 
+        strpos($_SERVER['HTTP_HOST'] ?? '', '127.0.0.1') !== false) {
+        header("Access-Control-Allow-Origin: *");
+    }
+} else {
+    // Origin not in allowed list - for security, you might want to deny
+    // For now, allow with wildcard but this will work with credentials: 'omit'
+    header("Access-Control-Allow-Origin: *");
+}
+
+// Common CORS headers
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
+header("Access-Control-Max-Age: 86400"); // 24 hours cache for preflight
 header("Content-Type: application/json; charset=UTF-8");
 
 // Handle preflight OPTIONS request
@@ -17,11 +55,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Try to include DB connection with proper error handling
-$dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
+$basePath = dirname(__DIR__, 3); // Go up 3 levels from current directory
+$dbPath = $basePath . '/db/RPT/rpt_db.php';
 
 if (!file_exists($dbPath)) {
     http_response_code(500);
-    echo json_encode(["error" => "Database config file not found at: " . $dbPath]);
+    echo json_encode([
+        "success" => false,
+        "error" => "Database config file not found",
+        "path" => $dbPath,
+        "basePath" => $basePath
+    ]);
     exit();
 }
 
@@ -32,7 +76,11 @@ $pdo = getDatabaseConnection();
 if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
     http_response_code(500);
     $errorMsg = is_array($pdo) ? $pdo['message'] : "Failed to connect to database";
-    echo json_encode(["error" => "Database connection failed: " . $errorMsg]);
+    echo json_encode([
+        "success" => false,
+        "error" => "Database connection failed",
+        "message" => $errorMsg
+    ]);
     exit();
 }
 
@@ -49,7 +97,11 @@ switch ($method) {
         exit();
     default:
         http_response_code(405);
-        echo json_encode(["error" => "Method not allowed"]);
+        echo json_encode([
+            "success" => false,
+            "error" => "Method not allowed",
+            "allowed_methods" => ["GET", "OPTIONS"]
+        ]);
         break;
 }
 
@@ -112,12 +164,25 @@ function getApprovedProperties($pdo) {
         echo json_encode([
             "success" => true,
             "data" => $properties,
-            "count" => count($properties)
+            "count" => count($properties),
+            "timestamp" => date('Y-m-d H:i:s')
         ]);
         
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+        echo json_encode([
+            "success" => false,
+            "error" => "Database error",
+            "message" => $e->getMessage(),
+            "trace" => (strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false) ? $e->getTraceAsString() : null
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            "success" => false,
+            "error" => "Server error",
+            "message" => $e->getMessage()
+        ]);
     }
 }
 ?>

@@ -4,44 +4,57 @@ import { useParams, useNavigate } from "react-router-dom";
 export default function RPTStatusInfo() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Dynamic API configuration
+  const isDevelopment = window.location.hostname === "localhost";
+  const API_BASE = isDevelopment
+    ? "http://localhost/revenue/backend"
+    : "https://revenuetreasury.goserveph.com/backend";
+  
+  const API_PATH = "/RPT/RPTStatus";
+
   const [property, setProperty] = useState(null);
   const [buildings, setBuildings] = useState([]);
   const [quarterlyTaxes, setQuarterlyTaxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState({});
   const [activeTab, setActiveTab] = useState("overview");
-
-  // 🔥 SAME PATTERN AS OTHER COMPONENTS
-  const API_BASE =
-    window.location.hostname === "localhost"
-      ? "http://localhost/revenue/backend"
-      : "https://revenuetreasury.goserveph.com/backend";
-
-  const API_PATH = "/RPT/RPTStatus";
-  const isDevelopment = window.location.hostname === "localhost";
 
   useEffect(() => {
     fetchPropertyDetails();
   }, [id]);
 
   const fetchPropertyDetails = async () => {
+    if (!id || id === "undefined" || id === "null") {
+      console.error("❌ Invalid ID provided:", id);
+      setError("Invalid property ID. Please go back and select a valid property.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       
-      const url = `${API_BASE}${API_PATH}/get_property_details.php?id=${id}`;
-      console.log(`🌐 Fetching property details from: ${url}`);
+      console.log(`🚀 Fetching property details from: ${API_BASE}${API_PATH}/get_property_details.php?id=${id}`);
       
-      const response = await fetch(url, {
-        credentials: 'include',
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(`${API_BASE}${API_PATH}/get_property_details.php?id=${id}`, {
+        method: 'GET',
+        signal: controller.signal,
         headers: {
           'Accept': 'application/json'
         }
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error("❌ Server response error:", response.status, errorText);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
       
       const text = await response.text();
@@ -52,41 +65,34 @@ export default function RPTStatusInfo() {
         data = JSON.parse(text);
       } catch (parseError) {
         console.error("❌ JSON parse error:", parseError);
-        setDebugInfo({
-          rawResponse: text.substring(0, 500),
-          parseError: parseError.message
-        });
-        throw new Error("Invalid JSON response from server");
+        console.error("Failed text:", text);
+        throw new Error("Invalid response from server. Please check backend configuration.");
       }
       
       console.log("✅ Parsed data:", data);
-      
-      // Handle both response formats
+
+      // Extract data from response using the same pattern
       let propertyData = null;
       let buildingsData = [];
       let taxesData = [];
+      let taxConfigData = {};
       
       // Format 1: {success: true, data: {...}} - NEW format
       if (data.success === true || data.success === "true") {
-        console.log("✅ Using format: success + data");
         const responseData = data.data || {};
         propertyData = responseData.property || responseData;
         buildingsData = responseData.buildings || [];
         taxesData = responseData.quarterly_taxes || [];
+        taxConfigData = responseData.tax_config || {};
       }
       // Format 2: {status: "success", ...} - OLD format
       else if (data.status === "success") {
-        console.log("✅ Using format: status + direct properties");
         propertyData = data.property || data;
         buildingsData = data.buildings || [];
         taxesData = data.quarterly_taxes || [];
+        taxConfigData = data.tax_config || {};
       }
       else {
-        console.error("❌ Unknown data format:", data);
-        setDebugInfo({
-          dataStructure: data,
-          availableKeys: Object.keys(data)
-        });
         throw new Error(data.message || data.error || "Failed to fetch property details");
       }
       
@@ -94,13 +100,15 @@ export default function RPTStatusInfo() {
         throw new Error("Property data not found in response");
       }
       
-      console.log(`✅ Loaded property details:`, propertyData);
-      console.log(`✅ Loaded ${buildingsData.length} buildings`);
-      console.log(`✅ Loaded ${taxesData.length} quarterly taxes`);
+      // Add tax config to property data for easy access
+      if (Object.keys(taxConfigData).length > 0) {
+        propertyData.tax_config = taxConfigData;
+      }
       
       setProperty(propertyData);
       setBuildings(buildingsData);
       setQuarterlyTaxes(taxesData);
+      console.log("✅ Property loaded successfully:", propertyData.reference_number);
       
     } catch (err) {
       console.error("❌ Error fetching property details:", err);
@@ -154,6 +162,36 @@ export default function RPTStatusInfo() {
     fetchPropertyDetails();
   };
 
+  // Calculate total building values
+  const calculateBuildingTotals = () => {
+    let totalMarketValue = 0;
+    let totalAssessedValue = 0;
+    let totalAnnualTax = 0;
+    
+    buildings.forEach(building => {
+      totalMarketValue += parseFloat(building.building_market_value) || 0;
+      totalAssessedValue += parseFloat(building.building_assessed_value) || 0;
+      totalAnnualTax += parseFloat(building.building_annual_tax) || 0;
+    });
+    
+    return { totalMarketValue, totalAssessedValue, totalAnnualTax };
+  };
+
+  // Calculate total property values
+  const calculatePropertyTotals = () => {
+    const landMarketValue = parseFloat(property?.land_market_value) || 0;
+    const landAssessedValue = parseFloat(property?.land_assessed_value) || 0;
+    const landAnnualTax = parseFloat(property?.land_annual_tax) || 0;
+    
+    const buildingTotals = calculateBuildingTotals();
+    
+    return {
+      totalMarketValue: landMarketValue + buildingTotals.totalMarketValue,
+      totalAssessedValue: landAssessedValue + buildingTotals.totalAssessedValue,
+      totalAnnualTax: landAnnualTax + buildingTotals.totalAnnualTax
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -162,9 +200,6 @@ export default function RPTStatusInfo() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Property Details</h3>
             <p className="text-gray-600 text-center">Please wait while we fetch the property information...</p>
-            {isDevelopment && (
-              <p className="text-xs text-blue-500 mt-2">ID: {id} | API: {API_BASE}{API_PATH}</p>
-            )}
           </div>
         </div>
       </div>
@@ -183,24 +218,6 @@ export default function RPTStatusInfo() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Property</h3>
             <p className="text-gray-600 mb-4">{error || "Property not found"}</p>
-            
-            {isDevelopment && (
-              <div className="bg-gray-100 p-3 rounded mb-4 text-left">
-                <p className="text-sm font-semibold mb-1">Debug Info:</p>
-                <p className="text-xs">Property ID: {id}</p>
-                <p className="text-xs">API: {API_BASE}{API_PATH}/get_property_details.php?id={id}</p>
-                <p className="text-xs">Environment: Development</p>
-                
-                {debugInfo.rawResponse && (
-                  <>
-                    <p className="text-xs font-semibold mt-2">Raw Response:</p>
-                    <pre className="text-xs bg-gray-800 text-white p-2 rounded mt-1 overflow-auto max-h-32">
-                      {debugInfo.rawResponse}
-                    </pre>
-                  </>
-                )}
-              </div>
-            )}
             
             <div className="space-x-4">
               <button
@@ -222,16 +239,13 @@ export default function RPTStatusInfo() {
     );
   }
 
+  const buildingTotals = calculateBuildingTotals();
+  const propertyTotals = calculatePropertyTotals();
+  const taxConfig = property.tax_config || {};
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {/* Development Banner */}
-      {isDevelopment && (
-        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center py-2 text-sm font-bold z-50">
-          🚧 DEVELOPMENT MODE | ID: {id} | API: {API_BASE}{API_PATH}
-        </div>
-      )}
-
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isDevelopment ? 'pt-10' : ''}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
@@ -286,7 +300,7 @@ export default function RPTStatusInfo() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-              {['overview', 'land-building', 'taxes'].map((tab) => (
+              {['overview', 'land-building', 'assessment', 'taxes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -298,6 +312,7 @@ export default function RPTStatusInfo() {
                 >
                   {tab === 'overview' && 'Property Overview'}
                   {tab === 'land-building' && `Land & Building (${buildings.length})`}
+                  {tab === 'assessment' && 'Tax Assessment'}
                   {tab === 'taxes' && `Tax Records (${quarterlyTaxes.length})`}
                 </button>
               ))}
@@ -392,7 +407,7 @@ export default function RPTStatusInfo() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Tax Assessment</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Tax Assessment Summary</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
@@ -462,7 +477,7 @@ export default function RPTStatusInfo() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Assessment Level</label>
-                      <p className="text-gray-900">{property.assessment_level ? `${property.assessment_level}%` : 'N/A'}</p>
+                      <p className="text-gray-900">{property.land_assessment_level ? `${property.land_assessment_level}%` : 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Annual Tax</label>
@@ -547,6 +562,220 @@ export default function RPTStatusInfo() {
                     <p className="text-gray-500">This property is a vacant land with no registered buildings.</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Assessment Tab - NEW */}
+            {activeTab === 'assessment' && (
+              <div className="space-y-6">
+                {/* Tax Rates Applied */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Tax Rates Applied</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-600 mb-1">{taxConfig.basic_tax_percent || 0}%</div>
+                      <div className="text-sm font-medium text-gray-700">Basic Tax Rate</div>
+                    </div>
+                    <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-600 mb-1">{taxConfig.sef_tax_percent || 0}%</div>
+                      <div className="text-sm font-medium text-gray-700">SEF Tax Rate</div>
+                    </div>
+                    <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-600 mb-1">{taxConfig.total_tax_rate || 0}%</div>
+                      <div className="text-sm font-medium text-gray-700">Total Tax Rate</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Land Assessment Details */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Land Assessment Details</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">Market Value per sqm</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {formatCurrency(parseFloat(property.land_market_value_per_sqm))}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">Land Area</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {property.land_area_sqm} sqm
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">Assessment Level</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {property.land_assessment_level}%
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500">Property Type</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {property.property_type || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Land Value Calculation */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6">
+                    <h4 className="text-md font-semibold text-gray-900 mb-3">Land Value Calculation</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Total Market Value</label>
+                        <p className="text-xl font-bold text-gray-900">
+                          {formatCurrency(parseFloat(property.land_market_value))}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Assessed Value</label>
+                        <p className="text-xl font-bold text-gray-900">
+                          {formatCurrency(parseFloat(property.land_assessed_value))}
+                        </p>
+                        <p className="text-xs text-gray-500">({property.land_assessment_level}% of market value)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Annual Land Tax</label>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatCurrency(parseFloat(property.land_annual_tax))}
+                        </p>
+                        <p className="text-xs text-gray-500">({taxConfig.total_tax_rate || 0}% of assessed value)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Land Tax Breakdown */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h4 className="text-md font-semibold text-gray-900 mb-3">Land Tax Breakdown</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Basic Tax</div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {formatCurrency(parseFloat(property.land_basic_tax))}
+                        </div>
+                        <div className="text-xs text-gray-500">({taxConfig.basic_tax_percent || 0}%)</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">SEF Tax</div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {formatCurrency(parseFloat(property.land_sef_tax))}
+                        </div>
+                        <div className="text-xs text-gray-500">({taxConfig.sef_tax_percent || 0}%)</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Total Land Tax</div>
+                        <div className="text-xl font-bold text-green-600">
+                          {formatCurrency(parseFloat(property.land_annual_tax))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Building Assessment Summary */}
+                {buildings.length > 0 && (
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Building Assessment Summary</h3>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {formatCurrency(buildingTotals.totalAnnualTax)}
+                        </div>
+                        <div className="text-sm text-gray-500">Total Building Tax</div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3">Building Values</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Market Value:</span>
+                            <span className="font-semibold">{formatCurrency(buildingTotals.totalMarketValue)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Assessed Value:</span>
+                            <span className="font-semibold">{formatCurrency(buildingTotals.totalAssessedValue)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Number of Buildings:</span>
+                            <span className="font-semibold">{buildings.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3">Building Tax Breakdown</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Basic Tax:</span>
+                            <span className="font-semibold text-blue-600">
+                              {formatCurrency(buildings.reduce((sum, b) => sum + (parseFloat(b.building_basic_tax) || 0), 0))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total SEF Tax:</span>
+                            <span className="font-semibold text-blue-600">
+                              {formatCurrency(buildings.reduce((sum, b) => sum + (parseFloat(b.building_sef_tax) || 0), 0))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2">
+                            <span className="text-gray-800 font-semibold">Total Building Tax:</span>
+                            <span className="font-bold text-green-600">{formatCurrency(buildingTotals.totalAnnualTax)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total Property Tax Summary */}
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Total Property Tax Summary</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 mb-1">{formatCurrency(propertyTotals.totalMarketValue)}</div>
+                      <div className="text-sm text-gray-500">Total Market Value</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 mb-1">{formatCurrency(propertyTotals.totalAssessedValue)}</div>
+                      <div className="text-sm text-gray-500">Total Assessed Value</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-600 mb-1">{formatCurrency(propertyTotals.totalAnnualTax)}</div>
+                      <div className="text-sm text-gray-500">Total Annual Tax</div>
+                    </div>
+                  </div>
+
+                  {/* Tax Composition */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h4 className="text-md font-semibold text-gray-900 mb-3">Tax Composition</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700">Land Tax</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(parseFloat(property.land_annual_tax))}
+                        </span>
+                      </div>
+                      {buildings.length > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700">Building Tax</span>
+                          <span className="font-semibold text-gray-900">
+                            {formatCurrency(buildingTotals.totalAnnualTax)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between items-center">
+                        <span className="font-semibold text-gray-900">Total Annual Tax</span>
+                        <span className="text-xl font-bold text-green-600">
+                          {formatCurrency(propertyTotals.totalAnnualTax)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
