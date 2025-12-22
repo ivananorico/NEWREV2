@@ -8,11 +8,13 @@ export default function BusinessTaxConfig() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Determine environment
-  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const API_BASE = isDevelopment
+  // Determine environment - FIXED VERSION
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.hostname === '';
+  const API_BASE = isLocalhost
     ? "http://localhost/revenue2/backend/Business/BusinessTaxConfig"
-    : "https://revenuetreasury.goserveph.com/backend/Business/BusinessTaxConfig";
+    : "/backend/Business/BusinessTaxConfig"; // Use relative path for production
 
   // Initialize all states as empty arrays
   const [businessConfigs, setBusinessConfigs] = useState([]);
@@ -73,12 +75,12 @@ export default function BusinessTaxConfig() {
   // Enhanced fetch helper with better error handling
   const fetchData = async (endpoint, setData) => {
     try {
-      console.log(`Fetching from: ${API_BASE}/${endpoint}.php?current_date=${currentDate}&_t=${Date.now()}`);
+      console.log(`Fetching from: ${API_BASE}/${endpoint}?current_date=${currentDate}&_t=${Date.now()}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const response = await fetch(`${API_BASE}/${endpoint}.php?current_date=${currentDate}&_t=${Date.now()}`, {
+      const response = await fetch(`${API_BASE}/${endpoint}?current_date=${currentDate}&_t=${Date.now()}`, {
         signal: controller.signal,
         cache: 'no-cache',
         headers: {
@@ -196,23 +198,23 @@ export default function BusinessTaxConfig() {
 
   // Fetch all configurations
   const fetchBusinessConfigs = async () => {
-    return await fetchData('business-configurations', setBusinessConfigs);
+    return await fetchData('business-configurations.php', setBusinessConfigs);
   };
 
   const fetchCapitalConfigs = async () => {
-    return await fetchData('capital-configurations', setCapitalConfigs);
+    return await fetchData('capital-configurations.php', setCapitalConfigs);
   };
 
   const fetchRegulatoryConfigs = async () => {
-    return await fetchData('regulatory-configurations', setRegulatoryConfigs);
+    return await fetchData('regulatory-configurations.php', setRegulatoryConfigs);
   };
 
   const fetchPenaltyConfigs = async () => {
-    return await fetchData('penalty-configurations', setPenaltyConfigs);
+    return await fetchData('penalty-configurations.php', setPenaltyConfigs);
   };
 
   const fetchDiscountConfigs = async () => {
-    return await fetchData('discount-configurations', setDiscountConfigs);
+    return await fetchData('discount-configurations.php', setDiscountConfigs);
   };
 
   // Fetch all configurations with timeout
@@ -257,18 +259,24 @@ export default function BusinessTaxConfig() {
 
   // Generic API call handler
   const makeApiCall = async (endpoint, method, data = null) => {
-    const url = `${API_BASE}/${endpoint}.php${data?.id ? `?id=${data.id}` : ''}`;
+    let url = `${API_BASE}/${endpoint}`;
     
+    // Add ID to URL for PUT, PATCH, DELETE
+    if (data?.id && (method === 'PUT' || method === 'PATCH' || method === 'DELETE')) {
+      url += `?id=${data.id}`;
+    }
+
     const options = {
       method: method,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
       },
-      body: data ? JSON.stringify(data) : null
+      body: method !== 'GET' && data ? JSON.stringify(data) : null
     };
 
     try {
+      console.log(`Making API call: ${method} ${url}`, data);
       const response = await fetch(url, options);
       
       // Handle response
@@ -300,7 +308,7 @@ export default function BusinessTaxConfig() {
   // Business Configuration Handlers
   const handleBusinessSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = 'business-configurations';
+    const endpoint = 'business-configurations.php';
     const method = editingId ? 'PUT' : 'POST';
     
     try {
@@ -343,7 +351,7 @@ export default function BusinessTaxConfig() {
       return;
     }
 
-    const endpoint = 'capital-configurations';
+    const endpoint = 'capital-configurations.php';
     const method = editingId ? 'PUT' : 'POST';
     
     try {
@@ -380,7 +388,7 @@ export default function BusinessTaxConfig() {
   // Regulatory Configuration Handlers
   const handleRegulatorySubmit = async (e) => {
     e.preventDefault();
-    const endpoint = 'regulatory-configurations';
+    const endpoint = 'regulatory-configurations.php';
     const method = editingId ? 'PUT' : 'POST';
     
     try {
@@ -416,7 +424,7 @@ export default function BusinessTaxConfig() {
   // Penalty Configuration Handlers
   const handlePenaltySubmit = async (e) => {
     e.preventDefault();
-    const endpoint = 'penalty-configurations';
+    const endpoint = 'penalty-configurations.php';
     const method = editingId ? 'PUT' : 'POST';
     
     try {
@@ -451,7 +459,7 @@ export default function BusinessTaxConfig() {
   // Discount Configuration Handlers
   const handleDiscountSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = 'discount-configurations';
+    const endpoint = 'discount-configurations.php';
     const method = editingId ? 'PUT' : 'POST';
     
     try {
@@ -493,7 +501,7 @@ export default function BusinessTaxConfig() {
     if (window.confirm(`Are you sure you want to delete this ${typeName}?`)) {
       try {
         setSubmitting(true);
-        const endpoint = `${type}-configurations`;
+        const endpoint = `${type}-configurations.php`;
         await makeApiCall(endpoint, 'DELETE', { id });
         
         // Refresh data
@@ -537,7 +545,7 @@ export default function BusinessTaxConfig() {
     if (window.confirm(`Are you sure you want to expire this ${typeName}?`)) {
       try {
         setSubmitting(true);
-        const endpoint = `${type}-configurations`;
+        const endpoint = `${type}-configurations.php`;
         await makeApiCall(endpoint, 'PATCH', { 
           id,
           expiration_date: today
