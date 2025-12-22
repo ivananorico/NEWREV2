@@ -9,18 +9,49 @@ const BusinessValidation = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch permits data
+  // Determine environment - FIXED
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.hostname === '';
+  const API_BASE = isLocalhost
+    ? "http://localhost/revenue2/backend/Business/BusinessValidation"
+    : "/backend/Business/BusinessValidation";
+
+  // Fetch permits data - UPDATED
   const fetchPermits = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://localhost/revenue2/backend/Business/BusinessValidation/get_permits.php');
+      
+      console.log(`Fetching from: ${API_BASE}/get_permits.php`);
+      
+      const response = await fetch(`${API_BASE}/get_permits.php`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      // Check content type
+      const contentType = response.headers.get("content-type");
+      let data;
+      
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          throw new Error('Invalid JSON response from server');
+        }
+      }
+      
+      console.log('API Response:', data);
       
       if (data.status === 'success') {
         setPermits(data.permits || []);
@@ -30,6 +61,7 @@ const BusinessValidation = () => {
     } catch (err) {
       console.error('Error fetching permits:', err);
       setError(err.message || 'Failed to load business permits. Please try again.');
+      setPermits([]); // Clear permits on error
     } finally {
       setLoading(false);
     }
@@ -122,6 +154,10 @@ const BusinessValidation = () => {
           <p className="text-gray-600 dark:text-gray-400">
             Review and validate pending business permit applications
           </p>
+          {/* Debug info - optional */}
+          <div className="text-xs text-gray-500 mt-1">
+            API Base: {API_BASE}
+          </div>
         </div>
         <div className="flex items-center space-x-2 mt-4 md:mt-0">
           <button
@@ -162,7 +198,12 @@ const BusinessValidation = () => {
       {error && (
         <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg">
           <div className="flex justify-between items-start">
-            <span>{error}</span>
+            <div>
+              <strong>Error:</strong> {error}
+              <div className="mt-2 text-sm">
+                URL attempted: {API_BASE}/get_permits.php
+              </div>
+            </div>
             <button onClick={() => setError('')} className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
