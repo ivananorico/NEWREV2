@@ -48,7 +48,7 @@ const BusinessValidationInfo = () => {
   // Calculate tax
   const calculateTax = async (permitData, rateId = null, customRateValue = null) => {
     try {
-      let url = `http://localhost/revenue/backend/Business/BusinessValidation/calculate_tax.php?`;
+      let url = `http://localhost/revenue2/backend/Business/BusinessValidation/calculate_tax.php?`;
       url += `tax_type=${encodeURIComponent(permitData.tax_calculation_type)}`;
       url += `&taxable_amount=${encodeURIComponent(permitData.taxable_amount)}`;
       url += `&business_type=${encodeURIComponent(permitData.business_type)}`;

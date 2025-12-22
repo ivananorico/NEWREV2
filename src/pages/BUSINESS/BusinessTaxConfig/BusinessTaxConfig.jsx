@@ -8,6 +8,12 @@ export default function BusinessTaxConfig() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
+  // Determine environment
+  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const API_BASE = isDevelopment
+    ? "http://localhost/revenue2/backend/Business/BusinessTaxConfig"
+    : "https://revenuetreasury.goserveph.com/backend/Business/BusinessTaxConfig";
+
   // Initialize all states as empty arrays
   const [businessConfigs, setBusinessConfigs] = useState([]);
   const [businessForm, setBusinessForm] = useState({
@@ -56,8 +62,6 @@ export default function BusinessTaxConfig() {
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
 
-  const API_BASE = "http://localhost/revenue2/backend/Business/BusinessTaxConfig";
-
   // Helper to normalize database dates
   const normalizeDate = (dateStr) => {
     if (!dateStr || dateStr === '0000-00-00' || dateStr === '0000-00-00 00:00:00') {
@@ -66,99 +70,126 @@ export default function BusinessTaxConfig() {
     return dateStr;
   };
 
-  // PROPER JSON FETCH HELPER
+  // Enhanced fetch helper with better error handling
   const fetchData = async (endpoint, setData) => {
     try {
-      console.log(`Fetching from: ${API_BASE}/${endpoint}.php?current_date=${currentDate}`);
-      const response = await fetch(`${API_BASE}/${endpoint}.php?current_date=${currentDate}`);
+      console.log(`Fetching from: ${API_BASE}/${endpoint}.php?current_date=${currentDate}&_t=${Date.now()}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`${API_BASE}/${endpoint}.php?current_date=${currentDate}&_t=${Date.now()}`, {
+        signal: controller.signal,
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // First check if response is valid JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         console.warn(`Response from ${endpoint} is not JSON:`, text.substring(0, 200));
-        throw new Error(`Expected JSON but got: ${contentType}`);
+        
+        // Try to parse as JSON anyway (some servers don't set proper headers)
+        try {
+          const parsed = JSON.parse(text);
+          console.log(`Successfully parsed as JSON after header check:`, parsed);
+          return handleJSONResponse(parsed, endpoint, setData);
+        } catch (parseError) {
+          throw new Error(`Expected JSON but got: ${contentType}`);
+        }
       }
       
-      // Parse JSON response
       const result = await response.json();
-      console.log(`API Response from ${endpoint}:`, result);
-      
-      let dataArray = [];
-      
-      // Handle JSON response based on structure
-      if (Array.isArray(result)) {
-        // Case 1: Direct JSON array
-        dataArray = result;
-      } else if (result && typeof result === 'object') {
-        // Case 2: JSON object with common structures
-        if (result.data !== undefined) {
-          // If data is an array
-          if (Array.isArray(result.data)) {
-            dataArray = result.data;
-          } 
-          // If data is a single object, wrap in array
-          else if (typeof result.data === 'object' && result.data !== null) {
-            dataArray = [result.data];
-          }
-          // If data is null or undefined
-          else if (result.data === null || result.data === undefined) {
-            dataArray = [];
-          }
-        } 
-        // Case 3: Check for success/data pattern
-        else if (result.success !== undefined && result.data !== undefined) {
-          if (Array.isArray(result.data)) {
-            dataArray = result.data;
-          } else if (typeof result.data === 'object' && result.data !== null) {
-            dataArray = [result.data];
-          }
-        }
-        // Case 4: Object with other array properties
-        else {
-          // Look for any array property
-          const arrayKeys = Object.keys(result).filter(key => Array.isArray(result[key]));
-          if (arrayKeys.length > 0) {
-            dataArray = result[arrayKeys[0]];
-          }
-          // If no array found but has id property (single object)
-          else if (result.id !== undefined) {
-            dataArray = [result];
-          }
-        }
-      }
-      
-      // If still no data, try to extract from root properties
-      if (dataArray.length === 0 && result && typeof result === 'object') {
-        const entries = Object.entries(result);
-        if (entries.length > 0 && Array.isArray(entries[0][1])) {
-          dataArray = entries[0][1];
-        }
-      }
-      
-      console.log(`Parsed JSON data for ${endpoint}:`, dataArray);
-      
-      // Normalize dates in the data
-      if (Array.isArray(dataArray)) {
-        dataArray = dataArray.map(item => ({
-          ...item,
-          expiration_date: normalizeDate(item.expiration_date)
-        }));
-      } else {
-        console.error(`Expected array but got:`, typeof dataArray, dataArray);
-        dataArray = [];
-      }
-      
-      setData(dataArray);
-      return dataArray;
+      return handleJSONResponse(result, endpoint, setData);
     } catch (error) {
       console.error(`Error fetching ${endpoint}:`, error);
       setData([]);
       setError(`Failed to load ${endpoint}: ${error.message}`);
+      return [];
+    }
+  };
+
+  // Handle JSON response parsing
+  const handleJSONResponse = (result, endpoint, setData) => {
+    console.log(`API Response from ${endpoint}:`, result);
+    
+    let dataArray = [];
+    
+    // Handle different response structures
+    if (Array.isArray(result)) {
+      dataArray = result;
+    } else if (result && typeof result === 'object') {
+      // Check for common patterns
+      if (result.data !== undefined && result.data !== null) {
+        if (Array.isArray(result.data)) {
+          dataArray = result.data;
+        } else if (typeof result.data === 'object') {
+          dataArray = [result.data];
+        }
+      } else if (result.success !== undefined && result.data !== undefined) {
+        if (Array.isArray(result.data)) {
+          dataArray = result.data;
+        } else if (typeof result.data === 'object') {
+          dataArray = [result.data];
+        }
+      } else if (result.status === 'success' && result.data !== undefined) {
+        if (Array.isArray(result.data)) {
+          dataArray = result.data;
+        } else if (typeof result.data === 'object') {
+          dataArray = [result.data];
+        }
+      } else {
+        // Look for any array property
+        const arrayKeys = Object.keys(result).filter(key => Array.isArray(result[key]));
+        if (arrayKeys.length > 0) {
+          dataArray = result[arrayKeys[0]];
+        } else if (result.id !== undefined) {
+          dataArray = [result];
+        }
+      }
+    }
+    
+    // If still no data, try direct object keys
+    if (dataArray.length === 0 && result && typeof result === 'object') {
+      const entries = Object.entries(result);
+      if (entries.length > 0) {
+        // Check if first value is an array
+        if (Array.isArray(entries[0][1])) {
+          dataArray = entries[0][1];
+        } else if (typeof entries[0][1] === 'object') {
+          // Could be an object with nested data
+          const nestedEntries = Object.entries(entries[0][1]);
+          if (nestedEntries.length > 0 && Array.isArray(nestedEntries[0][1])) {
+            dataArray = nestedEntries[0][1];
+          }
+        }
+      }
+    }
+    
+    console.log(`Parsed JSON data for ${endpoint}:`, dataArray);
+    
+    // Normalize dates in the data
+    if (Array.isArray(dataArray)) {
+      dataArray = dataArray.map(item => ({
+        ...item,
+        expiration_date: normalizeDate(item.expiration_date)
+      }));
+      
+      setData(dataArray);
+      return dataArray;
+    } else {
+      console.error(`Expected array but got:`, typeof dataArray, dataArray);
+      setData([]);
       return [];
     }
   };
@@ -184,16 +215,24 @@ export default function BusinessTaxConfig() {
     return await fetchData('discount-configurations', setDiscountConfigs);
   };
 
-  // Fetch all configurations
+  // Fetch all configurations with timeout
   const fetchAllConfigs = async () => {
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), 15000)
+    );
+
     try {
-      await Promise.all([
-        fetchBusinessConfigs(),
-        fetchCapitalConfigs(),
-        fetchRegulatoryConfigs(),
-        fetchPenaltyConfigs(),
-        fetchDiscountConfigs()
+      const result = await Promise.race([
+        Promise.all([
+          fetchBusinessConfigs(),
+          fetchCapitalConfigs(),
+          fetchRegulatoryConfigs(),
+          fetchPenaltyConfigs(),
+          fetchDiscountConfigs()
+        ]),
+        timeout
       ]);
+      return result;
     } catch (error) {
       console.error('Error fetching all configurations:', error);
       throw error;
@@ -216,46 +255,65 @@ export default function BusinessTaxConfig() {
     loadData();
   }, [currentDate]);
 
-  // Business Configuration Handlers
-  const handleBusinessSubmit = async (e) => {
-    e.preventDefault();
-    const url = editingId 
-      ? `${API_BASE}/business-configurations.php?id=${editingId}`
-      : `${API_BASE}/business-configurations.php`;
+  // Generic API call handler
+  const makeApiCall = async (endpoint, method, data = null) => {
+    const url = `${API_BASE}/${endpoint}.php${data?.id ? `?id=${data.id}` : ''}`;
     
-    const method = editingId ? 'PUT' : 'POST';
+    const options = {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      body: data ? JSON.stringify(data) : null
+    };
 
     try {
-      setSubmitting(true);
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(businessForm)
-      });
-
-      // Check if response is JSON
+      const response = await fetch(url, options);
+      
+      // Handle response
       const contentType = response.headers.get("content-type");
       let result;
+      
       if (contentType && contentType.includes("application/json")) {
         result = await response.json();
       } else {
         const text = await response.text();
-        throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          throw new Error(`Non-JSON response: ${text.substring(0, 100)}`);
+        }
       }
+      
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Unknown error');
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`API call failed (${method} ${endpoint}):`, error);
+      throw error;
+    }
+  };
+
+  // Business Configuration Handlers
+  const handleBusinessSubmit = async (e) => {
+    e.preventDefault();
+    const endpoint = 'business-configurations';
+    const method = editingId ? 'PUT' : 'POST';
+    
+    try {
+      setSubmitting(true);
+      const result = await makeApiCall(endpoint, method, editingId ? { ...businessForm, id: editingId } : businessForm);
       
       console.log('Business API Response:', result);
       
-      if (response.ok) {
-        // Refresh from server
-        await fetchBusinessConfigs();
-        resetBusinessForm();
-        setSuccessMessage(editingId ? 'Business tax updated successfully!' : 'Business tax created successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert('Error: ' + (result.message || result.error || 'Unknown error'));
-      }
+      // Refresh from server
+      await fetchBusinessConfigs();
+      resetBusinessForm();
+      setSuccessMessage(editingId ? 'Business tax updated successfully!' : 'Business tax created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error saving business configuration:', error);
       alert('Error saving business configuration: ' + error.message);
@@ -279,48 +337,25 @@ export default function BusinessTaxConfig() {
   // Capital Investment Configuration Handlers
   const handleCapitalSubmit = async (e) => {
     e.preventDefault();
-    const url = editingId 
-      ? `${API_BASE}/capital-configurations.php?id=${editingId}`
-      : `${API_BASE}/capital-configurations.php`;
-    
-    const method = editingId ? 'PUT' : 'POST';
-
     // Validate that min capital is less than max capital
     if (parseFloat(capitalForm.min_amount) >= parseFloat(capitalForm.max_amount)) {
       alert('Minimum capital must be less than maximum capital');
       return;
     }
 
+    const endpoint = 'capital-configurations';
+    const method = editingId ? 'PUT' : 'POST';
+    
     try {
       setSubmitting(true);
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(capitalForm)
-      });
-
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
-      }
+      const result = await makeApiCall(endpoint, method, editingId ? { ...capitalForm, id: editingId } : capitalForm);
       
       console.log('Capital API Response:', result);
       
-      if (response.ok) {
-        await fetchCapitalConfigs();
-        resetCapitalForm();
-        setSuccessMessage(editingId ? 'Capital investment tax updated successfully!' : 'Capital investment tax created successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert('Error: ' + (result.message || result.error || 'Unknown error'));
-      }
+      await fetchCapitalConfigs();
+      resetCapitalForm();
+      setSuccessMessage(editingId ? 'Capital investment tax updated successfully!' : 'Capital investment tax created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error saving capital configuration:', error);
       alert('Error saving capital configuration: ' + error.message);
@@ -345,42 +380,19 @@ export default function BusinessTaxConfig() {
   // Regulatory Configuration Handlers
   const handleRegulatorySubmit = async (e) => {
     e.preventDefault();
-    const url = editingId 
-      ? `${API_BASE}/regulatory-configurations.php?id=${editingId}`
-      : `${API_BASE}/regulatory-configurations.php`;
-    
+    const endpoint = 'regulatory-configurations';
     const method = editingId ? 'PUT' : 'POST';
-
+    
     try {
       setSubmitting(true);
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(regulatoryForm)
-      });
-
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
-      }
+      const result = await makeApiCall(endpoint, method, editingId ? { ...regulatoryForm, id: editingId } : regulatoryForm);
       
       console.log('Regulatory API Response:', result);
       
-      if (response.ok) {
-        await fetchRegulatoryConfigs();
-        resetRegulatoryForm();
-        setSuccessMessage(editingId ? 'Regulatory configuration updated successfully!' : 'Regulatory configuration created successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert('Error: ' + (result.message || result.error || 'Unknown error'));
-      }
+      await fetchRegulatoryConfigs();
+      resetRegulatoryForm();
+      setSuccessMessage(editingId ? 'Regulatory configuration updated successfully!' : 'Regulatory configuration created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error saving regulatory configuration:', error);
       alert('Error saving regulatory configuration: ' + error.message);
@@ -404,42 +416,19 @@ export default function BusinessTaxConfig() {
   // Penalty Configuration Handlers
   const handlePenaltySubmit = async (e) => {
     e.preventDefault();
-    const url = editingId 
-      ? `${API_BASE}/penalty-configurations.php?id=${editingId}`
-      : `${API_BASE}/penalty-configurations.php`;
-    
+    const endpoint = 'penalty-configurations';
     const method = editingId ? 'PUT' : 'POST';
-
+    
     try {
       setSubmitting(true);
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(penaltyForm)
-      });
-
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
-      }
+      const result = await makeApiCall(endpoint, method, editingId ? { ...penaltyForm, id: editingId } : penaltyForm);
       
       console.log('Penalty API Response:', result);
       
-      if (response.ok) {
-        await fetchPenaltyConfigs();
-        resetPenaltyForm();
-        setSuccessMessage(editingId ? 'Penalty configuration updated successfully!' : 'Penalty configuration created successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert('Error: ' + (result.message || result.error || 'Unknown error'));
-      }
+      await fetchPenaltyConfigs();
+      resetPenaltyForm();
+      setSuccessMessage(editingId ? 'Penalty configuration updated successfully!' : 'Penalty configuration created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error saving penalty configuration:', error);
       alert('Error saving penalty configuration: ' + error.message);
@@ -462,42 +451,19 @@ export default function BusinessTaxConfig() {
   // Discount Configuration Handlers
   const handleDiscountSubmit = async (e) => {
     e.preventDefault();
-    const url = editingId 
-      ? `${API_BASE}/discount-configurations.php?id=${editingId}`
-      : `${API_BASE}/discount-configurations.php`;
-    
+    const endpoint = 'discount-configurations';
     const method = editingId ? 'PUT' : 'POST';
-
+    
     try {
       setSubmitting(true);
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(discountForm)
-      });
-
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        const text = await response.text();
-        throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
-      }
+      const result = await makeApiCall(endpoint, method, editingId ? { ...discountForm, id: editingId } : discountForm);
       
       console.log('Discount API Response:', result);
       
-      if (response.ok) {
-        await fetchDiscountConfigs();
-        resetDiscountForm();
-        setSuccessMessage(editingId ? 'Discount configuration updated successfully!' : 'Discount configuration created successfully!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert('Error: ' + (result.message || result.error || 'Unknown error'));
-      }
+      await fetchDiscountConfigs();
+      resetDiscountForm();
+      setSuccessMessage(editingId ? 'Discount configuration updated successfully!' : 'Discount configuration created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error saving discount configuration:', error);
       alert('Error saving discount configuration: ' + error.message);
@@ -528,45 +494,29 @@ export default function BusinessTaxConfig() {
       try {
         setSubmitting(true);
         const endpoint = `${type}-configurations`;
-        const response = await fetch(`${API_BASE}/${endpoint}.php?id=${id}`, {
-          method: 'DELETE'
-        });
-
-        // Check if response is JSON
-        const contentType = response.headers.get("content-type");
-        let result;
-        if (contentType && contentType.includes("application/json")) {
-          result = await response.json();
-        } else {
-          const text = await response.text();
-          throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
+        await makeApiCall(endpoint, 'DELETE', { id });
+        
+        // Refresh data
+        switch (type) {
+          case 'business':
+            await fetchBusinessConfigs();
+            break;
+          case 'capital':
+            await fetchCapitalConfigs();
+            break;
+          case 'regulatory':
+            await fetchRegulatoryConfigs();
+            break;
+          case 'penalty':
+            await fetchPenaltyConfigs();
+            break;
+          case 'discount':
+            await fetchDiscountConfigs();
+            break;
         }
-
-        if (response.ok) {
-          // Refresh data
-          switch (type) {
-            case 'business':
-              await fetchBusinessConfigs();
-              break;
-            case 'capital':
-              await fetchCapitalConfigs();
-              break;
-            case 'regulatory':
-              await fetchRegulatoryConfigs();
-              break;
-            case 'penalty':
-              await fetchPenaltyConfigs();
-              break;
-            case 'discount':
-              await fetchDiscountConfigs();
-              break;
-          }
-          
-          setSuccessMessage(`${typeName} deleted successfully!`);
-          setTimeout(() => setSuccessMessage(null), 3000);
-        } else {
-          alert('Error: ' + (result.message || result.error || 'Failed to delete'));
-        }
+        
+        setSuccessMessage(`${typeName} deleted successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
       } catch (error) {
         console.error(`Error deleting ${type}:`, error);
         alert('Error deleting configuration: ' + error.message);
@@ -588,51 +538,32 @@ export default function BusinessTaxConfig() {
       try {
         setSubmitting(true);
         const endpoint = `${type}-configurations`;
-        const response = await fetch(`${API_BASE}/${endpoint}.php?id=${id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            expiration_date: today
-          })
+        await makeApiCall(endpoint, 'PATCH', { 
+          id,
+          expiration_date: today
         });
-
-        // Check if response is JSON
-        const contentType = response.headers.get("content-type");
-        let result;
-        if (contentType && contentType.includes("application/json")) {
-          result = await response.json();
-        } else {
-          const text = await response.text();
-          throw new Error(`Expected JSON but got: ${text.substring(0, 100)}`);
+        
+        // Refresh data
+        switch (type) {
+          case 'business':
+            await fetchBusinessConfigs();
+            break;
+          case 'capital':
+            await fetchCapitalConfigs();
+            break;
+          case 'regulatory':
+            await fetchRegulatoryConfigs();
+            break;
+          case 'penalty':
+            await fetchPenaltyConfigs();
+            break;
+          case 'discount':
+            await fetchDiscountConfigs();
+            break;
         }
-
-        if (response.ok) {
-          // Refresh data
-          switch (type) {
-            case 'business':
-              await fetchBusinessConfigs();
-              break;
-            case 'capital':
-              await fetchCapitalConfigs();
-              break;
-            case 'regulatory':
-              await fetchRegulatoryConfigs();
-              break;
-            case 'penalty':
-              await fetchPenaltyConfigs();
-              break;
-            case 'discount':
-              await fetchDiscountConfigs();
-              break;
-          }
-          
-          setSuccessMessage(`${typeName} expired successfully!`);
-          setTimeout(() => setSuccessMessage(null), 3000);
-        } else {
-          alert('Error: ' + (result.message || result.error || 'Failed to expire'));
-        }
+        
+        setSuccessMessage(`${typeName} expired successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
       } catch (error) {
         console.error(`Error expiring ${type}:`, error);
         alert('Error expiring configuration: ' + error.message);
@@ -711,7 +642,7 @@ export default function BusinessTaxConfig() {
   const penaltyConfigsSafe = getSafeArray(penaltyConfigs);
   const discountConfigsSafe = getSafeArray(discountConfigs);
 
-  // Calculate statistics - handle empty or invalid dates
+  // Calculate statistics
   const calculateStats = (configs) => {
     if (!Array.isArray(configs)) return { active: 0, expired: 0 };
     
@@ -731,7 +662,6 @@ export default function BusinessTaxConfig() {
             expired++;
           }
         } catch (e) {
-          // If date parsing fails, treat as active
           active++;
         }
       }
@@ -777,19 +707,12 @@ export default function BusinessTaxConfig() {
     }
   };
 
-  // Debug: Check what data we have
-  useEffect(() => {
-    console.log('Business Configs (JSON):', businessConfigsSafe);
-    console.log('Capital Configs (JSON):', capitalConfigsSafe);
-    console.log('Regulatory Configs (JSON):', regulatoryConfigsSafe);
-    console.log('Penalty Configs (JSON):', penaltyConfigsSafe);
-    console.log('Discount Configs (JSON):', discountConfigsSafe);
-  }, [businessConfigs, capitalConfigs, regulatoryConfigs, penaltyConfigs, discountConfigs]);
-
   return (
     <div className='mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg'>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Business Tax Configuration</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Business Tax Configuration</h1>
+        </div>
         <button
           onClick={refreshCurrentTab}
           disabled={loading || submitting}
