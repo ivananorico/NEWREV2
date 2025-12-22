@@ -1,10 +1,10 @@
 <?php
 // revenue2/backend/Business/BusinessValidation/calculate_tax.php
 
-// Enable CORS and JSON response
+// Enable CORS with proper headers
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, expires, Cache-Control, Pragma");
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -55,7 +55,7 @@ try {
                 LIMIT 1
             ");
             $stmt->execute([$selected_config_id]);
-            $config_used = $stmt->fetch();
+            $config_used = $stmt->fetch(PDO::FETCH_ASSOC);
         } else {
             // Find matching bracket based on amount
             $stmt = $pdo->prepare("
@@ -67,7 +67,7 @@ try {
                 LIMIT 1
             ");
             $stmt->execute([$taxable_amount]);
-            $config_used = $stmt->fetch();
+            $config_used = $stmt->fetch(PDO::FETCH_ASSOC);
         }
         
         // Get all available configs for reference
@@ -78,7 +78,7 @@ try {
             ORDER BY min_amount
         ");
         $all_stmt->execute();
-        $available_configs = $all_stmt->fetchAll();
+        $available_configs = $all_stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Determine tax rate
         if ($override_tax_rate !== null) {
@@ -131,7 +131,7 @@ try {
                 LIMIT 1
             ");
             $stmt->execute([$selected_config_id]);
-            $config_used = $stmt->fetch();
+            $config_used = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($config_used) {
                 $tax_rate = floatval($config_used['tax_percent']);
@@ -147,7 +147,7 @@ try {
                 LIMIT 1
             ");
             $stmt->execute([$business_type]);
-            $config_used = $stmt->fetch();
+            $config_used = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($config_used) {
                 $tax_rate = floatval($config_used['tax_percent']);
@@ -163,7 +163,7 @@ try {
             ORDER BY business_type
         ");
         $all_stmt->execute();
-        $available_configs = $all_stmt->fetchAll();
+        $available_configs = $all_stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // If no config found, use default
         if (!$config_used || $tax_rate === 0) {
@@ -197,7 +197,7 @@ try {
         ORDER BY id
     ");
     $stmt->execute();
-    $fees = $stmt->fetchAll();
+    $fees = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate total fees
     $total_fees = 0;
@@ -217,7 +217,7 @@ try {
         LIMIT 1
     ");
     $discount_stmt->execute();
-    $discount_config = $discount_stmt->fetch();
+    $discount_config = $discount_stmt->fetch(PDO::FETCH_ASSOC);
     
     // Get penalty configuration (optional)
     $penalty_stmt = $pdo->prepare("
@@ -228,7 +228,7 @@ try {
         LIMIT 1
     ");
     $penalty_stmt->execute();
-    $penalty_config = $penalty_stmt->fetch();
+    $penalty_config = $penalty_stmt->fetch(PDO::FETCH_ASSOC);
     
     // Prepare calculation steps
     $calculation_steps = [];
@@ -349,15 +349,7 @@ try {
         'discount_config' => $discount_config,
         'penalty_config' => $penalty_config,
         'calculation_steps' => $calculation_steps,
-        'timestamp' => date('Y-m-d H:i:s'),
-        'debug' => [
-            'permit_id' => $permit_id,
-            'tax_type' => $tax_type,
-            'taxable_amount' => $taxable_amount,
-            'business_type' => $business_type,
-            'selected_config_id' => $selected_config_id,
-            'override_tax_rate' => $override_tax_rate
-        ]
+        'timestamp' => date('Y-m-d H:i:s')
     ]);
     
 } catch (Exception $e) {
@@ -365,11 +357,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Calculation error: ' . $e->getMessage(),
-        'debug' => [
-            'tax_type' => $_GET['tax_type'] ?? 'not set',
-            'taxable_amount' => $_GET['taxable_amount'] ?? 'not set',
-            'business_type' => $_GET['business_type'] ?? 'not set',
-            'timestamp' => date('Y-m-d H:i:s')
-        ]
+        'timestamp' => date('Y-m-d H:i:s')
     ]);
 }
+?>
