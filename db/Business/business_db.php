@@ -1,9 +1,22 @@
 <?php
-$host = 'localhost';
-$port = 3307;
-$dbname = 'business_tax';
-$user = 'root';
-$pass = '';
+// Determine if we're in local or production environment
+$isProduction = $_SERVER['HTTP_HOST'] === 'revenuetreasury.goserveph.com';
+
+if ($isProduction) {
+    // Production database credentials (get these from your hosting provider)
+    $host = 'localhost';
+    $port = 3306; // Usually 3306 in production
+    $dbname = 'reve_business';
+    $user = 'reve_business';
+    $pass = 'qi-iO4C%IIvtG-1j';
+} else {
+    // Local development credentials
+    $host = 'localhost';
+    $port = 3307;
+    $dbname = 'business_tax';
+    $user = 'root';
+    $pass = '';
+}
 
 try {
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
