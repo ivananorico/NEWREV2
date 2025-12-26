@@ -21,6 +21,8 @@ import RPTDashboard from './pages/RPT/RPTDashboard/RPTDashboard'
 import BusinessTaxConfig from './pages/BUSINESS/BusinessTaxConfig/BusinessTaxConfig'
 import BusinessValidation from './pages/BUSINESS/BusinessValidation/BusinessValidation'
 import BusinessValidationInfo from './pages/BUSINESS/BusinessValidation/BusinessValidationInfo'
+import BusinessStatus from './pages/BUSINESS/BusinessStatus/BusinessStatus'
+import BusinessStatusInfo from './pages/BUSINESS/BusinessStatus/BusinessStatusInfo'
 // DIGIPAY Pages
 import DIGIPAY1 from './pages/DIGIPAY/DIGIPAY1/DIGIPAY1'
 import DIGIPAY2 from './pages/DIGIPAY/DIGIPAY2/DIGIPAY2'
@@ -79,6 +81,8 @@ function App() {
               <Route path="/business/businesstaxconfig" element={<BusinessTaxConfig />} />
               <Route path="/business/businessvalidation" element={<BusinessValidation />} />
               <Route path="/business/businessvalidationinfo/:id" element={<BusinessValidationInfo />} />
+              <Route path="/business/businessstatus" element={<BusinessStatus />} />
+              <Route path="/business/businessstatusinfo/:id" element={<BusinessStatusInfo />} />
 
               {/* TREASURY */}
               <Route path="/treasury/treasury1" element={<TREASURY1 />} />

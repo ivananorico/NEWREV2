@@ -26,6 +26,7 @@ const sidebarItems = [
     subItems: [
       { id: "BusinessTaxConfig", label: "Business Tax Configuration", path: "/BUSINESS/BusinessTaxConfig" },
       { id: "BusinessValidation", label: "BusinessValidation", path: "/BUSINESS/BusinessValidation" },
+      { id: "BusinessStatus", label: "Business Status", path: "/BUSINESS/BusinessStatus" },
     ]
   },
   {

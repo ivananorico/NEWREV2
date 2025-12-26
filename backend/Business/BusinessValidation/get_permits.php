@@ -1,23 +1,43 @@
 <?php
-// Enable CORS with proper headers
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, expires, Cache-Control, Pragma");
+/**
+ * ======================================
+ * CORS CONFIGURATION (FINAL FIX)
+ * ======================================
+ */
+$allowed_origins = [
+    "http://localhost:5173",
+    "https://revenuetreasury.goserveph.com"
+];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+}
+
 header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma");
 header("Content-Type: application/json");
 
-// Handle preflight requests
+// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Include your database connection
+/**
+ * ======================================
+ * DATABASE CONNECTION
+ * ======================================
+ */
 require_once '../../../db/Business/business_db.php';
 
 try {
-    // Get all business permits with PENDING status
-    // Using correct column names from your business_permits table
+
+    /**
+     * ======================================
+     * FETCH PENDING BUSINESS PERMITS
+     * ======================================
+     */
     $sql = "SELECT 
                 id,
                 business_permit_id,
@@ -30,8 +50,6 @@ try {
                 tax_amount,
                 regulatory_fees,
                 total_tax,
-                tax_calculated,
-                tax_approved,
                 approved_date,
                 address,
                 contact_number,
@@ -48,34 +66,35 @@ try {
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
-    
+
     $permits = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Format the response
-    $response = [
-        'status' => 'success',
+
+    echo json_encode([
+        'status'  => 'success',
         'message' => 'Pending business permits retrieved successfully',
         'permits' => $permits,
-        'count' => count($permits)
-    ];
-    
-    echo json_encode($response);
-    
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Database error: ' . $e->getMessage(),
-        'permits' => [],
-        'count' => 0
+        'count'   => count($permits)
     ]);
-} catch (Exception $e) {
+
+} catch (PDOException $e) {
+
     http_response_code(500);
     echo json_encode([
-        'status' => 'error',
-        'message' => 'Server error: ' . $e->getMessage(),
+        'status'  => 'error',
+        'message' => 'Database error',
+        'error'   => $e->getMessage(),
         'permits' => [],
-        'count' => 0
+        'count'   => 0
+    ]);
+
+} catch (Exception $e) {
+
+    http_response_code(500);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Server error',
+        'error'   => $e->getMessage(),
+        'permits' => [],
+        'count'   => 0
     ]);
 }
-?>

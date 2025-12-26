@@ -51,7 +51,7 @@ try {
     if ($permit['tax_calculation_type'] === 'capital_investment') {
         $sql = "SELECT * FROM capital_investment_tax_config 
                 WHERE :amount BETWEEN min_amount AND max_amount 
-                AND (expiration_date IS NULL OR expiration_date >= CURDATE()) 
+                AND (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE()) 
                 ORDER BY min_amount LIMIT 1";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['amount' => $permit['taxable_amount']]);
@@ -60,7 +60,7 @@ try {
         // gross_sales
         $sql = "SELECT * FROM gross_sales_tax_config 
                 WHERE business_type = :business_type 
-                AND (expiration_date IS NULL OR expiration_date >= CURDATE()) 
+                AND (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE()) 
                 LIMIT 1";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(['business_type' => $permit['business_type']]);
@@ -69,7 +69,7 @@ try {
     
     // Get regulatory fees
     $sql = "SELECT * FROM regulatory_fee_config 
-            WHERE (expiration_date IS NULL OR expiration_date >= CURDATE())";
+            WHERE (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE())";
     $stmt = $pdo->query($sql);
     $regulatoryFees = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -79,11 +79,12 @@ try {
         $totalRegulatoryFees += $fee['amount'];
     }
     
-    // Calculate tax amount if not already calculated
+    // Calculate tax amount if tax amount is 0 (not yet calculated)
     $taxAmount = $permit['tax_amount'];
     $totalTax = $permit['total_tax'];
     
-    if (!$permit['tax_calculated'] && $taxConfig) {
+    // Check if tax needs to be calculated (tax_amount is 0 and we have taxable amount)
+    if ($permit['tax_amount'] == 0 && $permit['taxable_amount'] > 0 && $taxConfig) {
         $taxRate = $taxConfig['tax_percent'];
         $taxableAmount = $permit['taxable_amount'];
         $taxAmount = ($taxableAmount * $taxRate) / 100;
@@ -109,3 +110,4 @@ try {
         'message' => 'Database error: ' . $e->getMessage()
     ]);
 }
+?>

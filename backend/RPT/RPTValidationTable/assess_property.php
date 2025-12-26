@@ -7,7 +7,6 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json; charset=UTF-8");
 
 // Handle preflight OPTIONS request
@@ -131,6 +130,7 @@ function assessProperty($pdo) {
         $land_area_sqm = floatval($data['land_area_sqm']);
         $land_market_value = $land_area_sqm * $land_market_value_per_sqm;
         $land_assessed_value = $land_market_value * ($land_assessment_level / 100);
+        $total_land_assessed_value = $land_assessed_value; // For land, total is same as assessed
 
         // Use provided values if they exist (for updates)
         if (isset($data['land_market_value']) && $data['land_market_value'] > 0) {
@@ -138,6 +138,7 @@ function assessProperty($pdo) {
         }
         if (isset($data['land_assessed_value']) && $data['land_assessed_value'] > 0) {
             $land_assessed_value = floatval($data['land_assessed_value']);
+            $total_land_assessed_value = $land_assessed_value;
         }
 
         // Calculate land taxes based on actual tax percentages
@@ -167,11 +168,11 @@ function assessProperty($pdo) {
                     land_area_sqm = ?,
                     land_market_value = ?,
                     land_assessed_value = ?,
+                    total_assessed_value = ?,
                     assessment_level = ?,
                     basic_tax_amount = ?,
                     sef_tax_amount = ?,
-                    annual_tax = ?,
-                    updated_at = NOW()
+                    annual_tax = ?
                     WHERE registration_id = ?
                 ";
                 
@@ -182,6 +183,7 @@ function assessProperty($pdo) {
                     $land_area_sqm, 
                     $land_market_value, 
                     $land_assessed_value, 
+                    $total_land_assessed_value,
                     $land_assessment_level,
                     $land_basic_tax, 
                     $land_sef_tax, 
@@ -199,10 +201,11 @@ function assessProperty($pdo) {
                 $land_query = "
                     INSERT INTO land_properties 
                     (registration_id, inspection_id, tdn, property_type, land_config_id, 
-                     land_area_sqm, land_market_value, land_assessed_value, assessment_level,
+                     land_area_sqm, land_market_value, land_assessed_value, total_assessed_value,
+                     assessment_level,
                      basic_tax_amount, sef_tax_amount, 
-                     annual_tax, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                     annual_tax, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
                 ";
                 
                 $land_stmt = $pdo->prepare($land_query);
@@ -215,6 +218,7 @@ function assessProperty($pdo) {
                     $land_area_sqm, 
                     $land_market_value, 
                     $land_assessed_value, 
+                    $total_land_assessed_value,
                     $land_assessment_level,
                     $land_basic_tax, 
                     $land_sef_tax, 
@@ -228,6 +232,7 @@ function assessProperty($pdo) {
             // Handle building assessment if property has building
             $building_action = 'none';
             $building_annual_tax = 0;
+            $total_building_assessed_value = 0;
             
             if (isset($data['construction_type']) && isset($data['floor_area_sqm']) && $data['floor_area_sqm'] > 0) {
                 // Get property_config_id - MUST match both material_type AND classification
@@ -311,6 +316,7 @@ function assessProperty($pdo) {
                 if ($building_assessment_level > 0) {
                     $building_assessed_value = $building_depreciated_value * ($building_assessment_level / 100);
                 }
+                $total_building_assessed_value = $building_assessed_value; // For building, total is same as assessed
 
                 // Use provided values if they exist (for updates or forced saves)
                 if (isset($data['building_market_value']) && $data['building_market_value'] > 0) {
@@ -324,6 +330,7 @@ function assessProperty($pdo) {
                 }
                 if (isset($data['building_assessed_value']) && $data['building_assessed_value'] > 0) {
                     $building_assessed_value = floatval($data['building_assessed_value']);
+                    $total_building_assessed_value = $building_assessed_value;
                 }
                 if (isset($data['building_assessment_level']) && $data['building_assessment_level'] > 0) {
                     $building_assessment_level = floatval($data['building_assessment_level']);
@@ -351,11 +358,11 @@ function assessProperty($pdo) {
                         building_depreciated_value = ?,
                         depreciation_percent = ?,
                         building_assessed_value = ?,
+                        total_assessed_value = ?,
                         assessment_level = ?,
                         basic_tax_amount = ?,
                         sef_tax_amount = ?,
-                        annual_tax = ?,
-                        updated_at = NOW()
+                        annual_tax = ?
                         WHERE land_id = ?
                     ";
                     
@@ -369,6 +376,7 @@ function assessProperty($pdo) {
                         $building_depreciated_value,
                         $depreciation_percent, 
                         $building_assessed_value, 
+                        $total_building_assessed_value,
                         $building_assessment_level,
                         $building_basic_tax, 
                         $building_sef_tax, 
@@ -386,10 +394,11 @@ function assessProperty($pdo) {
                         INSERT INTO building_properties 
                         (land_id, inspection_id, tdn, construction_type, property_config_id,
                          floor_area_sqm, year_built, building_market_value, building_depreciated_value,
-                         depreciation_percent, building_assessed_value, assessment_level,
+                         depreciation_percent, building_assessed_value, total_assessed_value,
+                         assessment_level,
                          basic_tax_amount, sef_tax_amount, 
-                         annual_tax, status, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                         annual_tax, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
                     ";
                     
                     $building_stmt = $pdo->prepare($building_query);
@@ -405,6 +414,7 @@ function assessProperty($pdo) {
                         $building_depreciated_value,
                         $depreciation_percent, 
                         $building_assessed_value, 
+                        $total_building_assessed_value,
                         $building_assessment_level,
                         $building_basic_tax, 
                         $building_sef_tax, 
@@ -429,8 +439,7 @@ function assessProperty($pdo) {
                     land_annual_tax = ?,
                     total_building_annual_tax = ?,
                     total_annual_tax = ?,
-                    status = 'active',
-                    updated_at = NOW()
+                    status = 'active'
                     WHERE registration_id = ?
                 ";
                 
@@ -445,8 +454,8 @@ function assessProperty($pdo) {
                 // INSERT new totals
                 $totals_query = "
                     INSERT INTO property_totals 
-                    (registration_id, land_id, land_annual_tax, total_building_annual_tax, total_annual_tax, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())
+                    (registration_id, land_id, land_annual_tax, total_building_annual_tax, total_annual_tax, status)
+                    VALUES (?, ?, ?, ?, ?, 'active')
                 ";
                 
                 $totals_stmt = $pdo->prepare($totals_query);
@@ -477,6 +486,7 @@ function assessProperty($pdo) {
                         'land' => [
                             'market_value' => $land_market_value,
                             'assessed_value' => $land_assessed_value,
+                            'total_assessed_value' => $total_land_assessed_value,
                             'assessment_level' => $land_assessment_level,
                             'basic_tax' => $land_basic_tax,
                             'sef_tax' => $land_sef_tax,
@@ -487,6 +497,7 @@ function assessProperty($pdo) {
                             'depreciated_value' => $building_depreciated_value ?? 0,
                             'depreciation_percent' => $depreciation_percent ?? 0,
                             'assessed_value' => $building_assessed_value ?? 0,
+                            'total_assessed_value' => $total_building_assessed_value ?? 0,
                             'assessment_level' => $building_assessment_level ?? 0,
                             'basic_tax' => $building_basic_tax ?? 0,
                             'sef_tax' => $building_sef_tax ?? 0,

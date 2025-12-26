@@ -47,7 +47,7 @@ if (!$pdo) {
     exit();
 }
 
-// Get property basic info
+// Get property basic info - UPDATED TO INCLUDE PROPERTY TYPE
 $propertyQuery = "
     SELECT 
         pr.id,
@@ -59,15 +59,17 @@ $propertyQuery = "
         pr.has_building,
         pr.created_at,
         
-        po.owner_name,
+        po.full_name AS owner_name,
         po.email,
         po.phone,
-        po.owner_address,
+        po.address AS owner_address,
         
         lp.land_area_sqm,
         lp.land_market_value,
         lp.land_assessed_value,
         lp.annual_tax as land_annual_tax,
+        lp.property_type as land_classification,  -- ADDED THIS
+        lp.tdn as land_tdn,                       -- ADDED THIS
         
         pt.total_annual_tax
         
@@ -101,15 +103,18 @@ try {
         $buildingQuery = "
             SELECT 
                 bp.id,
+                bp.tdn,
                 bp.construction_type,
                 bp.floor_area_sqm,
+                bp.year_built,
                 bp.building_market_value,
                 bp.building_assessed_value,
-                bp.annual_tax as building_annual_tax
+                bp.annual_tax as building_annual_tax,
+                bp.assessment_level
             FROM building_properties bp
             WHERE bp.land_id = (
                 SELECT id FROM land_properties WHERE registration_id = ?
-            )
+            ) AND bp.status = 'active'
         ";
         
         $buildingStmt = $pdo->prepare($buildingQuery);
@@ -121,16 +126,26 @@ try {
     $quarterlyTaxes = [];
     $taxQuery = "
         SELECT 
-            quarter,
-            year,
-            due_date,
-            total_quarterly_tax,
-            payment_status
-        FROM quarterly_taxes
-        WHERE property_total_id = (
+            qt.id,
+            qt.quarter,
+            qt.year,
+            qt.due_date,
+            qt.total_quarterly_tax,
+            qt.payment_status,
+            qt.penalty_amount,
+            qt.payment_date,
+            qt.receipt_number
+        FROM quarterly_taxes qt
+        WHERE qt.property_total_id = (
             SELECT id FROM property_totals WHERE registration_id = ?
         )
-        ORDER BY year DESC, quarter DESC
+        ORDER BY year DESC, 
+                 CASE quarter 
+                    WHEN 'Q1' THEN 1 
+                    WHEN 'Q2' THEN 2 
+                    WHEN 'Q3' THEN 3 
+                    WHEN 'Q4' THEN 4 
+                 END DESC
     ";
     
     $taxStmt = $pdo->prepare($taxQuery);

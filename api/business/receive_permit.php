@@ -122,8 +122,6 @@ function createBusinessTax($pdo, $input) {
         tax_amount, 
         regulatory_fees, 
         total_tax,
-        tax_calculated,
-        tax_approved,
         address, 
         contact_number, 
         phone,
@@ -143,8 +141,6 @@ function createBusinessTax($pdo, $input) {
         :tax_amount, 
         :regulatory_fees, 
         :total_tax,
-        :tax_calculated,
-        :tax_approved,
         :address, 
         :contact_number, 
         :phone,
@@ -157,6 +153,9 @@ function createBusinessTax($pdo, $input) {
 
     $stmt = $pdo->prepare($sql);
     
+    // Check if tax is calculated (taxable_amount > 0 and tax_amount > 0)
+    $isTaxCalculated = ($taxable_amount > 0 && $taxResult['tax_amount'] > 0);
+    
     $params = [
         ':business_permit_id' => htmlspecialchars($business_permit_id),
         ':business_name' => htmlspecialchars($input['business_name']),
@@ -168,14 +167,12 @@ function createBusinessTax($pdo, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        ':tax_calculated' => 1,
-        ':tax_approved' => 0,
         ':address' => isset($input['address']) ? htmlspecialchars($input['address']) : '',
         ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
         ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),
-        ':status' => isset($input['status']) ? $input['status'] : 'Pending'
+        ':status' => $isTaxCalculated ? 'Approved' : (isset($input['status']) ? $input['status'] : 'Pending')
     ];
 
     $stmt->execute($params);
@@ -207,7 +204,6 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         tax_amount = :tax_amount, 
         regulatory_fees = :regulatory_fees, 
         total_tax = :total_tax,
-        tax_calculated = :tax_calculated,
         address = :address, 
         contact_number = :contact_number, 
         phone = :phone,
@@ -218,6 +214,12 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         WHERE business_permit_id = :business_permit_id";
 
     $stmt = $pdo->prepare($sql);
+    
+    // Check if tax is calculated (taxable_amount > 0 and tax_amount > 0)
+    $isTaxCalculated = ($taxable_amount > 0 && $taxResult['tax_amount'] > 0);
+    // Check if tax is approved (if status is already 'Approved' or 'Active')
+    $currentStatus = getCurrentStatus($pdo, $business_permit_id);
+    $isTaxApproved = ($currentStatus === 'Approved' || $currentStatus === 'Active');
     
     $params = [
         ':business_permit_id' => htmlspecialchars($business_permit_id),
@@ -230,13 +232,12 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        ':tax_calculated' => 1,
         ':address' => isset($input['address']) ? htmlspecialchars($input['address']) : '',
         ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
         ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),
-        ':status' => isset($input['status']) ? $input['status'] : 'Pending'
+        ':status' => $isTaxApproved ? $currentStatus : ($isTaxCalculated ? 'Approved' : 'Pending')
     ];
 
     $stmt->execute($params);
@@ -244,6 +245,16 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
     $taxResult['action'] = 'updated';
     
     return $taxResult;
+}
+
+// ==================== GET CURRENT STATUS HELPER FUNCTION ====================
+function getCurrentStatus($pdo, $business_permit_id) {
+    $sql = "SELECT status FROM business_permits WHERE business_permit_id = :business_permit_id";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':business_permit_id' => $business_permit_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    return $result ? $result['status'] : 'Pending';
 }
 
 // ==================== TAX CALCULATION FUNCTION ====================

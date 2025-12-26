@@ -94,6 +94,8 @@ const BusinessValidation = () => {
     switch (status) {
       case 'Active':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'Approved':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       case 'Pending':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
       case 'Expired':
@@ -114,6 +116,30 @@ const BusinessValidation = () => {
     ];
     const index = type?.charCodeAt(0) % colors.length || 0;
     return colors[index];
+  };
+
+  // Check if tax is calculated
+  const isTaxCalculated = (permit) => {
+    return permit.taxable_amount > 0 && permit.tax_amount > 0;
+  };
+
+  // Check if tax is approved
+  const isTaxApproved = (permit) => {
+    return permit.status === 'Approved' || permit.status === 'Active';
+  };
+
+  // Get tax calculation status color
+  const getTaxCalculatedColor = (permit) => {
+    return isTaxCalculated(permit) 
+      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+  };
+
+  // Get tax approval status color
+  const getTaxApprovedColor = (permit) => {
+    return isTaxApproved(permit)
+      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
   };
 
   // Format currency
@@ -224,18 +250,18 @@ const BusinessValidation = () => {
           {/* Stats Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-              <div className="text-2xl font-bold">{permits.length}</div>
+              <div className="text-2xl font-bold">{permits.filter(p => p.status === 'Pending').length}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Pending Applications</div>
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
               <div className="text-2xl font-bold">
-                {permits.filter(p => p.tax_calculated === 1).length}
+                {permits.filter(isTaxCalculated).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Tax Calculated</div>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
               <div className="text-2xl font-bold">
-                {permits.filter(p => p.tax_approved === 1).length}
+                {permits.filter(isTaxApproved).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Tax Approved</div>
             </div>
@@ -291,11 +317,18 @@ const BusinessValidation = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
-                          {permit.status}
-                        </span>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {permit.tax_calculated === 1 ? 'Tax Calculated' : 'Tax Not Calculated'}
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
+                            {permit.status}
+                          </span>
+                          <div className="flex gap-1">
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getTaxCalculatedColor(permit)}`}>
+                              {isTaxCalculated(permit) ? 'Tax Calculated' : 'Tax Not Calculated'}
+                            </span>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getTaxApprovedColor(permit)}`}>
+                              {isTaxApproved(permit) ? 'Tax Approved' : 'Tax Not Approved'}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

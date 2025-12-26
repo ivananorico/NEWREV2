@@ -276,7 +276,7 @@ export default function RPTValidationInfo() {
     }
   };
 
-  // Data fetching functions - UPDATED for new API format
+  // Data fetching functions - REMOVED credentials: 'include'
   const fetchRegistrationDetails = async () => {
     try {
       const url = `${API_BASE}${API_PATH}/get_registration_details.php?id=${id}`;
@@ -287,7 +287,6 @@ export default function RPTValidationInfo() {
       
       const response = await fetch(url, {
         signal: controller.signal,
-        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache',
@@ -335,12 +334,12 @@ export default function RPTValidationInfo() {
       
       if (registrationData) {
         const completeRegistration = {
-          ...registrationData,
-          province: registrationData.province || 'N/A',
-          property_type: registrationData.property_type || 'Residential',
-          last_updated: registrationData.last_updated || registrationData.date_registered,
-          remarks: registrationData.remarks || 'No remarks'
-        };
+    ...registrationData,
+    province: registrationData.province || 'N/A',  // This will be empty if not in DB
+    property_type: registrationData.property_type || 'Residential',
+    last_updated: registrationData.last_updated || registrationData.date_registered,
+    remarks: registrationData.remarks || 'No remarks'
+};
         
         setRegistration(completeRegistration);
         console.log("✅ Registration loaded successfully:", completeRegistration);
@@ -366,7 +365,6 @@ export default function RPTValidationInfo() {
         console.log(`⚙️ Fetching ${key} config from: ${API_BASE}${API_PATH}/${url}`);
         
         const response = await fetch(`${API_BASE}${API_PATH}/${url}`, {
-          credentials: 'include',
           headers: { 'Accept': 'application/json' }
         });
         
@@ -417,7 +415,6 @@ export default function RPTValidationInfo() {
       console.log(`📊 Fetching assessment data from: ${url}`);
       
       const response = await fetch(url, {
-        credentials: 'include',
         headers: { 'Accept': 'application/json' }
       });
       
@@ -762,7 +759,7 @@ export default function RPTValidationInfo() {
     }
   };
 
-  // Action handlers - UPDATED for new API format
+  // Action handlers - REMOVED credentials: 'include'
   const handleInspectionSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -774,7 +771,6 @@ export default function RPTValidationInfo() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({
           registration_id: id,
           ...inspectionForm
@@ -844,7 +840,6 @@ export default function RPTValidationInfo() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(submissionData)
       });
 
@@ -885,7 +880,6 @@ export default function RPTValidationInfo() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          credentials: 'include',
           body: JSON.stringify({
             registration_id: id,
             land_annual_tax: taxCalculations.land_annual_tax,
@@ -924,7 +918,6 @@ export default function RPTValidationInfo() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          credentials: 'include',
           body: JSON.stringify({
             registration_id: id,
             status: 'assessed'
@@ -957,7 +950,6 @@ export default function RPTValidationInfo() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({
           registration_id: id,
           status: status
@@ -1048,12 +1040,6 @@ export default function RPTValidationInfo() {
   // Main render
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {/* Environment Banner */}
-      {isDevelopment && (
-        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center py-2 text-sm font-bold z-50">
-          🚧 DEVELOPMENT MODE | API: {API_BASE} | ID: {id}
-        </div>
-      )}
 
       <div className={`max-w-7xl mx-auto px-4 ${isDevelopment ? 'pt-10' : ''}`}>
         {/* Header Card */}

@@ -74,29 +74,30 @@ function getRegistrationDetails($pdo) {
     }
 
     try {
-        $query = "
-            SELECT 
-                pr.id,
-                pr.reference_number,
-                pr.lot_location as location_address,
-                pr.barangay,
-                pr.district as municipality_city,
-                pr.province,
-                'Residential' as property_type,
-                pr.has_building,
-                pr.status,
-                COALESCE(pr.correction_notes, '') as remarks,
-                pr.created_at as date_registered,
-                COALESCE(pr.updated_at, pr.created_at) as last_updated,
-                po.full_name as owner_name,
-                po.email as email_address,
-                po.phone as contact_number,
-                COALESCE(po.tin_number, '') as tin,
-                COALESCE(po.address, '') as owner_address
-            FROM property_registrations pr
-            LEFT JOIN property_owners po ON pr.owner_id = po.id
-            WHERE pr.id = ?
-        ";
+        // Update your SQL query in get_registration_details.php:
+$query = "
+    SELECT 
+        pr.id,
+        pr.reference_number,
+        pr.lot_location as location_address,
+        pr.barangay,
+        pr.district as municipality_city,
+        'Metro Manila' as province,  -- Hardcoded since column doesn't exist
+        'Residential' as property_type,
+        pr.has_building,
+        pr.status,
+        COALESCE(pr.correction_notes, '') as remarks,
+        pr.created_at as date_registered,
+        pr.created_at as last_updated,  -- Use created_at since updated_at doesn't exist
+        po.full_name as owner_name,
+        po.email as email_address,
+        po.phone as contact_number,
+        COALESCE(po.tin_number, '') as tin,
+        COALESCE(po.address, '') as owner_address
+    FROM property_registrations pr
+    LEFT JOIN property_owners po ON pr.owner_id = po.id
+    WHERE pr.id = ?
+";
         
         $stmt = $pdo->prepare($query);
         $stmt->execute([$registrationId]);
