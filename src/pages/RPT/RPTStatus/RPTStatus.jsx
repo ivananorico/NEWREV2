@@ -211,7 +211,7 @@ export default function RPTStatus() {
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Annual Revenue</p>
+                <p className="text-sm text-gray-600">Annual revenue2</p>
                 <p className="text-xl font-bold text-purple-600">{formatCurrency(totalAnnualRevenue)}</p>
               </div>
               <div className="bg-purple-100 p-2 rounded">

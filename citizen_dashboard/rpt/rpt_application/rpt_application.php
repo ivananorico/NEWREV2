@@ -1,5 +1,5 @@
 <?php
-// revenue/citizen_dashboard/rpt/rpt_application/rpt_application.php
+// revenue2/citizen_dashboard/rpt/rpt_application/rpt_application.php
 session_start();
 
 // Check if user is logged in

@@ -116,7 +116,7 @@ export default function BusinessStatus() {
           return new Date(b.issue_date || b.created_at) - new Date(a.issue_date || a.created_at);
         case "type":
           return a.business_type.localeCompare(b.business_type);
-        case "revenue":
+        case "revenue2":
           return (b.total_paid_tax || 0) - (a.total_paid_tax || 0);
         case "pending":
           return (b.total_pending_tax || 0) - (a.total_pending_tax || 0);
@@ -258,7 +258,7 @@ export default function BusinessStatus() {
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm opacity-90">Total Revenue</p>
+                <p className="text-sm opacity-90">Total revenue2</p>
                 <p className="text-xl font-bold mt-1">{formatCurrency(taxSummary.total_revenue)}</p>
                 <p className="text-xs opacity-80 mt-1">
                   {taxSummary.total_businesses} Businesses
@@ -365,7 +365,7 @@ export default function BusinessStatus() {
                   <option value="date">Sort by Date</option>
                   <option value="name">Sort by Name</option>
                   <option value="type">Sort by Type</option>
-                  <option value="revenue">Sort by Revenue</option>
+                  <option value="revenue2">Sort by revenue2</option>
                   <option value="pending">Sort by Pending</option>
                   <option value="overdue">Sort by Overdue</option>
                 </select>

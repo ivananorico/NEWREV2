@@ -104,7 +104,7 @@ function getWebhookUrl($clientSystem) {
     $base_url = 'http://localhost'; // Or your actual domain
     
     $webhooks = [
-        'rpt' => $base_url . '/revenue/citizen_dashboard/rpt/rpt_tax_payment/rpt_webhook.php',
+        'rpt' => $base_url . '/revenue2/citizen_dashboard/rpt/rpt_tax_payment/rpt_webhook.php',
         // Add other systems if needed
     ];
     

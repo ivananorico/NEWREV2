@@ -12,10 +12,12 @@ class User {
     public $suffix;
     public $birthdate;
     public $mobile;
-    public $address;
     public $house_number;
     public $street;
     public $barangay;
+    public $city;
+    public $province;
+    public $zip_code;
     public $role;
     public $status;
     public $email_verified;
@@ -43,7 +45,7 @@ class User {
             $this->password_hash = $row['password_hash'];
             $this->status = $row['status'];
             $this->email_verified = $row['email_verified'];
-            $this->role = $row['role']; // ADDED THIS LINE
+            $this->role = $row['role'];
             return true;
         }
         return false;
@@ -69,7 +71,7 @@ class User {
             $this->password_hash = $row['password_hash'];
             $this->status = $row['status'];
             $this->email_verified = $row['email_verified'];
-            $this->role = $row['role']; // ADDED THIS LINE
+            $this->role = $row['role'];
             return true;
         }
         return false;
@@ -80,14 +82,26 @@ class User {
         return password_verify($password, $this->password_hash);
     }
 
-    // Create new user
+    // Create new user (UPDATED for new address fields)
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
-                SET email=:email, password_hash=:password_hash, first_name=:first_name, 
-                last_name=:last_name, middle_name=:middle_name, suffix=:suffix, 
-                birthdate=:birthdate, mobile=:mobile, address=:address, 
-                house_number=:house_number, street=:street, barangay=:barangay, 
-                role='user', status='pending', email_verified=0";
+                SET email=:email, 
+                    password_hash=:password_hash, 
+                    first_name=:first_name, 
+                    last_name=:last_name, 
+                    middle_name=:middle_name, 
+                    suffix=:suffix, 
+                    birthdate=:birthdate, 
+                    mobile=:mobile, 
+                    house_number=:house_number, 
+                    street=:street, 
+                    barangay=:barangay,
+                    city=:city,
+                    province=:province,
+                    zip_code=:zip_code, 
+                    role='user', 
+                    status='pending', 
+                    email_verified=0";
 
         $stmt = $this->conn->prepare($query);
 
@@ -98,10 +112,12 @@ class User {
         $this->middle_name = htmlspecialchars(strip_tags($this->middle_name));
         $this->suffix = htmlspecialchars(strip_tags($this->suffix));
         $this->mobile = htmlspecialchars(strip_tags($this->mobile));
-        $this->address = htmlspecialchars(strip_tags($this->address));
         $this->house_number = htmlspecialchars(strip_tags($this->house_number));
         $this->street = htmlspecialchars(strip_tags($this->street));
         $this->barangay = htmlspecialchars(strip_tags($this->barangay));
+        $this->city = htmlspecialchars(strip_tags($this->city));
+        $this->province = htmlspecialchars(strip_tags($this->province));
+        $this->zip_code = htmlspecialchars(strip_tags($this->zip_code));
 
         // Hash password
         $this->password_hash = password_hash($this->password_hash, PASSWORD_DEFAULT);
@@ -115,15 +131,19 @@ class User {
         $stmt->bindParam(":suffix", $this->suffix);
         $stmt->bindParam(":birthdate", $this->birthdate);
         $stmt->bindParam(":mobile", $this->mobile);
-        $stmt->bindParam(":address", $this->address);
         $stmt->bindParam(":house_number", $this->house_number);
         $stmt->bindParam(":street", $this->street);
         $stmt->bindParam(":barangay", $this->barangay);
+        $stmt->bindParam(":city", $this->city);
+        $stmt->bindParam(":province", $this->province);
+        $stmt->bindParam(":zip_code", $this->zip_code);
 
         if ($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();
             return true;
         }
+        
+        error_log("User creation failed: " . implode(", ", $stmt->errorInfo()));
         return false;
     }
 

@@ -1,6 +1,6 @@
 <?php
 // rpt_webhook.php - FIXED PATH VERSION
-// Location: revenue/citizen_dashboard/rpt/rpt_tax_payment/rpt_webhook.php
+// Location: revenue2/citizen_dashboard/rpt/rpt_tax_payment/rpt_webhook.php
 
 header('Content-Type: application/json');
 
@@ -54,8 +54,8 @@ if (preg_match('/RPT-(?:TAX-)?(\d+)/', $client_ref, $matches)) {
 file_put_contents('webhook_log.txt', "Extracted tax ID: $tax_id\n", FILE_APPEND);
 
 // Connect to RPT database - CORRECT PATH: Go up 4 levels
-// From: revenue/citizen_dashboard/rpt/rpt_tax_payment/
-// To: revenue/db/RPT/
+// From: revenue2/citizen_dashboard/rpt/rpt_tax_payment/
+// To: revenue2/db/RPT/
 $db_path = __DIR__ . '/../../../../db/RPT/rpt_db.php';
 file_put_contents('webhook_log.txt', "Looking for DB at: $db_path\n", FILE_APPEND);
 

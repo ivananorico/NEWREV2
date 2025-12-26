@@ -76,7 +76,7 @@ unset($_SESSION['current_verification']);
 
                 <div class="text-center">
                     <p class="text-gray-600 mb-4">Thank you for your payment!</p>
-                    <a href="/revenue/citizen_dashboard/" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-semibold transition-colors">
+                    <a href="/revenue2/citizen_dashboard/" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-semibold transition-colors">
                         Return to Dashboard
                     </a>
                 </div>

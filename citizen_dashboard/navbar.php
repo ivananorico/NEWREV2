@@ -1,5 +1,5 @@
 <?php
-// revenue/citizen_dashboard/navbar.php
+// revenue2/citizen_dashboard/navbar.php
 
 // Check if session is not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -8,109 +8,60 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Only redirect if user_id is not set
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../../index.php');
+    // Redirect to login page - FIXED PATH
+    $login_url = '/revenue2/index.php';
+    header('Location: ' . $login_url);
+    exit();
+}
+
+// Handle logout if logout parameter is set
+if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
+    // Destroy all session data
+    $_SESSION = array();
+    
+    // If it's desired to kill the session, also delete the session cookie
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    
+    // Finally, destroy the session
+    session_destroy();
+    
+    // Redirect to login page - FIXED PATH
+    $login_url = '/revenue2/index.php';
+    header('Location: ' . $login_url);
     exit();
 }
 
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 $user_email = $_SESSION['user_email'] ?? '';
 
-// DEBUG: Let's see what's happening
-$current_url = $_SERVER['REQUEST_URI'];
-$script_path = $_SERVER['SCRIPT_FILENAME'];
-$document_root = $_SERVER['DOCUMENT_ROOT'];
+// Define absolute paths from root
+$base_url = '/revenue2';
+$logo_path = $base_url . '/citizen_dashboard/images/GSM_logo.png';
+$dashboard_path = $base_url . '/citizen_dashboard/citizen_dashboard.php';
+$settings_path = $base_url . '/citizen_dashboard/settings.php';
 
-// Calculate the correct image path
-// Image is at: revenue/citizen_dashboard/images/GSM_logo.png
-// Navbar is at: revenue/citizen_dashboard/navbar.php
-
-// Get the directory of the current page
-$current_page = $_SERVER['SCRIPT_NAME']; // e.g., /revenue/citizen_dashboard/business/business_services.php
-$current_dir = dirname($current_page); // e.g., /revenue/citizen_dashboard/business
-
-// Image is in: /revenue/citizen_dashboard/images/GSM_logo.png
-$image_dir = '/revenue/citizen_dashboard/images/GSM_logo.png';
-
-// Calculate relative path from current directory to image
-function calculateRelativePath($from, $to) {
-    $from = explode('/', trim($from, '/'));
-    $to = explode('/', trim($to, '/'));
-    
-    // Find common path
-    $commonLength = 0;
-    $minLength = min(count($from), count($to));
-    for ($i = 0; $i < $minLength; $i++) {
-        if ($from[$i] !== $to[$i]) {
-            break;
-        }
-        $commonLength++;
+// JavaScript for logout confirmation
+$logout_js = "
+<script>
+function confirmLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Get current path without query parameters
+        var currentPath = window.location.pathname;
+        // Add logout parameter
+        window.location.href = currentPath + '?logout=true';
     }
-    
-    // Go up from current location
-    $upLevels = count($from) - $commonLength;
-    $relativePath = str_repeat('../', $upLevels);
-    
-    // Go down to image
-    for ($i = $commonLength; $i < count($to); $i++) {
-        $relativePath .= $to[$i] . '/';
-    }
-    
-    return rtrim($relativePath, '/');
 }
-
-// Calculate paths
-$logout_path = '';
-$dashboard_path = '';
-$settings_path = '';
-$logo_path = '';
-
-if (strpos($current_url, '/revenue/citizen_dashboard/') !== false) {
-    // We're in citizen_dashboard or its subdirectories
-    $relative_path = substr($current_url, strpos($current_url, '/revenue/citizen_dashboard/') + 26);
-    $dirs = explode('/', dirname($relative_path));
-    $dirs = array_filter($dirs);
-    $depth = count($dirs);
-    
-    if ($depth == 0) {
-        // In citizen_dashboard root
-        $logout_path = './logout.php';
-        $dashboard_path = './citizen_dashboard.php';
-        $settings_path = './settings.php';
-        $logo_path = './images/GSM_logo.png'; // Same directory level
-    } else {
-        // In subdirectory
-        $logout_path = str_repeat('../', $depth) . 'logout.php';
-        $dashboard_path = str_repeat('../', $depth) . 'citizen_dashboard.php';
-        $settings_path = str_repeat('../', $depth) . 'settings.php';
-        $logo_path = str_repeat('../', $depth) . 'images/GSM_logo.png';
-    }
-} else {
-    // Fallback
-    $logout_path = 'logout.php';
-    $dashboard_path = 'citizen_dashboard.php';
-    $settings_path = 'settings.php';
-    $logo_path = './images/GSM_logo.png';
-}
-
-// ALTERNATIVE: Use absolute URL
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$host = $_SERVER['HTTP_HOST'];
-$absolute_logo_path = $protocol . '://' . $host . '/revenue/citizen_dashboard/images/GSM_logo.png';
-
-// Debug output - UNCOMMENT THIS TO SEE WHAT'S WRONG
-echo "<!-- DEBUG INFO START -->";
-echo "<!-- Current URL: " . htmlspecialchars($current_url) . " -->";
-echo "<!-- Script Path: " . htmlspecialchars($script_path) . " -->";
-echo "<!-- Current Dir: " . htmlspecialchars($current_dir) . " -->";
-echo "<!-- Calculated Logo Path: " . htmlspecialchars($logo_path) . " -->";
-echo "<!-- Absolute Logo Path: " . htmlspecialchars($absolute_logo_path) . " -->";
-echo "<!-- Depth: " . (isset($depth) ? $depth : 'N/A') . " -->";
-echo "<!-- DEBUG INFO END -->";
-
-// Try using absolute path
-$logo_path = $absolute_logo_path;
-
+</script>
+";
 ?>
+<?php echo $logout_js; ?>
+
 <style>
 :root {
     --primary: #4CAF50;
@@ -167,6 +118,13 @@ $logo_path = $absolute_logo_path;
     transition: background-color 0.2s ease;
     border-radius: 0.25rem;
     margin: 0.25rem;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
 }
 
 .dropdown-link:hover {
@@ -204,11 +162,11 @@ $logo_path = $absolute_logo_path;
             <!-- Logo and Brand -->
             <div class="flex items-center space-x-3">
                 <a href="<?php echo htmlspecialchars($dashboard_path); ?>" class="flex items-center space-x-3 no-underline">
-                    <!-- Logo Image - Using absolute path -->
+                    <!-- Logo Image -->
                     <img src="<?php echo htmlspecialchars($logo_path); ?>" 
                          alt="GoServePH Logo" 
                          class="logo-img"
-                         onerror="console.error('Failed to load image:', this.src);">
+                         onerror="console.error('Failed to load image:', this.src); this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIyMCIgZmlsbD0iIzRDOTBGMiIvPjxwYXRoIGQ9Ik0xMiAyMEwyMCAyOEwyOCAyMCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=';">
                     
                     <div>
                         <h1 class="text-xl font-bold" style="word-spacing: -0.2em;">
@@ -244,9 +202,9 @@ $logo_path = $absolute_logo_path;
                             <i class="fas fa-user-cog mr-2"></i>Profile & Settings
                         </a>
                         <div class="divider"></div>
-                        <a href="<?php echo htmlspecialchars($logout_path); ?>" class="dropdown-link logout">
+                        <button onclick="confirmLogout()" class="dropdown-link logout">
                             <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>

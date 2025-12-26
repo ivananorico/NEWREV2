@@ -487,7 +487,7 @@ export default function MapEditor() {
         id="marketMap"
         ref={marketMapRef}
         className="market-map"
-        style={{ backgroundImage: mapData ? `url(http://localhost/revenue/${mapData.image_path})` : "none" }}
+        style={{ backgroundImage: mapData ? `url(http://localhost/revenue2/${mapData.image_path})` : "none" }}
       >
         {filteredStalls.map((stall, index) => {
           const originalIndex = stalls.findIndex(s => s.name === stall.name);

@@ -208,26 +208,125 @@
                         <h3 class="text-lg font-semibold text-gray-700 mb-4">Address Information</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">House Number *</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">House Number/Unit *</label>
                                 <input type="text" name="houseNumber" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="123">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Street *</label>
                                 <input type="text" name="street" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="Main Street">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
                                 <input type="text" name="barangay" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="Barangay Name">
                             </div>
-                        </div>
-                        <div class="mt-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address</label>
-                            <textarea name="address" rows="2" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                                      placeholder="Full address including city and province"></textarea>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City/Municipality *</label>
+                                <input type="text" name="city" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="Quezon City">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
+                                <select name="province" required 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                    <option value="">Select Province</option>
+                                    <option value="Metro Manila">Metro Manila</option>
+                                    <option value="Abra">Abra</option>
+                                    <option value="Agusan del Norte">Agusan del Norte</option>
+                                    <option value="Agusan del Sur">Agusan del Sur</option>
+                                    <option value="Aklan">Aklan</option>
+                                    <option value="Albay">Albay</option>
+                                    <option value="Antique">Antique</option>
+                                    <option value="Apayao">Apayao</option>
+                                    <option value="Aurora">Aurora</option>
+                                    <option value="Basilan">Basilan</option>
+                                    <option value="Bataan">Bataan</option>
+                                    <option value="Batanes">Batanes</option>
+                                    <option value="Batangas">Batangas</option>
+                                    <option value="Benguet">Benguet</option>
+                                    <option value="Biliran">Biliran</option>
+                                    <option value="Bohol">Bohol</option>
+                                    <option value="Bukidnon">Bukidnon</option>
+                                    <option value="Bulacan">Bulacan</option>
+                                    <option value="Cagayan">Cagayan</option>
+                                    <option value="Camarines Norte">Camarines Norte</option>
+                                    <option value="Camarines Sur">Camarines Sur</option>
+                                    <option value="Camiguin">Camiguin</option>
+                                    <option value="Capiz">Capiz</option>
+                                    <option value="Catanduanes">Catanduanes</option>
+                                    <option value="Cavite">Cavite</option>
+                                    <option value="Cebu">Cebu</option>
+                                    <option value="Compostela Valley">Compostela Valley</option>
+                                    <option value="Cotabato">Cotabato</option>
+                                    <option value="Davao de Oro">Davao de Oro</option>
+                                    <option value="Davao del Norte">Davao del Norte</option>
+                                    <option value="Davao del Sur">Davao del Sur</option>
+                                    <option value="Davao Occidental">Davao Occidental</option>
+                                    <option value="Davao Oriental">Davao Oriental</option>
+                                    <option value="Dinagat Islands">Dinagat Islands</option>
+                                    <option value="Eastern Samar">Eastern Samar</option>
+                                    <option value="Guimaras">Guimaras</option>
+                                    <option value="Ifugao">Ifugao</option>
+                                    <option value="Ilocos Norte">Ilocos Norte</option>
+                                    <option value="Ilocos Sur">Ilocos Sur</option>
+                                    <option value="Iloilo">Iloilo</option>
+                                    <option value="Isabela">Isabela</option>
+                                    <option value="Kalinga">Kalinga</option>
+                                    <option value="La Union">La Union</option>
+                                    <option value="Laguna">Laguna</option>
+                                    <option value="Lanao del Norte">Lanao del Norte</option>
+                                    <option value="Lanao del Sur">Lanao del Sur</option>
+                                    <option value="Leyte">Leyte</option>
+                                    <option value="Maguindanao">Maguindanao</option>
+                                    <option value="Marinduque">Marinduque</option>
+                                    <option value="Masbate">Masbate</option>
+                                    <option value="Misamis Occidental">Misamis Occidental</option>
+                                    <option value="Misamis Oriental">Misamis Oriental</option>
+                                    <option value="Mountain Province">Mountain Province</option>
+                                    <option value="Negros Occidental">Negros Occidental</option>
+                                    <option value="Negros Oriental">Negros Oriental</option>
+                                    <option value="Northern Samar">Northern Samar</option>
+                                    <option value="Nueva Ecija">Nueva Ecija</option>
+                                    <option value="Nueva Vizcaya">Nueva Vizcaya</option>
+                                    <option value="Occidental Mindoro">Occidental Mindoro</option>
+                                    <option value="Oriental Mindoro">Oriental Mindoro</option>
+                                    <option value="Palawan">Palawan</option>
+                                    <option value="Pampanga">Pampanga</option>
+                                    <option value="Pangasinan">Pangasinan</option>
+                                    <option value="Quezon">Quezon</option>
+                                    <option value="Quirino">Quirino</option>
+                                    <option value="Rizal">Rizal</option>
+                                    <option value="Romblon">Romblon</option>
+                                    <option value="Samar">Samar</option>
+                                    <option value="Sarangani">Sarangani</option>
+                                    <option value="Siquijor">Siquijor</option>
+                                    <option value="Sorsogon">Sorsogon</option>
+                                    <option value="South Cotabato">South Cotabato</option>
+                                    <option value="Southern Leyte">Southern Leyte</option>
+                                    <option value="Sultan Kudarat">Sultan Kudarat</option>
+                                    <option value="Sulu">Sulu</option>
+                                    <option value="Surigao del Norte">Surigao del Norte</option>
+                                    <option value="Surigao del Sur">Surigao del Sur</option>
+                                    <option value="Tarlac">Tarlac</option>
+                                    <option value="Tawi-Tawi">Tawi-Tawi</option>
+                                    <option value="Zambales">Zambales</option>
+                                    <option value="Zamboanga del Norte">Zamboanga del Norte</option>
+                                    <option value="Zamboanga del Sur">Zamboanga del Sur</option>
+                                    <option value="Zamboanga Sibugay">Zamboanga Sibugay</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
+                                <input type="text" name="zipCode" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="1100" pattern="[0-9]{4}">
+                            </div>
                         </div>
                     </div>
 
@@ -329,594 +428,754 @@
     </div>
 
     <!-- Updated JavaScript -->
-    <script>
-        // Adjust API path for localhost vs domain
-const API_BASE = window.location.hostname === 'localhost'
-    ? '/revenue/Login/api/'  // localhost path
-    : '/Login/api/';          // domain path
+   <script>
+    // ============================================
+    // CONFIGURATION - Works for both localhost and domain
+    // ============================================
+    // Detect if we're on localhost or domain
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1';
+    
+    // Set base path dynamically
+    const basePath = isLocalhost ? '/revenue2' : '';
+    
+    // API endpoint - always use relative path
+    const API_ENDPOINT = basePath + '/Login/api/auth.php';
+    
+    console.log('🌐 Environment:', isLocalhost ? 'localhost' : 'production');
+    console.log('🔗 API Endpoint:', API_ENDPOINT);
+    console.log('📍 Current URL:', window.location.href);
 
+    let currentUserId = null;
+    let otpTimer = null;
+    let otpTimeLeft = 180;
 
-        let currentUserId = null;
-        let otpTimer = null;
-        let otpTimeLeft = 180;
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 DOM loaded, initializing app...');
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        setupEventListeners();
+        setupOTPInputs();
+        
+        // Test API connection
+        testAPIConnection();
+    });
 
-        // Initialize application
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM loaded, initializing app...');
-            updateDateTime();
-            setInterval(updateDateTime, 1000);
-            setupEventListeners();
-            setupOTPInputs();
-        });
-
-        function setupEventListeners() {
-            // Login form
-            const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLoginSubmit);
-            }
-
-            // Register form
-            const registerForm = document.getElementById('registerForm');
-            if (registerForm) {
-                registerForm.addEventListener('submit', handleRegisterSubmit);
-            }
-
-            // Show register form
-            const showRegister = document.getElementById('showRegister');
-            if (showRegister) {
-                showRegister.addEventListener('click', showRegisterForm);
-            }
-
-            // Cancel register buttons
-            const cancelRegister = document.getElementById('cancelRegister');
-            const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
-            if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
-            if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
-
-            // OTP buttons
-            const cancelOtp = document.getElementById('cancelOtp');
-            const resendOtp = document.getElementById('resendOtp');
-            const submitOtp = document.getElementById('submitOtp');
-            const closeOtpModal = document.getElementById('closeOtpModal');
+    // Test API connection
+    async function testAPIConnection() {
+        try {
+            console.log('🔧 Testing connection to:', API_ENDPOINT);
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'test' })
+            });
             
-            if (cancelOtp) cancelOtp.addEventListener('click', closeOtpModal);
-            if (resendOtp) resendOtp.addEventListener('click', handleResendOtp);
-            if (submitOtp) submitOtp.addEventListener('click', handleVerifyOtp);
-            if (closeOtpModal) closeOtpModal.addEventListener('click', closeOtpModal);
+            const responseText = await response.text();
+            console.log('📥 Raw test response:', responseText);
+            
+            try {
+                const data = JSON.parse(responseText);
+                console.log('✅ API Test Result:', data);
+                if (data.success) {
+                    console.log('🎉 API is working correctly!');
+                }
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error in test:', parseError);
+                console.log('Response was:', responseText);
+            }
+        } catch (error) {
+            console.error('❌ API Connection Test Failed:', error);
+        }
+    }
 
-            // OTP form submit
-            const otpForm = document.getElementById('otpForm');
-            if (otpForm) {
-                otpForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    handleVerifyOtp();
-                });
-            }
-
-            // Modal background clicks
-            const registerModal = document.getElementById('registerFormContainer');
-            const otpModal = document.getElementById('otpModal');
-            
-            if (registerModal) {
-                registerModal.addEventListener('click', function(e) {
-                    if (e.target === this) hideRegisterForm();
-                });
-            }
-            
-            if (otpModal) {
-                otpModal.addEventListener('click', function(e) {
-                    if (e.target === this) closeOtpModal();
-                });
-            }
-
-            // Terms and Privacy buttons
-            const footerTerms = document.getElementById('footerTerms');
-            const footerPrivacy = document.getElementById('footerPrivacy');
-            
-            if (footerTerms) {
-                footerTerms.addEventListener('click', function() {
-                    showNotification('Terms of Service will be available soon', 'info');
-                });
-            }
-            
-            if (footerPrivacy) {
-                footerPrivacy.addEventListener('click', function() {
-                    showNotification('Privacy Policy will be available soon', 'info');
-                });
-            }
+    function setupEventListeners() {
+        // Login form
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLoginSubmit);
         }
 
-        function setupOTPInputs() {
-            const inputs = document.querySelectorAll('.otp-input');
-            
-            inputs.forEach((input, index) => {
-                input.addEventListener('input', function(e) {
-                    const value = e.target.value.replace(/[^0-9]/g, '');
-                    e.target.value = value;
-                    
-                    if (value && index < inputs.length - 1) {
-                        inputs[index + 1].focus();
-                    }
-                });
-                
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                        inputs[index - 1].focus();
-                    }
-                });
-                
-                input.addEventListener('paste', function(e) {
-                    e.preventDefault();
-                    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
-                    const digits = pasteData.split('').slice(0, 6);
-                    
-                    digits.forEach((digit, i) => {
-                        if (inputs[i]) {
-                            inputs[i].value = digit;
-                        }
-                    });
-                    
-                    if (digits.length < 6 && inputs[digits.length]) {
-                        inputs[digits.length].focus();
-                    }
-                });
+        // Register form
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', handleRegisterSubmit);
+        }
+
+        // Show register form
+        const showRegister = document.getElementById('showRegister');
+        if (showRegister) {
+            showRegister.addEventListener('click', showRegisterForm);
+        }
+
+        // Cancel register buttons
+        const cancelRegister = document.getElementById('cancelRegister');
+        const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
+        if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
+        if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
+
+        // OTP buttons
+        const cancelOtp = document.getElementById('cancelOtp');
+        const resendOtp = document.getElementById('resendOtp');
+        const submitOtp = document.getElementById('submitOtp');
+        const closeOtpModal = document.getElementById('closeOtpModal');
+        
+        if (cancelOtp) cancelOtp.addEventListener('click', closeOtpModal);
+        if (resendOtp) resendOtp.addEventListener('click', handleResendOtp);
+        if (submitOtp) submitOtp.addEventListener('click', handleVerifyOtp);
+        if (closeOtpModal) closeOtpModal.addEventListener('click', closeOtpModal);
+
+        // OTP form submit
+        const otpForm = document.getElementById('otpForm');
+        if (otpForm) {
+            otpForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleVerifyOtp();
             });
         }
 
-        // Main handler functions
-        async function handleLoginSubmit(e) {
-            e.preventDefault();
-            console.log('🔐 Login form submitted');
-            
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const loginBtn = document.getElementById('loginBtn');
-
-            // Basic validation
-            if (!email || !password) {
-                showNotification('Please enter both email and password', 'error');
-                return;
-            }
-
-            if (!isValidEmail(email)) {
-                showNotification('Please enter a valid email address', 'error');
-                return;
-            }
-
-            // Show loading state
-            setButtonLoading(loginBtn, true, 'Logging in...');
-
-            try {
-                console.log('🔐 Attempting login for:', email);
-                
-                const response = await fetch(API_BASE + 'auth.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'login',
-                        email: email,
-                        password: password
-                    })
-                });
-
-                const data = await response.json();
-                console.log('📨 Login response:', data);
-
-                if (data.success) {
-                    console.log('✅ Login successful');
-                    
-                    // Check if user is admin
-                   if (data.user_role === 'admin') {
-    console.log('👑 Admin user detected, redirecting to admin panel');
-    showNotification('Admin login successful! Redirecting...', 'success');
-
-    // Use relative path to automatically find index.html
-    setTimeout(() => {
-    window.location.href = 'dist/index.html';
-}, 1000);
-} else {
-    // Regular user - proceed with OTP
-    console.log('👤 Regular user, opening OTP modal');
-    currentUserId = data.user_id;
-    if (data.debug_otp) {
-        console.log('🔑 DEBUG OTP:', data.debug_otp);
-        showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
-    } else {
-        showNotification('Login successful! OTP sent to your email.', 'success');
-    }
-    openOtpModal();
-}
-
-                } else {
-                    console.log('❌ Login failed:', data.message);
-                    showNotification(data.message || 'Invalid email or password', 'error');
-                }
-            } catch (error) {
-                console.error('🚨 Login error:', error);
-                showNotification('Network error. Please try again.', 'error');
-            } finally {
-                setButtonLoading(loginBtn, false, 'Login');
-            }
+        // Modal background clicks
+        const registerModal = document.getElementById('registerFormContainer');
+        const otpModal = document.getElementById('otpModal');
+        
+        if (registerModal) {
+            registerModal.addEventListener('click', function(e) {
+                if (e.target === this) hideRegisterForm();
+            });
+        }
+        
+        if (otpModal) {
+            otpModal.addEventListener('click', function(e) {
+                if (e.target === this) closeOtpModal();
+            });
         }
 
-        async function handleRegisterSubmit(e) {
-            e.preventDefault();
-            console.log('📝 Register form submitted');
-            
-            const formData = new FormData(document.getElementById('registerForm'));
-            const data = Object.fromEntries(formData.entries());
-            const registerBtn = document.querySelector('#registerForm button[type="submit"]');
+        // Terms and Privacy buttons
+        const footerTerms = document.getElementById('footerTerms');
+        const footerPrivacy = document.getElementById('footerPrivacy');
+        
+        if (footerTerms) {
+            footerTerms.addEventListener('click', function() {
+                showNotification('Terms of Service will be available soon', 'info');
+            });
+        }
+        
+        if (footerPrivacy) {
+            footerPrivacy.addEventListener('click', function() {
+                showNotification('Privacy Policy will be available soon', 'info');
+            });
+        }
 
-            // Basic validation
-            const requiredFields = ['firstName', 'lastName', 'regEmail', 'regPassword', 'confirmPassword', 'birthdate', 'mobile', 'houseNumber', 'street', 'barangay'];
-            for (const field of requiredFields) {
-                if (!data[field] || data[field].trim() === '') {
-                    showNotification('Please fill in all required fields', 'error');
-                    return;
-                }
-            }
-
-            if (data.regPassword !== data.confirmPassword) {
-                showNotification('Passwords do not match', 'error');
-                return;
-            }
-
-            if (!isValidEmail(data.regEmail)) {
-                showNotification('Please enter a valid email address', 'error');
-                return;
-            }
-
-            // Check if terms are agreed
-            if (!data.agreeTerms || !data.agreePrivacy) {
-                showNotification('Please agree to the Terms of Service and Privacy Policy', 'error');
-                return;
-            }
-
-            setButtonLoading(registerBtn, true, 'Creating Account...');
-
-            try {
-                const response = await fetch(API_BASE + 'auth.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'register',
-                        ...data
-                    })
-                });
-
-                const result = await response.json();
-                console.log('📨 Register response:', result);
-                
-                if (result.success) {
-                    currentUserId = result.user_id;
-                    
-                    // Show debug OTP if available
-                    if (result.debug_otp) {
-                        console.log('🔑 DEBUG OTP:', result.debug_otp);
-                        showNotification('Registration successful! OTP: ' + result.debug_otp, 'success');
-                    } else {
-                        showNotification('Registration successful! OTP sent to your email.', 'success');
+        // FIXED: Province change handler for Metro Manila -> Quezon City
+        const provinceSelect = document.querySelector('select[name="province"]');
+        const cityInput = document.querySelector('input[name="city"]');
+        
+        if (provinceSelect && cityInput) {
+            provinceSelect.addEventListener('change', function() {
+                if (this.value === 'Metro Manila') {
+                    cityInput.value = 'Quezon City';
+                    cityInput.readOnly = true;
+                    cityInput.style.backgroundColor = '#f3f4f6'; // Light gray background
+                    cityInput.style.color = '#6b7280'; // Gray text
+                } else {
+                    cityInput.readOnly = false;
+                    cityInput.style.backgroundColor = ''; // Reset background
+                    cityInput.style.color = ''; // Reset text color
+                    if (cityInput.value === 'Quezon City') {
+                        cityInput.value = '';
                     }
-                    
-                    hideRegisterForm();
-                    openOtpModal();
-                } else {
-                    showNotification(result.message || 'Registration failed', 'error');
                 }
-            } catch (error) {
-                console.error('Registration error:', error);
-                showNotification('Network error. Please try again.', 'error');
-            } finally {
-                setButtonLoading(registerBtn, false, 'Create Account');
-            }
+            });
+        }
+    }
+
+    function setupOTPInputs() {
+        const inputs = document.querySelectorAll('.otp-input');
+        
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', function(e) {
+                const value = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = value;
+                
+                if (value && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+            
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
+                const digits = pasteData.split('').slice(0, 6);
+                
+                digits.forEach((digit, i) => {
+                    if (inputs[i]) {
+                        inputs[i].value = digit;
+                    }
+                });
+                
+                if (digits.length < 6 && inputs[digits.length]) {
+                    inputs[digits.length].focus();
+                }
+            });
+        });
+    }
+
+    // Main handler functions
+    async function handleLoginSubmit(e) {
+        e.preventDefault();
+        console.log('🔐 Login form submitted');
+        
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const loginBtn = document.getElementById('loginBtn');
+
+        // Basic validation
+        if (!email || !password) {
+            showNotification('Please enter both email and password', 'error');
+            return;
         }
 
-        async function handleVerifyOtp() {
-            console.log('🔑 Verifying OTP...');
-            const otpCode = getOtpCode();
-            const submitBtn = document.getElementById('submitOtp');
-            const errorElement = document.getElementById('otpError');
+        if (!isValidEmail(email)) {
+            showNotification('Please enter a valid email address', 'error');
+            return;
+        }
 
-            if (!otpCode || otpCode.length !== 6) {
-                showError('Please enter the complete 6-digit OTP');
+        // Show loading state
+        setButtonLoading(loginBtn, true, 'Logging in...');
+
+        try {
+            console.log('📤 Sending login request to:', API_ENDPOINT);
+            console.log('Data:', { action: 'login', email: email });
+            
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'login',
+                    email: email,
+                    password: password
+                })
+            });
+
+            console.log('📥 Response received, status:', response.status);
+            const responseText = await response.text();
+            console.log('📨 Raw response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError);
+                console.error('Response text:', responseText);
+                showNotification('Server returned invalid response', 'error');
                 return;
             }
 
-            setButtonLoading(submitBtn, true, 'Verifying...');
-            hideError();
+            console.log('📨 Login response:', data);
 
-            try {
-                const response = await fetch(API_BASE + 'auth.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'verify_otp',
-                        user_id: currentUserId,
-                        otp_code: otpCode
-                    })
-                });
-
-                const data = await response.json();
-                console.log('📨 OTP verification response:', data);
+            if (data.success) {
+                console.log('✅ Login successful');
                 
-                if (data.success) {
-                    showNotification('OTP verified successfully!', 'success');
-                    closeOtpModal();
-                    // Redirect to citizen dashboard
+                // Check if user is admin
+                if (data.user_role === 'admin') {
+                    console.log('👑 Admin user detected, redirecting to admin panel');
+                    showNotification('Admin login successful! Redirecting...', 'success');
+
+                    // Redirect to admin panel
                     setTimeout(() => {
-                       window.location.href = './citizen_dashboard/citizen_dashboard.php';
-                    }, 1500);
+                        window.location.href = basePath + '/dist/index.html';
+                    }, 1000);
                 } else {
-                    showError(data.message || 'Invalid OTP');
-                }
-            } catch (error) {
-                console.error('OTP verification error:', error);
-                showError('Network error. Please try again.');
-            } finally {
-                setButtonLoading(submitBtn, false, 'Verify');
-            }
-        }
-
-        async function handleResendOtp() {
-            console.log('🔄 Resending OTP...');
-            const resendBtn = document.getElementById('resendOtp');
-            
-            setButtonLoading(resendBtn, true, 'Sending...');
-
-            try {
-                const response = await fetch(API_BASE + 'auth.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'resend_otp',
-                        user_id: currentUserId
-                    })
-                });
-
-                const data = await response.json();
-                console.log('📨 Resend OTP response:', data);
-                
-                if (data.success) {
-                    // Show debug OTP if available
+                    // Regular user - proceed with OTP
+                    console.log('👤 Regular user, opening OTP modal');
+                    currentUserId = data.user_id;
                     if (data.debug_otp) {
                         console.log('🔑 DEBUG OTP:', data.debug_otp);
-                        showNotification('New OTP: ' + data.debug_otp, 'success');
+                        showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
                     } else {
-                        showNotification('New OTP sent to your email', 'success');
+                        showNotification('Login successful! OTP sent to your email.', 'success');
                     }
-                    startOtpTimer();
-                } else {
-                    showNotification(data.message || 'Failed to resend OTP', 'error');
+                    openOtpModal();
                 }
-            } catch (error) {
-                console.error('Resend OTP error:', error);
-                showNotification('Network error. Please try again.', 'error');
-            } finally {
-                setButtonLoading(resendBtn, false, 'Resend OTP');
-                resendBtn.disabled = true;
-            }
-        }
 
-        // UI Functions
-        function showRegisterForm() {
-            const container = document.getElementById('registerFormContainer');
-            if (container) {
-                container.classList.remove('hidden');
-                container.classList.add('modal-center');
-                document.body.style.overflow = 'hidden';
-            }
-        }
-
-        function hideRegisterForm() {
-            const container = document.getElementById('registerFormContainer');
-            if (container) {
-                container.classList.add('hidden');
-                container.classList.remove('modal-center');
-                document.body.style.overflow = 'auto';
-                container.querySelector('form').reset();
-            }
-        }
-
-        function openOtpModal() {
-            console.log('🔑 Opening OTP modal');
-            const modal = document.getElementById('otpModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                document.body.style.overflow = 'hidden';
-                resetOtpInputs();
-                startOtpTimer();
-                hideError();
-                console.log('✅ OTP modal opened successfully');
             } else {
-                console.error('❌ OTP modal element not found!');
+                console.log('❌ Login failed:', data.message);
+                showNotification(data.message || 'Invalid email or password', 'error');
+            }
+        } catch (error) {
+            console.error('🚨 Login error:', error);
+            showNotification('Network error. Please try again.', 'error');
+        } finally {
+            setButtonLoading(loginBtn, false, 'Login');
+        }
+    }
+
+    async function handleRegisterSubmit(e) {
+        e.preventDefault();
+        console.log('📝 Register form submitted');
+        
+        const formData = new FormData(document.getElementById('registerForm'));
+        const data = Object.fromEntries(formData.entries());
+        const registerBtn = document.querySelector('#registerForm button[type="submit"]');
+
+        // Basic validation
+        const requiredFields = [
+            'firstName', 'lastName', 'regEmail', 'regPassword', 
+            'confirmPassword', 'birthdate', 'mobile', 'houseNumber', 
+            'street', 'barangay', 'city', 'province', 'zipCode'
+        ];
+        
+        for (const field of requiredFields) {
+            if (!data[field] || data[field].trim() === '') {
+                showNotification('Please fill in all required fields', 'error');
+                return;
             }
         }
 
-        function closeOtpModal() {
-            console.log('🔑 Closing OTP modal');
-            const modal = document.getElementById('otpModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-                document.body.style.overflow = 'auto';
-                stopOtpTimer();
-                hideError();
+        // Validate ZIP Code
+        if (!/^\d{4}$/.test(data.zipCode)) {
+            showNotification('Please enter a valid 4-digit ZIP code', 'error');
+            return;
+        }
+
+        // Validate mobile number
+        if (!/^\d{11}$/.test(data.mobile.replace(/\D/g, ''))) {
+            showNotification('Please enter a valid 11-digit mobile number', 'error');
+            return;
+        }
+
+        if (data.regPassword !== data.confirmPassword) {
+            showNotification('Passwords do not match', 'error');
+            return;
+        }
+
+        if (!isValidEmail(data.regEmail)) {
+            showNotification('Please enter a valid email address', 'error');
+            return;
+        }
+
+        // Check if terms are agreed
+        if (!data.agreeTerms || !data.agreePrivacy) {
+            showNotification('Please agree to the Terms of Service and Privacy Policy', 'error');
+            return;
+        }
+
+        setButtonLoading(registerBtn, true, 'Creating Account...');
+
+        try {
+            console.log('📤 Sending registration request to:', API_ENDPOINT);
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'register',
+                    ...data
+                })
+            });
+
+            const responseText = await response.text();
+            console.log('📥 Raw response:', responseText);
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError);
+                console.error('Response text:', responseText);
+                showNotification('Server returned invalid response', 'error');
+                return;
             }
-        }
 
-        // OTP Functions
-        function getOtpCode() {
-            const inputs = document.querySelectorAll('.otp-input');
-            const code = Array.from(inputs).map(input => input.value).join('');
-            console.log('🔑 OTP code entered:', code);
-            return code;
-        }
-
-        function resetOtpInputs() {
-            const inputs = document.querySelectorAll('.otp-input');
-            inputs.forEach(input => input.value = '');
-            if (inputs[0]) inputs[0].focus();
-        }
-
-        function startOtpTimer() {
-            otpTimeLeft = 180;
-            const timerElement = document.getElementById('otpTimer');
-            const resendButton = document.getElementById('resendOtp');
+            console.log('📨 Register response:', result);
             
-            if (resendButton) {
-                resendButton.disabled = true;
+            if (result.success) {
+                currentUserId = result.user_id;
+                
+                // Show debug OTP if available
+                if (result.debug_otp) {
+                    console.log('🔑 DEBUG OTP:', result.debug_otp);
+                    showNotification('Registration successful! OTP: ' + result.debug_otp, 'success');
+                } else {
+                    showNotification('Registration successful! OTP sent to your email.', 'success');
+                }
+                
+                hideRegisterForm();
+                openOtpModal();
+            } else {
+                showNotification(result.message || 'Registration failed', 'error');
             }
+        } catch (error) {
+            console.error('Registration error:', error);
+            showNotification('Network error. Please try again.', 'error');
+        } finally {
+            setButtonLoading(registerBtn, false, 'Create Account');
+        }
+    }
+
+    async function handleVerifyOtp() {
+        console.log('🔑 Verifying OTP...');
+        const otpCode = getOtpCode();
+        const submitBtn = document.getElementById('submitOtp');
+        const errorElement = document.getElementById('otpError');
+
+        if (!otpCode || otpCode.length !== 6) {
+            showError('Please enter the complete 6-digit OTP');
+            return;
+        }
+
+        setButtonLoading(submitBtn, true, 'Verifying...');
+        hideError();
+
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'verify_otp',
+                    user_id: currentUserId,
+                    otp_code: otpCode
+                })
+            });
+
+            const responseText = await response.text();
+            console.log('📥 OTP verification raw response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError);
+                showError('Server returned invalid response');
+                return;
+            }
+
+            console.log('📨 OTP verification response:', data);
             
+            if (data.success) {
+                showNotification('OTP verified successfully!', 'success');
+                closeOtpModal();
+                // Redirect to citizen dashboard
+                setTimeout(() => {
+                    if (data.redirect_url) {
+                        window.location.href = basePath + '/' + data.redirect_url;
+                    } else {
+                        window.location.href = basePath + '/citizen_dashboard/citizen_dashboard.php';
+                    }
+                }, 1500);
+            } else {
+                showError(data.message || 'Invalid OTP');
+            }
+        } catch (error) {
+            console.error('OTP verification error:', error);
+            showError('Network error. Please try again.');
+        } finally {
+            setButtonLoading(submitBtn, false, 'Verify');
+        }
+    }
+
+    async function handleResendOtp() {
+        console.log('🔄 Resending OTP...');
+        const resendBtn = document.getElementById('resendOtp');
+        
+        setButtonLoading(resendBtn, true, 'Sending...');
+
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'resend_otp',
+                    user_id: currentUserId
+                })
+            });
+
+            const responseText = await response.text();
+            console.log('📥 Resend OTP raw response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError);
+                showNotification('Server returned invalid response', 'error');
+                return;
+            }
+
+            console.log('📨 Resend OTP response:', data);
+            
+            if (data.success) {
+                // Show debug OTP if available
+                if (data.debug_otp) {
+                    console.log('🔑 DEBUG OTP:', data.debug_otp);
+                    showNotification('New OTP: ' + data.debug_otp, 'success');
+                } else {
+                    showNotification('New OTP sent to your email', 'success');
+                }
+                startOtpTimer();
+            } else {
+                showNotification(data.message || 'Failed to resend OTP', 'error');
+            }
+        } catch (error) {
+            console.error('Resend OTP error:', error);
+            showNotification('Network error. Please try again.', 'error');
+        } finally {
+            setButtonLoading(resendBtn, false, 'Resend OTP');
+            resendBtn.disabled = true;
+        }
+    }
+
+    // UI Functions
+    function showRegisterForm() {
+        const container = document.getElementById('registerFormContainer');
+        if (container) {
+            container.classList.remove('hidden');
+            container.classList.add('modal-center');
+            document.body.style.overflow = 'hidden';
+            
+            // Reset the city field when showing the form
+            const provinceSelect = document.querySelector('select[name="province"]');
+            const cityInput = document.querySelector('input[name="city"]');
+            if (provinceSelect && cityInput) {
+                if (provinceSelect.value === 'Metro Manila') {
+                    cityInput.value = 'Quezon City';
+                    cityInput.readOnly = true;
+                    cityInput.style.backgroundColor = '#f3f4f6';
+                    cityInput.style.color = '#6b7280';
+                } else {
+                    cityInput.readOnly = false;
+                    cityInput.style.backgroundColor = '';
+                    cityInput.style.color = '';
+                }
+            }
+        }
+    }
+
+    function hideRegisterForm() {
+        const container = document.getElementById('registerFormContainer');
+        if (container) {
+            container.classList.add('hidden');
+            container.classList.remove('modal-center');
+            document.body.style.overflow = 'auto';
+            container.querySelector('form').reset();
+            
+            // Reset city input state
+            const cityInput = document.querySelector('input[name="city"]');
+            if (cityInput) {
+                cityInput.readOnly = false;
+                cityInput.style.backgroundColor = '';
+                cityInput.style.color = '';
+            }
+        }
+    }
+
+    function openOtpModal() {
+        console.log('🔑 Opening OTP modal');
+        const modal = document.getElementById('otpModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            resetOtpInputs();
+            startOtpTimer();
+            hideError();
+            console.log('✅ OTP modal opened successfully');
+        } else {
+            console.error('❌ OTP modal element not found!');
+        }
+    }
+
+    function closeOtpModal() {
+        console.log('🔑 Closing OTP modal');
+        const modal = document.getElementById('otpModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+            stopOtpTimer();
+            hideError();
+        }
+    }
+
+    // OTP Functions
+    function getOtpCode() {
+        const inputs = document.querySelectorAll('.otp-input');
+        const code = Array.from(inputs).map(input => input.value).join('');
+        console.log('🔑 OTP code entered:', code);
+        return code;
+    }
+
+    function resetOtpInputs() {
+        const inputs = document.querySelectorAll('.otp-input');
+        inputs.forEach(input => input.value = '');
+        if (inputs[0]) inputs[0].focus();
+    }
+
+    function startOtpTimer() {
+        otpTimeLeft = 180;
+        const timerElement = document.getElementById('otpTimer');
+        const resendButton = document.getElementById('resendOtp');
+        
+        if (resendButton) {
+            resendButton.disabled = true;
+        }
+        
+        updateTimerDisplay();
+        
+        if (otpTimer) {
+            clearInterval(otpTimer);
+        }
+        
+        otpTimer = setInterval(() => {
+            otpTimeLeft--;
             updateTimerDisplay();
             
-            if (otpTimer) {
-                clearInterval(otpTimer);
-            }
-            
-            otpTimer = setInterval(() => {
-                otpTimeLeft--;
-                updateTimerDisplay();
-                
-                if (otpTimeLeft <= 0) {
-                    stopOtpTimer();
-                    if (resendButton) {
-                        resendButton.disabled = false;
-                    }
+            if (otpTimeLeft <= 0) {
+                stopOtpTimer();
+                if (resendButton) {
+                    resendButton.disabled = false;
                 }
-            }, 1000);
-        }
-
-        function stopOtpTimer() {
-            if (otpTimer) {
-                clearInterval(otpTimer);
-                otpTimer = null;
             }
+        }, 1000);
+    }
+
+    function stopOtpTimer() {
+        if (otpTimer) {
+            clearInterval(otpTimer);
+            otpTimer = null;
         }
+    }
 
-        function updateTimerDisplay() {
-            const timerElement = document.getElementById('otpTimer');
-            if (timerElement) {
-                const minutes = Math.floor(otpTimeLeft / 60);
-                const seconds = otpTimeLeft % 60;
-                timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
+    function updateTimerDisplay() {
+        const timerElement = document.getElementById('otpTimer');
+        if (timerElement) {
+            const minutes = Math.floor(otpTimeLeft / 60);
+            const seconds = otpTimeLeft % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
+    }
 
-        // Utility Functions
-        function updateDateTime() {
-            const now = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true 
-            };
-            
-            const dateTimeString = now.toLocaleDateString('en-US', options).toUpperCase();
-            const dateTimeElement = document.getElementById('currentDateTime');
-            
-            if (dateTimeElement) {
-                dateTimeElement.textContent = dateTimeString;
-            }
-        }
-
-        function setButtonLoading(button, isLoading, text = '') {
-            if (!button) return;
-            
-            if (isLoading) {
-                button.disabled = true;
-                button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${text}`;
-            } else {
-                button.disabled = false;
-                button.textContent = text;
-            }
-        }
-
-        function showNotification(message, type = 'info') {
-            // Remove existing notifications
-            const existing = document.querySelectorAll('.notification');
-            existing.forEach(notif => notif.remove());
-
-            const notification = document.createElement('div');
-            notification.className = `notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transform transition-all duration-300 translate-x-full ${
-                type === 'success' ? 'bg-green-500' :
-                type === 'error' ? 'bg-red-500' :
-                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-            }`;
-            
-            const icon = type === 'success' ? 'fa-check-circle' :
-                         type === 'error' ? 'fa-exclamation-circle' :
-                         type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
-            
-            notification.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <i class="fas ${icon}"></i>
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 hover:opacity-70">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Animate in
-            setTimeout(() => {
-                notification.classList.remove('translate-x-full');
-            }, 100);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.classList.add('translate-x-full');
-                    setTimeout(() => {
-                        if (notification.parentNode) {
-                            notification.remove();
-                        }
-                    }, 300);
-                }
-            }, 5000);
-        }
-
-        function showError(message) {
-            const errorElement = document.getElementById('otpError');
-            if (errorElement) {
-                errorElement.textContent = message;
-                errorElement.classList.remove('hidden');
-            }
-        }
-
-        function hideError() {
-            const errorElement = document.getElementById('otpError');
-            if (errorElement) {
-                errorElement.classList.add('hidden');
-            }
-        }
-
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
-
-        // Make functions globally available
-        window.showNotification = showNotification;
-        window.handleSocialLogin = function(provider) {
-            showNotification(`${provider} login is currently unavailable`, 'warning');
+    // Utility Functions
+    function updateDateTime() {
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true 
         };
-    </script>
+        
+        const dateTimeString = now.toLocaleDateString('en-US', options).toUpperCase();
+        const dateTimeElement = document.getElementById('currentDateTime');
+        
+        if (dateTimeElement) {
+            dateTimeElement.textContent = dateTimeString;
+        }
+    }
+
+    function setButtonLoading(button, isLoading, text = '') {
+        if (!button) return;
+        
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${text}`;
+        } else {
+            button.disabled = false;
+            button.textContent = text;
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existing = document.querySelectorAll('.notification');
+        existing.forEach(notif => notif.remove());
+
+        const notification = document.createElement('div');
+        notification.className = `notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transform transition-all duration-300 translate-x-full ${
+            type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+            type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+        }`;
+        
+        const icon = type === 'success' ? 'fa-check-circle' :
+                     type === 'error' ? 'fa-exclamation-circle' :
+                     type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+        
+        notification.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 hover:opacity-70">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+
+    function showError(message) {
+        const errorElement = document.getElementById('otpError');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        }
+    }
+
+    function hideError() {
+        const errorElement = document.getElementById('otpError');
+        if (errorElement) {
+            errorElement.classList.add('hidden');
+        }
+    }
+
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // Make functions globally available
+    window.showNotification = showNotification;
+    window.handleSocialLogin = function(provider) {
+        showNotification(`${provider} login is currently unavailable`, 'warning');
+    };
+</script>
 </body>
 </html>

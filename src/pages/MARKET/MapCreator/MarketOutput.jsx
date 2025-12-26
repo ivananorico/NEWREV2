@@ -28,7 +28,7 @@ export default function MarketOutput() {
 
         if (data.status === "success") {
           setMapName(data.map.name);
-          const baseUrl = "http://localhost/revenue";
+          const baseUrl = "http://localhost/revenue2";
           setMapImage(`${baseUrl}/${data.map.image_path}`);
           
           // Ensure stalls have pixel dimensions, use defaults if not present

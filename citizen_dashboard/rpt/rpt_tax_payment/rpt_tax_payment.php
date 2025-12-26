@@ -373,7 +373,7 @@ function initiatePayment(taxId, amount, purpose) {
     
     // Send to payment method selection
     const encodedData = btoa(JSON.stringify(paymentData));
-    window.location.href = '/revenue/citizen_dashboard/digital/payment_method.php?data=' + encodedData;
+    window.location.href = '/revenue2/citizen_dashboard/digital/payment_method.php?data=' + encodedData;
 }
 
 // Rest of your JavaScript remains the same...

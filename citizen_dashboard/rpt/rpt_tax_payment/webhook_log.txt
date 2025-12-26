@@ -2,9 +2,9 @@
 Input: {"payment_id":"PAY-20251216101127-6012","client_system":"rpt","client_reference":"RPT-2","purpose":"RPT Tax: Q2 2025 - RPT-20251209-7664","amount":"32500.00","payment_method":"gcash","receipt_number":"RCPT-20251216101132-3043","paid_at":"2025-12-16 10:11:32","status":"paid","phone":"09950291131"}
 Client ref: RPT-2
 Extracted tax ID: 2
-Looking for DB at: C:\xampp\htdocs\revenue\citizen_dashboard\rpt\rpt_tax_payment/../../../../db/RPT/rpt_db.php
-DB file not found at: C:\xampp\htdocs\revenue\citizen_dashboard\rpt\rpt_tax_payment/../../../../db/RPT/rpt_db.php
-Found DB at: C:\xampp\htdocs\revenue\citizen_dashboard\rpt\rpt_tax_payment/../../../db/RPT/rpt_db.php
+Looking for DB at: C:\xampp\htdocs\revenue2\citizen_dashboard\rpt\rpt_tax_payment/../../../../db/RPT/rpt_db.php
+DB file not found at: C:\xampp\htdocs\revenue2\citizen_dashboard\rpt\rpt_tax_payment/../../../../db/RPT/rpt_db.php
+Found DB at: C:\xampp\htdocs\revenue2\citizen_dashboard\rpt\rpt_tax_payment/../../../db/RPT/rpt_db.php
 Checking if tax ID 2 exists...
 Found tax: Array
 (

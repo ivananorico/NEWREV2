@@ -73,7 +73,7 @@ function getSummaryData($pdo) {
     $result = $stmt->fetch();
     $summary['active_buildings'] = intval($result['count']);
     
-    // Total Annual Revenue
+    // Total Annual revenue2
     $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_annual_tax), 0) as total FROM property_totals");
     $stmt->execute();
     $result = $stmt->fetch();
