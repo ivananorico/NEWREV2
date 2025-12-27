@@ -5,7 +5,7 @@ export default function RPTValidationInfo() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Dynamic API configuration - Use same pattern as RPTValidationTable
+  // Dynamic API configuration
   const API_BASE =
     window.location.hostname === "localhost"
       ? "http://localhost/revenue2/backend"
@@ -13,6 +13,12 @@ export default function RPTValidationInfo() {
 
   const API_PATH = "/RPT/RPTValidationTable";
   const isDevelopment = window.location.hostname === "localhost";
+
+  // Document base URL (different from API_BASE)
+  const DOCUMENTS_BASE =
+    window.location.hostname === "localhost"
+      ? "http://localhost/revenue2"
+      : "https://revenuetreasury.goserveph.com";
 
   // State declarations
   const [registration, setRegistration] = useState(null);
@@ -25,6 +31,13 @@ export default function RPTValidationInfo() {
   const [buildingAssessmentLevels, setBuildingAssessmentLevels] = useState([]);
   const [taxConfigs, setTaxConfigs] = useState([]);
   const [buildingWarning, setBuildingWarning] = useState("");
+  
+  // STATES FOR DOCUMENTS AND RESUBMISSION
+  const [documents, setDocuments] = useState([]);
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectionNotes, setRejectionNotes] = useState("");
 
   // Assessment data states
   const [landAssessment, setLandAssessment] = useState(null);
@@ -141,7 +154,8 @@ export default function RPTValidationInfo() {
         await Promise.all([
           fetchRegistrationDetails(),
           fetchConfigurations(),
-          fetchAssessmentData()
+          fetchAssessmentData(),
+          fetchDocuments()
         ]);
         
         console.log("✅ All data fetched successfully");
@@ -254,29 +268,78 @@ export default function RPTValidationInfo() {
     return true;
   };
 
+  // Function to get document type display name
+  const getDocumentTypeName = (type) => {
+    const typeMap = {
+      'barangay_certificate': 'Barangay Certificate',
+      'ownership_proof': 'Proof of Ownership',
+      'valid_id': 'Valid ID',
+      'survey_plan': 'Survey Plan'
+    };
+    return typeMap[type] || type;
+  };
+
   // Helper function to extract data from API response
   const extractDataFromResponse = (data, dataKey = null) => {
-    // Format 1: {success: true, data: ...}
-    if (data.success !== undefined && data.data !== undefined) {
-      if (dataKey) {
-        return data.data[dataKey] || data.data;
+    console.log("🔍 Extracting data from:", data);
+    
+    // Try multiple response formats
+    if (typeof data === 'object' && data !== null) {
+      // Format 1: {success: true, data: {...}}
+      if (data.success === true || data.success === "true") {
+        console.log("✅ Using success=true format");
+        const extracted = data.data || data;
+        return dataKey ? (extracted[dataKey] || extracted) : extracted;
       }
-      return data.data;
+      // Format 2: {status: "success", ...}
+      else if (data.status === "success" || data.status === "Success") {
+        console.log("✅ Using status=success format");
+        const extracted = data.data || data;
+        return dataKey ? (extracted[dataKey] || extracted) : extracted;
+      }
+      // Format 3: {message: "success", ...}
+      else if (data.message && data.message.toLowerCase().includes("success")) {
+        console.log("✅ Using message=success format");
+        return dataKey ? (data[dataKey] || data) : data;
+      }
+      // Format 4: Direct object with keys
+      else {
+        console.log("✅ Using direct object format");
+        return dataKey ? (data[dataKey] || data) : data;
+      }
     }
-    // Format 2: {status: "success", ...}
-    else if (data.status === "success") {
-      if (dataKey) {
-        return data[dataKey] || data;
-      }
+    // Format 5: Direct array
+    else if (Array.isArray(data)) {
+      console.log("✅ Using array format");
       return data;
     }
-    // Format 3: Direct data
+    // Format 6: Something else
     else {
+      console.log("⚠️ Unknown format, returning as-is");
       return data;
     }
   };
 
-  // Data fetching functions - REMOVED credentials: 'include'
+  // Function to check if operation was successful
+  const isOperationSuccessful = (data) => {
+    return (
+      data.success === true || 
+      data.success === "true" || 
+      data.status === "success" || 
+      data.status === "Success" ||
+      (data.message && (
+        data.message.toLowerCase().includes("success") ||
+        data.message.toLowerCase().includes("updated") ||
+        data.message.toLowerCase().includes("saved") ||
+        data.message.toLowerCase().includes("created") ||
+        data.message.toLowerCase().includes("approved")
+      )) ||
+      (data.success !== undefined && data.success !== false) ||
+      (data.id && (data.id > 0 || data.tdn || data.reference_number))
+    );
+  };
+
+  // Data fetching functions
   const fetchRegistrationDetails = async () => {
     try {
       const url = `${API_BASE}${API_PATH}/get_registration_details.php?id=${id}`;
@@ -319,27 +382,26 @@ export default function RPTValidationInfo() {
       // Extract registration data from response (handles multiple formats)
       let registrationData = null;
       
-      // Check for success flag (new format)
-      if (data.success === true || data.success === "true") {
+      // Check if operation was successful
+      if (isOperationSuccessful(data)) {
         registrationData = extractDataFromResponse(data, 'registration') || extractDataFromResponse(data);
       }
-      // Check for status (old format)
-      else if (data.status === "success") {
-        registrationData = data.registration || data;
-      }
-      // Direct data
+      // Direct data if id exists
       else if (data.id) {
         registrationData = data;
+      }
+      else {
+        throw new Error(data.message || data.error || "Failed to fetch registration details");
       }
       
       if (registrationData) {
         const completeRegistration = {
-    ...registrationData,
-    province: registrationData.province || 'N/A',  // This will be empty if not in DB
-    property_type: registrationData.property_type || 'Residential',
-    last_updated: registrationData.last_updated || registrationData.date_registered,
-    remarks: registrationData.remarks || 'No remarks'
-};
+          ...registrationData,
+          province: registrationData.province || 'N/A',
+          property_type: registrationData.property_type || 'Residential',
+          last_updated: registrationData.last_updated || registrationData.date_registered,
+          remarks: registrationData.remarks || 'No remarks'
+        };
         
         setRegistration(completeRegistration);
         console.log("✅ Registration loaded successfully:", completeRegistration);
@@ -349,6 +411,69 @@ export default function RPTValidationInfo() {
     } catch (err) {
       console.error("❌ Error in fetchRegistrationDetails:", err);
       throw err;
+    }
+  };
+
+  // Function to fetch documents
+  const fetchDocuments = async () => {
+    try {
+      const url = `${API_BASE}${API_PATH}/get_documents.php?registration_id=${id}`;
+      console.log(`📄 Fetching documents from: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ Document fetch failed: ${response.status} ${response.statusText}`);
+        
+        // Try to get error text for debugging
+        const errorText = await response.text();
+        console.warn("📄 Raw error response:", errorText.substring(0, 200));
+        
+        setDocuments([]); // Set empty array instead of throwing
+        return;
+      }
+      
+      // First get text to check if it's valid JSON
+      const responseText = await response.text();
+      console.log("📄 Raw response text:", responseText.substring(0, 500));
+      
+      // Check if response is HTML/error instead of JSON
+      if (responseText.trim().startsWith('<') || responseText.includes('<br />')) {
+        console.error("❌ Server returned HTML error instead of JSON");
+        console.error("HTML content:", responseText.substring(0, 300));
+        setDocuments([]);
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("❌ JSON parse error:", parseError);
+        console.error("Failed text:", responseText.substring(0, 300));
+        setDocuments([]);
+        return;
+      }
+      
+      console.log("📥 Documents JSON response:", data);
+      
+      // Extract documents data
+      let docsData = [];
+      
+      if (isOperationSuccessful(data)) {
+        docsData = extractDataFromResponse(data, 'documents') || extractDataFromResponse(data) || [];
+      } else if (Array.isArray(data)) {
+        docsData = data;
+      }
+      
+      setDocuments(docsData);
+      console.log("✅ Documents loaded:", docsData.length, "files");
+      
+    } catch (err) {
+      console.error("❌ Network error fetching documents:", err);
+      setDocuments([]);
     }
   };
 
@@ -379,14 +504,9 @@ export default function RPTValidationInfo() {
         // Extract data based on response format
         let configData = [];
         
-        if (data.success !== undefined) {
-          // New format: {success: true, data: [...]}
+        if (isOperationSuccessful(data)) {
           configData = extractDataFromResponse(data, dataKey) || extractDataFromResponse(data);
-        } else if (data.status === "success") {
-          // Old format: {status: "success", [dataKey]: [...]}
-          configData = data[dataKey] || data;
         } else if (Array.isArray(data)) {
-          // Direct array
           configData = data;
         }
         
@@ -429,17 +549,15 @@ export default function RPTValidationInfo() {
       // Extract assessment data based on response format
       let assessmentData = null;
       
-      if (data.success !== undefined) {
-        // New format: {success: true, data: {land_assessment: ..., building_assessment: ...}}
+      if (isOperationSuccessful(data)) {
         assessmentData = extractDataFromResponse(data);
-      } else if (data.status === "success") {
-        // Old format: {status: "success", land_assessment: ..., building_assessment: ...}
+      } else {
         assessmentData = data;
       }
       
       if (assessmentData) {
-        const landAssessmentData = assessmentData.land_assessment || assessmentData.data?.land_assessment || null;
-        const buildingAssessmentData = assessmentData.building_assessment || assessmentData.data?.building_assessment || null;
+        const landAssessmentData = extractDataFromResponse(assessmentData, 'land_assessment') || null;
+        const buildingAssessmentData = extractDataFromResponse(assessmentData, 'building_assessment') || null;
         
         setLandAssessment(landAssessmentData);
         setBuildingAssessment(buildingAssessmentData);
@@ -475,6 +593,84 @@ export default function RPTValidationInfo() {
       }
     } catch (err) {
       console.error("❌ Error fetching assessment data:", err);
+    }
+  };
+
+  // Function to view document
+  const viewDocument = (document) => {
+    setSelectedDocument(document);
+    setShowDocumentViewer(true);
+  };
+
+  // Function to mark as needs correction
+  const handleMarkNeedsCorrection = async () => {
+    if (!rejectionNotes.trim()) {
+      alert("Please enter rejection/correction notes");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}${API_PATH}/reject_registration.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          registration_id: id,
+          status: 'needs_correction',
+          correction_notes: rejectionNotes
+        })
+      });
+
+      const data = await response.json();
+      console.log("❌ Rejection response:", data);
+
+      // Check if operation was successful
+      if (isOperationSuccessful(data)) {
+        alert("✅ Application marked as 'Needs Correction'. The citizen will be notified to resubmit.");
+        setShowRejectForm(false);
+        setRejectionNotes("");
+        await fetchRegistrationDetails();
+      } else {
+        throw new Error(data.message || data.error || "Failed to reject application");
+      }
+    } catch (err) {
+      alert(`❌ Error: ${err.message}`);
+      console.error("Rejection error:", err);
+    }
+  };
+
+  // Function to update to resubmitted status
+  const handleUpdateToResubmitted = async () => {
+    if (window.confirm("Mark this application as resubmitted?\n\nThis will:\n• Change status to 'resubmitted'\n• Refresh document list")) {
+      try {
+        const response = await fetch(`${API_BASE}${API_PATH}/update_registration_status.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            registration_id: id,
+            status: 'resubmitted',
+            notes: 'Application resubmitted with new documents'
+          })
+        });
+
+        const data = await response.json();
+
+        // Check if operation was successful
+        if (isOperationSuccessful(data)) {
+          alert("✅ Application marked as resubmitted!");
+          await fetchRegistrationDetails();
+          await fetchDocuments(); // Refresh documents
+        } else {
+          throw new Error(data.message || data.error || "Failed to update status");
+        }
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      }
     }
   };
 
@@ -759,7 +955,7 @@ export default function RPTValidationInfo() {
     }
   };
 
-  // Action handlers - REMOVED credentials: 'include'
+  // Action handlers
   const handleInspectionSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -780,10 +976,8 @@ export default function RPTValidationInfo() {
       const data = await response.json();
       console.log("📅 Inspection response:", data);
 
-      // Handle both response formats
-      const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
-      
-      if (isSuccess) {
+      // Check if operation was successful
+      if (isOperationSuccessful(data)) {
         alert("✅ Inspection scheduled successfully!");
         setShowInspectionForm(false);
         setInspectionForm({ scheduled_date: "", assessor_name: "" });
@@ -846,12 +1040,10 @@ export default function RPTValidationInfo() {
       const data = await response.json();
       console.log("📥 Assessment response:", data);
 
-      // Handle both response formats
-      const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
-      
-      if (isSuccess) {
-        const action = data.action || data.data?.action || 'saved';
-        alert(`✅ Assessment ${action} successfully!`);
+      // Check if operation was successful
+      if (isOperationSuccessful(data)) {
+        const message = data.message || "Assessment saved successfully!";
+        alert(`✅ ${message}`);
         await fetchAssessmentData();
         
         const shouldClose = window.confirm("Close assessment form?");
@@ -891,12 +1083,11 @@ export default function RPTValidationInfo() {
         const data = await response.json();
         console.log("✅ Approval response:", data);
 
-        // Handle both response formats
-        const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
-        
-        if (isSuccess) {
+        // Check if operation was successful
+        if (isOperationSuccessful(data)) {
           const tdns = data.tdns || data.data?.tdns || {};
-          alert(`✅ Property approved!\n\nLand TDN: ${tdns.land_tdn || 'N/A'}\nBuilding TDN: ${tdns.building_tdn || 'N/A'}`);
+          const message = data.message || "Property approved successfully!";
+          alert(`✅ ${message}\n\nLand TDN: ${tdns.land_tdn || 'N/A'}\nBuilding TDN: ${tdns.building_tdn || 'N/A'}`);
           await fetchRegistrationDetails();
           await fetchAssessmentData();
         } else {
@@ -926,11 +1117,10 @@ export default function RPTValidationInfo() {
 
         const data = await response.json();
 
-        // Handle both response formats
-        const isSuccess = (data.success === true || data.success === "true" || data.status === "success");
-        
-        if (isSuccess) {
-          alert("✅ Property marked as assessed!");
+        // Check if operation was successful
+        if (isOperationSuccessful(data)) {
+          const message = data.message || "Property marked as assessed!";
+          alert(`✅ ${message}`);
           await fetchRegistrationDetails();
           setShowAssessmentForm(true);
         } else {
@@ -956,7 +1146,14 @@ export default function RPTValidationInfo() {
         })
       });
       
-      await response.json();
+      const data = await response.json();
+      
+      if (isOperationSuccessful(data)) {
+        console.log(`✅ Status updated to ${status}`);
+      } else {
+        console.warn(`⚠️ Status update might have failed:`, data);
+      }
+      
       await fetchRegistrationDetails();
     } catch (err) {
       console.error("Status update error:", err);
@@ -1040,7 +1237,6 @@ export default function RPTValidationInfo() {
   // Main render
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-
       <div className={`max-w-7xl mx-auto px-4 ${isDevelopment ? 'pt-10' : ''}`}>
         {/* Header Card */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
@@ -1074,6 +1270,8 @@ export default function RPTValidationInfo() {
                 registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                 registration.status === 'for_inspection' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                 registration.status === 'assessed' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                registration.status === 'needs_correction' ? 'bg-red-100 text-red-800 border border-red-200' :
+                registration.status === 'resubmitted' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
                 'bg-green-100 text-green-800 border border-green-200'
               }`}>
                 {registration.status.replace('_', ' ').toUpperCase()}
@@ -1086,16 +1284,20 @@ export default function RPTValidationInfo() {
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Admin Actions</h2>
           <div className="flex flex-wrap gap-4">
-            {registration.status === 'pending' && (
+            {/* REMOVED: Separate View Documents button since documents are always displayed */}
+
+            {/* Schedule Inspection Button - Show for resubmitted status */}
+            {(registration.status === 'resubmitted' || registration.status === 'pending') && (
               <button
                 onClick={() => setShowInspectionForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>📅</span>
                 <span>Schedule Inspection</span>
               </button>
             )}
 
+            {/* Mark as Assessed Button - Show for for_inspection status */}
             {registration.status === 'for_inspection' && (
               <button
                 onClick={handleUpdateToAssessed}
@@ -1106,6 +1308,7 @@ export default function RPTValidationInfo() {
               </button>
             )}
 
+            {/* Input Assessment Data Button - Show for assessed status */}
             {registration.status === 'assessed' && (
               <button
                 onClick={async () => {
@@ -1119,6 +1322,7 @@ export default function RPTValidationInfo() {
               </button>
             )}
 
+            {/* Approve Property Button - Show for assessed status when all assessments are complete */}
             {registration.status === 'assessed' && canApproveProperty() && (
               <button
                 onClick={handleApprove}
@@ -1126,6 +1330,30 @@ export default function RPTValidationInfo() {
               >
                 <span>✅</span>
                 <span>Approve Property</span>
+              </button>
+            )}
+
+            {/* Mark Needs Correction Button - Show for pending, assessed, and resubmitted status */}
+            {(registration.status === 'pending' || 
+              registration.status === 'assessed' || 
+              registration.status === 'resubmitted') && (
+              <button
+                onClick={() => setShowRejectForm(true)}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <span>❌</span>
+                <span>Mark Needs Correction</span>
+              </button>
+            )}
+
+            {/* Mark as Resubmitted Button - For needs_correction status */}
+            {registration.status === 'needs_correction' && (
+              <button
+                onClick={handleUpdateToResubmitted}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <span>📝</span>
+                <span>Mark as Resubmitted</span>
               </button>
             )}
           </div>
@@ -1159,6 +1387,51 @@ export default function RPTValidationInfo() {
             </div>
           )}
         </div>
+
+        {/* Rejection Form */}
+        {showRejectForm && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-red-900">Mark as Needs Correction</h3>
+              <button
+                onClick={() => setShowRejectForm(false)}
+                className="text-red-600 hover:text-red-800 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Correction/Rejection Notes *</label>
+                <textarea
+                  value={rejectionNotes}
+                  onChange={(e) => setRejectionNotes(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  rows="4"
+                  placeholder="Explain what needs to be corrected or why the application is being rejected..."
+                  required
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleMarkNeedsCorrection}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Mark as Needs Correction
+                </button>
+                <button
+                  onClick={() => setShowRejectForm(false)}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              <p className="text-sm text-red-700">
+                <strong>Note:</strong> This will change the status to "needs_correction" and the citizen will be notified to resubmit their application with corrected documents.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Inspection Form */}
         {showInspectionForm && (
@@ -1557,6 +1830,46 @@ export default function RPTValidationInfo() {
           </div>
         )}
 
+        {/* Documents Section - Always displayed if there are documents */}
+        {documents.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Uploaded Documents ({documents.length})</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {documents.map((doc, index) => (
+                <div key={doc.id || index} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+                  <div className="flex items-start mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-blue-600">📄</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 text-sm">{getDocumentTypeName(doc.document_type)}</h4>
+                      <p className="text-xs text-gray-500 truncate">{doc.file_name}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Uploaded: {formatDate(doc.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => viewDocument(doc)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => window.open(`${DOCUMENTS_BASE}/${doc.file_path}`, '_blank')}
+                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                    >
+                      Download
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Registration Details */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Registration Details</h2>
@@ -1724,6 +2037,58 @@ export default function RPTValidationInfo() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Document Viewer Modal */}
+        {showDocumentViewer && selectedDocument && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center border-b border-gray-200 p-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{getDocumentTypeName(selectedDocument.document_type)}</h3>
+                  <p className="text-sm text-gray-600">{selectedDocument.file_name}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => window.open(`${DOCUMENTS_BASE}/${selectedDocument.file_path}`, '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <span>📥</span>
+                    <span>Download</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDocumentViewer(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+                {selectedDocument.file_path.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/) ? (
+                  <img 
+                    src={`${DOCUMENTS_BASE}/${selectedDocument.file_path}`} 
+                    alt={selectedDocument.file_name}
+                    className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f3f4f6"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="%236b7280">Image not available</text></svg>';
+                    }}
+                  />
+                ) : (
+                  <div className="bg-gray-100 rounded-lg p-8 text-center">
+                    <div className="text-4xl mb-4">📄</div>
+                    <p className="text-gray-700 mb-2">Document cannot be previewed</p>
+                    <p className="text-sm text-gray-500">Please download to view this file</p>
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500">File Type: {selectedDocument.file_type}</p>
+                      <p className="text-xs text-gray-500">Size: {(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

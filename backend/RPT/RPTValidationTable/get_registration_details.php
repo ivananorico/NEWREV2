@@ -6,7 +6,7 @@
 // Enable CORS and JSON response
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Cache-Control, Pragma");
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -74,30 +74,43 @@ function getRegistrationDetails($pdo) {
     }
 
     try {
-        // Update your SQL query in get_registration_details.php:
-$query = "
-    SELECT 
-        pr.id,
-        pr.reference_number,
-        pr.lot_location as location_address,
-        pr.barangay,
-        pr.district as municipality_city,
-        'Metro Manila' as province,  -- Hardcoded since column doesn't exist
-        'Residential' as property_type,
-        pr.has_building,
-        pr.status,
-        COALESCE(pr.correction_notes, '') as remarks,
-        pr.created_at as date_registered,
-        pr.created_at as last_updated,  -- Use created_at since updated_at doesn't exist
-        po.full_name as owner_name,
-        po.email as email_address,
-        po.phone as contact_number,
-        COALESCE(po.tin_number, '') as tin,
-        COALESCE(po.address, '') as owner_address
-    FROM property_registrations pr
-    LEFT JOIN property_owners po ON pr.owner_id = po.id
-    WHERE pr.id = ?
-";
+        // Corrected SQL query with proper name concatenation
+        $query = "
+            SELECT 
+                pr.id,
+                pr.reference_number,
+                pr.lot_location,
+                pr.barangay,
+                pr.district,
+                pr.city,
+                pr.province,
+                pr.zip_code,
+                pr.has_building,
+                pr.status,
+                COALESCE(pr.correction_notes, '') as correction_notes,
+                pr.created_at,
+                pr.updated_at,
+                -- Separate name fields
+                po.first_name,
+                po.last_name,
+                po.middle_name,
+                po.suffix,
+                po.email,
+                po.phone,
+                COALESCE(po.tin_number, '') as tin_number,
+                COALESCE(po.address, '') as owner_address,
+                po.house_number,
+                po.street,
+                po.barangay as owner_barangay,
+                po.district as owner_district,
+                po.city as owner_city,
+                po.province as owner_province,
+                po.zip_code as owner_zip_code,
+                po.birthdate
+            FROM property_registrations pr
+            LEFT JOIN property_owners po ON pr.owner_id = po.id
+            WHERE pr.id = ?
+        ";
         
         $stmt = $pdo->prepare($query);
         $stmt->execute([$registrationId]);
@@ -109,18 +122,82 @@ $query = "
             return;
         }
 
-        // Ensure all fields have values
-        $registration = array_map(function($value) {
+        // Construct full name from separate fields
+        $firstName = $registration['first_name'] ?? '';
+        $lastName = $registration['last_name'] ?? '';
+        $middleName = $registration['middle_name'] ?? '';
+        $suffix = $registration['suffix'] ?? '';
+        
+        // Format: FirstName MiddleInitial. LastName Suffix (e.g., Ivan D. Anorico)
+        $ownerName = trim($firstName . ' ' . 
+            (!empty($middleName) ? substr($middleName, 0, 1) . '. ' : '') . 
+            $lastName . 
+            (!empty($suffix) ? ' ' . $suffix : ''));
+        
+        // Or if you want full middle name: Ivan Dolera Anorico
+        // $ownerName = trim($firstName . 
+        //     (!empty($middleName) ? ' ' . $middleName : '') . 
+        //     ' ' . $lastName . 
+        //     (!empty($suffix) ? ' ' . $suffix : ''));
+        
+        // Construct owner address if not already in address field
+        $ownerAddress = $registration['owner_address'];
+        if (empty($ownerAddress)) {
+            $ownerAddress = trim(
+                (!empty($registration['house_number']) ? $registration['house_number'] . ' ' : '') .
+                (!empty($registration['street']) ? $registration['street'] . ', ' : '') .
+                (!empty($registration['owner_barangay']) ? $registration['owner_barangay'] . ', ' : '') .
+                (!empty($registration['owner_district']) ? 'District ' . $registration['owner_district'] . ', ' : '') .
+                (!empty($registration['owner_city']) ? $registration['owner_city'] . ', ' : '') .
+                (!empty($registration['owner_province']) ? $registration['owner_province'] . ' ' : '') .
+                (!empty($registration['owner_zip_code']) ? $registration['owner_zip_code'] : '')
+            );
+        }
+        
+        // Format response data according to expected structure
+        $responseData = [
+            "id" => $registration['id'],
+            "reference_number" => $registration['reference_number'],
+            "location_address" => $registration['lot_location'],
+            "barangay" => $registration['barangay'],
+            "municipality_city" => $registration['city'] ?? 'Quezon City',
+            "district" => $registration['district'],
+            "province" => $registration['province'] ?? 'Metro Manila',
+            "zip_code" => $registration['zip_code'],
+            "property_type" => "Residential", // You might want to get this from land_properties table
+            "has_building" => $registration['has_building'],
+            "status" => $registration['status'],
+            "remarks" => $registration['correction_notes'],
+            "date_registered" => $registration['created_at'],
+            "last_updated" => $registration['updated_at'],
+            "owner_name" => $ownerName,
+            "email_address" => $registration['email'],
+            "contact_number" => $registration['phone'],
+            "tin" => $registration['tin_number'],
+            "owner_address" => $ownerAddress,
+            // Additional fields for UI
+            "first_name" => $registration['first_name'],
+            "last_name" => $registration['last_name'],
+            "middle_name" => $registration['middle_name'],
+            "suffix" => $registration['suffix'],
+            "birthdate" => $registration['birthdate'],
+            "owner_city" => $registration['owner_city'] ?? 'Quezon City',
+            "owner_province" => $registration['owner_province'] ?? 'Metro Manila'
+        ];
+        
+        // Ensure all fields have values (no nulls)
+        $responseData = array_map(function($value) {
             return $value === null ? '' : $value;
-        }, $registration);
+        }, $responseData);
 
         echo json_encode([
             "success" => true,
-            "data" => $registration
+            "data" => $responseData
         ]);
 
     } catch (PDOException $e) {
         http_response_code(500);
+        error_log("Database error in getRegistrationDetails: " . $e->getMessage());
         echo json_encode(["error" => "Database error: " . $e->getMessage()]);
     }
 }

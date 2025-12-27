@@ -47,7 +47,7 @@ if (!$pdo) {
     exit();
 }
 
-// Get property basic info - UPDATED TO INCLUDE PROPERTY TYPE
+// Get property basic info
 $propertyQuery = "
     SELECT 
         pr.id,
@@ -58,8 +58,11 @@ $propertyQuery = "
         pr.district,
         pr.has_building,
         pr.created_at,
+        pr.updated_at,
         
-        po.full_name AS owner_name,
+        po.first_name,
+        po.last_name,
+        CONCAT(po.first_name, ' ', po.last_name) AS owner_name,
         po.email,
         po.phone,
         po.address AS owner_address,
@@ -68,8 +71,8 @@ $propertyQuery = "
         lp.land_market_value,
         lp.land_assessed_value,
         lp.annual_tax as land_annual_tax,
-        lp.property_type as land_classification,  -- ADDED THIS
-        lp.tdn as land_tdn,                       -- ADDED THIS
+        lp.property_type as land_classification,
+        lp.tdn as land_tdn,
         
         pt.total_annual_tax
         
@@ -79,7 +82,7 @@ $propertyQuery = "
     LEFT JOIN land_properties lp ON pr.id = lp.registration_id
     LEFT JOIN property_totals pt ON pr.id = pt.registration_id
     
-    WHERE pr.id = ? 
+    WHERE pr.id = ? AND pr.status = 'approved'
     LIMIT 1
 ";
 
@@ -90,7 +93,7 @@ try {
     if ($stmt->rowCount() == 0) {
         echo json_encode([
             "success" => false,
-            "error" => "Property not found"
+            "error" => "Property not found or not approved"
         ]);
         exit();
     }
@@ -108,9 +111,12 @@ try {
                 bp.floor_area_sqm,
                 bp.year_built,
                 bp.building_market_value,
+                bp.building_depreciated_value,
                 bp.building_assessed_value,
                 bp.annual_tax as building_annual_tax,
-                bp.assessment_level
+                bp.assessment_level,
+                bp.basic_tax_amount,
+                bp.sef_tax_amount
             FROM building_properties bp
             WHERE bp.land_id = (
                 SELECT id FROM land_properties WHERE registration_id = ?
@@ -155,6 +161,7 @@ try {
     // Prepare response
     $response = [
         "success" => true,
+        "status" => "success",
         "data" => [
             "property" => $property,
             "buildings" => $buildings,
@@ -165,6 +172,7 @@ try {
     echo json_encode($response);
     
 } catch (Exception $e) {
+    http_response_code(500);
     echo json_encode([
         "success" => false,
         "error" => $e->getMessage()

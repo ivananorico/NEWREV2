@@ -94,7 +94,7 @@ echo json_encode($response);
 exit;
 
 // ============================================
-// Handler Functions (Keep your original functions)
+// Handler Functions
 // ============================================
 
 function handleLogin($db, $input, &$response) {
@@ -163,11 +163,11 @@ function handleLogin($db, $input, &$response) {
 }
 
 function handleRegister($db, $input, &$response) {
-    // Define required fields
+    // Define required fields (with district)
     $required_fields = [
         'firstName', 'lastName', 'regEmail', 'regPassword', 'confirmPassword',
         'birthdate', 'mobile', 'houseNumber', 'street', 'barangay',
-        'city', 'province', 'zipCode'
+        'district', 'city', 'province', 'zipCode'
     ];
     
     foreach ($required_fields as $field) {
@@ -207,6 +207,23 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
+    // Validate district
+    if (!in_array($input['district'], ['1', '2', '3', '4', '5', '6'])) {
+        $response['message'] = 'Please select a valid district';
+        return;
+    }
+
+    // Validate fixed city and province
+    if ($input['city'] !== 'Quezon City') {
+        $response['message'] = 'City must be Quezon City';
+        return;
+    }
+
+    if ($input['province'] !== 'Metro Manila') {
+        $response['message'] = 'Province must be Metro Manila';
+        return;
+    }
+
     $user = new User($db);
     $user->email = trim($input['regEmail']);
 
@@ -226,6 +243,7 @@ function handleRegister($db, $input, &$response) {
     $user->house_number = trim($input['houseNumber']);
     $user->street = trim($input['street']);
     $user->barangay = trim($input['barangay']);
+    $user->district = trim($input['district']);
     $user->city = trim($input['city']);
     $user->province = trim($input['province']);
     $user->zip_code = trim($input['zipCode']);

@@ -1,7 +1,5 @@
 <?php
-// ================================================
-// GET REGISTRATIONS API
-// ================================================
+// revenue2/backend/RPT/RPTValidationTable/get_registrations.php
 
 // Enable CORS and JSON response
 header("Access-Control-Allow-Origin: *");
@@ -59,6 +57,7 @@ switch ($method) {
 
 function getRegistrations($pdo) {
     try {
+        // OPTION 1: Get raw data and concatenate in PHP (Recommended)
         $stmt = $pdo->prepare("
             SELECT 
                 pr.id,
@@ -69,7 +68,10 @@ function getRegistrations($pdo) {
                 pr.has_building,
                 pr.status,
                 pr.created_at,
-                po.full_name AS owner_name,
+                po.first_name,
+                po.last_name,
+                po.middle_name,
+                po.suffix,
                 po.email,
                 po.phone
             FROM property_registrations pr
@@ -79,6 +81,26 @@ function getRegistrations($pdo) {
         $stmt->execute();
         $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Concatenate names in PHP properly
+        foreach ($registrations as &$registration) {
+            $firstName = $registration['first_name'] ?? '';
+            $middleName = $registration['middle_name'] ?? '';
+            $lastName = $registration['last_name'] ?? '';
+            $suffix = $registration['suffix'] ?? '';
+            
+            // Format 1: Full middle name: Ivan Dolera Anorico
+            // $registration['owner_name'] = trim($firstName . 
+            //     (!empty($middleName) ? ' ' . $middleName : '') . 
+            //     ' ' . $lastName . 
+            //     (!empty($suffix) ? ' ' . $suffix : ''));
+            
+            // Format 2: Middle initial: Ivan D. Anorico
+            $registration['owner_name'] = trim($firstName . 
+                (!empty($middleName) ? ' ' . substr($middleName, 0, 1) . '.' : '') . 
+                ' ' . $lastName . 
+                (!empty($suffix) ? ' ' . $suffix : ''));
+        }
+
         echo json_encode([
             "success" => true,
             "data" => $registrations ?: []
@@ -86,6 +108,7 @@ function getRegistrations($pdo) {
 
     } catch (PDOException $e) {
         http_response_code(500);
+        error_log("Database error in get_registrations: " . $e->getMessage());
         echo json_encode(["error" => "Database error: " . $e->getMessage()]);
     }
 }

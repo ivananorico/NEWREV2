@@ -57,12 +57,21 @@ function getApprovedProperties($pdo) {
                 pr.district,
                 pr.status,
                 pr.created_at,
-                po.full_name as owner_name,
+                pr.has_building,
+                po.first_name,
+                po.last_name,
+                CONCAT(po.first_name, ' ', po.last_name) as owner_name,
                 po.email,
                 po.phone,
                 lp.land_area_sqm,
                 lp.land_market_value,
-                pt.total_annual_tax
+                lp.land_assessed_value,
+                lp.property_type,
+                lp.tdn as land_tdn,
+                pt.total_annual_tax,
+                (SELECT COUNT(*) FROM building_properties bp 
+                 JOIN land_properties lp2 ON bp.land_id = lp2.id 
+                 WHERE lp2.registration_id = pr.id AND bp.status = 'active') as building_count
             FROM property_registrations pr
             LEFT JOIN property_owners po ON pr.owner_id = po.id
             LEFT JOIN land_properties lp ON pr.id = lp.registration_id
@@ -76,11 +85,13 @@ function getApprovedProperties($pdo) {
         
         echo json_encode([
             "success" => true,
+            "status" => "success",
             "data" => $properties,
             "count" => count($properties)
         ]);
         
     } catch (Exception $e) {
+        http_response_code(500);
         echo json_encode([
             "success" => false,
             "error" => $e->getMessage()

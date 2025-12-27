@@ -15,6 +15,7 @@ class User {
     public $house_number;
     public $street;
     public $barangay;
+    public $district;
     public $city;
     public $province;
     public $zip_code;
@@ -53,8 +54,7 @@ class User {
 
     // Get user by ID
     public function getUserById($user_id) {
-        $query = "SELECT id, email, first_name, last_name, password_hash, status, email_verified, role 
-                  FROM " . $this->table_name . " 
+        $query = "SELECT * FROM " . $this->table_name . " 
                   WHERE id = :id 
                   LIMIT 1";
 
@@ -68,6 +68,17 @@ class User {
             $this->email = $row['email'];
             $this->first_name = $row['first_name'];
             $this->last_name = $row['last_name'];
+            $this->middle_name = $row['middle_name'];
+            $this->suffix = $row['suffix'];
+            $this->birthdate = $row['birthdate'];
+            $this->mobile = $row['mobile'];
+            $this->house_number = $row['house_number'];
+            $this->street = $row['street'];
+            $this->barangay = $row['barangay'];
+            $this->district = $row['district'];
+            $this->city = $row['city'];
+            $this->province = $row['province'];
+            $this->zip_code = $row['zip_code'];
             $this->password_hash = $row['password_hash'];
             $this->status = $row['status'];
             $this->email_verified = $row['email_verified'];
@@ -82,7 +93,7 @@ class User {
         return password_verify($password, $this->password_hash);
     }
 
-    // Create new user (UPDATED for new address fields)
+    // Create new user (with district)
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
                 SET email=:email, 
@@ -96,6 +107,7 @@ class User {
                     house_number=:house_number, 
                     street=:street, 
                     barangay=:barangay,
+                    district=:district,
                     city=:city,
                     province=:province,
                     zip_code=:zip_code, 
@@ -115,6 +127,7 @@ class User {
         $this->house_number = htmlspecialchars(strip_tags($this->house_number));
         $this->street = htmlspecialchars(strip_tags($this->street));
         $this->barangay = htmlspecialchars(strip_tags($this->barangay));
+        $this->district = htmlspecialchars(strip_tags($this->district));
         $this->city = htmlspecialchars(strip_tags($this->city));
         $this->province = htmlspecialchars(strip_tags($this->province));
         $this->zip_code = htmlspecialchars(strip_tags($this->zip_code));
@@ -134,6 +147,7 @@ class User {
         $stmt->bindParam(":house_number", $this->house_number);
         $stmt->bindParam(":street", $this->street);
         $stmt->bindParam(":barangay", $this->barangay);
+        $stmt->bindParam(":district", $this->district);
         $stmt->bindParam(":city", $this->city);
         $stmt->bindParam(":province", $this->province);
         $stmt->bindParam(":zip_code", $this->zip_code);
