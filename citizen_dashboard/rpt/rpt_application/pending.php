@@ -196,20 +196,21 @@ try {
                         </div>
                     </div>
 
-                    <div class="px-6 py-4 bg-blue-50">
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="text-sm font-medium text-blue-800">Application Progress</div>
-                            <div class="text-sm text-blue-700">Step 1 of 5</div>
-                        </div>
-                        <div class="progress-bar"><div class="progress-fill" style="width: 20%"></div></div>
-                        <div class="flex justify-between text-xs text-blue-600 mt-1">
-                            <span>Submitted</span>
-                            <span>Review</span>
-                            <span>Inspection</span>
-                            <span>Assessment</span>
-                            <span>Approved</span>
-                        </div>
-                    </div>
+                    <!-- In pending.php, find lines ~81-91 and update this section: -->
+
+<div class="px-6 py-4 bg-blue-50">
+    <div class="flex justify-between items-center mb-2">
+        <div class="text-sm font-medium text-blue-800">Application Progress</div>
+        <div class="text-sm text-blue-700">Step 1 of 4</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width: 25%"></div></div>
+    <div class="flex justify-between text-xs text-blue-600 mt-1">
+        <span>Pending</span>
+        <span>For Inspection</span>
+        <span>Assessed</span>
+        <span>Approved</span>
+    </div>
+</div>
 
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>

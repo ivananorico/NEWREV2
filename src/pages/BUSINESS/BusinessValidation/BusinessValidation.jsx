@@ -9,7 +9,7 @@ const BusinessValidation = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Determine environment - FIXED
+  // Determine environment
   const isLocalhost = window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1' ||
                       window.location.hostname === '';
@@ -17,13 +17,11 @@ const BusinessValidation = () => {
     ? "http://localhost/revenue2/backend/Business/BusinessValidation"
     : "/backend/Business/BusinessValidation";
 
-  // Fetch permits data - UPDATED
+  // Fetch permits data
   const fetchPermits = async () => {
     try {
       setLoading(true);
       setError('');
-      
-      console.log(`Fetching from: ${API_BASE}/get_permits.php`);
       
       const response = await fetch(`${API_BASE}/get_permits.php`, {
         headers: {
@@ -36,7 +34,6 @@ const BusinessValidation = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Check content type
       const contentType = response.headers.get("content-type");
       let data;
       
@@ -51,17 +48,23 @@ const BusinessValidation = () => {
         }
       }
       
-      console.log('API Response:', data);
-      
       if (data.status === 'success') {
-        setPermits(data.permits || []);
+        // Transform data if needed
+        const transformedPermits = data.permits.map(permit => ({
+          ...permit,
+          // Calculate total tax if not already calculated
+          total_tax: permit.total_tax || (parseFloat(permit.tax_amount || 0) + parseFloat(permit.regulatory_fees || 0)),
+          // Format address from components
+          address: permit.address || `${permit.street || ''}, ${permit.barangay || ''}, ${permit.district || ''}, ${permit.city || ''}, ${permit.province || ''}`
+        }));
+        setPermits(transformedPermits);
       } else {
         throw new Error(data.message || 'Failed to fetch permits');
       }
     } catch (err) {
       console.error('Error fetching permits:', err);
       setError(err.message || 'Failed to load business permits. Please try again.');
-      setPermits([]); // Clear permits on error
+      setPermits([]);
     } finally {
       setLoading(false);
     }
@@ -79,7 +82,9 @@ const BusinessValidation = () => {
       permit.owner_name?.toLowerCase().includes(searchLower) ||
       permit.business_permit_id?.toLowerCase().includes(searchLower) ||
       permit.business_type?.toLowerCase().includes(searchLower) ||
-      permit.address?.toLowerCase().includes(searchLower)
+      permit.barangay?.toLowerCase().includes(searchLower) ||
+      permit.city?.toLowerCase().includes(searchLower) ||
+      (permit.address && permit.address.toLowerCase().includes(searchLower))
     );
   });
 
@@ -118,9 +123,9 @@ const BusinessValidation = () => {
     return colors[index];
   };
 
-  // Check if tax is calculated
+  // Check if tax is calculated (using new database fields)
   const isTaxCalculated = (permit) => {
-    return permit.taxable_amount > 0 && permit.tax_amount > 0;
+    return permit.tax_amount > 0 && permit.regulatory_fees > 0;
   };
 
   // Check if tax is approved
@@ -154,11 +159,21 @@ const BusinessValidation = () => {
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  // Format location
+  const formatLocation = (permit) => {
+    if (permit.address) return permit.address;
+    return `${permit.barangay || ''}, ${permit.city || ''}`;
   };
 
   // Handle page change
@@ -180,10 +195,11 @@ const BusinessValidation = () => {
           <p className="text-gray-600 dark:text-gray-400">
             Review and validate pending business permit applications
           </p>
-          {/* Debug info - optional */}
-          <div className="text-xs text-gray-500 mt-1">
-            API Base: {API_BASE}
-          </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-500 mt-1">
+              API Base: {API_BASE}
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-2 mt-4 md:mt-0">
           <button
@@ -209,7 +225,7 @@ const BusinessValidation = () => {
           </div>
           <input
             type="text"
-            placeholder="Search pending permits by business name, owner, permit ID, or address..."
+            placeholder="Search by business name, owner, permit ID, barangay, city..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -226,9 +242,11 @@ const BusinessValidation = () => {
           <div className="flex justify-between items-start">
             <div>
               <strong>Error:</strong> {error}
-              <div className="mt-2 text-sm">
-                URL attempted: {API_BASE}/get_permits.php
-              </div>
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-2 text-sm">
+                  URL attempted: {API_BASE}/get_permits.php
+                </div>
+              )}
             </div>
             <button onClick={() => setError('')} className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -279,12 +297,11 @@ const BusinessValidation = () => {
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Permit ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Business Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Owner</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Taxable Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Business Details</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tax Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Issue Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dates</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -298,22 +315,45 @@ const BusinessValidation = () => {
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-300">{permit.business_name}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Owner: {permit.owner_name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Type: {permit.business_type}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-300">{permit.owner_name}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{permit.contact_number}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(permit.business_type)}`}>
-                          {permit.business_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-300">{formatCurrency(permit.taxable_amount)}</div>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 dark:text-gray-300">
+                          {permit.barangay || 'N/A'}
+                        </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Tax: {formatCurrency(permit.tax_amount || 0)}
+                          {permit.city}, {permit.province}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                          {permit.street}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Taxable: </span>
+                            <span className="font-medium">{formatCurrency(permit.taxable_amount)}</span>
+                          </div>
+                          <div className="text-xs">
+                            <span className="text-gray-500 dark:text-gray-400">Tax: </span>
+                            {formatCurrency(permit.tax_amount)}
+                          </div>
+                          <div className="text-xs">
+                            <span className="text-gray-500 dark:text-gray-400">Fees: </span>
+                            {formatCurrency(permit.regulatory_fees)}
+                          </div>
+                          {permit.total_tax > 0 && (
+                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                              Total: {formatCurrency(permit.total_tax)}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -321,9 +361,9 @@ const BusinessValidation = () => {
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
                             {permit.status}
                           </span>
-                          <div className="flex gap-1">
+                          <div className="flex flex-wrap gap-1">
                             <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getTaxCalculatedColor(permit)}`}>
-                              {isTaxCalculated(permit) ? 'Tax Calculated' : 'Tax Not Calculated'}
+                              {isTaxCalculated(permit) ? 'Tax Calculated' : 'Tax Pending'}
                             </span>
                             <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getTaxApprovedColor(permit)}`}>
                               {isTaxApproved(permit) ? 'Tax Approved' : 'Tax Not Approved'}
@@ -332,27 +372,52 @@ const BusinessValidation = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-300">{formatDate(permit.issue_date)}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Expires: {formatDate(permit.expiry_date)}</div>
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            Issued: {formatDate(permit.issue_date)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Expires: {formatDate(permit.expiry_date)}
+                          </div>
+                          {permit.created_at && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Created: {formatDate(permit.created_at)}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link
-                          to={`/business/businessvalidationinfo/${permit.id}`}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3 inline-flex items-center"
-                          title="View and Validate"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                          </svg>
-                          View
-                        </Link>
+                        <div className="flex flex-col space-y-2">
+                          <Link
+                            to={`/business/businessvalidationinfo/${permit.id}`}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 inline-flex items-center"
+                            title="View and Validate"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            </svg>
+                            View Details
+                          </Link>
+                          {!isTaxCalculated(permit) && (
+                            <Link
+                              to={`/business/calculate-tax/${permit.id}`}
+                              className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 inline-flex items-center"
+                              title="Calculate Tax"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                              </svg>
+                              Calculate Tax
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center">
+                    <td colSpan="7" className="px-6 py-12 text-center">
                       <div className="text-gray-500 dark:text-gray-400">
                         {searchTerm ? 'No matching pending permits found' : 'No pending business permit applications'}
                         <div className="mt-2 text-sm">

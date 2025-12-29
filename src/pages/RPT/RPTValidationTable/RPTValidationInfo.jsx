@@ -660,8 +660,8 @@ export default function RPTValidationInfo() {
 
         const data = await response.json();
 
-        // Check if operation was successful
-        if (isOperationSuccessful(data)) {
+      // Check if operation was successful
+      if (isOperationSuccessful(data)) {
           alert("✅ Application marked as resubmitted!");
           await fetchRegistrationDetails();
           await fetchDocuments(); // Refresh documents
@@ -1169,15 +1169,15 @@ export default function RPTValidationInfo() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+      <div className="min-h-screen bg-[#fbfbfb] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 border border-[#9aa5b1]/20">
           <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4a90e2]"></div>
             <div className="text-center">
-              <p className="text-gray-700 font-medium mb-2">Loading registration details...</p>
-              <p className="text-sm text-gray-500">ID: {id}</p>
+              <p className="text-[#9aa5b1] font-medium mb-2">Loading registration details...</p>
+              <p className="text-sm text-[#9aa5b1]/80">ID: {id}</p>
               {isDevelopment && (
-                <div className="mt-2 text-xs text-blue-500">
+                <div className="mt-2 text-xs text-[#4a90e2]">
                   <p>API: {API_BASE}</p>
                   <p>Path: {API_PATH}</p>
                 </div>
@@ -1192,38 +1192,38 @@ export default function RPTValidationInfo() {
   // Error state
   if (error || !registration) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+      <div className="min-h-screen bg-[#fbfbfb] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 border border-[#9aa5b1]/20">
           <div className="text-center">
             <div className="text-red-500 text-4xl mb-4">⚠️</div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               {error ? "Error Loading Data" : "Registration Not Found"}
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-[#9aa5b1] mb-4">
               {error || "The requested registration could not be found."}
             </p>
             
-            <div className="bg-gray-100 p-3 rounded mb-4 text-left">
-              <p className="text-sm font-semibold mb-1">Debug Info:</p>
-              <p className="text-xs">ID: {id}</p>
-              <p className="text-xs">API Base: {API_BASE}</p>
-              <p className="text-xs">API Path: {API_PATH}</p>
-              <p className="text-xs">Env: {isDevelopment ? "Development" : "Production"}</p>
+            <div className="bg-[#fbfbfb] p-3 rounded mb-4 text-left border border-[#9aa5b1]/20">
+              <p className="text-sm font-semibold mb-1 text-[#4a90e2]">Debug Info:</p>
+              <p className="text-xs text-[#9aa5b1]">ID: {id}</p>
+              <p className="text-xs text-[#9aa5b1]">API Base: {API_BASE}</p>
+              <p className="text-xs text-[#9aa5b1]">API Path: {API_PATH}</p>
+              <p className="text-xs text-[#9aa5b1]">Env: {isDevelopment ? "Development" : "Production"}</p>
               {debugInfo.timestamp && (
-                <p className="text-xs">Time: {new Date(debugInfo.timestamp).toLocaleTimeString()}</p>
+                <p className="text-xs text-[#9aa5b1]">Time: {new Date(debugInfo.timestamp).toLocaleTimeString()}</p>
               )}
             </div>
             
             <div className="space-x-4">
               <button
                 onClick={() => navigate(-1)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Go Back
               </button>
               <button
                 onClick={retryFetch}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-[#4a90e2] hover:bg-[#4a90e2]/80 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Try Again
               </button>
@@ -1236,16 +1236,16 @@ export default function RPTValidationInfo() {
 
   // Main render
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[#fbfbfb] py-8">
       <div className={`max-w-7xl mx-auto px-4 ${isDevelopment ? 'pt-10' : ''}`}>
         {/* Header Card */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg border border-[#9aa5b1]/20 p-6 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-4 mb-4">
                 <button
                   onClick={() => navigate(-1)}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="flex items-center space-x-2 text-[#9aa5b1] hover:text-[#4a90e2] transition-colors"
                 >
                   <span className="text-xl">←</span>
                   <span className="font-medium">Back to List</span>
@@ -1253,13 +1253,13 @@ export default function RPTValidationInfo() {
               </div>
               
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 text-xl">🏠</span>
+                <div className="w-12 h-12 bg-[#4a90e2]/10 rounded-lg flex items-center justify-center">
+                  <span className="text-[#4a90e2] text-xl">🏠</span>
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Property Registration Application</h1>
-                  <p className="text-gray-600">
-                    Reference: <span className="font-mono font-semibold">{registration.reference_number}</span>
+                  <p className="text-[#9aa5b1]">
+                    Reference: <span className="font-mono font-semibold text-[#4a90e2]">{registration.reference_number}</span>
                   </p>
                 </div>
               </div>
@@ -1268,11 +1268,11 @@ export default function RPTValidationInfo() {
             <div className="mt-4 lg:mt-0">
               <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
                 registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                registration.status === 'for_inspection' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                registration.status === 'for_inspection' ? 'bg-[#4a90e2]/10 text-[#4a90e2] border border-[#4a90e2]/20' :
                 registration.status === 'assessed' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
                 registration.status === 'needs_correction' ? 'bg-red-100 text-red-800 border border-red-200' :
                 registration.status === 'resubmitted' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                'bg-green-100 text-green-800 border border-green-200'
+                'bg-[#4caf50]/10 text-[#4caf50] border border-[#4caf50]/20'
               }`}>
                 {registration.status.replace('_', ' ').toUpperCase()}
               </span>
@@ -1281,7 +1281,7 @@ export default function RPTValidationInfo() {
         </div>
 
         {/* Action Buttons */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg border border-[#9aa5b1]/20 p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Admin Actions</h2>
           <div className="flex flex-wrap gap-4">
             {/* REMOVED: Separate View Documents button since documents are always displayed */}
@@ -1290,7 +1290,7 @@ export default function RPTValidationInfo() {
             {(registration.status === 'resubmitted' || registration.status === 'pending') && (
               <button
                 onClick={() => setShowInspectionForm(true)}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-[#4caf50] hover:bg-[#4caf50]/80 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>📅</span>
                 <span>Schedule Inspection</span>
@@ -1301,7 +1301,7 @@ export default function RPTValidationInfo() {
             {registration.status === 'for_inspection' && (
               <button
                 onClick={handleUpdateToAssessed}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-[#4caf50] hover:bg-[#4caf50]/80 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>📊</span>
                 <span>Mark as Assessed</span>
@@ -1315,7 +1315,7 @@ export default function RPTValidationInfo() {
                   await fetchAssessmentData();
                   setShowAssessmentForm(true);
                 }}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-[#4caf50] hover:bg-[#4caf50]/80 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>📊</span>
                 <span>Input Assessment Data</span>
@@ -1326,7 +1326,7 @@ export default function RPTValidationInfo() {
             {registration.status === 'assessed' && canApproveProperty() && (
               <button
                 onClick={handleApprove}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-[#4a90e2] hover:bg-[#4a90e2]/80 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>✅</span>
                 <span>Approve Property</span>
@@ -1350,7 +1350,7 @@ export default function RPTValidationInfo() {
             {registration.status === 'needs_correction' && (
               <button
                 onClick={handleUpdateToResubmitted}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <span>📝</span>
                 <span>Mark as Resubmitted</span>
@@ -1359,18 +1359,18 @@ export default function RPTValidationInfo() {
           </div>
 
           {registration.status === 'assessed' && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-900 mb-2">Assessment Status:</h3>
+            <div className="mt-4 p-4 bg-[#4a90e2]/5 border border-[#4a90e2]/20 rounded-lg">
+              <h3 className="text-sm font-semibold text-[#4a90e2] mb-2">Assessment Status:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className={`p-3 rounded-lg ${
-                  landAssessment ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'
+                  landAssessment ? 'bg-[#4caf50]/5 border border-[#4caf50]/20 text-[#4caf50]' : 'bg-red-50 border border-red-200 text-red-800'
                 }`}>
                   <span className="font-semibold">Land Assessment:</span> {landAssessment ? '✓ Completed' : '✗ Missing'}
                 </div>
                 <div className={`p-3 rounded-lg ${
                   registration.has_building === 'yes' 
-                    ? (buildingAssessment ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800')
-                    : 'bg-gray-50 border border-gray-200 text-gray-600'
+                    ? (buildingAssessment ? 'bg-[#4caf50]/5 border border-[#4caf50]/20 text-[#4caf50]' : 'bg-red-50 border border-red-200 text-red-800')
+                    : 'bg-[#fbfbfb] border border-[#9aa5b1]/20 text-[#9aa5b1]'
                 }`}>
                   <span className="font-semibold">Building Assessment:</span> 
                   {registration.has_building === 'yes' 
@@ -1406,7 +1406,7 @@ export default function RPTValidationInfo() {
                 <textarea
                   value={rejectionNotes}
                   onChange={(e) => setRejectionNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                   rows="4"
                   placeholder="Explain what needs to be corrected or why the application is being rejected..."
                   required
@@ -1421,7 +1421,7 @@ export default function RPTValidationInfo() {
                 </button>
                 <button
                   onClick={() => setShowRejectForm(false)}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-6 py-2 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -1435,12 +1435,12 @@ export default function RPTValidationInfo() {
 
         {/* Inspection Form */}
         {showInspectionForm && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+          <div className="bg-[#4a90e2]/5 border border-[#4a90e2]/20 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-blue-900">Schedule Property Inspection</h3>
+              <h3 className="text-lg font-semibold text-[#4a90e2]">Schedule Property Inspection</h3>
               <button
                 onClick={() => setShowInspectionForm(false)}
-                className="text-blue-600 hover:text-blue-800 text-xl"
+                className="text-[#4a90e2] hover:text-[#4a90e2]/80 text-xl"
               >
                 ✕
               </button>
@@ -1455,7 +1455,7 @@ export default function RPTValidationInfo() {
                     value={inspectionForm.scheduled_date}
                     onChange={(e) => setInspectionForm({...inspectionForm, scheduled_date: e.target.value})}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4a90e2]"
                   />
                 </div>
                 <div>
@@ -1465,7 +1465,7 @@ export default function RPTValidationInfo() {
                     required
                     value={inspectionForm.assessor_name}
                     onChange={(e) => setInspectionForm({...inspectionForm, assessor_name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4a90e2]"
                     placeholder="Enter assessor's name"
                   />
                 </div>
@@ -1473,14 +1473,14 @@ export default function RPTValidationInfo() {
               <div className="flex space-x-3">
                 <button
                   type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  className="bg-[#4caf50] hover:bg-[#4caf50]/80 text-white px-6 py-2 rounded-lg transition-colors"
                 >
                   Schedule Inspection
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowInspectionForm(false)}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-6 py-2 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -1491,12 +1491,12 @@ export default function RPTValidationInfo() {
 
         {/* Assessment Form */}
         {showAssessmentForm && registration.status === 'assessed' && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+          <div className="bg-[#4caf50]/5 border border-[#4caf50]/20 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-green-900">Property Assessment</h3>
+              <h3 className="text-lg font-semibold text-[#4caf50]">Property Assessment</h3>
               <button
                 onClick={() => setShowAssessmentForm(false)}
-                className="text-green-600 hover:text-green-800 text-xl"
+                className="text-[#4caf50] hover:text-[#4caf50]/80 text-xl"
               >
                 ✕
               </button>
@@ -1513,7 +1513,7 @@ export default function RPTValidationInfo() {
 
             <form onSubmit={handleAssessmentSubmit} className="space-y-6">
               {/* Land Assessment Section */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="bg-white rounded-lg p-4 border border-[#9aa5b1]/20">
                 <h4 className="text-md font-semibold text-gray-900 mb-4">Land Assessment</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
@@ -1521,7 +1521,7 @@ export default function RPTValidationInfo() {
                     <select
                       value={assessmentForm.land_property_type}
                       onChange={(e) => setAssessmentForm({...assessmentForm, land_property_type: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
                       required
                     >
                       <option value="">Select Property Type</option>
@@ -1540,7 +1540,7 @@ export default function RPTValidationInfo() {
                       min="0"
                       value={assessmentForm.land_area_sqm}
                       onChange={(e) => setAssessmentForm({...assessmentForm, land_area_sqm: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
                       placeholder="Enter land area"
                       required
                     />
@@ -1550,7 +1550,7 @@ export default function RPTValidationInfo() {
                     <input
                       type="text"
                       value={formatCurrency(landCalculations.market_value_per_sqm)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                       readOnly
                     />
                   </div>
@@ -1559,7 +1559,7 @@ export default function RPTValidationInfo() {
                     <input
                       type="text"
                       value={formatCurrency(landCalculations.market_value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                       readOnly
                     />
                   </div>
@@ -1568,7 +1568,7 @@ export default function RPTValidationInfo() {
                     <input
                       type="text"
                       value={`${landCalculations.assessment_level}%`}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                       readOnly
                     />
                   </div>
@@ -1577,7 +1577,7 @@ export default function RPTValidationInfo() {
                     <input
                       type="text"
                       value={formatCurrency(landCalculations.assessed_value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                       readOnly
                     />
                   </div>
@@ -1586,7 +1586,7 @@ export default function RPTValidationInfo() {
 
               {/* Building Assessment Section */}
               {registration.has_building === 'yes' && (
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="bg-white rounded-lg p-4 border border-[#9aa5b1]/20">
                   <h4 className="text-md font-semibold text-gray-900 mb-4">Building Assessment</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
@@ -1594,7 +1594,7 @@ export default function RPTValidationInfo() {
                       <select
                         value={assessmentForm.construction_type}
                         onChange={(e) => setAssessmentForm({...assessmentForm, construction_type: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
                         required
                         disabled={!assessmentForm.land_property_type}
                       >
@@ -1617,7 +1617,7 @@ export default function RPTValidationInfo() {
                         min="0"
                         value={assessmentForm.floor_area_sqm}
                         onChange={(e) => setAssessmentForm({...assessmentForm, floor_area_sqm: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
                         placeholder="Enter floor area"
                         required
                       />
@@ -1630,7 +1630,7 @@ export default function RPTValidationInfo() {
                         max={new Date().getFullYear()}
                         value={assessmentForm.year_built}
                         onChange={(e) => setAssessmentForm({...assessmentForm, year_built: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
                       />
                     </div>
                     <div>
@@ -1638,7 +1638,7 @@ export default function RPTValidationInfo() {
                       <input
                         type="text"
                         value={formatCurrency(buildingCalculations.market_value_per_sqm)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                         readOnly
                       />
                     </div>
@@ -1647,7 +1647,7 @@ export default function RPTValidationInfo() {
                       <input
                         type="text"
                         value={formatCurrency(buildingCalculations.market_value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                         readOnly
                       />
                     </div>
@@ -1656,7 +1656,7 @@ export default function RPTValidationInfo() {
                       <input
                         type="text"
                         value={`${buildingCalculations.building_age} years`}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                         readOnly
                       />
                     </div>
@@ -1665,7 +1665,7 @@ export default function RPTValidationInfo() {
                       <input
                         type="text"
                         value={`${buildingCalculations.depreciation_percent.toFixed(2)}%`}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                        className="w-full px-3 py-2 border border-[#9aa5b1]/30 rounded-md bg-[#fbfbfb]"
                         readOnly
                       />
                     </div>
@@ -1675,7 +1675,7 @@ export default function RPTValidationInfo() {
                         type="text"
                         value={formatCurrency(buildingCalculations.depreciated_value)}
                         className={`w-full px-3 py-2 border rounded-md ${
-                          buildingCalculations.range_matched ? 'border-gray-300 bg-gray-50' : 'border-yellow-300 bg-yellow-50'
+                          buildingCalculations.range_matched ? 'border-[#9aa5b1]/30 bg-[#fbfbfb]' : 'border-yellow-300 bg-yellow-50'
                         }`}
                         readOnly
                       />
@@ -1686,7 +1686,7 @@ export default function RPTValidationInfo() {
                         type="text"
                         value={buildingCalculations.assessment_level ? `${buildingCalculations.assessment_level}%` : 'N/A'}
                         className={`w-full px-3 py-2 border rounded-md ${
-                          buildingCalculations.range_matched ? 'border-gray-300 bg-gray-50' : 'border-red-300 bg-red-50'
+                          buildingCalculations.range_matched ? 'border-[#9aa5b1]/30 bg-[#fbfbfb]' : 'border-red-300 bg-red-50'
                         }`}
                         readOnly
                       />
@@ -1697,7 +1697,7 @@ export default function RPTValidationInfo() {
                         type="text"
                         value={buildingCalculations.assessed_value ? formatCurrency(buildingCalculations.assessed_value) : 'N/A'}
                         className={`w-full px-3 py-2 border rounded-md ${
-                          buildingCalculations.range_matched ? 'border-gray-300 bg-gray-50' : 'border-red-300 bg-red-50'
+                          buildingCalculations.range_matched ? 'border-[#9aa5b1]/30 bg-[#fbfbfb]' : 'border-red-300 bg-red-50'
                         }`}
                         readOnly
                       />
@@ -1705,11 +1705,11 @@ export default function RPTValidationInfo() {
                   </div>
                   
                   {buildingCalculations.matched_assessment_level && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
+                    <div className="mt-4 p-3 bg-[#4a90e2]/5 border border-[#4a90e2]/20 rounded-lg">
+                      <p className="text-sm text-[#4a90e2]">
                         <span className="font-semibold">Assessment Level Applied:</span> {buildingCalculations.assessment_level}%
                         <br />
-                        <span className="text-xs">Based on depreciated value range: {formatCurrency(buildingCalculations.matched_assessment_level.min_assessed_value)} - {formatCurrency(buildingCalculations.matched_assessment_level.max_assessed_value)}</span>
+                        <span className="text-xs text-[#9aa5b1]">Based on depreciated value range: {formatCurrency(buildingCalculations.matched_assessment_level.min_assessed_value)} - {formatCurrency(buildingCalculations.matched_assessment_level.max_assessed_value)}</span>
                       </p>
                     </div>
                   )}
@@ -1717,24 +1717,24 @@ export default function RPTValidationInfo() {
               )}
 
               {/* Tax Calculation Summary */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="bg-white rounded-lg p-4 border border-[#9aa5b1]/20">
                 <h4 className="text-md font-semibold text-gray-900 mb-4">Tax Calculation Summary</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h5 className="text-sm font-semibold text-blue-900 mb-2">Tax Rates Used:</h5>
+                  <div className="bg-[#4a90e2]/5 p-4 rounded-lg border border-[#4a90e2]/20">
+                    <h5 className="text-sm font-semibold text-[#4a90e2] mb-2">Tax Rates Used:</h5>
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-sm text-blue-700">Basic Tax:</span>
-                        <span className="text-sm font-semibold text-blue-900">{taxCalculations.basic_tax_percent}%</span>
+                        <span className="text-sm text-[#4a90e2]">Basic Tax:</span>
+                        <span className="text-sm font-semibold text-[#4a90e2]">{taxCalculations.basic_tax_percent}%</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-blue-700">SEF Tax:</span>
-                        <span className="text-sm font-semibold text-blue-900">{taxCalculations.sef_tax_percent}%</span>
+                        <span className="text-sm text-[#4a90e2]">SEF Tax:</span>
+                        <span className="text-sm font-semibold text-[#4a90e2]">{taxCalculations.sef_tax_percent}%</span>
                       </div>
-                      <div className="flex justify-between border-t pt-1">
-                        <span className="text-sm font-semibold text-blue-900">Total Tax Rate:</span>
-                        <span className="text-sm font-semibold text-blue-900">{taxCalculations.total_tax_rate}%</span>
+                      <div className="flex justify-between border-t pt-1 border-[#4a90e2]/20">
+                        <span className="text-sm font-semibold text-[#4a90e2]">Total Tax Rate:</span>
+                        <span className="text-sm font-semibold text-[#4a90e2]">{taxCalculations.total_tax_rate}%</span>
                       </div>
                     </div>
                   </div>
@@ -1744,17 +1744,17 @@ export default function RPTValidationInfo() {
                 <div className="mb-4">
                   <h5 className="text-sm font-semibold text-gray-700 mb-2">Land Tax Breakdown:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-600">Basic Tax</p>
+                    <div className="bg-[#fbfbfb] p-3 rounded-lg border border-[#9aa5b1]/20">
+                      <p className="text-sm text-[#9aa5b1]">Basic Tax</p>
                       <p className="text-lg font-semibold text-gray-900">{formatCurrency(taxCalculations.land_basic_tax)}</p>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-600">SEF Tax</p>
+                    <div className="bg-[#fbfbfb] p-3 rounded-lg border border-[#9aa5b1]/20">
+                      <p className="text-sm text-[#9aa5b1]">SEF Tax</p>
                       <p className="text-lg font-semibold text-gray-900">{formatCurrency(taxCalculations.land_sef_tax)}</p>
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-sm text-green-600">Land Annual Tax</p>
-                      <p className="text-lg font-semibold text-green-900">{formatCurrency(taxCalculations.land_annual_tax)}</p>
+                    <div className="bg-[#4caf50]/5 p-3 rounded-lg border border-[#4caf50]/20">
+                      <p className="text-sm text-[#4caf50]">Land Annual Tax</p>
+                      <p className="text-lg font-semibold text-[#4caf50]">{formatCurrency(taxCalculations.land_annual_tax)}</p>
                     </div>
                   </div>
                 </div>
@@ -1764,37 +1764,37 @@ export default function RPTValidationInfo() {
                   <div className="mb-4">
                     <h5 className="text-sm font-semibold text-gray-700 mb-2">Building Tax Breakdown:</h5>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm text-gray-600">Basic Tax</p>
+                      <div className="bg-[#fbfbfb] p-3 rounded-lg border border-[#9aa5b1]/20">
+                        <p className="text-sm text-[#9aa5b1]">Basic Tax</p>
                         <p className="text-lg font-semibold text-gray-900">{formatCurrency(taxCalculations.building_basic_tax)}</p>
                       </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm text-gray-600">SEF Tax</p>
+                      <div className="bg-[#fbfbfb] p-3 rounded-lg border border-[#9aa5b1]/20">
+                        <p className="text-sm text-[#9aa5b1]">SEF Tax</p>
                         <p className="text-lg font-semibold text-gray-900">{formatCurrency(taxCalculations.building_sef_tax)}</p>
                       </div>
-                      <div className="bg-green-50 p-3 rounded-lg">
-                        <p className="text-sm text-green-600">Building Annual Tax</p>
-                        <p className="text-lg font-semibold text-green-900">{formatCurrency(taxCalculations.building_annual_tax)}</p>
+                      <div className="bg-[#4caf50]/5 p-3 rounded-lg border border-[#4caf50]/20">
+                        <p className="text-sm text-[#4caf50]">Building Annual Tax</p>
+                        <p className="text-lg font-semibold text-[#4caf50]">{formatCurrency(taxCalculations.building_annual_tax)}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Total Tax Summary */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h5 className="text-sm font-semibold text-blue-900 mb-2">Total Property Tax Summary:</h5>
+                <div className="bg-[#4a90e2]/5 p-4 rounded-lg border border-[#4a90e2]/20">
+                  <h5 className="text-sm font-semibold text-[#4a90e2] mb-2">Total Property Tax Summary:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
-                      <p className="text-sm text-blue-700">Total Basic Tax</p>
-                      <p className="text-xl font-bold text-blue-900">{formatCurrency(taxCalculations.total_basic_tax)}</p>
+                      <p className="text-sm text-[#4a90e2]">Total Basic Tax</p>
+                      <p className="text-xl font-bold text-[#4a90e2]">{formatCurrency(taxCalculations.total_basic_tax)}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-blue-700">Total SEF Tax</p>
-                      <p className="text-xl font-bold text-blue-900">{formatCurrency(taxCalculations.total_sef_tax)}</p>
+                      <p className="text-sm text-[#4a90e2]">Total SEF Tax</p>
+                      <p className="text-xl font-bold text-[#4a90e2]">{formatCurrency(taxCalculations.total_sef_tax)}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-green-700">Total Annual Tax</p>
-                      <p className="text-2xl font-bold text-green-900">{formatCurrency(taxCalculations.total_annual_tax)}</p>
+                      <p className="text-sm text-[#4caf50]">Total Annual Tax</p>
+                      <p className="text-2xl font-bold text-[#4caf50]">{formatCurrency(taxCalculations.total_annual_tax)}</p>
                     </div>
                   </div>
                 </div>
@@ -1804,7 +1804,7 @@ export default function RPTValidationInfo() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
+                  className="bg-[#4caf50] hover:bg-[#4caf50]/80 disabled:bg-[#9aa5b1] text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
                 >
                   {isSubmitting ? (
                     <>
@@ -1821,7 +1821,7 @@ export default function RPTValidationInfo() {
                 <button
                   type="button"
                   onClick={() => setShowAssessmentForm(false)}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors"
+                  className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-6 py-3 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -1832,20 +1832,20 @@ export default function RPTValidationInfo() {
 
         {/* Documents Section - Always displayed if there are documents */}
         {documents.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-lg border border-[#9aa5b1]/20 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Uploaded Documents ({documents.length})</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {documents.map((doc, index) => (
-                <div key={doc.id || index} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+                <div key={doc.id || index} className="border border-[#9aa5b1]/20 rounded-lg p-4 hover:border-[#4a90e2]/30 hover:shadow-sm transition-all">
                   <div className="flex items-start mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      <span className="text-blue-600">📄</span>
+                    <div className="w-10 h-10 bg-[#4a90e2]/10 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-[#4a90e2]">📄</span>
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900 text-sm">{getDocumentTypeName(doc.document_type)}</h4>
-                      <p className="text-xs text-gray-500 truncate">{doc.file_name}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-[#9aa5b1] truncate">{doc.file_name}</p>
+                      <p className="text-xs text-[#9aa5b1]/60 mt-1">
                         Uploaded: {formatDate(doc.created_at)}
                       </p>
                     </div>
@@ -1853,13 +1853,13 @@ export default function RPTValidationInfo() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => viewDocument(doc)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                      className="flex-1 bg-[#4a90e2] hover:bg-[#4a90e2]/80 text-white text-xs py-2 px-3 rounded transition-colors"
                     >
                       View
                     </button>
                     <button
                       onClick={() => window.open(`${DOCUMENTS_BASE}/${doc.file_path}`, '_blank')}
-                      className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                      className="flex-1 bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white text-xs py-2 px-3 rounded transition-colors"
                     >
                       Download
                     </button>
@@ -1871,83 +1871,83 @@ export default function RPTValidationInfo() {
         )}
 
         {/* Registration Details */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg border border-[#9aa5b1]/20 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Registration Details</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Property Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Property Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 border-[#9aa5b1]/20">Property Information</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Property Type</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Property Type</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.property_type}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Location Address</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Location Address</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.location_address}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Barangay</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Barangay</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.barangay}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Municipality/City</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Municipality/City</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.municipality_city}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Province</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Province</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.province}</p>
               </div>
             </div>
 
             {/* Owner Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Owner Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 border-[#9aa5b1]/20">Owner Information</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Owner Name</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Owner Name</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.owner_name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Owner Address</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Owner Address</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.owner_address}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Contact Number</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Contact Number</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.contact_number}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Email Address</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Email Address</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.email_address}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">TIN</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">TIN</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.tin}</p>
               </div>
             </div>
 
             {/* Additional Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Additional Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 border-[#9aa5b1]/20">Additional Information</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Has Building</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Has Building</label>
                 <p className="mt-1 text-sm text-gray-900">
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    registration.has_building === 'yes' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    registration.has_building === 'yes' ? 'bg-[#4caf50]/10 text-[#4caf50]' : 'bg-[#fbfbfb] text-[#9aa5b1] border border-[#9aa5b1]/20'
                   }`}>
                     {registration.has_building === 'yes' ? 'Yes' : 'No'}
                   </span>
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Date Registered</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Date Registered</label>
                 <p className="mt-1 text-sm text-gray-900">{formatDate(registration.date_registered)}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Last Updated</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Last Updated</label>
                 <p className="mt-1 text-sm text-gray-900">{formatDate(registration.last_updated)}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600">Remarks</label>
+                <label className="block text-sm font-medium text-[#9aa5b1]">Remarks</label>
                 <p className="mt-1 text-sm text-gray-900">{registration.remarks}</p>
               </div>
             </div>
@@ -1956,37 +1956,37 @@ export default function RPTValidationInfo() {
 
         {/* Assessment Data Display */}
         {(landAssessment || buildingAssessment) && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-[#9aa5b1]/20 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Current Assessment Data</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Land Assessment */}
               {landAssessment && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Land Assessment</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 border-[#9aa5b1]/20">Land Assessment</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">TDN</label>
-                      <p className="mt-1 text-sm font-mono text-gray-900">{landAssessment.tdn || 'Not Generated'}</p>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">TDN</label>
+                      <p className="mt-1 text-sm font-mono text-[#4a90e2]">{landAssessment.tdn || 'Not Generated'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Property Type</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Property Type</label>
                       <p className="mt-1 text-sm text-gray-900">{landAssessment.property_type}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Land Area (sqm)</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Land Area (sqm)</label>
                       <p className="mt-1 text-sm text-gray-900">{landAssessment.land_area_sqm}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Market Value</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Market Value</label>
                       <p className="mt-1 text-sm text-gray-900">{formatCurrency(parseFloat(landAssessment.land_market_value))}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Assessment Level</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Assessment Level</label>
                       <p className="mt-1 text-sm text-gray-900">{landAssessment.assessment_level}%</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Assessed Value</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Assessed Value</label>
                       <p className="mt-1 text-sm text-gray-900">{formatCurrency(parseFloat(landAssessment.land_assessed_value))}</p>
                     </div>
                   </div>
@@ -1996,42 +1996,42 @@ export default function RPTValidationInfo() {
               {/* Building Assessment */}
               {buildingAssessment && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Building Assessment</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 border-[#9aa5b1]/20">Building Assessment</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">TDN</label>
-                      <p className="mt-1 text-sm font-mono text-gray-900">{buildingAssessment.tdn || 'Not Generated'}</p>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">TDN</label>
+                      <p className="mt-1 text-sm font-mono text-[#4a90e2]">{buildingAssessment.tdn || 'Not Generated'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Construction Type</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Construction Type</label>
                       <p className="mt-1 text-sm text-gray-900">{buildingAssessment.construction_type}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Floor Area (sqm)</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Floor Area (sqm)</label>
                       <p className="mt-1 text-sm text-gray-900">{buildingAssessment.floor_area_sqm}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Year Built</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Year Built</label>
                       <p className="mt-1 text-sm text-gray-900">{buildingAssessment.year_built}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Market Value</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Market Value</label>
                       <p className="mt-1 text-sm text-gray-900">{formatCurrency(parseFloat(buildingAssessment.building_market_value))}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Depreciated Value</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Depreciated Value</label>
                       <p className="mt-1 text-sm text-gray-900">{formatCurrency(parseFloat(buildingAssessment.building_depreciated_value))}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Depreciation</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Depreciation</label>
                       <p className="mt-1 text-sm text-gray-900">{buildingAssessment.depreciation_percent}%</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Assessment Level</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Assessment Level</label>
                       <p className="mt-1 text-sm text-gray-900">{buildingAssessment.assessment_level}%</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">Assessed Value</label>
+                      <label className="block text-sm font-medium text-[#9aa5b1]">Assessed Value</label>
                       <p className="mt-1 text-sm text-gray-900">{formatCurrency(parseFloat(buildingAssessment.building_assessed_value))}</p>
                     </div>
                   </div>
@@ -2045,22 +2045,22 @@ export default function RPTValidationInfo() {
         {showDocumentViewer && selectedDocument && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-              <div className="flex justify-between items-center border-b border-gray-200 p-6">
+              <div className="flex justify-between items-center border-b border-[#9aa5b1]/20 p-6">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">{getDocumentTypeName(selectedDocument.document_type)}</h3>
-                  <p className="text-sm text-gray-600">{selectedDocument.file_name}</p>
+                  <p className="text-sm text-[#9aa5b1]">{selectedDocument.file_name}</p>
                 </div>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => window.open(`${DOCUMENTS_BASE}/${selectedDocument.file_path}`, '_blank')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                    className="bg-[#4a90e2] hover:bg-[#4a90e2]/80 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
                   >
                     <span>📥</span>
                     <span>Download</span>
                   </button>
                   <button
                     onClick={() => setShowDocumentViewer(false)}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="bg-[#9aa5b1] hover:bg-[#9aa5b1]/80 text-white px-4 py-2 rounded-lg transition-colors"
                   >
                     Close
                   </button>
@@ -2074,17 +2074,17 @@ export default function RPTValidationInfo() {
                     className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f3f4f6"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="%236b7280">Image not available</text></svg>';
+                      e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23fbfbfb"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="%239aa5b1">Image not available</text></svg>';
                     }}
                   />
                 ) : (
-                  <div className="bg-gray-100 rounded-lg p-8 text-center">
+                  <div className="bg-[#fbfbfb] rounded-lg p-8 text-center border border-[#9aa5b1]/20">
                     <div className="text-4xl mb-4">📄</div>
-                    <p className="text-gray-700 mb-2">Document cannot be previewed</p>
-                    <p className="text-sm text-gray-500">Please download to view this file</p>
+                    <p className="text-[#9aa5b1] mb-2">Document cannot be previewed</p>
+                    <p className="text-sm text-[#9aa5b1]/60">Please download to view this file</p>
                     <div className="mt-4">
-                      <p className="text-xs text-gray-500">File Type: {selectedDocument.file_type}</p>
-                      <p className="text-xs text-gray-500">Size: {(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-xs text-[#9aa5b1]/60">File Type: {selectedDocument.file_type}</p>
+                      <p className="text-xs text-[#9aa5b1]/60">Size: {(selectedDocument.file_size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                 )}

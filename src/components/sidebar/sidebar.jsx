@@ -39,23 +39,23 @@ function Sidebar({ collapsed }) {
   }
 
   return (
-    <div className={`${collapsed ? 'w-16' : 'w-64'} bg-white border-r border-slate-200/50 flex flex-col transition-width duration-200 dark:bg-slate-900 dark:border-slate-700`}>
+    <div className={`${collapsed ? 'w-16' : 'w-64'} bg-[#fbfbfb] border-r border-slate-200 flex flex-col transition-width duration-200`}>
       {/* Logo */}
       <div className='p-6'>
         <NavLink to="/" className='flex items-center space-x-3'>
-          <div className='w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white text-xl font-bold'>
+          <div className='w-10 h-10 bg-[#4a90e2] rounded-xl flex items-center justify-center text-white text-xl font-bold'>
             <Globe className='w-6 h-6' />
           </div>
           {!collapsed && (
             <div>
-              <h1 className='text-xl font-bold dark:text-white'>GSM</h1>
-              <p className='text-xs text-slate-500'>Admin Dashboard</p>
+              <h1 className='text-xl font-bold text-gray-900'>GSM</h1>
+              <p className='text-xs text-[#9aa5b1]'>Admin Dashboard</p>
             </div>
           )}
         </NavLink>
       </div>
 
-      <hr className='border-slate-200 dark:border-slate-700 mx-2' />
+      <hr className='border-slate-200 mx-2' />
 
       {/* Navigation Links */}
       <nav className='flex-1 p-4 space-y-2 overflow-y-auto'>
@@ -72,8 +72,8 @@ function Sidebar({ collapsed }) {
                   <button
                     className={`w-full flex justify-between items-center p-2 rounded-xl transition-all duration-200 ${
                       isActive
-                        ? 'bg-orange-200 text-orange-600 font-semibold' 
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:text-slate-600 dark:hover:bg-slate-200'
+                        ? 'bg-[#4a90e2]/10 text-[#4a90e2] font-semibold border-l-4 border-[#4a90e2]' 
+                        : 'text-[#9aa5b1] hover:bg-slate-100 hover:text-gray-700'
                     }`}
                     onClick={() => toggleExpanded(item)}
                   >
@@ -84,23 +84,23 @@ function Sidebar({ collapsed }) {
                       )}
                     </div>
                     {!collapsed && item.subItems && (
-                      <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${
+                      <ChevronDown className={`w-4 h-4 text-[#9aa5b1] transition-transform duration-200 ${
                         expandedItem.has(item.id) ? 'rotate-180' : ''
                       }`} />
                     )}
                   </button>
 
                   {!collapsed && item.subItems && expandedItem.has(item.id) && (
-                    <div className='ml-8 mt-2 space-y-1 border-l-1 border-slate-300'>
+                    <div className='ml-8 mt-2 space-y-1 border-l-2 border-slate-200 pl-4'>
                       {item.subItems.map((subitem) => (
                         <NavLink
                           key={subitem.id}
                           to={subitem.path}
                           className={({ isActive }) => 
-                            `block w-full ml-2 text-sm text-left p-2 rounded-lg ${
+                            `block w-full text-sm text-left p-2 rounded-lg transition-all duration-150 ${
                               isActive
-                                ? 'bg-orange-100 text-orange-700 font-semibold'
-                                : 'text-slate-700 dark:text-slate-500 hover:bg-slate-200 dark:hover:text-slate-600 dark:hover:bg-slate-100'
+                                ? 'bg-[#4a90e2]/20 text-[#4a90e2] font-semibold border-l-2 border-[#4a90e2] pl-3 -ml-2'
+                                : 'text-[#9aa5b1] hover:bg-slate-100 hover:text-gray-700'
                             }`
                           }
                         >
@@ -116,8 +116,8 @@ function Sidebar({ collapsed }) {
                   className={({ isActive }) => 
                     `w-full flex items-center p-2 rounded-xl transition-all duration-200 ${
                       isActive
-                        ? 'bg-orange-200 text-orange-600 font-semibold' 
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:text-slate-600 dark:hover:bg-slate-200'
+                        ? 'bg-[#4a90e2]/10 text-[#4a90e2] font-semibold border-l-4 border-[#4a90e2]' 
+                        : 'text-[#9aa5b1] hover:bg-slate-100 hover:text-gray-700'
                     }`
                   }
                 >
@@ -134,9 +134,13 @@ function Sidebar({ collapsed }) {
         })}
       </nav>
       
-      <hr className='border-slate-300 dark:border-slate-700 mx-2' />
-      <ProfileCard collapsed={collapsed} name="ADMIN" role="Super Saiyan" avatarUrl="/Bartss.png" />
-
+      <hr className='border-slate-200 mx-2' />
+      <ProfileCard 
+        collapsed={collapsed} 
+        name="ADMIN" 
+        role="Super Saiyan" 
+        avatarUrl="/Bartss.png" 
+      />
     </div>
   )
 }

@@ -21,7 +21,7 @@ const sidebarItems = [
   },
   {
     id: "module2",
-    label: "Business Tax Collection Systems",
+    label: "Business Tax and Regulatory Fee Payment",
     icon: LayoutDashboard,
     subItems: [
       { id: "BusinessTaxConfig", label: "Business Tax Configuration", path: "/BUSINESS/BusinessTaxConfig" },
@@ -31,7 +31,7 @@ const sidebarItems = [
   },
   {
     id: "module4",
-    label: "Treasury Management System",
+    label: "Treasury Dashboard & Report",
     icon: LayoutDashboard,
     subItems: [
       { id: "treasury1", label: "TREASURY1", path: "/TREASURY/TREASURY1" },
@@ -40,7 +40,7 @@ const sidebarItems = [
   },
   {
     id: "module5",
-    label: "Digital Payment System",
+    label: "Digital Payment Integration",
     icon: LayoutDashboard,
     subItems: [
       { id: "digipay1", label: "DIGIPAY1", path: "/DIGIPAY/DIGIPAY1" },
@@ -49,7 +49,7 @@ const sidebarItems = [
   },
   {
     id: "module6",
-    label: "Market Management System",
+    label: "Market Stall Rental and Billing",
     icon: LayoutDashboard,
     subItems: [
       { id: "market1", label: "Market Stall Map Creator", path: "/MARKET/MapCreator" },

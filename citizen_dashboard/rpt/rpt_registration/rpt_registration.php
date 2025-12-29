@@ -568,122 +568,138 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                 </div>
 
                 <!-- Documents Upload Section -->
-                <div class="border-b border-gray-200 pb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-file-upload text-red-500 mr-2"></i>
-                        Required Documents Upload
-                    </h3>
-                    
-                    <div class="space-y-6">
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <h4 class="font-semibold text-yellow-800 mb-2 flex items-center">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>
-                                Important Notes:
-                            </h4>
-                            <ul class="text-yellow-700 text-sm space-y-1 ml-5 list-disc">
-                                <li>All documents must be clear and readable images</li>
-                                <li>Accepted formats: JPG, JPEG, PNG only</li>
-                                <li>Maximum file size: 5MB per file</li>
-                                <li>Make sure documents are not expired</li>
-                                <li>Take clear photos or scans of documents</li>
-                            </ul>
+<div class="border-b border-gray-200 pb-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+        <i class="fas fa-file-upload text-red-500 mr-2"></i>
+        Required Documents Upload
+    </h3>
+    
+    <div class="space-y-6">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <h4 class="font-semibold text-yellow-800 mb-1 flex items-center text-sm">
+                <i class="fas fa-exclamation-triangle mr-2 text-xs"></i>
+                Important Notes:
+            </h4>
+            <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
+                <li>All documents must be clear and readable images</li>
+                <li>Accepted formats: JPG, JPEG, PNG only</li>
+                <li>Maximum file size: 5MB per file</li>
+                <li>Make sure documents are not expired</li>
+                <li>Take clear photos or scans of documents</li>
+            </ul>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Barangay Certificate -->
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <span class="text-red-500">*</span> Barangay Certificate
+                </label>
+                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                    <input type="file" 
+                           name="barangay_certificate" 
+                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                           required
+                           class="hidden" 
+                           id="barangay_certificate"
+                           onchange="showFileName(this, 'barangay_filename')">
+                    <label for="barangay_certificate" class="cursor-pointer flex items-center">
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-600">Click to upload</div>
+                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                         </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Barangay Certificate -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    <span class="text-red-500">*</span> Barangay Certificate
-                                </label>
-                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors">
-                                    <input type="file" 
-                                           name="barangay_certificate" 
-                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
-                                           class="hidden" 
-                                           id="barangay_certificate"
-                                           onchange="previewFile(this, 'barangay_preview')">
-                                    <label for="barangay_certificate" class="cursor-pointer block">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
-                                        <p class="text-sm text-gray-600 mb-1">Click to upload</p>
-                                        <p class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</p>
-                                    </label>
-                                    <div id="barangay_preview" class="mt-2"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">Issued by the barangay where the property is located</p>
-                            </div>
-
-                            <!-- Proof of Ownership -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    <span class="text-red-500">*</span> Proof of Ownership
-                                </label>
-                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors">
-                                    <input type="file" 
-                                           name="ownership_proof" 
-                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
-                                           class="hidden" 
-                                           id="ownership_proof"
-                                           onchange="previewFile(this, 'ownership_preview')">
-                                    <label for="ownership_proof" class="cursor-pointer block">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
-                                        <p class="text-sm text-gray-600 mb-1">Click to upload</p>
-                                        <p class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</p>
-                                    </label>
-                                    <div id="ownership_preview" class="mt-2"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">Deed of Sale, Tax Declaration, Title, etc.</p>
-                            </div>
-
-                            <!-- Valid ID -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    <span class="text-red-500">*</span> Valid ID
-                                </label>
-                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors">
-                                    <input type="file" 
-                                           name="valid_id" 
-                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
-                                           class="hidden" 
-                                           id="valid_id"
-                                           onchange="previewFile(this, 'validid_preview')">
-                                    <label for="valid_id" class="cursor-pointer block">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
-                                        <p class="text-sm text-gray-600 mb-1">Click to upload</p>
-                                        <p class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</p>
-                                    </label>
-                                    <div id="validid_preview" class="mt-2"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">Government-issued ID (Driver's License, Passport, etc.)</p>
-                            </div>
-
-                            <!-- Survey Plan -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    <span class="text-red-500">*</span> Survey Plan
-                                </label>
-                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors">
-                                    <input type="file" 
-                                           name="survey_plan" 
-                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
-                                           class="hidden" 
-                                           id="survey_plan"
-                                           onchange="previewFile(this, 'survey_preview')">
-                                    <label for="survey_plan" class="cursor-pointer block">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
-                                        <p class="text-sm text-gray-600 mb-1">Click to upload</p>
-                                        <p class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</p>
-                                    </label>
-                                    <div id="survey_preview" class="mt-2"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">Property sketch or survey plan</p>
-                            </div>
+                        <div class="text-gray-400 text-sm">
+                            <i class="fas fa-upload"></i>
                         </div>
-                    </div>
+                    </label>
+                    <div id="barangay_filename" class="mt-2"></div>
                 </div>
+                <p class="text-xs text-gray-500 mt-1">Issued by the barangay where the property is located</p>
+            </div>
+
+            <!-- Proof of Ownership -->
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <span class="text-red-500">*</span> Proof of Ownership
+                </label>
+                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                    <input type="file" 
+                           name="ownership_proof" 
+                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                           required
+                           class="hidden" 
+                           id="ownership_proof"
+                           onchange="showFileName(this, 'ownership_filename')">
+                    <label for="ownership_proof" class="cursor-pointer flex items-center">
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-600">Click to upload</div>
+                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                        </div>
+                        <div class="text-gray-400 text-sm">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                    </label>
+                    <div id="ownership_filename" class="mt-2"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Deed of Sale, Tax Declaration, Title, etc.</p>
+            </div>
+
+            <!-- Valid ID -->
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <span class="text-red-500">*</span> Valid ID
+                </label>
+                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                    <input type="file" 
+                           name="valid_id" 
+                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                           required
+                           class="hidden" 
+                           id="valid_id"
+                           onchange="showFileName(this, 'validid_filename')">
+                    <label for="valid_id" class="cursor-pointer flex items-center">
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-600">Click to upload</div>
+                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                        </div>
+                        <div class="text-gray-400 text-sm">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                    </label>
+                    <div id="validid_filename" class="mt-2"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Government-issued ID (Driver's License, Passport, etc.)</p>
+            </div>
+
+            <!-- Survey Plan -->
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <span class="text-red-500">*</span> Survey Plan
+                </label>
+                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                    <input type="file" 
+                           name="survey_plan" 
+                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                           required
+                           class="hidden" 
+                           id="survey_plan"
+                           onchange="showFileName(this, 'survey_filename')">
+                    <label for="survey_plan" class="cursor-pointer flex items-center">
+                        <div class="flex-1">
+                            <div class="text-sm text-gray-600">Click to upload</div>
+                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                        </div>
+                        <div class="text-gray-400 text-sm">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                    </label>
+                    <div id="survey_filename" class="mt-2"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Property sketch or survey plan</p>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- Building Information Section -->
                 <div class="pb-6">
@@ -773,69 +789,96 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
     </main>
 
     <script>
-    function previewFile(input, previewId) {
-        const preview = document.getElementById(previewId);
-        const file = input.files[0];
-        
-        if (file) {
-            // Clear previous preview
-            preview.innerHTML = '';
-            
-            // Check file type
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'max-w-full h-32 object-contain border rounded';
-                    preview.appendChild(img);
-                    
-                    // Add file info
-                    const info = document.createElement('div');
-                    info.className = 'text-xs text-gray-600 mt-1';
-                    info.innerHTML = `<i class="fas fa-file-image mr-1"></i> ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`;
-                    preview.appendChild(info);
-                }
-                
-                reader.readAsDataURL(file);
-            } else {
-                preview.innerHTML = `<div class="text-red-500 text-sm"><i class="fas fa-exclamation-circle mr-1"></i> Please upload an image file</div>`;
-                input.value = ''; // Clear the input
-            }
-        }
-    }
+function showFileName(input, displayId) {
+    const display = document.getElementById(displayId);
+    const file = input.files[0];
     
-    // Add some interactivity to file upload areas
-    document.addEventListener('DOMContentLoaded', function() {
-        const fileInputs = document.querySelectorAll('input[type="file"]');
+    if (file) {
+        // Check file type
+        if (file.type.startsWith('image/')) {
+            // Format file size
+            let fileSize = '';
+            if (file.size < 1024 * 1024) { // Less than 1MB
+                fileSize = (file.size / 1024).toFixed(0) + ' KB';
+            } else {
+                fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            
+            // Get short file name (max 25 chars)
+            let shortName = file.name;
+            if (shortName.length > 25) {
+                shortName = shortName.substring(0, 22) + '...';
+            }
+            
+            // Show file name in a compact format
+            display.innerHTML = `
+                <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs">
+                    <div class="flex items-center truncate">
+                        <i class="fas fa-file-image text-blue-500 mr-2 text-xs"></i>
+                        <span class="truncate" title="${file.name}">${shortName}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-gray-500 text-xs">${fileSize}</span>
+                        <button type="button" onclick="removeFile(this, '${input.id}', '${displayId}')" 
+                                class="text-gray-400 hover:text-red-500 text-xs">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            display.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded px-2 py-1 text-xs text-red-600">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    Invalid file type. Use JPG, JPEG, or PNG
+                </div>
+            `;
+            input.value = ''; // Clear the input
+        }
+    } else {
+        display.innerHTML = '';
+    }
+}
+
+function removeFile(button, inputId, displayId) {
+    const input = document.getElementById(inputId);
+    const display = document.getElementById(displayId);
+    
+    input.value = '';
+    display.innerHTML = '';
+}
+
+// Add drag and drop functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(input => {
+        const parentLabel = input.parentElement.querySelector('label[for]');
+        const parentDiv = parentLabel.parentElement;
         
-        fileInputs.forEach(input => {
-            const parentDiv = input.parentElement.parentElement;
+        // Highlight on drag over
+        parentDiv.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('border-blue-500', 'bg-blue-50');
+        });
+        
+        parentDiv.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+        
+        parentDiv.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-blue-500', 'bg-blue-50');
             
-            // Hover effect
-            parentDiv.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('border-blue-500', 'bg-blue-50');
-            });
-            
-            parentDiv.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('border-blue-500', 'bg-blue-50');
-            });
-            
-            parentDiv.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('border-blue-500', 'bg-blue-50');
-                
-                if (e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    const event = new Event('change', { bubbles: true });
-                    input.dispatchEvent(event);
-                }
-            });
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
+            }
         });
     });
-    </script>
+});
+</script>
 </body>
 </html> 

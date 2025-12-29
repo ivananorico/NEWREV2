@@ -57,6 +57,7 @@ function getApprovedProperties($pdo) {
                 pr.district,
                 pr.status,
                 pr.created_at,
+                pr.updated_at,
                 pr.has_building,
                 po.first_name,
                 po.last_name,
@@ -66,15 +67,17 @@ function getApprovedProperties($pdo) {
                 lp.land_area_sqm,
                 lp.land_market_value,
                 lp.land_assessed_value,
-                lp.property_type,
+                lp.property_type,  -- CHANGED: Remove alias, use original name
                 lp.tdn as land_tdn,
+                lc.classification as land_classification,
+                lc.description as land_description,
                 pt.total_annual_tax,
                 (SELECT COUNT(*) FROM building_properties bp 
-                 JOIN land_properties lp2 ON bp.land_id = lp2.id 
-                 WHERE lp2.registration_id = pr.id AND bp.status = 'active') as building_count
+                 WHERE bp.land_id = lp.id AND bp.status = 'active') as building_count
             FROM property_registrations pr
             LEFT JOIN property_owners po ON pr.owner_id = po.id
             LEFT JOIN land_properties lp ON pr.id = lp.registration_id
+            LEFT JOIN land_configurations lc ON lp.land_config_id = lc.id
             LEFT JOIN property_totals pt ON pr.id = pt.registration_id
             WHERE pr.status = 'approved'
             ORDER BY pr.created_at DESC

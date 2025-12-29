@@ -118,7 +118,7 @@ try {
                         <p>Please review the assessor's notes and make the required corrections.</p>
                     </div>
                     <div class="mt-3">
-                        <a href="rpt_application/need_correction.php" 
+                        <a href="rpt_application/needs_correction.php" 
                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                             <i class="fas fa-edit mr-2"></i>
                             Review Applications
@@ -243,7 +243,7 @@ try {
                         <p>Your applications have been approved. You can now pay property taxes.</p>
                     </div>
                     <div class="mt-3">
-                        <a href="rpt_application/approve.php" 
+                        <a href="rpt_tax_payment/rpt_tax_payment.php" 
                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                             <i class="fas fa-credit-card mr-2"></i>
                             View Approved & Pay Taxes

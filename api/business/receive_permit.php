@@ -122,9 +122,14 @@ function createBusinessTax($pdo, $input) {
         tax_amount, 
         regulatory_fees, 
         total_tax,
-        address, 
+        street, 
+        barangay, 
+        district, 
+        city, 
+        province,
         contact_number, 
         phone,
+        owner_email,
         issue_date, 
         expiry_date, 
         status,
@@ -141,9 +146,14 @@ function createBusinessTax($pdo, $input) {
         :tax_amount, 
         :regulatory_fees, 
         :total_tax,
-        :address, 
+        :street, 
+        :barangay, 
+        :district, 
+        :city, 
+        :province,
         :contact_number, 
         :phone,
+        :owner_email,
         :issue_date, 
         :expiry_date, 
         :status,
@@ -156,6 +166,13 @@ function createBusinessTax($pdo, $input) {
     // Check if tax is calculated (taxable_amount > 0 and tax_amount > 0)
     $isTaxCalculated = ($taxable_amount > 0 && $taxResult['tax_amount'] > 0);
     
+    // Prepare address data with defaults
+    $street = isset($input['street']) ? htmlspecialchars($input['street']) : (isset($input['address']) ? htmlspecialchars($input['address']) : '');
+    $barangay = isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown';
+    $district = isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown';
+    $city = isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City';
+    $province = isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila';
+    
     $params = [
         ':business_permit_id' => htmlspecialchars($business_permit_id),
         ':business_name' => htmlspecialchars($input['business_name']),
@@ -167,9 +184,17 @@ function createBusinessTax($pdo, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        ':address' => isset($input['address']) ? htmlspecialchars($input['address']) : '',
+        // New address fields
+        ':street' => $street,
+        ':barangay' => $barangay,
+        ':district' => $district,
+        ':city' => $city,
+        ':province' => $province,
+        // Contact info
         ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
         ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
+        ':owner_email' => isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '',
+        // Dates
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),
         ':status' => $isTaxCalculated ? 'Approved' : (isset($input['status']) ? $input['status'] : 'Pending')
@@ -193,7 +218,14 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
     // Calculate taxes
     $taxResult = calculateTaxes($business_type, $taxable_amount, $tax_calculation_type);
     
-    // Update existing record
+    // Prepare address data with defaults
+    $street = isset($input['street']) ? htmlspecialchars($input['street']) : (isset($input['address']) ? htmlspecialchars($input['address']) : '');
+    $barangay = isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown';
+    $district = isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown';
+    $city = isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City';
+    $province = isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila';
+    
+    // Update existing record with new address fields
     $sql = "UPDATE business_permits SET
         business_name = :business_name, 
         owner_name = :owner_name, 
@@ -204,9 +236,14 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         tax_amount = :tax_amount, 
         regulatory_fees = :regulatory_fees, 
         total_tax = :total_tax,
-        address = :address, 
+        street = :street, 
+        barangay = :barangay, 
+        district = :district, 
+        city = :city, 
+        province = :province,
         contact_number = :contact_number, 
         phone = :phone,
+        owner_email = :owner_email,
         issue_date = :issue_date, 
         expiry_date = :expiry_date, 
         status = :status,
@@ -232,9 +269,17 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        ':address' => isset($input['address']) ? htmlspecialchars($input['address']) : '',
+        // New address fields
+        ':street' => $street,
+        ':barangay' => $barangay,
+        ':district' => $district,
+        ':city' => $city,
+        ':province' => $province,
+        // Contact info
         ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
         ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
+        ':owner_email' => isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '',
+        // Dates
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),
         ':status' => $isTaxApproved ? $currentStatus : ($isTaxCalculated ? 'Approved' : 'Pending')

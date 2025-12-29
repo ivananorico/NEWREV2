@@ -1,7 +1,7 @@
 <?php
 /**
  * ======================================
- * CORS CONFIGURATION (FINAL FIX)
+ * CORS CONFIGURATION
  * ======================================
  */
 $allowed_origins = [
@@ -32,37 +32,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once '../../../db/Business/business_db.php';
 
 try {
-
     /**
      * ======================================
      * FETCH PENDING BUSINESS PERMITS
      * ======================================
      */
     $sql = "SELECT 
-                id,
-                business_permit_id,
-                business_name,
-                owner_name,
-                business_type,
-                tax_calculation_type,
-                taxable_amount,
-                tax_rate,
-                tax_amount,
-                regulatory_fees,
-                total_tax,
-                approved_date,
-                address,
-                contact_number,
-                phone,
-                issue_date,
-                expiry_date,
-                status,
-                created_at,
-                updated_at,
-                user_id
-            FROM business_permits 
-            WHERE status = 'Pending'
-            ORDER BY created_at DESC";
+                bp.id,
+                bp.business_permit_id,
+                bp.business_name,
+                bp.owner_name,
+                bp.business_type,
+                bp.tax_calculation_type,
+                bp.taxable_amount,
+                bp.tax_rate,
+                bp.tax_amount,
+                bp.regulatory_fees,
+                bp.total_tax,
+                bp.approved_date,
+                bp.street,
+                bp.barangay,
+                bp.district,
+                bp.city,
+                bp.province,
+                CONCAT(bp.street, ', ', bp.barangay, ', ', bp.district, ', ', bp.city, ', ', bp.province) as address,
+                bp.contact_number,
+                bp.phone,
+                bp.owner_email,
+                bp.issue_date,
+                bp.expiry_date,
+                bp.status,
+                bp.created_at,
+                bp.updated_at,
+                bp.user_id
+            FROM business_permits bp
+            WHERE bp.status = 'Pending'
+            ORDER BY bp.created_at DESC";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
@@ -77,7 +82,6 @@ try {
     ]);
 
 } catch (PDOException $e) {
-
     http_response_code(500);
     echo json_encode([
         'status'  => 'error',
@@ -86,9 +90,7 @@ try {
         'permits' => [],
         'count'   => 0
     ]);
-
 } catch (Exception $e) {
-
     http_response_code(500);
     echo json_encode([
         'status'  => 'error',
