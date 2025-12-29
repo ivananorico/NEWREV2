@@ -23,6 +23,7 @@ import BusinessValidation from './pages/BUSINESS/BusinessValidation/BusinessVali
 import BusinessValidationInfo from './pages/BUSINESS/BusinessValidation/BusinessValidationInfo'
 import BusinessStatus from './pages/BUSINESS/BusinessStatus/BusinessStatus'
 import BusinessStatusInfo from './pages/BUSINESS/BusinessStatus/BusinessStatusInfo'
+import BusinessTaxDashboard from './pages/BUSINESS/BusinessTaxDashboard/BusinessTaxDashboard'
 // DIGIPAY Pages
 import DIGIPAY1 from './pages/DIGIPAY/DIGIPAY1/DIGIPAY1'
 import DIGIPAY2 from './pages/DIGIPAY/DIGIPAY2/DIGIPAY2'
@@ -78,6 +79,7 @@ function App() {
               <Route path="/rpt/rptdashboard" element={<RPTDashboard />} />
 
               {/* BUSINESS */}
+              <Route path="/business/businesstaxdashboard" element={<BusinessTaxDashboard />} />
               <Route path="/business/businesstaxconfig" element={<BusinessTaxConfig />} />
               <Route path="/business/businessvalidation" element={<BusinessValidation />} />
               <Route path="/business/businessvalidationinfo/:id" element={<BusinessValidationInfo />} />
