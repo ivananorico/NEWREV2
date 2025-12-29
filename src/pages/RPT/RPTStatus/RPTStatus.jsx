@@ -28,6 +28,7 @@ export default function RPTStatus() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
+  const [calculatingPenalties, setCalculatingPenalties] = useState(false);
   const navigate = useNavigate();
 
   // API Configuration
@@ -38,11 +39,59 @@ export default function RPTStatus() {
   const API_PATH = "/RPT/RPTStatus";
   const isDevelopment = window.location.hostname === "localhost";
 
+  // Function to automatically calculate penalties
+  const calculatePenaltiesAutomatically = async () => {
+    try {
+      setCalculatingPenalties(true);
+      
+      const response = await fetch(`${API_BASE}${API_PATH}/calculate_rpt_penalties.php`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Penalty calculation failed: ${response.status}`);
+      }
+      
+      const text = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error("Invalid JSON response from penalty calculation");
+      }
+      
+      const isSuccess = (
+        data.success === true || 
+        data.success === "true" || 
+        data.status === "success"
+      );
+      
+      if (!isSuccess) {
+        console.warn("Penalty calculation warning:", data.message || "Penalties not updated");
+      }
+      
+    } catch (err) {
+      console.warn("Penalty calculation error:", err.message);
+      // Don't show error to user - continue loading properties
+    } finally {
+      setCalculatingPenalties(false);
+    }
+  };
+
   const fetchApprovedProperties = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      // First, calculate penalties automatically (silently in background)
+      calculatePenaltiesAutomatically();
+      
+      // Then fetch approved properties
       const response = await fetch(`${API_BASE}${API_PATH}/get_approved_properties.php`, {
         method: 'GET',
         headers: {
@@ -190,7 +239,9 @@ export default function RPTStatus() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading approved properties...</p>
+          <p className="mt-4 text-gray-600 font-medium">
+            {calculatingPenalties ? "Updating penalties..." : "Loading approved properties..."}
+          </p>
         </div>
       </div>
     );
@@ -225,6 +276,9 @@ export default function RPTStatus() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Approved Properties</h1>
               <p className="text-gray-600 mt-2">All approved real property tax registrations</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Penalties are automatically calculated on page load
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -248,7 +302,7 @@ export default function RPTStatus() {
 
       {/* Stats Summary */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -285,6 +339,21 @@ export default function RPTStatus() {
               </div>
               <div className="bg-blue-50 p-2 rounded-lg">
                 <Building className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Last Updated</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Penalties updated on load</p>
+              </div>
+              <div className="bg-blue-50 p-2 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </div>
@@ -332,6 +401,9 @@ export default function RPTStatus() {
                 <h2 className="font-semibold text-gray-900">Approved Properties</h2>
                 <p className="text-sm text-gray-600 mt-1">
                   {filteredProperties.length} of {approvedProperties.length} properties
+                  <span className="ml-2 text-blue-600">
+                    • Penalties automatically calculated
+                  </span>
                 </p>
               </div>
             </div>
@@ -439,7 +511,7 @@ export default function RPTStatus() {
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="text-center text-gray-500 text-sm">
             <p className="font-medium">Real Property Tax Registry</p>
-            <p className="mt-1">Data as of {new Date().toLocaleDateString()}</p>
+            <p className="mt-1">Data as of {new Date().toLocaleDateString()} • Penalties automatically calculated on page load</p>
           </div>
         </div>
       </div>

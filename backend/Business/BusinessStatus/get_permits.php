@@ -29,9 +29,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
  * DB CONNECTION
  * ======================================
  */
-require_once '../../../db/Business/business_db.php';
+// Add error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Check if database file exists
+$dbPath = __DIR__ . '/../../../db/Business/business_db.php';
+if (!file_exists($dbPath)) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Database configuration file not found",
+        "path" => $dbPath
+    ]);
+    exit();
+}
+
+require_once $dbPath;
 
 try {
+    // Debug: Check if connection is established
+    if (!$pdo) {
+        throw new Exception("Database connection failed - PDO object is null");
+    }
+    
+    // Test connection
+    $pdo->query("SELECT 1");
+    
     $sql = "
         SELECT 
             bp.id,
@@ -46,8 +70,14 @@ try {
             bp.regulatory_fees,
             bp.total_tax,
             bp.approved_date,
-            bp.address,
+            bp.street,
+            bp.barangay,
+            bp.district,
+            bp.city,
+            bp.province,
             bp.contact_number,
+            bp.phone,
+            bp.owner_email,
             bp.issue_date,
             bp.expiry_date,
             bp.status,
@@ -102,7 +132,7 @@ try {
                 AND bqt.payment_status IN ('pending', 'overdue')
             ), 0) as pending_quarters_count
         FROM business_permits bp
-        WHERE bp.status = 'Approved'
+        WHERE bp.status IN ('Approved', 'Active')
         ORDER BY bp.approved_date DESC
     ";
 
@@ -110,6 +140,11 @@ try {
     $stmt->execute();
 
     $permits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Debug: Check if we got data
+    if ($permits === false) {
+        throw new Exception("Failed to fetch permits data");
+    }
 
     // Calculate overall tax summary
     $total_revenue = 0;
@@ -178,7 +213,8 @@ try {
         
         $quarterlyStmt = $pdo->prepare($quarterlySql);
         $quarterlyStmt->execute([$permit['id']]);
-        $permit['pending_quarterly_taxes'] = $quarterlyStmt->fetchAll(PDO::FETCH_ASSOC);
+        $quarterlyData = $quarterlyStmt->fetchAll(PDO::FETCH_ASSOC);
+        $permit['pending_quarterly_taxes'] = $quarterlyData !== false ? $quarterlyData : [];
     }
 
     // Prepare tax summary
@@ -198,8 +234,10 @@ try {
     $tax_summary['total_overdue_formatted'] = number_format($total_overdue, 2);
     $tax_summary['total_next_pending_formatted'] = number_format($total_next_pending, 2);
 
+    // Send success response
     echo json_encode([
         "status"  => "success",
+        "message" => "Permits retrieved successfully",
         "permits" => $permits,
         "count"   => count($permits),
         "tax_summary" => $tax_summary,
@@ -210,7 +248,19 @@ try {
     http_response_code(500);
     echo json_encode([
         "status" => "error",
-        "message" => "Database error",
-        "details" => $e->getMessage()
+        "message" => "Database error occurred",
+        "error" => $e->getMessage(),
+        "file" => $e->getFile(),
+        "line" => $e->getLine()
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Application error occurred",
+        "error" => $e->getMessage(),
+        "file" => $e->getFile(),
+        "line" => $e->getLine()
     ]);
 }
+?>

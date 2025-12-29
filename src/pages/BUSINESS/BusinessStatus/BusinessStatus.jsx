@@ -6,44 +6,79 @@ import {
   Download,
   Eye,
   CheckCircle,
-  AlertCircle,
   Building,
-  User,
-  Calendar,
-  FileText,
   DollarSign,
   TrendingUp,
   Clock,
-  CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  Home,
+  Percent,
+  CheckSquare,
+  XCircle
 } from "lucide-react";
 
 export default function BusinessStatus() {
   const [permits, setPermits] = useState([]);
-  const [taxSummary, setTaxSummary] = useState({
-    total_revenue: 0,
-    total_pending: 0,
-    total_overdue: 0,
-    total_next_pending: 0,
-    pending_business_count: 0,
+  const [summary, setSummary] = useState({
     total_businesses: 0,
-    collection_rate: 0
+    total_revenue: 0,
+    pending_payments: 0,
+    overdue_payments: 0,
+    collection_rate: 0,
+    fully_paid_count: 0
   });
   const [filteredPermits, setFilteredPermits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("date");
-  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [businessType, setBusinessType] = useState("all");
+  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [barangayFilter, setBarangayFilter] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchPermits();
+    // Load data on component mount
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // First, try to calculate penalties (silently, don't wait for it)
+        calculatePenaltiesSilently();
+        
+        // Then fetch permits data
+        await fetchPermits();
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
   }, []);
 
   useEffect(() => {
-    filterAndSortPermits();
-  }, [permits, searchTerm, filter, sortBy, paymentFilter]);
+    filterPermits();
+  }, [permits, searchTerm, businessType, paymentStatus, barangayFilter]);
+
+  // Silent penalty calculation - doesn't block UI
+  const calculatePenaltiesSilently = async () => {
+    try {
+      await fetch(
+        "http://localhost/revenue2/backend/Business/BusinessStatus/calculate_penalties.php",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include"
+        }
+      );
+      // Don't wait for response or handle errors - just fire and forget
+    } catch (error) {
+      // Silently fail - penalties will be calculated next time
+      console.log("Penalty calculation failed silently");
+    }
+  };
 
   const fetchPermits = async () => {
     try {
@@ -52,80 +87,59 @@ export default function BusinessStatus() {
         { credentials: "include" }
       );
       const data = await res.json();
+      
       if (data.status === "success") {
-        setPermits(data.permits || []);
-        setTaxSummary(data.tax_summary || {
-          total_revenue: 0,
-          total_pending: 0,
-          total_overdue: 0,
-          total_next_pending: 0,
-          pending_business_count: 0,
-          total_businesses: 0,
-          collection_rate: 0
+        const permitsData = data.permits || [];
+        setPermits(permitsData);
+        
+        // Calculate summary statistics
+        const totalBusinesses = permitsData.length;
+        const totalRevenue = permitsData.reduce((sum, p) => sum + (p.total_paid_tax || 0), 0);
+        const pendingPayments = permitsData.reduce((sum, p) => sum + (p.total_pending_tax || 0), 0);
+        const overduePayments = permitsData.reduce((sum, p) => sum + (p.overdue_tax_amount || 0), 0);
+        const fullyPaid = permitsData.filter(p => p.payment_status === 'fully_paid').length;
+        
+        setSummary({
+          total_businesses: totalBusinesses,
+          total_revenue: totalRevenue,
+          pending_payments: pendingPayments,
+          overdue_payments: overduePayments,
+          collection_rate: totalBusinesses > 0 ? Math.round((fullyPaid / totalBusinesses) * 100) : 0,
+          fully_paid_count: fullyPaid
         });
       }
     } catch (err) {
       console.error("Error fetching permits:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const filterAndSortPermits = () => {
+  const filterPermits = () => {
     let result = [...permits];
 
-    // Apply search filter
+    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(permit =>
-        permit.business_name?.toLowerCase().includes(term) ||
-        permit.owner_name?.toLowerCase().includes(term) ||
-        permit.business_type?.toLowerCase().includes(term) ||
-        permit.business_permit_id?.toLowerCase().includes(term)
+        (permit.business_name?.toLowerCase().includes(term)) ||
+        (permit.owner_name?.toLowerCase().includes(term)) ||
+        (permit.business_permit_id?.toLowerCase().includes(term))
       );
     }
 
-    // Apply business type filter
-    if (filter !== "all") {
-      result = result.filter(permit => permit.business_type === filter);
+    // Business type filter
+    if (businessType !== "all") {
+      result = result.filter(permit => permit.business_type === businessType);
     }
 
-    // Apply payment status filter
-    if (paymentFilter !== "all") {
-      switch (paymentFilter) {
-        case "fully_paid":
-          result = result.filter(permit => permit.payment_status === 'fully_paid');
-          break;
-        case "pending":
-          result = result.filter(permit => permit.payment_status === 'pending');
-          break;
-        case "overdue":
-          result = result.filter(permit => permit.payment_status === 'overdue');
-          break;
-        default:
-          break;
-      }
+    // Payment status filter
+    if (paymentStatus !== "all") {
+      result = result.filter(permit => permit.payment_status === paymentStatus);
     }
 
-    // Apply sorting
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.business_name.localeCompare(b.business_name);
-        case "date":
-          return new Date(b.issue_date || b.created_at) - new Date(a.issue_date || a.created_at);
-        case "type":
-          return a.business_type.localeCompare(b.business_type);
-        case "revenue2":
-          return (b.total_paid_tax || 0) - (a.total_paid_tax || 0);
-        case "pending":
-          return (b.total_pending_tax || 0) - (a.total_pending_tax || 0);
-        case "overdue":
-          return (b.overdue_tax_amount || 0) - (a.overdue_tax_amount || 0);
-        default:
-          return 0;
-      }
-    });
+    // Barangay filter
+    if (barangayFilter !== "all") {
+      result = result.filter(permit => permit.barangay === barangayFilter);
+    }
 
     setFilteredPermits(result);
   };
@@ -138,35 +152,49 @@ export default function BusinessStatus() {
     }).format(amount || 0);
   };
 
-  const getPaymentStatus = (permit) => {
-    switch (permit.payment_status) {
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getPaymentStatusBadge = (status) => {
+    switch(status) {
       case 'fully_paid':
         return {
           text: "Fully Paid",
-          color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+          bgColor: "bg-green-100",
+          textColor: "text-green-800",
           icon: CheckCircle,
-          description: "All taxes paid"
+          iconColor: "text-green-600"
         };
       case 'overdue':
         return {
           text: "Overdue",
-          color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+          bgColor: "bg-red-100",
+          textColor: "text-red-800",
           icon: AlertTriangle,
-          description: "Payment overdue"
+          iconColor: "text-red-600"
         };
       case 'pending':
         return {
           text: "Pending",
-          color: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300",
+          bgColor: "bg-yellow-100",
+          textColor: "text-yellow-800",
           icon: Clock,
-          description: "Payment pending"
+          iconColor: "text-yellow-600"
         };
       default:
         return {
           text: "Unknown",
-          color: "bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300",
-          icon: AlertCircle,
-          description: "Payment status unknown"
+          bgColor: "bg-gray-100",
+          textColor: "text-gray-800",
+          icon: Clock,
+          iconColor: "text-gray-600"
         };
     }
   };
@@ -176,35 +204,31 @@ export default function BusinessStatus() {
     return types.sort();
   };
 
+  const getBarangays = () => {
+    const barangays = [...new Set(permits.map(p => p.barangay).filter(Boolean))];
+    return barangays.sort();
+  };
+
   const exportToCSV = () => {
     const headers = [
-      "Business Name", 
-      "Owner", 
-      "Type", 
-      "Permit ID", 
-      "Total Tax", 
-      "Paid Tax", 
-      "Pending Tax", 
-      "Overdue Tax", 
-      "Next Payment Amount", 
-      "Next Due Date", 
-      "Payment Status",
-      "Tax Paid %"
+      "Business Name", "Owner", "Permit ID", "Type", "Location",
+      "Approved Date", "Total Tax", "Paid Amount", "Pending Amount", 
+      "Payment Status", "Collection Rate"
     ];
+    
     const csvData = [
       headers.join(","),
       ...filteredPermits.map(p => [
         `"${p.business_name}"`,
         `"${p.owner_name}"`,
-        `"${p.business_type}"`,
         `"${p.business_permit_id || 'N/A'}"`,
+        `"${p.business_type}"`,
+        `"${p.barangay}, ${p.city}"`,
+        `"${formatDate(p.approved_date)}"`,
         p.total_tax,
         p.total_paid_tax,
         p.total_pending_tax,
-        p.overdue_tax_amount,
-        p.next_pending_tax_amount,
-        `"${p.next_pending_due_date || 'N/A'}"`,
-        `"${getPaymentStatus(p).text}"`,
+        `"${getPaymentStatusBadge(p.payment_status).text}"`,
         p.tax_paid_percentage || 0
       ].join(","))
     ].join("\n");
@@ -213,367 +237,330 @@ export default function BusinessStatus() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `business-tax-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `business-monitoring-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading tax information...</p>
+          <p className="mt-4 text-gray-600">Loading business data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 lg:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white">
-              Business Tax Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">
-              Track tax payments and pending balances for all approved businesses
-            </p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Business Monitoring Dashboard</h1>
+        <p className="text-gray-600 mt-1">Monitor approved businesses and tax collection status</p>
+        <p className="text-sm text-gray-500 mt-2">
+          Penalties are automatically updated. Last updated: {new Date().toLocaleTimeString('en-PH')}
+        </p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Building className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-500">Total Businesses</p>
+              <p className="text-xl font-bold text-gray-800">{summary.total_businesses}</p>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm hover:shadow"
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-500">Total Collection</p>
+              <p className="text-xl font-bold text-gray-800">{formatCurrency(summary.total_revenue)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-500">Collection Rate</p>
+              <p className="text-xl font-bold text-gray-800">{summary.collection_rate}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-500">Pending Payments</p>
+              <p className="text-xl font-bold text-gray-800">{formatCurrency(summary.pending_payments)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-500">Overdue</p>
+              <p className="text-xl font-bold text-gray-800">{formatCurrency(summary.overdue_payments)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6 border border-gray-200">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search business, owner, or permit ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <select
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <Download size={18} />
-              Export Report
-            </button>
-          </div>
-        </div>
+              <option value="all">All Business Types</option>
+              {getBusinessTypes().map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
 
-        {/* Tax Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Total revenue2</p>
-                <p className="text-xl font-bold mt-1">{formatCurrency(taxSummary.total_revenue)}</p>
-                <p className="text-xs opacity-80 mt-1">
-                  {taxSummary.total_businesses} Businesses
-                </p>
-              </div>
-              <DollarSign className="w-10 h-10 opacity-80" />
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-5 text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Collection Rate</p>
-                <p className="text-2xl font-bold mt-1">{taxSummary.collection_rate}%</p>
-                <p className="text-xs opacity-80 mt-1">
-                  {formatCurrency(taxSummary.total_pending)} pending
-                </p>
-              </div>
-              <TrendingUp className="w-10 h-10 opacity-80" />
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-5 text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Pending Taxes</p>
-                <p className="text-xl font-bold mt-1">{formatCurrency(taxSummary.total_pending)}</p>
-                <p className="text-xs opacity-80 mt-1">
-                  {taxSummary.pending_business_count} Businesses
-                </p>
-              </div>
-              <Clock className="w-10 h-10 opacity-80" />
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-5 text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">Overdue Taxes</p>
-                <p className="text-xl font-bold mt-1">{formatCurrency(taxSummary.total_overdue)}</p>
-                <p className="text-xs opacity-80 mt-1">
-                  {formatCurrency(taxSummary.total_next_pending)} upcoming
-                </p>
-              </div>
-              <AlertTriangle className="w-10 h-10 opacity-80" />
-            </div>
-          </div>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-5 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search business, owner, or permit ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Business Types</option>
-                  {getBusinessTypes().map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <select
-                  value={paymentFilter}
-                  onChange={(e) => setPaymentFilter(e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Payments</option>
-                  <option value="fully_paid">Fully Paid</option>
-                  <option value="pending">Pending Payment</option>
-                  <option value="overdue">Overdue Payment</option>
-                </select>
-              </div>
-
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                >
-                  <option value="date">Sort by Date</option>
-                  <option value="name">Sort by Name</option>
-                  <option value="type">Sort by Type</option>
-                  <option value="revenue2">Sort by revenue2</option>
-                  <option value="pending">Sort by Pending</option>
-                  <option value="overdue">Sort by Overdue</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Results Info */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-gray-600 dark:text-gray-300">
-            Showing <span className="font-semibold">{filteredPermits.length}</span> of{" "}
-            <span className="font-semibold">{permits.length}</span> approved businesses
-          </p>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            <select
+              value={paymentStatus}
+              onChange={(e) => setPaymentStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              Clear search
-            </button>
-          )}
-        </div>
+              <option value="all">All Payment Status</option>
+              <option value="fully_paid">Fully Paid</option>
+              <option value="pending">Pending</option>
+              <option value="overdue">Overdue</option>
+            </select>
 
-        {/* Business Tax Table */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20">
-                <tr>
-                  <th className="p-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Business Information</th>
-                  <th className="p-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Tax Summary</th>
-                  <th className="p-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Payment Status</th>
-                  <th className="p-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Next Payment</th>
-                  <th className="p-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredPermits.map((permit) => {
-                  const paymentStatus = getPaymentStatus(permit);
-                  const StatusIcon = paymentStatus.icon;
-                  
-                  return (
-                    <tr 
-                      key={permit.id} 
-                      className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <td className="p-4">
-                        <div>
-                          <p className="font-medium text-gray-800 dark:text-white">{permit.business_name}</p>
-                          <div className="mt-2 space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">Owner:</span>
-                              <span className="text-gray-800 dark:text-white">{permit.owner_name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">Type:</span>
-                              <span className="text-gray-800 dark:text-white">{permit.business_type}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">Permit ID:</span>
-                              <span className="text-gray-800 dark:text-white">{permit.business_permit_id}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="space-y-3">
-                          <div>
-                            <div className="flex justify-between mb-1">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Tax:</span>
-                              <span className="font-medium text-gray-800 dark:text-white">
-                                {formatCurrency(permit.total_tax)}
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${permit.tax_paid_percentage || 0}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-right text-xs text-gray-500 mt-1">
-                              {permit.tax_paid_percentage || 0}% paid
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                              <p className="text-xs text-green-700 dark:text-green-300">Paid</p>
-                              <p className="font-medium text-green-800 dark:text-green-200">
-                                {formatCurrency(permit.total_paid_tax)}
-                              </p>
-                            </div>
-                            <div className="bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
-                              <p className="text-xs text-amber-700 dark:text-amber-300">Pending</p>
-                              <p className="font-medium text-amber-800 dark:text-amber-200">
-                                {formatCurrency(permit.total_pending_tax)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="flex flex-col gap-2">
-                          <span className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${paymentStatus.color}`}>
-                            <StatusIcon size={14} />
-                            {paymentStatus.text}
+            <select
+              value={barangayFilter}
+              onChange={(e) => setBarangayFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Barangays</option>
+              {getBarangays().map(brgy => (
+                <option key={brgy} value={brgy}>{brgy}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          >
+            <Download size={18} />
+            Export
+          </button>
+        </div>
+      </div>
+
+      {/* Results Info */}
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-gray-600">
+          Showing <span className="font-semibold">{filteredPermits.length}</span> of{" "}
+          <span className="font-semibold">{permits.length}</span> approved businesses
+        </p>
+        <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-1">
+            <CheckSquare className="w-4 h-4 text-green-600" />
+            <span>Paid</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Clock className="w-4 h-4 text-yellow-600" />
+            <span>Pending</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <XCircle className="w-4 h-4 text-red-600" />
+            <span>Overdue</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Business List */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Business Information
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Location
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tax Summary
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredPermits.map((permit) => {
+                const statusBadge = getPaymentStatusBadge(permit.payment_status);
+                const StatusIcon = statusBadge.icon;
+                
+                return (
+                  <tr key={permit.id} className="hover:bg-gray-50">
+                    {/* Business Info */}
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium text-gray-900">{permit.business_name}</p>
+                        <p className="text-sm text-gray-500 mt-1">{permit.owner_name}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                            {permit.business_type}
                           </span>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {paymentStatus.description}
-                          </p>
-                          {permit.pending_quarters_count > 0 && (
-                            <p className="text-xs text-gray-600 dark:text-gray-300">
-                              {permit.pending_quarters_count} quarter(s) pending
-                            </p>
-                          )}
-                          {permit.overdue_tax_amount > 0 && (
-                            <div className="mt-1">
-                              <p className="text-xs text-red-600 dark:text-red-400 font-medium">
-                                Overdue: {formatCurrency(permit.overdue_tax_amount)}
-                              </p>
-                            </div>
-                          )}
+                          <span className="text-xs text-gray-500">
+                            Permit: {permit.business_permit_id}
+                          </span>
                         </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        {permit.next_pending_tax_amount > 0 ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Approved: {formatDate(permit.approved_date)}
+                        </p>
+                      </div>
+                    </td>
+
+                    {/* Location */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-start gap-2">
+                        <Home className="w-4 h-4 text-gray-400 mt-0.5" />
+                        <div>
+                          <p className="text-gray-900">{permit.barangay}</p>
+                          <p className="text-sm text-gray-500">{permit.city}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Tax Summary */}
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Total Tax</p>
+                          <p className="font-medium text-gray-900">{formatCurrency(permit.total_tax)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <div className="mb-3">
-                              <p className="text-sm font-medium text-gray-800 dark:text-white mb-1">
-                                {formatCurrency(permit.next_pending_tax_amount)}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Due: {new Date(permit.next_pending_due_date).toLocaleDateString()}
-                              </p>
-                            </div>
-                            {permit.pending_quarterly_taxes?.length > 0 && (
-                              <div className="border-t pt-2">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                  Upcoming quarters:
-                                </p>
-                                <div className="space-y-1">
-                                  {permit.pending_quarterly_taxes.slice(0, 2).map((q, idx) => (
-                                    <div key={idx} className="flex justify-between text-xs">
-                                      <span className="text-gray-600 dark:text-gray-300">
-                                        {q.quarter} {q.year}
-                                      </span>
-                                      <span className={`font-medium ${
-                                        q.payment_status === 'overdue' 
-                                          ? 'text-red-600 dark:text-red-400' 
-                                          : 'text-gray-800 dark:text-white'
-                                      }`}>
-                                        {formatCurrency(q.total_quarterly_tax)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {permit.pending_quarterly_taxes.length > 2 && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      +{permit.pending_quarterly_taxes.length - 2} more
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                            <p className="text-xs text-green-600">Paid</p>
+                            <p className="text-sm font-medium">{formatCurrency(permit.total_paid_tax)}</p>
                           </div>
-                        ) : (
-                          <div className="text-center py-2">
-                            <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500 dark:text-gray-400">All taxes paid</p>
+                          <div>
+                            <p className="text-xs text-yellow-600">Pending</p>
+                            <p className="text-sm font-medium">{formatCurrency(permit.total_pending_tax)}</p>
                           </div>
-                        )}
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => navigate(`/business/businessstatusinfo/${permit.id}`)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-sm hover:shadow-md"
-                          >
-                            <Eye size={16} />
-                            View Details
-                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <div className="flex items-center gap-2">
+                          <Percent className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {permit.tax_paid_percentage || 0}% collected
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full ${statusBadge.bgColor} ${statusBadge.textColor}`}>
+                        <StatusIcon className={`w-4 h-4 ${statusBadge.iconColor}`} />
+                        <span className="text-sm font-medium">{statusBadge.text}</span>
+                      </div>
+                      {permit.pending_quarters_count > 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {permit.pending_quarters_count} quarter(s) pending
+                        </p>
+                      )}
+                      {permit.overdue_tax_amount > 0 && (
+                        <p className="text-xs text-red-600 font-medium mt-1">
+                          Overdue: {formatCurrency(permit.overdue_tax_amount)}
+                        </p>
+                      )}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => navigate(`/business/businessstatusinfo/${permit.id}`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+                      >
+                        <Eye size={14} />
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
           {filteredPermits.length === 0 && (
             <div className="text-center py-10">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">No businesses match your search criteria</p>
+              <Building className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No businesses found matching your criteria</p>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Summary Footer */}
-        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>Data as of {new Date().toLocaleDateString()} • All amounts in Philippine Peso (₱)</p>
-          <p className="mt-1">
-            {taxSummary.collection_rate}% collection rate • {taxSummary.pending_business_count} businesses with pending payments
-          </p>
+      {/* Footer Summary */}
+      <div className="mt-6 p-4 bg-white rounded-lg shadow border border-gray-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center">
+          <div>
+            <p className="text-sm text-gray-600">
+              As of {new Date().toLocaleDateString('en-PH')}
+            </p>
+            <p className="text-xs text-gray-500">
+              Total approved businesses: {summary.total_businesses} | Collection rate: {summary.collection_rate}%
+            </p>
+          </div>
+          <div className="flex items-center gap-4 mt-2 sm:mt-0">
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Fully Paid</p>
+              <p className="font-medium text-green-600">{summary.fully_paid_count || 0}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">With Balance</p>
+              <p className="font-medium text-yellow-600">
+                {summary.total_businesses - (summary.fully_paid_count || 0)}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -16,59 +16,6 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
-// Function to calculate penalties when page loads
-function calculatePenaltiesOnPageLoad($quarterly_taxes, $pdo) {
-    $current_date = date('Y-m-d');
-    $penalty_rate = 2.00; // From your penalty_configurations table
-    
-    foreach ($quarterly_taxes as &$quarter) {
-        // Skip if already paid
-        if ($quarter['payment_status'] == 'paid') continue;
-        
-        $due_date = new DateTime($quarter['due_date']);
-        $today = new DateTime($current_date);
-        
-        // Check if overdue
-        if ($today > $due_date) {
-            $interval = $due_date->diff($today);
-            $days_late = $interval->days;
-            
-            if ($days_late > 0) {
-                // Calculate 2% penalty per month (approx 0.0667% per day)
-                $penalty_amount = $quarter['total_quarterly_tax'] * ($penalty_rate / 100) * ($days_late / 30);
-                
-                // Round to 2 decimals
-                $penalty_amount = round($penalty_amount, 2);
-                
-                // Update the quarter array
-                $quarter['penalty_amount'] = $penalty_amount;
-                $quarter['days_late'] = $days_late;
-                $quarter['payment_status'] = 'overdue';
-                
-                // Update database
-                if ($penalty_amount > 0) {
-                    $update_stmt = $pdo->prepare("
-                        UPDATE quarterly_taxes 
-                        SET penalty_amount = ?, 
-                            days_late = ?,
-                            payment_status = 'overdue',
-                            penalty_percent_used = ?
-                        WHERE id = ?
-                    ");
-                    $update_stmt->execute([
-                        $penalty_amount, 
-                        $days_late, 
-                        $penalty_rate,
-                        $quarter['id']
-                    ]);
-                }
-            }
-        }
-    }
-    
-    return $quarterly_taxes;
-}
-
 // Function to check if eligible for annual discount (Jan 1-31 only)
 function isEligibleForAnnualDiscount($quarterly_taxes) {
     $current_date = date('Y-m-d');
@@ -291,13 +238,10 @@ try {
                             ");
                             $quarterly_stmt->execute([$total_tax_data['id']]);
                             $quarterly_taxes = $quarterly_stmt->fetchAll(PDO::FETCH_ASSOC);
-                            
-                            // Calculate penalties when page loads
-                            $quarterly_taxes = calculatePenaltiesOnPageLoad($quarterly_taxes, $pdo);
                         } catch(PDOException $e) {}
                     }
                     
-                    // Calculate totals with penalties
+                    // Calculate totals
                     $total_land_value = $land_data['land_market_value'] ?? 0;
                     $total_land_tax = $land_data['annual_tax'] ?? 0;
                     $total_building_value = 0;
@@ -538,7 +482,7 @@ try {
                                             <div class="text-sm text-gray-600"><?php echo $quarter['year']; ?></div>
                                         </div>
                                         
-                                        <!-- Penalty Display -->
+                                        <!-- Penalty Display (read-only) -->
                                         <?php if ($days_late > 0): ?>
                                             <div class="mb-3 p-2 bg-red-100 rounded-lg">
                                                 <div class="text-sm text-red-700">
