@@ -80,29 +80,61 @@ export default function Assessed({ registration, documents, fetchData, formatDat
     total_annual_tax: 0
   });
 
-  // Get API Base URL
+  // Get API Base URL - FIXED for both localhost and domain
   const getApiBaseUrl = () => {
-    const hostname = window.location.hostname;
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
+    // Use environment variable if available
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      return `${envApiUrl}/RPT/RPTValidationTable`;
+    }
+    
+    // Fallback to automatic detection
+    const isLocalhost = window.location.hostname === "localhost" || 
+                        window.location.hostname === "127.0.0.1";
+    
+    if (isLocalhost) {
       return "http://localhost/revenue2/backend/RPT/RPTValidationTable";
     }
     return "https://revenuetreasury.goserveph.com/backend/RPT/RPTValidationTable";
   };
 
-  // Get Document Base URL
+  // Get Document Base URL - FIXED for both localhost and domain
   const getDocumentBaseUrl = () => {
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      const port = window.location.port;
-      if (port && port !== "80" && port !== "443") {
-        return `${protocol}//${hostname}:${port}/revenue2`;
-      }
-      return `${protocol}//${hostname}/revenue2`;
+    // Use environment variable if available
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      return envApiUrl.replace('/backend', '');
     }
     
+    // Fallback to automatic detection
+    const isLocalhost = window.location.hostname === "localhost" || 
+                        window.location.hostname === "127.0.0.1";
+    
+    if (isLocalhost) {
+      return "http://localhost/revenue2";
+    }
     return "https://revenuetreasury.goserveph.com";
+  };
+
+  // Function to get document URL - FIXED
+  const getDocumentUrl = (filePath) => {
+    const baseUrl = getDocumentBaseUrl();
+    
+    // Clean up file path (remove any existing domain or double slashes)
+    let cleanPath = filePath.trim();
+    
+    // Remove any http:// or https:// prefixes
+    cleanPath = cleanPath.replace(/^(http:\/\/|https:\/\/)[^\/]+\//, '');
+    
+    // Remove leading slashes
+    cleanPath = cleanPath.replace(/^\/+/, '');
+    
+    // For localhost, make sure path starts correctly
+    if (cleanPath.startsWith('revenue2/')) {
+      cleanPath = cleanPath.replace('revenue2/', '');
+    }
+    
+    return `${baseUrl}/${cleanPath}`;
   };
 
   // Function to view document in modal
@@ -113,8 +145,7 @@ export default function Assessed({ registration, documents, fetchData, formatDat
 
   // Function to download document
   const downloadDocument = (document) => {
-    const baseUrl = getDocumentBaseUrl();
-    const fullUrl = `${baseUrl}/${document.file_path}`;
+    const fullUrl = getDocumentUrl(document.file_path);
     window.open(fullUrl, '_blank');
   };
 
@@ -1039,7 +1070,7 @@ export default function Assessed({ registration, documents, fetchData, formatDat
                 {isImageFile(selectedDocument.file_name) ? (
                   <div className="text-center">
                     <img 
-                      src={`${getDocumentBaseUrl()}/${selectedDocument.file_path}`} 
+                      src={getDocumentUrl(selectedDocument.file_path)}
                       alt={selectedDocument.file_name}
                       className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
                       onError={(e) => {

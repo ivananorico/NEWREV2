@@ -4,6 +4,45 @@ import apiService from "./apiService";
 export default function NeedsCorrection({ registration, documents, fetchData, formatDate, getDocumentTypeName, navigate }) {
   const [loading, setLoading] = useState(false);
 
+  // Get Document Base URL - FIXED for both localhost and domain
+  const getDocumentBaseUrl = () => {
+    // Use environment variable if available
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      return envApiUrl.replace('/backend', '');
+    }
+    
+    // Fallback to automatic detection
+    const isLocalhost = window.location.hostname === "localhost" || 
+                        window.location.hostname === "127.0.0.1";
+    
+    if (isLocalhost) {
+      return "http://localhost/revenue2";
+    }
+    return "https://revenuetreasury.goserveph.com";
+  };
+
+  // Function to get document URL - FIXED
+  const getDocumentUrl = (filePath) => {
+    const baseUrl = getDocumentBaseUrl();
+    
+    // Clean up file path (remove any existing domain or double slashes)
+    let cleanPath = filePath.trim();
+    
+    // Remove any http:// or https:// prefixes
+    cleanPath = cleanPath.replace(/^(http:\/\/|https:\/\/)[^\/]+\//, '');
+    
+    // Remove leading slashes
+    cleanPath = cleanPath.replace(/^\/+/, '');
+    
+    // For localhost, make sure path starts correctly
+    if (cleanPath.startsWith('revenue2/')) {
+      cleanPath = cleanPath.replace('revenue2/', '');
+    }
+    
+    return `${baseUrl}/${cleanPath}`;
+  };
+
   const handleMarkAsResubmitted = async () => {
     if (window.confirm("Mark this application as resubmitted?\n\nThis will change status to 'resubmitted'.")) {
       setLoading(true);
@@ -66,7 +105,7 @@ export default function NeedsCorrection({ registration, documents, fetchData, fo
                     </div>
                   </div>
                   <button
-                    onClick={() => window.open(`http://localhost/revenue2/${doc.file_path}`, '_blank')}
+                    onClick={() => window.open(getDocumentUrl(doc.file_path), '_blank')}
                     className="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded text-sm"
                   >
                     View Document
