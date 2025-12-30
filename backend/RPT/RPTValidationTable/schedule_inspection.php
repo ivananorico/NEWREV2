@@ -1,6 +1,6 @@
 <?php
 // ================================================
-// SCHEDULE INSPECTION API
+// SCHEDULE INSPECTION API - UPDATED
 // ================================================
 
 // Enable CORS and JSON response
@@ -21,7 +21,7 @@ $dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
 
 if (!file_exists($dbPath)) {
     http_response_code(500);
-    echo json_encode(["error" => "Database config file not found at: " . $dbPath]);
+    echo json_encode(["success" => false, "message" => "Database config file not found at: " . $dbPath]);
     exit();
 }
 
@@ -32,7 +32,7 @@ $pdo = getDatabaseConnection();
 if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
     http_response_code(500);
     $errorMsg = is_array($pdo) ? $pdo['message'] : "Failed to connect to database";
-    echo json_encode(["error" => "Database connection failed: " . $errorMsg]);
+    echo json_encode(["success" => false, "message" => "Database connection failed: " . $errorMsg]);
     exit();
 }
 
@@ -49,7 +49,7 @@ switch ($method) {
         exit();
     default:
         http_response_code(405);
-        echo json_encode(["error" => "Method not allowed"]);
+        echo json_encode(["success" => false, "message" => "Method not allowed"]);
         break;
 }
 
@@ -64,7 +64,7 @@ function scheduleInspection($pdo) {
 
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
+        echo json_encode(["success" => false, "message" => "Invalid JSON data: " . json_last_error_msg()]);
         return;
     }
 
@@ -73,13 +73,16 @@ function scheduleInspection($pdo) {
     foreach ($requiredFields as $field) {
         if (!isset($data[$field]) || empty(trim($data[$field]))) {
             http_response_code(400);
-            echo json_encode(["error" => "Missing required field: " . $field]);
+            echo json_encode(["success" => false, "message" => "Missing required field: " . $field]);
             return;
         }
     }
 
     try {
-        // Check if table exists, create if not
+        // Start transaction
+        $pdo->beginTransaction();
+
+        // 1. Check/create property_inspections table
         $checkTable = $pdo->query("SHOW TABLES LIKE 'property_inspections'");
         if ($checkTable->rowCount() === 0) {
             $pdo->exec("
@@ -95,29 +98,63 @@ function scheduleInspection($pdo) {
             ");
         }
 
-        $stmt = $pdo->prepare("
+        // 2. Insert into property_inspections table
+        $stmt1 = $pdo->prepare("
             INSERT INTO property_inspections 
             (registration_id, scheduled_date, assessor_name, status, created_at, updated_at)
             VALUES (?, ?, ?, 'scheduled', NOW(), NOW())
         ");
 
-        $success = $stmt->execute([
+        $stmt1->execute([
             intval($data['registration_id']),
             $data['scheduled_date'],
             trim($data['assessor_name'])
         ]);
 
-        if ($success) {
-            echo json_encode([
-                "success" => true,
-                "message" => "Inspection scheduled successfully"
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode(["error" => "Failed to schedule inspection"]);
+        // 3. UPDATE the registration status to 'for_inspection'
+        $stmt2 = $pdo->prepare("
+            UPDATE property_registrations 
+            SET status = 'for_inspection', 
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+
+        $stmt2->execute([intval($data['registration_id'])]);
+        
+        // Check if status was updated
+        if ($stmt2->rowCount() === 0) {
+            // If no rows affected, check current status
+            $checkStmt = $pdo->prepare("SELECT status FROM property_registrations WHERE id = ?");
+            $checkStmt->execute([intval($data['registration_id'])]);
+            $currentStatus = $checkStmt->fetchColumn();
+            
+            if ($currentStatus !== 'for_inspection') {
+                throw new Exception("Failed to update registration status. Current status: " . $currentStatus);
+            }
         }
-    } catch (PDOException $e) {
+
+        // Commit transaction
+        $pdo->commit();
+
+        echo json_encode([
+            "success" => true,
+            "status" => "success",
+            "message" => "Inspection scheduled successfully and status updated to 'for_inspection'",
+            "data" => [
+                "registration_id" => intval($data['registration_id']),
+                "scheduled_date" => $data['scheduled_date'],
+                "assessor_name" => trim($data['assessor_name']),
+                "new_status" => "for_inspection"
+            ]
+        ]);
+        
+    } catch (Exception $e) {
+        // Rollback on error
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         http_response_code(500);
-        echo json_encode(["error" => "Failed to schedule inspection: " . $e->getMessage()]);
+        echo json_encode(["success" => false, "message" => "Failed to schedule inspection: " . $e->getMessage()]);
     }
 }
+?>

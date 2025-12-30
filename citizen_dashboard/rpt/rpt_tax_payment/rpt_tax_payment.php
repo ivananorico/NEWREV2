@@ -696,31 +696,59 @@
             </div>
         </main>
         
-        <script>
-        function initiatePayment(taxId, quarter, year, amount, purpose) {
-            alert('Payment Button Clicked!\n\n' +
-                  'Quarterly Payment\n' +
-                  'Quarter: ' + quarter + ' ' + year + '\n' +
-                  'Amount: ₱' + parseFloat(amount).toFixed(2) + '\n' +
-                  'Purpose: ' + purpose + '\n\n' +
-                  'This is a demonstration button. Actual payment functionality will be implemented later.');
-        }
-        
-        function payAnnual(propertyTotalId, totalAmount, purpose, hasDiscount, discountPercent = 0) {
-            const discountText = hasDiscount ? ' (with ' + discountPercent + '% discount)' : '';
-            alert('Annual Payment Button Clicked!\n\n' +
-                  'Annual Payment' + discountText + '\n' +
-                  'Property Total ID: ' + propertyTotalId + '\n' +
-                  'Total Amount: ₱' + parseFloat(totalAmount).toFixed(2) + '\n' +
-                  'Purpose: ' + purpose + '\n\n' +
-                  'This is a demonstration button. Actual payment functionality will be implemented later.');
-        }
-        
-        function viewReceipt(receiptNumber) {
-            alert('View Receipt Button Clicked!\n\n' +
-                  'Receipt Number: ' + receiptNumber + '\n' +
-                  'Receipt viewing functionality will be implemented later.');
-        }
-        </script>
+      <script>
+// In rpt_tax_payment.php - Update the JavaScript
+function initiatePayment(taxId, quarter, year, amount, purpose) {
+    const propertyElement = document.querySelector('h3.text-xl.font-semibold.text-gray-800');
+    const propertyRef = propertyElement ? propertyElement.textContent.trim() : 'RPT-PROPERTY';
+    
+    // Get property_total_id from current property card
+    const propertyCard = document.querySelector('.bg-white.rounded-xl.shadow-lg.p-6.mb-6');
+    const propertyTotalId = propertyCard ? propertyCard.dataset.propertyTotalId : 1;
+    
+    const paymentData = {
+        amount: amount,
+        purpose: purpose,
+        tax_id: taxId,
+        property_total_id: propertyTotalId,
+        quarter: quarter,
+        year: year,
+        is_annual: false,
+        client_system: 'RPT System',
+        client_reference: `TAX-${quarter}-${year}-${taxId}`,
+        reference: propertyRef,
+        description: `RPT Tax Payment: ${quarter} ${year} - ${propertyRef}`
+    };
+    
+    // Redirect to digital payment portal
+    const urlParams = new URLSearchParams(paymentData);
+    window.location.href = '../../digital/index.php?' + urlParams.toString();
+}
+
+function payAnnual(propertyTotalId, totalAmount, purpose, hasDiscount, discountPercent = 0) {
+    const propertyElement = document.querySelector('h3.text-xl.font-semibold.text-gray-800');
+    const propertyRef = propertyElement ? propertyElement.textContent.trim() : 'RPT-PROPERTY';
+    
+    const paymentData = {
+        amount: totalAmount,
+        purpose: purpose,
+        property_total_id: propertyTotalId,
+        is_annual: true,
+        client_system: 'RPT System',
+        client_reference: `ANNUAL-${propertyTotalId}`,
+        reference: propertyRef,
+        description: `Annual RPT Tax Payment - ${propertyRef}`
+    };
+    
+    if (hasDiscount) {
+        paymentData.discount_percent = discountPercent;
+        paymentData.discount_amount = (totalAmount / (1 - discountPercent/100)) - totalAmount;
+    }
+    
+    // Redirect to digital payment portal
+    const urlParams = new URLSearchParams(paymentData);
+    window.location.href = '../../digital/index.php?' + urlParams.toString();
+}
+</script>
     </body>
     </html>
