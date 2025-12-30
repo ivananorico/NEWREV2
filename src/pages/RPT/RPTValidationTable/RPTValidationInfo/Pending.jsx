@@ -9,6 +9,23 @@ export default function Pending({ registration, documents, fetchData, formatDate
   const [rejectionNotes, setRejectionNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Function to get dynamic base URL for documents
+  const getDocumentUrl = (filePath) => {
+    // Remove any leading slashes or localhost prefixes from the file path
+    const cleanPath = filePath.replace(/^(http:\/\/localhost\/revenue2\/|https:\/\/revenuetreasury.goserveph.com\/)/, '');
+    
+    // For localhost development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `http://localhost/revenue2/${cleanPath}`;
+    }
+    
+    // For production domain
+    return `https://revenuetreasury.goserveph.com/${cleanPath}`;
+    
+    // Alternative: Use relative path (if files are accessible via same domain)
+    // return `/${cleanPath}`;
+  };
+
   const handleScheduleInspection = async () => {
     if (!inspectionDate || !assessorName) {
       alert("Please fill all required fields");
@@ -92,7 +109,7 @@ export default function Pending({ registration, documents, fetchData, formatDate
                     </div>
                   </div>
                   <button
-                    onClick={() => window.open(`http://localhost/revenue2/${doc.file_path}`, '_blank')}
+                    onClick={() => window.open(getDocumentUrl(doc.file_path), '_blank')}
                     className="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded text-sm"
                   >
                     View Document

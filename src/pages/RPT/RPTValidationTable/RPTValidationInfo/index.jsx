@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";  // ← ADD THIS LINE
+import { useParams, useNavigate } from "react-router-dom";
 import Pending from "./Pending.jsx";
 import ForInspection from "./ForInspection.jsx";
 import Assessed from "./Assessed.jsx";
@@ -17,6 +17,26 @@ export default function RPTValidationInfo() {
   const [error, setError] = useState(null);
   const [documents, setDocuments] = useState([]);
 
+  // Dynamic API base URL that works for both localhost and domain
+  const getApiBaseUrl = () => {
+    // If environment variable is set, use it
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+    
+    // Otherwise, detect based on current host
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+      // Adjust this path based on your local setup
+      return 'http://localhost/revenue2/backend';
+    } else {
+      // For production domain
+      return 'https://revenuetreasury.goserveph.com/backend';
+    }
+  };
+
   const fetchData = async () => {
     if (!id || id === "undefined") {
       setError("Invalid registration ID");
@@ -27,10 +47,12 @@ export default function RPTValidationInfo() {
     try {
       setLoading(true);
       setError(null);
+      
+      const API_BASE = getApiBaseUrl();
 
       // Fetch registration
       const response = await fetch(
-        `http://localhost/revenue2/backend/RPT/RPTValidationTable/get_registration_details.php?id=${id}`
+        `${API_BASE}/RPT/RPTValidationTable/get_registration_details.php?id=${id}`
       );
       
       if (!response.ok) {
@@ -46,7 +68,7 @@ export default function RPTValidationInfo() {
         // Fetch documents
         try {
           const docsResponse = await fetch(
-            `http://localhost/revenue2/backend/RPT/RPTValidationTable/get_documents.php?registration_id=${id}`
+            `${API_BASE}/RPT/RPTValidationTable/get_documents.php?registration_id=${id}`
           );
           const docsData = await docsResponse.json();
           
@@ -111,6 +133,7 @@ export default function RPTValidationInfo() {
           
           <div className="mt-6 text-sm text-gray-500">
             <p>ID: {id}</p>
+            <p>Current API Base: {getApiBaseUrl()}</p>
             <p>URL: {window.location.href}</p>
           </div>
         </div>
