@@ -31,63 +31,121 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             <p class="text-gray-600">Access government services and manage your applications</p>
         </div>
 
-        <!-- Services Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- RPT Card -->
-            <a href="rpt/rpt_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-blue-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-home text-blue-600 text-xl"></i>
-                    </div>
-                    <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-2 py-1 rounded">Real Property</span>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Real Property Tax (RPT)</h3>
-                <p class="text-gray-600 text-sm mb-4">Manage your property taxes, view assessments, and make payments online.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-blue-600 text-sm font-medium">View Services →</span>
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-blue-600 text-sm"></i>
-                    </div>
-                </div>
-            </a>
+       <!-- Services Grid -->
+<h2 class="text-2xl font-bold text-gray-800 mb-6 font-poppins">Available Services</h2>
 
-            <!-- Business Tax Card -->
-            <a href="business/business_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-green-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-briefcase text-green-600 text-xl"></i>
-                    </div>
-                    <span class="bg-green-100 text-green-600 text-xs font-semibold px-2 py-1 rounded">Business</span>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <!-- RPT Card -->
+    <a href="rpt/rpt_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
+        <!-- Image Container -->
+        <div class="h-48 overflow-hidden">
+            <?php 
+            $rpt_image = 'images/rpt-service.png';
+            if (file_exists($rpt_image)): ?>
+                <img src="<?php echo $rpt_image; ?>" alt="Real Property Tax Service" 
+                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <?php else: ?>
+                <div class="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+                    <i class="fas fa-home text-blue-600 text-6xl"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Business Tax</h3>
-                <p class="text-gray-600 text-sm mb-4">Manage business taxes, file returns, and process business-related tax payments.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-green-600 text-sm font-medium">View Services →</span>
-                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-green-600 text-sm"></i>
-                    </div>
-                </div>
-            </a>
-
-            <!-- Market Rent Card -->
-            <a href="market/market_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-orange-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-store text-orange-600 text-xl"></i>
-                    </div>
-                    <span class="bg-orange-100 text-orange-600 text-xs font-semibold px-2 py-1 rounded">Market</span>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Market Rent</h3>
-                <p class="text-gray-600 text-sm mb-4">Manage market stall rentals, pay rent fees, and handle vendor space allocations.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-orange-600 text-sm font-medium">View Services →</span>
-                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-orange-600 text-sm"></i>
-                    </div>
-                </div>
-            </a>
+            <?php endif; ?>
         </div>
-    </main>
+        
+        <!-- Card Content -->
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-home text-blue-600 text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800">Real Property Tax</h3>
+                </div>
+                <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full">Tax</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">Manage property taxes, view assessments, and make payments online.</p>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                <span class="text-blue-600 text-sm font-medium">Access Service →</span>
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-arrow-right text-blue-600 group-hover:text-white text-sm transition-colors"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    <!-- Business Tax Card -->
+    <a href="business/business_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
+        <!-- Image Container -->
+        <div class="h-48 overflow-hidden">
+            <?php 
+            $business_image = 'images/business-service.png';
+            if (file_exists($business_image)): ?>
+                <img src="<?php echo $business_image; ?>" alt="Business Tax Service" 
+                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <?php else: ?>
+                <div class="w-full h-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
+                    <i class="fas fa-briefcase text-green-600 text-6xl"></i>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <!-- Card Content -->
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-briefcase text-green-600 text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800">Business Tax</h3>
+                </div>
+                <span class="bg-green-100 text-green-600 text-xs font-semibold px-3 py-1 rounded-full">Business</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">File business returns, make payments, and manage business taxes.</p>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                <span class="text-green-600 text-sm font-medium">Access Service →</span>
+                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center group-hover:bg-green-600 transition-colors">
+                    <i class="fas fa-arrow-right text-green-600 group-hover:text-white text-sm transition-colors"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    <!-- Market Rent Card -->
+    <a href="market/market_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
+        <!-- Image Container -->
+        <div class="h-48 overflow-hidden">
+            <?php 
+            $market_image = 'images/market-service.png';
+            if (file_exists($market_image)): ?>
+                <img src="<?php echo $market_image; ?>" alt="Market Rent Service" 
+                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <?php else: ?>
+                <div class="w-full h-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+                    <i class="fas fa-store text-orange-600 text-6xl"></i>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <!-- Card Content -->
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-store text-orange-600 text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800">Market Rent</h3>
+                </div>
+                <span class="bg-orange-100 text-orange-600 text-xs font-semibold px-3 py-1 rounded-full">Market</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">Manage stall rentals, pay rent fees, and handle vendor allocations.</p>
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                <span class="text-orange-600 text-sm font-medium">Access Service →</span>
+                <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-arrow-right text-orange-600 group-hover:text-white text-sm transition-colors"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
 
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-12">

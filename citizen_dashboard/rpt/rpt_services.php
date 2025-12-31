@@ -281,7 +281,7 @@ try {
 
         <!-- RPT Services Cards - 3 cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Registration and Transfer Card -->
+            <!-- Registration -->
             <a href="rpt_registration/rpt_registration.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-purple-500 hover:scale-105 cursor-pointer block">
                 <div class="flex items-center justify-between mb-4">
                     <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -289,7 +289,7 @@ try {
                     </div>
                     <span class="bg-purple-100 text-purple-600 text-xs font-semibold px-2 py-1 rounded">Registration</span>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Registration and Transfer</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Registration</h3>
                 <p class="text-gray-600 text-sm mb-4">Register new properties, transfer ownership, and update property records.</p>
                 <div class="flex items-center justify-between mt-4">
                     <span class="text-purple-600 text-sm font-medium">Start Process →</span>

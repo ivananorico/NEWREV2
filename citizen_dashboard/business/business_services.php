@@ -59,7 +59,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             </a>
 
             <!-- Business Tax Payment Card -->
-            <a href="business_tax_payment.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-green-500 hover:scale-105 cursor-pointer block">
+            <a href="business_tax_payment/business_tax_payment.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-green-500 hover:scale-105 cursor-pointer block">
                 <div class="flex items-center justify-between mb-4">
                     <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                         <i class="fas fa-credit-card text-green-600 text-xl"></i>
@@ -76,38 +76,9 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 </div>
             </a>
 
-            <!-- Business Gross Submission Card -->
-            <a href="business_gross/business_gross.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-blue-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-chart-line text-blue-600 text-xl"></i>
-                    </div>
-                    <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-2 py-1 rounded">Renewal</span>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Gross Income Submission</h3>
-                <p class="text-gray-600 text-sm mb-4">Submit your annual gross income for business permit renewal and tax assessment.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-blue-600 text-sm font-medium">Submit Gross →</span>
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-blue-600 text-sm"></i>
-                    </div>
-                </div>
-            </a>
+            
         </div>
 
-        <!-- Information Box for Gross Submission -->
-        <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-6xl mx-auto">
-            <h4 class="font-semibold text-blue-800 mb-3 flex items-center">
-                <i class="fas fa-info-circle mr-2"></i>
-                About Gross Income Submission
-            </h4>
-            <div class="text-blue-700 text-sm space-y-2">
-                <p><strong>Purpose:</strong> Required for annual business permit renewal and accurate tax assessment.</p>
-                <p><strong>When to Submit:</strong> Submit your gross income declaration 30 days before your permit expiration date.</p>
-                <p><strong>Required Documents:</strong> Financial statements, sales records, and supporting documents for income verification.</p>
-                <p><strong>Processing Time:</strong> 3-5 business days after submission.</p>
-            </div>
-        </div>
 
         <!-- Additional Information -->
         <div class="mt-8 bg-white rounded-lg shadow-md p-6 max-w-6xl mx-auto">
