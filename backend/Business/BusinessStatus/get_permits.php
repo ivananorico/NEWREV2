@@ -29,11 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
  * DB CONNECTION
  * ======================================
  */
-// Add error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Check if database file exists
 $dbPath = __DIR__ . '/../../../db/Business/business_db.php';
 if (!file_exists($dbPath)) {
     http_response_code(500);
@@ -48,7 +46,6 @@ if (!file_exists($dbPath)) {
 require_once $dbPath;
 
 try {
-    // Debug: Check if connection is established
     if (!$pdo) {
         throw new Exception("Database connection failed - PDO object is null");
     }
@@ -61,7 +58,7 @@ try {
             bp.id,
             bp.business_permit_id,
             bp.business_name,
-            bp.owner_name,
+            bp.full_name as owner_name,  -- Changed from owner_name to full_name
             bp.business_type,
             bp.tax_calculation_type,
             bp.taxable_amount,
@@ -70,17 +67,17 @@ try {
             bp.regulatory_fees,
             bp.total_tax,
             bp.approved_date,
-            bp.street,
-            bp.barangay,
-            bp.district,
-            bp.city,
-            bp.province,
-            bp.contact_number,
-            bp.phone,
-            bp.owner_email,
+            bp.business_street as street,
+            bp.business_barangay as barangay,
+            bp.business_district as district,
+            bp.business_city as city,
+            bp.business_province as province,
+            bp.personal_contact as contact_number,
+            bp.personal_contact as phone,
+            bp.personal_email as owner_email,
             bp.issue_date,
             bp.expiry_date,
-            bp.status,
+            bp.status,  -- This is the business status (Approved/Active)
             bp.created_at,
             bp.user_id,
             -- Calculate total paid tax from quarterly taxes
@@ -141,7 +138,6 @@ try {
 
     $permits = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Debug: Check if we got data
     if ($permits === false) {
         throw new Exception("Failed to fetch permits data");
     }
@@ -163,13 +159,6 @@ try {
             $pending_business_count++;
         }
 
-        // Format currency values for frontend
-        $permit['total_paid_tax_formatted'] = number_format($permit['total_paid_tax'], 2);
-        $permit['total_pending_tax_formatted'] = number_format($permit['total_pending_tax'], 2);
-        $permit['next_pending_tax_amount_formatted'] = number_format($permit['next_pending_tax_amount'], 2);
-        $permit['overdue_tax_amount_formatted'] = number_format($permit['overdue_tax_amount'], 2);
-        $permit['total_tax_formatted'] = number_format($permit['total_tax'], 2);
-        
         // Calculate tax percentage
         if ($permit['total_tax'] > 0) {
             $permit['tax_paid_percentage'] = round(($permit['total_paid_tax'] / $permit['total_tax']) * 100, 1);
@@ -189,34 +178,6 @@ try {
         }
     }
 
-    // Get pending quarterly taxes for each business
-    foreach ($permits as &$permit) {
-        $quarterlySql = "
-            SELECT 
-                quarter,
-                year,
-                due_date,
-                total_quarterly_tax,
-                penalty_amount,
-                payment_status
-            FROM business_quarterly_taxes 
-            WHERE business_permit_id = ?
-            AND payment_status IN ('pending', 'overdue')
-            ORDER BY year, 
-                CASE quarter 
-                    WHEN 'Q1' THEN 1 
-                    WHEN 'Q2' THEN 2 
-                    WHEN 'Q3' THEN 3 
-                    WHEN 'Q4' THEN 4 
-                END
-        ";
-        
-        $quarterlyStmt = $pdo->prepare($quarterlySql);
-        $quarterlyStmt->execute([$permit['id']]);
-        $quarterlyData = $quarterlyStmt->fetchAll(PDO::FETCH_ASSOC);
-        $permit['pending_quarterly_taxes'] = $quarterlyData !== false ? $quarterlyData : [];
-    }
-
     // Prepare tax summary
     $tax_summary = [
         'total_revenue' => $total_revenue,
@@ -228,12 +189,6 @@ try {
         'collection_rate' => count($permits) > 0 ? round(($total_revenue / ($total_revenue + $total_pending)) * 100, 1) : 0
     ];
 
-    // Format summary values
-    $tax_summary['total_revenue_formatted'] = number_format($total_revenue, 2);
-    $tax_summary['total_pending_formatted'] = number_format($total_pending, 2);
-    $tax_summary['total_overdue_formatted'] = number_format($total_overdue, 2);
-    $tax_summary['total_next_pending_formatted'] = number_format($total_next_pending, 2);
-
     // Send success response
     echo json_encode([
         "status"  => "success",
@@ -241,7 +196,16 @@ try {
         "permits" => $permits,
         "count"   => count($permits),
         "tax_summary" => $tax_summary,
-        "timestamp" => date('Y-m-d H:i:s')
+        "timestamp" => date('Y-m-d H:i:s'),
+        "debug_info" => [
+            "query_status" => "executed",
+            "permit_count" => count($permits),
+            "sample_permit" => count($permits) > 0 ? [
+                "has_status_field" => isset($permits[0]['status']),
+                "status_value" => $permits[0]['status'] ?? 'not_found',
+                "fields_present" => array_keys($permits[0])
+            ] : "no_data"
+        ]
     ]);
 
 } catch (PDOException $e) {
@@ -251,7 +215,8 @@ try {
         "message" => "Database error occurred",
         "error" => $e->getMessage(),
         "file" => $e->getFile(),
-        "line" => $e->getLine()
+        "line" => $e->getLine(),
+        "sql_query" => $sql ?? "not_set"
     ]);
 } catch (Exception $e) {
     http_response_code(500);

@@ -35,8 +35,8 @@ function calculateAndSaveBusinessTax() {
         exit();
     }
 
-    // Validate required fields from Business Permit
-    $required_fields = ['business_permit_id', 'business_name', 'owner_name', 'business_type', 'taxable_amount', 'tax_calculation_type'];
+    // Validate required fields from Business Permit - REMOVED owner_name, ADDED full_name
+    $required_fields = ['business_permit_id', 'business_name', 'full_name', 'business_type', 'taxable_amount', 'tax_calculation_type'];
     $missing_fields = [];
     
     foreach ($required_fields as $field) {
@@ -110,11 +110,34 @@ function createBusinessTax($pdo, $input) {
     // Calculate taxes
     $taxResult = calculateTaxes($business_type, $taxable_amount, $tax_calculation_type);
     
-    // Insert into business_permits table (for tax calculation)
+    // Insert into business_permits table (for tax calculation) - REMOVED owner_name
     $sql = "INSERT INTO business_permits (
         business_permit_id, 
         business_name, 
-        owner_name, 
+        
+        -- Personal Information (full_name only, no owner_name)
+        full_name, 
+        sex, 
+        date_of_birth, 
+        marital_status,
+        personal_street, 
+        personal_barangay, 
+        personal_district, 
+        personal_city, 
+        personal_province, 
+        personal_zipcode, 
+        personal_contact, 
+        personal_email,
+        
+        -- Business Address (no phone/email)
+        business_street, 
+        business_barangay, 
+        business_district, 
+        business_city, 
+        business_province, 
+        business_zipcode,
+        
+        -- Business and Tax Information
         business_type,
         tax_calculation_type,
         taxable_amount, 
@@ -122,14 +145,8 @@ function createBusinessTax($pdo, $input) {
         tax_amount, 
         regulatory_fees, 
         total_tax,
-        street, 
-        barangay, 
-        district, 
-        city, 
-        province,
-        contact_number, 
-        phone,
-        owner_email,
+        
+        -- Dates and Status
         issue_date, 
         expiry_date, 
         status,
@@ -138,7 +155,30 @@ function createBusinessTax($pdo, $input) {
     ) VALUES (
         :business_permit_id, 
         :business_name, 
-        :owner_name, 
+        
+        -- Personal Information
+        :full_name, 
+        :sex, 
+        :date_of_birth, 
+        :marital_status,
+        :personal_street, 
+        :personal_barangay, 
+        :personal_district, 
+        :personal_city, 
+        :personal_province, 
+        :personal_zipcode, 
+        :personal_contact, 
+        :personal_email,
+        
+        -- Business Address
+        :business_street, 
+        :business_barangay, 
+        :business_district, 
+        :business_city, 
+        :business_province, 
+        :business_zipcode,
+        
+        -- Business and Tax Information
         :business_type,
         :tax_calculation_type,
         :taxable_amount, 
@@ -146,14 +186,8 @@ function createBusinessTax($pdo, $input) {
         :tax_amount, 
         :regulatory_fees, 
         :total_tax,
-        :street, 
-        :barangay, 
-        :district, 
-        :city, 
-        :province,
-        :contact_number, 
-        :phone,
-        :owner_email,
+        
+        -- Dates and Status
         :issue_date, 
         :expiry_date, 
         :status,
@@ -166,17 +200,60 @@ function createBusinessTax($pdo, $input) {
     // Check if tax is calculated (taxable_amount > 0 and tax_amount > 0)
     $isTaxCalculated = ($taxable_amount > 0 && $taxResult['tax_amount'] > 0);
     
-    // Prepare address data with defaults
-    $street = isset($input['street']) ? htmlspecialchars($input['street']) : (isset($input['address']) ? htmlspecialchars($input['address']) : '');
-    $barangay = isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown';
-    $district = isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown';
-    $city = isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City';
-    $province = isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila';
+    // Prepare personal information data with defaults
+    // Use full_name from input, fallback to owner_name for backward compatibility
+    $full_name = isset($input['full_name']) ? htmlspecialchars($input['full_name']) : 
+                (isset($input['owner_name']) ? htmlspecialchars($input['owner_name']) : '');
+    
+    $sex = isset($input['sex']) ? htmlspecialchars($input['sex']) : null;
+    $date_of_birth = isset($input['date_of_birth']) ? $input['date_of_birth'] : null;
+    $marital_status = isset($input['marital_status']) ? htmlspecialchars($input['marital_status']) : null;
+    
+    // Personal address
+    $personal_street = isset($input['personal_street']) ? htmlspecialchars($input['personal_street']) : (isset($input['street']) ? htmlspecialchars($input['street']) : '');
+    $personal_barangay = isset($input['personal_barangay']) ? htmlspecialchars($input['personal_barangay']) : (isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown');
+    $personal_district = isset($input['personal_district']) ? htmlspecialchars($input['personal_district']) : (isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown');
+    $personal_city = isset($input['personal_city']) ? htmlspecialchars($input['personal_city']) : (isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City');
+    $personal_province = isset($input['personal_province']) ? htmlspecialchars($input['personal_province']) : (isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila');
+    $personal_zipcode = isset($input['personal_zipcode']) ? htmlspecialchars($input['personal_zipcode']) : (isset($input['zipcode']) ? htmlspecialchars($input['zipcode']) : '');
+    $personal_contact = isset($input['personal_contact']) ? htmlspecialchars($input['personal_contact']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '');
+    $personal_email = isset($input['personal_email']) ? htmlspecialchars($input['personal_email']) : (isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '');
+    
+    // Business address
+    $business_street = isset($input['business_street']) ? htmlspecialchars($input['business_street']) : $personal_street;
+    $business_barangay = isset($input['business_barangay']) ? htmlspecialchars($input['business_barangay']) : $personal_barangay;
+    $business_district = isset($input['business_district']) ? htmlspecialchars($input['business_district']) : $personal_district;
+    $business_city = isset($input['business_city']) ? htmlspecialchars($input['business_city']) : $personal_city;
+    $business_province = isset($input['business_province']) ? htmlspecialchars($input['business_province']) : $personal_province;
+    $business_zipcode = isset($input['business_zipcode']) ? htmlspecialchars($input['business_zipcode']) : $personal_zipcode;
     
     $params = [
         ':business_permit_id' => htmlspecialchars($business_permit_id),
         ':business_name' => htmlspecialchars($input['business_name']),
-        ':owner_name' => htmlspecialchars($input['owner_name']),
+        
+        // Personal Information (full_name only)
+        ':full_name' => $full_name,
+        ':sex' => $sex,
+        ':date_of_birth' => $date_of_birth,
+        ':marital_status' => $marital_status,
+        ':personal_street' => $personal_street,
+        ':personal_barangay' => $personal_barangay,
+        ':personal_district' => $personal_district,
+        ':personal_city' => $personal_city,
+        ':personal_province' => $personal_province,
+        ':personal_zipcode' => $personal_zipcode,
+        ':personal_contact' => $personal_contact,
+        ':personal_email' => $personal_email,
+        
+        // Business Address
+        ':business_street' => $business_street,
+        ':business_barangay' => $business_barangay,
+        ':business_district' => $business_district,
+        ':business_city' => $business_city,
+        ':business_province' => $business_province,
+        ':business_zipcode' => $business_zipcode,
+        
+        // Business and Tax Information
         ':business_type' => htmlspecialchars($business_type),
         ':tax_calculation_type' => $tax_calculation_type,
         ':taxable_amount' => $taxable_amount,
@@ -184,16 +261,7 @@ function createBusinessTax($pdo, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        // New address fields
-        ':street' => $street,
-        ':barangay' => $barangay,
-        ':district' => $district,
-        ':city' => $city,
-        ':province' => $province,
-        // Contact info
-        ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
-        ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
-        ':owner_email' => isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '',
+        
         // Dates
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),
@@ -218,17 +286,60 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
     // Calculate taxes
     $taxResult = calculateTaxes($business_type, $taxable_amount, $tax_calculation_type);
     
-    // Prepare address data with defaults
-    $street = isset($input['street']) ? htmlspecialchars($input['street']) : (isset($input['address']) ? htmlspecialchars($input['address']) : '');
-    $barangay = isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown';
-    $district = isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown';
-    $city = isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City';
-    $province = isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila';
+    // Prepare personal information data with defaults
+    // Use full_name from input, fallback to owner_name for backward compatibility
+    $full_name = isset($input['full_name']) ? htmlspecialchars($input['full_name']) : 
+                (isset($input['owner_name']) ? htmlspecialchars($input['owner_name']) : '');
     
-    // Update existing record with new address fields
+    $sex = isset($input['sex']) ? htmlspecialchars($input['sex']) : null;
+    $date_of_birth = isset($input['date_of_birth']) ? $input['date_of_birth'] : null;
+    $marital_status = isset($input['marital_status']) ? htmlspecialchars($input['marital_status']) : null;
+    
+    // Personal address
+    $personal_street = isset($input['personal_street']) ? htmlspecialchars($input['personal_street']) : (isset($input['street']) ? htmlspecialchars($input['street']) : '');
+    $personal_barangay = isset($input['personal_barangay']) ? htmlspecialchars($input['personal_barangay']) : (isset($input['barangay']) ? htmlspecialchars($input['barangay']) : 'Unknown');
+    $personal_district = isset($input['personal_district']) ? htmlspecialchars($input['personal_district']) : (isset($input['district']) ? htmlspecialchars($input['district']) : 'Unknown');
+    $personal_city = isset($input['personal_city']) ? htmlspecialchars($input['personal_city']) : (isset($input['city']) ? htmlspecialchars($input['city']) : 'Quezon City');
+    $personal_province = isset($input['personal_province']) ? htmlspecialchars($input['personal_province']) : (isset($input['province']) ? htmlspecialchars($input['province']) : 'Metro Manila');
+    $personal_zipcode = isset($input['personal_zipcode']) ? htmlspecialchars($input['personal_zipcode']) : (isset($input['zipcode']) ? htmlspecialchars($input['zipcode']) : '');
+    $personal_contact = isset($input['personal_contact']) ? htmlspecialchars($input['personal_contact']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '');
+    $personal_email = isset($input['personal_email']) ? htmlspecialchars($input['personal_email']) : (isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '');
+    
+    // Business address
+    $business_street = isset($input['business_street']) ? htmlspecialchars($input['business_street']) : $personal_street;
+    $business_barangay = isset($input['business_barangay']) ? htmlspecialchars($input['business_barangay']) : $personal_barangay;
+    $business_district = isset($input['business_district']) ? htmlspecialchars($input['business_district']) : $personal_district;
+    $business_city = isset($input['business_city']) ? htmlspecialchars($input['business_city']) : $personal_city;
+    $business_province = isset($input['business_province']) ? htmlspecialchars($input['business_province']) : $personal_province;
+    $business_zipcode = isset($input['business_zipcode']) ? htmlspecialchars($input['business_zipcode']) : $personal_zipcode;
+    
+    // Update existing record with personal and business information - REMOVED owner_name
     $sql = "UPDATE business_permits SET
         business_name = :business_name, 
-        owner_name = :owner_name, 
+        
+        -- Personal Information (full_name only)
+        full_name = :full_name, 
+        sex = :sex, 
+        date_of_birth = :date_of_birth, 
+        marital_status = :marital_status,
+        personal_street = :personal_street, 
+        personal_barangay = :personal_barangay, 
+        personal_district = :personal_district, 
+        personal_city = :personal_city, 
+        personal_province = :personal_province, 
+        personal_zipcode = :personal_zipcode, 
+        personal_contact = :personal_contact, 
+        personal_email = :personal_email,
+        
+        -- Business Address
+        business_street = :business_street, 
+        business_barangay = :business_barangay, 
+        business_district = :business_district, 
+        business_city = :business_city, 
+        business_province = :business_province, 
+        business_zipcode = :business_zipcode,
+        
+        -- Business and Tax Information
         business_type = :business_type,
         tax_calculation_type = :tax_calculation_type,
         taxable_amount = :taxable_amount, 
@@ -236,14 +347,8 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         tax_amount = :tax_amount, 
         regulatory_fees = :regulatory_fees, 
         total_tax = :total_tax,
-        street = :street, 
-        barangay = :barangay, 
-        district = :district, 
-        city = :city, 
-        province = :province,
-        contact_number = :contact_number, 
-        phone = :phone,
-        owner_email = :owner_email,
+        
+        -- Dates and Status
         issue_date = :issue_date, 
         expiry_date = :expiry_date, 
         status = :status,
@@ -261,7 +366,30 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
     $params = [
         ':business_permit_id' => htmlspecialchars($business_permit_id),
         ':business_name' => htmlspecialchars($input['business_name']),
-        ':owner_name' => htmlspecialchars($input['owner_name']),
+        
+        // Personal Information (full_name only)
+        ':full_name' => $full_name,
+        ':sex' => $sex,
+        ':date_of_birth' => $date_of_birth,
+        ':marital_status' => $marital_status,
+        ':personal_street' => $personal_street,
+        ':personal_barangay' => $personal_barangay,
+        ':personal_district' => $personal_district,
+        ':personal_city' => $personal_city,
+        ':personal_province' => $personal_province,
+        ':personal_zipcode' => $personal_zipcode,
+        ':personal_contact' => $personal_contact,
+        ':personal_email' => $personal_email,
+        
+        // Business Address
+        ':business_street' => $business_street,
+        ':business_barangay' => $business_barangay,
+        ':business_district' => $business_district,
+        ':business_city' => $business_city,
+        ':business_province' => $business_province,
+        ':business_zipcode' => $business_zipcode,
+        
+        // Business and Tax Information
         ':business_type' => htmlspecialchars($business_type),
         ':tax_calculation_type' => $tax_calculation_type,
         ':taxable_amount' => $taxable_amount,
@@ -269,16 +397,7 @@ function updateBusinessTax($pdo, $business_permit_id, $input) {
         ':tax_amount' => $taxResult['tax_amount'],
         ':regulatory_fees' => $taxResult['regulatory_fees'],
         ':total_tax' => $taxResult['total_tax'],
-        // New address fields
-        ':street' => $street,
-        ':barangay' => $barangay,
-        ':district' => $district,
-        ':city' => $city,
-        ':province' => $province,
-        // Contact info
-        ':contact_number' => isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : '',
-        ':phone' => isset($input['phone']) ? htmlspecialchars($input['phone']) : (isset($input['contact_number']) ? htmlspecialchars($input['contact_number']) : ''),
-        ':owner_email' => isset($input['owner_email']) ? htmlspecialchars($input['owner_email']) : '',
+        
         // Dates
         ':issue_date' => isset($input['issue_date']) ? $input['issue_date'] : date('Y-m-d'),
         ':expiry_date' => isset($input['expiry_date']) ? $input['expiry_date'] : date('Y-m-d', strtotime('+1 year')),

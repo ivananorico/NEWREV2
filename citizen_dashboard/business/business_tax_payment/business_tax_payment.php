@@ -2,7 +2,6 @@
 // business_tax_payment.php
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit();
@@ -11,28 +10,11 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'] ?? 'Business Owner';
 
-// Include database connection
 include_once '../../../db/Business/business_db.php';
 
-// Function to calculate business penalties
 function calculateBusinessPenalties($quarterly_taxes, $pdo) {
     $current_date = date('Y-m-d');
-    
-    // Get current penalty rate from config
-    try {
-        $penalty_stmt = $pdo->prepare("
-            SELECT penalty_percent 
-            FROM business_penalty_config 
-            WHERE expiration_date IS NULL OR expiration_date >= :current_date
-            ORDER BY effective_date DESC 
-            LIMIT 1
-        ");
-        $penalty_stmt->execute(['current_date' => $current_date]);
-        $penalty_config = $penalty_stmt->fetch(PDO::FETCH_ASSOC);
-        $penalty_rate = $penalty_config['penalty_percent'] ?? 1.00;
-    } catch(PDOException $e) {
-        $penalty_rate = 1.00; // Default 1% penalty
-    }
+    $penalty_rate = 1.00;
     
     foreach ($quarterly_taxes as &$quarter) {
         if ($quarter['payment_status'] == 'paid') continue;
@@ -45,40 +27,12 @@ function calculateBusinessPenalties($quarterly_taxes, $pdo) {
             $days_late = $interval->days;
             
             if ($days_late > 0) {
-                // Calculate monthly penalty (business penalty is monthly)
-                $months_late = ceil($days_late / 30);
-                $penalty_amount = $quarter['total_quarterly_tax'] * ($penalty_rate / 100) * $months_late;
+                $penalty_amount = $quarter['total_quarterly_tax'] * ($penalty_rate / 100) * ceil($days_late / 30);
                 $penalty_amount = round($penalty_amount, 2);
                 
                 $quarter['penalty_amount'] = $penalty_amount;
                 $quarter['days_late'] = $days_late;
                 $quarter['actual_status'] = 'overdue';
-                
-                // Update database if penalty has changed
-                if (($quarter['penalty_amount_db'] ?? 0) != $penalty_amount) {
-                    $update_stmt = $pdo->prepare("
-                        UPDATE business_quarterly_taxes 
-                        SET penalty_amount = ?, 
-                            days_late = ?,
-                            payment_status = 'overdue',
-                            penalty_percent_used = ?
-                        WHERE id = ?
-                    ");
-                    $update_stmt->execute([
-                        $penalty_amount, 
-                        $days_late, 
-                        $penalty_rate,
-                        $quarter['id']
-                    ]);
-                    
-                    // Log penalty calculation
-                    $log_stmt = $pdo->prepare("
-                        INSERT INTO business_penalty_log 
-                        (calculated_date, updated_records, total_penalty, penalty_percent_used, created_at)
-                        VALUES (CURDATE(), 1, ?, ?, NOW())
-                    ");
-                    $log_stmt->execute([$penalty_amount, $penalty_rate]);
-                }
             }
         }
     }
@@ -86,56 +40,39 @@ function calculateBusinessPenalties($quarterly_taxes, $pdo) {
     return $quarterly_taxes;
 }
 
-// Function to check if eligible for early payment discount
-function isEligibleForEarlyDiscount($due_date_str, $pdo) {
+function getBusinessDiscount($due_date_str) {
     $due_date = new DateTime($due_date_str);
     $current_date = new DateTime();
     
-    // Check if payment is at least 15 days before due date
-    $days_before_due = $due_date->diff($current_date)->days;
-    $is_before_due = $current_date < $due_date;
-    
-    if ($is_before_due && $days_before_due >= 15) {
-        // Get discount rate from config
-        try {
-            $discount_stmt = $pdo->prepare("
-                SELECT discount_percent 
-                FROM business_discount_config 
-                WHERE expiration_date IS NULL OR expiration_date >= :current_date
-                ORDER BY effective_date DESC 
-                LIMIT 1
-            ");
-            $discount_stmt->execute(['current_date' => date('Y-m-d')]);
-            $discount_config = $discount_stmt->fetch(PDO::FETCH_ASSOC);
-            return $discount_config['discount_percent'] ?? 5.00;
-        } catch(PDOException $e) {
-            return 5.00; // Default 5% discount
+    if ($current_date < $due_date) {
+        $days_before_due = $due_date->diff($current_date)->days;
+        if ($days_before_due >= 15) {
+            return 5.00; // 5% discount for early payment
         }
     }
     
     return 0.00;
 }
 
-// Function to calculate annual payment total with discounts
-function calculateBusinessAnnualTotal($quarterly_taxes, $pdo) {
+function calculateAnnualTotal($quarterly_taxes) {
     $total_annual_tax = 0;
     $total_penalty = 0;
     $total_discount = 0;
-    $discount_applied = false;
+    $has_discount = false;
     $discount_percent = 0;
     
     foreach ($quarterly_taxes as $quarter) {
         $quarter_total = $quarter['total_quarterly_tax'];
         $quarter_penalty = $quarter['penalty_amount'] ?? 0;
         
-        // Check if eligible for early payment discount
+        // Check for early payment discount
         if ($quarter['payment_status'] != 'paid' && $quarter_penalty == 0) {
-            $quarter_discount_percent = isEligibleForEarlyDiscount($quarter['due_date'], $pdo);
+            $quarter_discount_percent = getBusinessDiscount($quarter['due_date']);
             if ($quarter_discount_percent > 0) {
                 $quarter_discount = $quarter_total * ($quarter_discount_percent / 100);
                 $quarter_total -= $quarter_discount;
                 $total_discount += $quarter_discount;
-                $discount_applied = true;
+                $has_discount = true;
                 $discount_percent = max($discount_percent, $quarter_discount_percent);
             }
         }
@@ -148,86 +85,72 @@ function calculateBusinessAnnualTotal($quarterly_taxes, $pdo) {
     $total_with_discount = $total_annual_tax + $total_penalty;
     
     return [
-        'total_base_tax' => $total_annual_tax + $total_discount, // Original tax before discount
+        'total_base_tax' => $total_annual_tax + $total_discount,
         'total_penalty' => $total_penalty,
         'total_before_discount' => $total_before_discount,
         'discount_percent' => $discount_percent,
         'discount_amount' => $total_discount,
         'total_with_discount' => $total_with_discount,
-        'has_discount' => $discount_applied
+        'has_discount' => $has_discount
     ];
 }
+
+function formatCurrency($amount) {
+    return '₱' . number_format($amount, 2);
+}
+
+$current_year = date('Y');
+$current_quarter = 'Q' . ceil(date('n') / 3);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Tax Payment - GoServePH</title>
+    <title>Business Tax Payment - LGU System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .discount-banner {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            animation: pulse 2s infinite;
+        .card {
+            background: white;
+            border-radius: 0.625rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        .annual-banner {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        
+        .section-header {
+            border-left: 4px solid #4a90e2;
+            padding-left: 1rem;
+            margin-bottom: 1.25rem;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.9; }
+        
+        .payment-summary-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-left: 4px solid #4a90e2;
         }
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
+        
+        .status-badge { 
+            display: inline-flex; 
+            align-items: center; 
+            padding: 0.25rem 0.6rem; 
+            border-radius: 6px; 
+            font-size: 0.7rem; 
+            font-weight: 500; 
         }
-        .status-paid {
-            background-color: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-        .status-overdue {
-            background-color: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-        .status-pending {
-            background-color: #fef3c7;
-            color: #92400e;
-            border: 1px solid #f59e0b;
-        }
-        .business-type-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.5rem;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 500;
-        }
-        .retailer-badge {
+        .status-paid { background-color: #d1fae5; color: #065f46; }
+        .status-overdue { background-color: #fee2e2; color: #991b1b; }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        
+        .business-badge {
             background-color: #dbeafe;
             color: #1e40af;
             border: 1px solid #3b82f6;
-        }
-        .wholesaler-badge {
-            background-color: #f3e8ff;
-            color: #6b21a8;
-            border: 1px solid #8b5cf6;
-        }
-        .manufacturer-badge {
-            background-color: #fef3c7;
-            color: #92400e;
-            border: 1px solid #f59e0b;
-        }
-        .service-badge {
-            background-color: #dcfce7;
-            color: #166534;
-            border: 1px solid #22c55e;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.1rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -235,619 +158,564 @@ function calculateBusinessAnnualTotal($quarterly_taxes, $pdo) {
     <!-- Include Navbar -->
     <?php include '../../../citizen_dashboard/navbar.php'; ?>
     
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8">
-        <!-- Page Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div class="flex items-center mb-4">
-                <a href="../business_services.php" class="text-blue-600 hover:text-blue-800 mr-4">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Back Button & Header -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Business Tax Payment</h1>
-                    <p class="text-gray-600">View and pay your quarterly business taxes</p>
+                    <a href="../business_services.php" class="text-blue-600 hover:text-blue-800 inline-flex items-center text-sm mb-2">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to Business Services
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">Business Tax Payment</h1>
+                    <p class="text-gray-600 text-sm">Pay your quarterly business taxes</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Welcome, <?php echo htmlspecialchars($user_name); ?></p>
+                    <p class="text-sm text-gray-500">Current: <?php echo $current_quarter; ?> <?php echo $current_year; ?></p>
+                </div>
+            </div>
+            
+            <!-- Info Banner -->
+            <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                    <div>
+                        <p class="text-blue-800 font-medium text-sm mb-2">Business Tax Information</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt text-blue-400 mr-2 text-sm"></i>
+                                <span class="text-blue-700">Due Dates: Q1 Mar 31 • Q2 Jun 30 • Q3 Sep 30 • Q4 Dec 31</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-percent text-blue-400 mr-2 text-sm"></i>
+                                <span class="text-blue-700">1% monthly penalty for late payments</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Business Tax Payment Content -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <?php
-            try {
-                // Get active business permits for the user
-                $query = "
-                    SELECT 
-                        bp.id,
-                        bp.business_permit_id,
-                        bp.business_name,
-                        bp.owner_name,
-                        bp.business_type,
-                        bp.tax_calculation_type,
-                        bp.taxable_amount,
-                        bp.tax_amount,
-                        bp.regulatory_fees,
-                        bp.total_tax,
-                        bp.issue_date,
-                        bp.expiry_date,
-                        bp.status,
-                        bp.barangay,
-                        bp.district,
-                        bp.city,
-                        bp.province
-                    FROM business_permits bp
-                    WHERE bp.user_id = :user_id 
-                    AND bp.status IN ('Active', 'Approved')
-                    ORDER BY bp.created_at DESC
-                ";
-                
-                $stmt = $pdo->prepare($query);
-                $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
-                $stmt->execute();
-                $businesses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        <!-- Early Payment Discount Banner -->
+        <div class="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+                <div class="bg-emerald-100 p-2 rounded-lg mr-3">
+                    <i class="fas fa-gift text-emerald-600"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-emerald-800 text-sm">Early Payment Discount Available!</h3>
+                    <p class="text-emerald-700 text-sm">Get <span class="font-bold">5% discount</span> when paying at least 15 days before the due date.</p>
+                </div>
+            </div>
+        </div>
 
-                if (empty($businesses)) {
-                    echo '
-                    <div class="lg:col-span-4">
-                        <div class="bg-white rounded-xl shadow-lg p-8 text-center">
-                            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-store text-gray-400 text-2xl"></i>
+        <!-- Businesses Section -->
+        <?php
+        try {
+            $query = "
+                SELECT 
+                    bp.id,
+                    bp.business_permit_id,
+                    bp.business_name,
+                    bp.full_name as owner_name,
+                    bp.business_type,
+                    bp.tax_calculation_type,
+                    bp.total_tax,
+                    bp.status,
+                    bp.business_barangay as barangay,
+                    bp.business_city as city
+                FROM business_permits bp
+                WHERE bp.user_id = :user_id 
+                AND bp.status IN ('Active', 'Approved')
+                ORDER BY bp.created_at DESC
+            ";
+            
+            $stmt = $pdo->prepare($query);
+            $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $stmt->execute();
+            $businesses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($businesses)) {
+                echo '
+                <div class="card p-8 text-center">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-store text-gray-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">No Active Businesses</h3>
+                    <p class="text-gray-600 mb-6 text-sm">You don\'t have any approved business permits yet.</p>
+                    <a href="business_application_status/business_application_status.php" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium inline-flex items-center text-sm">
+                        <i class="fas fa-plus-circle mr-2"></i> Apply for Business Permit
+                    </a>
+                </div>';
+            } else {
+                // Stats Summary
+                $totalBusinesses = count($businesses);
+                $totalAnnualTax = 0;
+                
+                foreach ($businesses as $business) {
+                    $totalAnnualTax += $business['total_tax'];
+                }
+                
+                echo '
+                <!-- Summary Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="card p-4">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-store text-blue-600"></i>
                             </div>
-                            <h3 class="text-xl font-semibold text-gray-800 mb-2">No Active Businesses Found</h3>
-                            <p class="text-gray-600 mb-4">You don\'t have any active business permits yet.</p>
-                            <a href="business_application_status/business_application_status.php" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                                Apply for Business Permit
-                            </a>
+                            <div>
+                                <p class="text-sm text-gray-500">Businesses</p>
+                                <p class="text-xl font-bold text-gray-800">' . $totalBusinesses . '</p>
+                            </div>
                         </div>
-                    </div>';
-                } else {
-                    // Summary Statistics
-                    $totalAnnualTax = 0;
-                    $totalPaid = 0;
-                    $totalPending = 0;
-                    $totalBusinesses = count($businesses);
-                    $overdueCount = 0;
-                    $activeBusinesses = 0;
+                    </div>
                     
-                    echo '
-                    <!-- Summary Stats -->
-                    <div class="lg:col-span-4 mb-6">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="bg-white rounded-xl shadow p-5">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                                        <i class="fas fa-store text-blue-600 text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-2xl font-bold text-gray-800">' . $totalBusinesses . '</div>
-                                        <div class="text-gray-500 text-sm">Businesses</div>
-                                    </div>
-                                </div>
-                            </div>';
+                    <div class="card p-4">
+                        <div class="flex items-center">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-file-invoice-dollar text-green-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Total Annual Tax</p>
+                                <p class="text-xl font-bold text-gray-800">' . formatCurrency($totalAnnualTax) . '</p>
+                            </div>
+                        </div>
+                    </div>
                     
-                    foreach ($businesses as $business) {
-                        if ($business['status'] == 'Active') {
-                            $activeBusinesses++;
+                    <div class="card p-4">
+                        <div class="flex items-center">
+                            <div class="bg-yellow-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-calendar-alt text-yellow-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Current Quarter</p>
+                                <p class="text-xl font-bold text-gray-800">' . $current_quarter . '</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>';
+                
+                echo '<div class="space-y-5">';
+                
+                foreach ($businesses as $business) {
+                    $taxQuery = "
+                        SELECT 
+                            bqt.*
+                        FROM business_quarterly_taxes bqt
+                        WHERE bqt.business_permit_id = :business_id
+                        ORDER BY bqt.year ASC, 
+                            CASE bqt.quarter 
+                                WHEN 'Q1' THEN 1
+                                WHEN 'Q2' THEN 2
+                                WHEN 'Q3' THEN 3
+                                WHEN 'Q4' THEN 4
+                            END ASC
+                    ";
+                    
+                    $taxStmt = $pdo->prepare($taxQuery);
+                    $taxStmt->bindParam(':business_id', $business['id'], PDO::PARAM_INT);
+                    $taxStmt->execute();
+                    $quarterlyTaxes = $taxStmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    $quarterlyTaxes = calculateBusinessPenalties($quarterlyTaxes, $pdo);
+                    
+                    $businessPaid = 0;
+                    $businessPenalty = 0;
+                    $paidQuarters = 0;
+                    $overdueQuarters = 0;
+                    $pendingQuarters = 0;
+                    
+                    $hasUnpaidQuarters = false;
+                    foreach ($quarterlyTaxes as $tax) {
+                        if ($tax['payment_status'] != 'paid') {
+                            $hasUnpaidQuarters = true;
+                            break;
                         }
+                    }
+                    
+                    foreach ($quarterlyTaxes as $tax) {
+                        $status = $tax['actual_status'] ?? $tax['payment_status'];
+                        $totalAmount = $tax['total_quarterly_tax'] + ($tax['penalty_amount'] ?? 0);
                         
-                        $taxQuery = "
-                            SELECT 
-                                bqt.*,
-                                bqt.penalty_amount as penalty_amount_db
-                            FROM business_quarterly_taxes bqt
-                            WHERE bqt.business_permit_id = :business_id
-                            ORDER BY bqt.year DESC, 
-                                CASE bqt.quarter 
-                                    WHEN 'Q1' THEN 1
-                                    WHEN 'Q2' THEN 2
-                                    WHEN 'Q3' THEN 3
-                                    WHEN 'Q4' THEN 4
-                                END DESC
-                        ";
-                        
-                        $taxStmt = $pdo->prepare($taxQuery);
-                        $taxStmt->bindParam(':business_id', $business['id'], PDO::PARAM_INT);
-                        $taxStmt->execute();
-                        $quarterlyTaxes = $taxStmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        $quarterlyTaxes = calculateBusinessPenalties($quarterlyTaxes, $pdo);
-                        
-                        $businessPaid = 0;
-                        $businessPending = 0;
-                        $businessPenalty = 0;
-                        
-                        foreach ($quarterlyTaxes as $tax) {
-                            $totalAmount = $tax['total_quarterly_tax'] + ($tax['penalty_amount'] ?? 0);
+                        if ($status == 'paid') {
+                            $businessPaid += $totalAmount;
+                            $paidQuarters++;
+                        } else {
+                            $businessPenalty += ($tax['penalty_amount'] ?? 0);
                             
-                            if ($tax['payment_status'] == 'paid') {
-                                $businessPaid += $totalAmount;
+                            if ($status == 'overdue') {
+                                $overdueQuarters++;
                             } else {
-                                $businessPending += $totalAmount;
-                                $businessPenalty += ($tax['penalty_amount'] ?? 0);
-                                
-                                if ($tax['actual_status'] ?? $tax['payment_status'] == 'overdue') {
-                                    $overdueCount++;
-                                }
+                                $pendingQuarters++;
                             }
                         }
-                        
-                        $totalAnnualTax += $business['total_tax'];
-                        $totalPaid += $businessPaid;
-                        $totalPending += $businessPending;
                     }
+                    
+                    $annualPaymentInfo = calculateAnnualTotal($quarterlyTaxes);
                     
                     echo '
-                            <div class="bg-white rounded-xl shadow p-5">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-                                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-2xl font-bold text-gray-800">' . $activeBusinesses . '</div>
-                                        <div class="text-gray-500 text-sm">Active</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="bg-white rounded-xl shadow p-5">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
-                                        <i class="fas fa-money-bill-wave text-yellow-600 text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-2xl font-bold text-gray-800">₱' . number_format($totalPaid, 2) . '</div>
-                                        <div class="text-gray-500 text-sm">Total Paid</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="bg-white rounded-xl shadow p-5">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 ' . ($overdueCount > 0 ? 'bg-red-100' : 'bg-gray-100') . ' rounded-lg flex items-center justify-center mr-4">
-                                        <i class="fas ' . ($overdueCount > 0 ? 'fa-exclamation-triangle text-red-600' : 'fa-clock text-gray-600') . ' text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-2xl font-bold ' . ($overdueCount > 0 ? 'text-red-600' : 'text-gray-800') . '">' . $overdueCount . '</div>
-                                        <div class="text-gray-500 text-sm">Overdue Quarters</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>';
-                    
-                    // Display discount banner if early payment is possible
-                    $hasEarlyDiscount = false;
-                    foreach ($businesses as $business) {
-                        $taxQuery = "
-                            SELECT due_date, payment_status 
-                            FROM business_quarterly_taxes 
-                            WHERE business_permit_id = :business_id 
-                            AND payment_status = 'pending'
-                            AND penalty_amount = 0
-                        ";
-                        $taxStmt = $pdo->prepare($taxQuery);
-                        $taxStmt->bindParam(':business_id', $business['id'], PDO::PARAM_INT);
-                        $taxStmt->execute();
-                        $pendingTaxes = $taxStmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        foreach ($pendingTaxes as $tax) {
-                            if (isEligibleForEarlyDiscount($tax['due_date'], $pdo) > 0) {
-                                $hasEarlyDiscount = true;
-                                break 2;
-                            }
-                        }
-                    }
-                    
-                    if ($hasEarlyDiscount) {
-                        echo '
-                        <div class="lg:col-span-4">
-                            <div class="p-4 discount-banner rounded-lg text-white mb-6">
-                                <div class="flex items-center">
-                                    <i class="fas fa-gift text-2xl text-yellow-300 mr-3"></i>
-                                    <div class="flex-1">
-                                        <div class="font-bold text-lg">🎉 EARLY PAYMENT DISCOUNT AVAILABLE!</div>
-                                        <div class="text-sm">
-                                            Pay your <strong>business taxes at least 15 days before the due date</strong> 
-                                            and get a discount on your payments! Check each quarter below.
+                    <!-- Business Card -->
+                    <div class="card overflow-hidden">
+                        <!-- Business Header -->
+                        <div class="p-5 border-b border-gray-200 bg-gray-50">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div class="mb-3 md:mb-0">
+                                    <div class="flex items-center mb-2">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-briefcase text-blue-600"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-800">' . htmlspecialchars($business['business_name']) . '</h3>
+                                            <div class="flex items-center gap-2">
+                                                <span class="business-badge">' . htmlspecialchars($business['business_type']) . '</span>
+                                                <span class="text-gray-600 text-sm">' . htmlspecialchars($business['business_permit_id']) . '</span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <p class="text-gray-600 text-sm mt-1">
+                                        ' . htmlspecialchars($business['barangay']) . ', ' . htmlspecialchars($business['city']) . '
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-gray-500">Annual Tax</p>
+                                    <p class="text-lg font-bold text-blue-600">' . formatCurrency($business['total_tax']) . '</p>
                                 </div>
                             </div>
                         </div>';
-                    }
-                    
-                    foreach ($businesses as $business) {
-                        $taxQuery = "
-                            SELECT 
-                                bqt.*,
-                                bqt.penalty_amount as penalty_amount_db
-                            FROM business_quarterly_taxes bqt
-                            WHERE bqt.business_permit_id = :business_id
-                            ORDER BY bqt.year DESC, 
-                                CASE bqt.quarter 
-                                    WHEN 'Q1' THEN 1
-                                    WHEN 'Q2' THEN 2
-                                    WHEN 'Q3' THEN 3
-                                    WHEN 'Q4' THEN 4
-                                END DESC
-                        ";
                         
-                        $taxStmt = $pdo->prepare($taxQuery);
-                        $taxStmt->bindParam(':business_id', $business['id'], PDO::PARAM_INT);
-                        $taxStmt->execute();
-                        $quarterlyTaxes = $taxStmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        $quarterlyTaxes = calculateBusinessPenalties($quarterlyTaxes, $pdo);
-                        
-                        $businessPaid = 0;
-                        $businessPending = 0;
-                        $businessPenalty = 0;
-                        $paidQuarters = 0;
-                        $overdueQuarters = 0;
-                        $pendingQuarters = 0;
-                        
-                        $hasUnpaidQuarters = false;
-                        foreach ($quarterlyTaxes as $tax) {
-                            if ($tax['payment_status'] != 'paid') {
-                                $hasUnpaidQuarters = true;
-                                break;
-                            }
-                        }
-                        
-                        foreach ($quarterlyTaxes as $tax) {
-                            $status = $tax['actual_status'] ?? $tax['payment_status'];
-                            $totalAmount = $tax['total_quarterly_tax'] + ($tax['penalty_amount'] ?? 0);
-                            
-                            if ($status == 'paid') {
-                                $businessPaid += $totalAmount;
-                                $paidQuarters++;
-                            } else {
-                                $businessPending += $totalAmount;
-                                $businessPenalty += ($tax['penalty_amount'] ?? 0);
-                                
-                                if ($status == 'overdue') {
-                                    $overdueQuarters++;
-                                } else {
-                                    $pendingQuarters++;
-                                }
-                            }
-                        }
-                        
-                        $paymentProgress = $business['total_tax'] > 0 ? ($businessPaid / $business['total_tax']) * 100 : 0;
-                        
-                        // Get business type badge class
-                        $businessTypeClass = 'business-type-badge ';
-                        switch($business['business_type']) {
-                            case 'Retailer': $businessTypeClass .= 'retailer-badge'; break;
-                            case 'Wholesaler': $businessTypeClass .= 'wholesaler-badge'; break;
-                            case 'Manufacturer': $businessTypeClass .= 'manufacturer-badge'; break;
-                            case 'Service': $businessTypeClass .= 'service-badge'; break;
-                            default: $businessTypeClass .= 'bg-gray-100 text-gray-800 border-gray-300';
-                        }
-                        
-                        // Get tax type info
-                        $taxTypeInfo = $business['tax_calculation_type'] == 'capital_investment' 
-                            ? 'Capital Investment Tax' 
-                            : 'Gross Sales Tax';
-                        
-                        echo '
-                        <div class="lg:col-span-4" data-business-id="' . $business['id'] . '" data-business-permit-id="' . $business['business_permit_id'] . '">
-                            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-                                    <div class="mb-4 lg:mb-0">
-                                        <div class="flex items-center mb-2">
-                                            <h3 class="text-xl font-semibold text-gray-800">' . htmlspecialchars($business['business_name']) . '</h3>
-                                            <span class="ml-2 ' . $businessTypeClass . '">' . htmlspecialchars($business['business_type']) . '</span>
-                                        </div>
-                                        <p class="text-gray-600">' . htmlspecialchars($business['owner_name']) . ' • ' . htmlspecialchars($business['business_permit_id']) . '</p>
-                                        <p class="text-gray-500 text-sm mt-1">' . htmlspecialchars($business['barangay']) . ', ' . htmlspecialchars($business['city']) . ' • ' . htmlspecialchars($taxTypeInfo) . '</p>
+                        if ($hasUnpaidQuarters) {
+                            echo '
+                        <!-- Annual Payment Option -->
+                        <div class="p-4 border-b border-gray-200 bg-blue-50">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div class="mb-3 md:mb-0">
+                                    <div class="flex items-center mb-1">
+                                        <span class="status-badge ' . ($annualPaymentInfo['has_discount'] ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800') . ' mr-3">
+                                            <i class="fas ' . ($annualPaymentInfo['has_discount'] ? 'fa-gift' : 'fa-calendar-check') . ' mr-1"></i>
+                                            ' . ($annualPaymentInfo['has_discount'] ? 'DISCOUNT' : 'ANNUAL PAYMENT') . '
+                                        </span>
+                                        <h4 class="font-semibold text-gray-800 text-sm">Pay All Quarters at Once</h4>
                                     </div>
-                                    <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
-                                        <div class="text-center">
-                                            <div class="text-2xl font-bold text-blue-600">₱' . number_format($business['total_tax'], 2) . '</div>
-                                            <div class="text-sm text-gray-500">Annual Tax</div>
-                                        </div>
-                                        <div class="text-center">
-                                            <div class="text-lg font-bold ' . ($paymentProgress >= 100 ? 'text-green-600' : 'text-blue-600') . '">
-                                                ' . round($paymentProgress, 1) . '%
-                                            </div>
-                                            <div class="text-sm text-gray-500">Paid</div>
-                                        </div>
-                                    </div>
-                                </div>';
-                                
-                                if ($hasUnpaidQuarters) {
-                                    $annualPaymentInfo = calculateBusinessAnnualTotal($quarterlyTaxes, $pdo);
-                                    
-                                    echo '
-                                <div class="mb-6 p-4 annual-banner rounded-lg text-white">
-                                    <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                        <div class="mb-3 md:mb-0">
-                                            <div class="font-bold text-lg flex items-center">
-                                                <i class="fas fa-calendar-alt mr-2"></i> PAY ALL QUARTERLY TAXES
-                                            </div>
-                                            <div class="text-sm opacity-90">
-                                                ' . ($annualPaymentInfo['has_discount'] 
-                                                    ? 'Get <strong>early payment discounts</strong> when you pay all quarters at once!' 
-                                                    : 'Pay all remaining quarters at once for convenience') . '
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="text-2xl font-bold text-white">
-                                                ₱' . number_format($annualPaymentInfo['total_with_discount'], 2) . '
-                                            </div>
-                                            <div class="text-sm">';
-                                            
-                                            if ($annualPaymentInfo['has_discount']) {
-                                                echo '<span class="line-through opacity-75">₱' . number_format($annualPaymentInfo['total_before_discount'], 2) . '</span> ';
-                                                echo '<span class="text-yellow-300 font-semibold">Save ₱' . number_format($annualPaymentInfo['discount_amount'], 2) . '</span>';
-                                            } else {
-                                                echo 'Total for ' . (4 - $paidQuarters) . ' unpaid quarter(s)';
-                                            }
-                                            
-                                            echo '
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 text-center">
-                                        <button onclick="payAllQuarters(' . $business['id'] . ', ' . $annualPaymentInfo['total_with_discount'] . ', \'Business Annual Payment - ' . htmlspecialchars($business['business_name']) . '\', ' . ($annualPaymentInfo['has_discount'] ? 'true' : 'false') . ', ' . $annualPaymentInfo['discount_percent'] . ', \'' . htmlspecialchars($business['business_permit_id']) . '\')" 
-                                                class="inline-flex items-center px-6 py-3 ' . ($annualPaymentInfo['has_discount'] ? 'bg-yellow-400 text-gray-900' : 'bg-white text-blue-600') . ' font-bold rounded-lg hover:opacity-90 transition shadow-lg">
-                                            <i class="fas fa-credit-card mr-2"></i> ' . ($annualPaymentInfo['has_discount'] ? 'PAY ALL WITH DISCOUNT' : 'PAY ALL REMAINING QUARTERS') . '
-                                        </button>';
-                                        
-                                        if ($annualPaymentInfo['has_discount']) {
-                                            echo '
-                                            <div class="mt-2 text-sm opacity-80">
-                                                <i class="fas fa-clock mr-1"></i>Early payment discount applied
-                                            </div>';
-                                        }
-                                        
-                                        echo '
-                                    </div>
-                                </div>';
-                                }
-                                
-                                echo '
-                                <div class="mb-6">
-                                    <div class="flex justify-between text-sm text-gray-600 mb-1">
-                                        <span>Payment Progress</span>
-                                        <span>₱' . number_format($businessPaid, 2) . ' / ₱' . number_format($business['total_tax'], 2) . '</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                        <div class="' . ($paymentProgress >= 100 ? 'bg-green-600' : 'bg-blue-600') . ' h-2.5 rounded-full" 
-                                            style="width: ' . min($paymentProgress, 100) . '%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                        <span>' . $paidQuarters . ' paid</span>
-                                        <span>' . $pendingQuarters . ' pending</span>
-                                        <span>' . $overdueQuarters . ' overdue</span>
-                                    </div>
+                                    <p class="text-gray-600 text-xs">
+                                        ' . ($annualPaymentInfo['has_discount'] 
+                                            ? 'Save ' . $annualPaymentInfo['discount_percent'] . '% with early payment' 
+                                            : 'Convenient single payment for all quarters') . '
+                                    </p>
                                 </div>
                                 
-                                <h4 class="font-semibold text-gray-800 mb-4">Quarterly Taxes</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">';
+                                <div class="md:text-right">
+                                    <div class="mb-2">
+                                        <p class="text-lg font-bold text-gray-900">' . formatCurrency($annualPaymentInfo['total_with_discount']) . '</p>';
+                                        if ($annualPaymentInfo['has_discount']) {
+                                            echo '
+                                        <p class="text-sm text-gray-600">
+                                            <span class="line-through">' . formatCurrency($annualPaymentInfo['total_before_discount']) . '</span>
+                                            <span class="ml-2 text-emerald-600 font-medium">
+                                                <i class="fas fa-piggy-bank mr-1"></i>Save ' . formatCurrency($annualPaymentInfo['discount_amount']) . '
+                                            </span>
+                                        </p>';
+                                        }
+                                        echo '
+                                    </div>
+                                    <button onclick="payAllQuarters(' . $business['id'] . ', ' . $annualPaymentInfo['total_with_discount'] . ', \'Annual Business Tax - ' . htmlspecialchars($business['business_name']) . '\', ' . ($annualPaymentInfo['has_discount'] ? 'true' : 'false') . ', ' . $annualPaymentInfo['discount_percent'] . ', \'' . htmlspecialchars($business['business_permit_id']) . '\')" 
+                                            class="' . ($annualPaymentInfo['has_discount'] ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700') . ' text-white px-4 py-2 rounded-lg font-medium text-sm inline-flex items-center">
+                                        <i class="fas fa-credit-card mr-2"></i> Pay Annually
+                                    </button>
+                                </div>
+                            </div>
+                        </div>';
+                        }
                         
-                        if (empty($quarterlyTaxes)) {
-                            echo '
-                                    <div class="md:col-span-2 lg:col-span-4">
-                                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
-                                            <i class="fas fa-info-circle text-gray-400 text-3xl mb-3"></i>
-                                            <p class="text-gray-600">No quarterly taxes generated yet for this business.</p>
-                                            <p class="text-gray-500 text-sm mt-2">Taxes are generated quarterly. Please check back later.</p>
-                                        </div>
-                                    </div>';
-                        } else {
-                            foreach ($quarterlyTaxes as $tax) {
-                                $status = $tax['actual_status'] ?? $tax['payment_status'];
-                                $totalAmount = $tax['total_quarterly_tax'] + ($tax['penalty_amount'] ?? 0);
-                                $penaltyAmount = $tax['penalty_amount'] ?? 0;
-                                
-                                // Check for early payment discount
-                                $earlyDiscountPercent = isEligibleForEarlyDiscount($tax['due_date'], $pdo);
-                                $showDiscount = $earlyDiscountPercent > 0 && $status == 'pending' && $penaltyAmount == 0;
-                                $discountedAmount = $showDiscount ? $tax['total_quarterly_tax'] * (1 - $earlyDiscountPercent/100) : $tax['total_quarterly_tax'];
-                                $finalAmount = $discountedAmount + $penaltyAmount;
-                                
-                                if ($status == 'paid') {
-                                    $statusClass = 'status-paid';
-                                    $statusIcon = 'fa-check-circle';
-                                    $statusLabel = 'Paid';
-                                    $cardBorder = 'border-green-200';
-                                    $cardBg = 'bg-green-50';
-                                } elseif ($status == 'overdue') {
-                                    $statusClass = 'status-overdue';
-                                    $statusIcon = 'fa-exclamation-triangle';
-                                    $statusLabel = 'Overdue';
-                                    $cardBorder = 'border-red-200';
-                                    $cardBg = 'bg-red-50';
-                                } else {
-                                    $statusClass = 'status-pending';
-                                    $statusIcon = 'fa-clock';
-                                    $statusLabel = 'Pending';
-                                    $cardBorder = $showDiscount ? 'border-green-200' : 'border-yellow-200';
-                                    $cardBg = $showDiscount ? 'bg-green-50' : 'bg-white';
-                                }
-                                
-                                $dueDate = new DateTime($tax['due_date']);
-                                $currentDate = new DateTime();
-                                $isOverdue = $status == 'overdue';
-                                $isCurrentQuarter = false;
-                                
-                                // Determine if this is the current quarter
-                                $currentMonth = date('n');
-                                $currentQuarter = ceil($currentMonth / 3);
-                                $taxQuarter = (int) substr($tax['quarter'], 1);
-                                
-                                if ($taxQuarter == $currentQuarter && $tax['year'] == date('Y')) {
-                                    $isCurrentQuarter = true;
-                                }
-                                
+                        echo '
+                        <!-- Quarterly Taxes Section -->
+                        <div class="p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-semibold text-gray-800 text-sm section-header">Quarterly Tax Payments</h4>
+                                <div class="text-xs text-gray-500">
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded">' . $paidQuarters . ' paid</span>
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded mx-1">' . $pendingQuarters . ' pending</span>';
+                                    if ($overdueQuarters > 0) {
+                                        echo '<span class="bg-red-100 text-red-800 px-2 py-1 rounded">' . $overdueQuarters . ' overdue</span>';
+                                    }
                                 echo '
-                                    <div class="border-2 rounded-xl p-4 ' . $cardBg . ' ' . $cardBorder . '">
-                                        <div class="flex items-center justify-between mb-3">
-                                            <div>
-                                                <span class="text-lg font-semibold text-gray-800">' . htmlspecialchars($tax['quarter']) . ' ' . htmlspecialchars($tax['year']) . '</span>';
+                                </div>
+                            </div>';
+                            
+                            if (empty($quarterlyTaxes)) {
+                                echo '
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                                <p class="text-gray-600">No quarterly taxes generated yet.</p>
+                            </div>';
+                            } else {
+                                echo '
+                            <!-- Quarterly Table -->
+                            <div class="overflow-x-auto mb-5">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quarter</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tax Amount</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Penalty</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">';
+                                    
+                                    $quarter_totals = [
+                                        'tax_amount' => 0,
+                                        'penalty' => 0,
+                                        'total' => 0
+                                    ];
+                                    
+                                    foreach ($quarterlyTaxes as $tax) {
+                                        $status = $tax['actual_status'] ?? $tax['payment_status'];
+                                        $tax_amount = $tax['total_quarterly_tax'] ?? 0;
+                                        $penaltyAmount = $tax['penalty_amount'] ?? 0;
+                                        $totalAmount = $tax_amount + $penaltyAmount;
+                                        $daysLate = $tax['days_late'] ?? 0;
+                                        
+                                        $dueDate = new DateTime($tax['due_date']);
+                                        $isOverdue = $status == 'overdue';
+                                        
+                                        // Check for early payment discount
+                                        $discountPercent = getBusinessDiscount($tax['due_date']);
+                                        $hasDiscount = $discountPercent > 0 && $status == 'pending' && $penaltyAmount == 0;
+                                        
+                                        // Update totals
+                                        $quarter_totals['tax_amount'] += $tax_amount;
+                                        $quarter_totals['penalty'] += $penaltyAmount;
+                                        $quarter_totals['total'] += $totalAmount;
+                                        
+                                        echo '
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3">
+                                                <div class="font-medium text-gray-900">' . $tax['quarter'] . ' ' . $tax['year'] . '</div>';
+                                                if (ceil(date('n') / 3) == (int)substr($tax['quarter'], 1) && $tax['year'] == date('Y')) {
+                                                    echo '<div class="text-xs text-blue-600 font-medium mt-1">Current</div>';
+                                                }
+                                                echo '
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="text-gray-900">' . $dueDate->format('M d, Y') . '</div>';
+                                                if ($hasDiscount) {
+                                                    echo '<div class="text-xs text-emerald-600 font-medium mt-1">5% discount available</div>';
+                                                } elseif ($daysLate > 0) {
+                                                    echo '<div class="text-xs text-red-600 font-medium mt-1">' . $daysLate . ' days late</div>';
+                                                }
+                                                echo '
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="font-semibold text-gray-900">' . formatCurrency($tax_amount) . '</div>
+                                            </td>
+                                            <td class="px-4 py-3">';
+                                                if ($penaltyAmount > 0) {
+                                                    echo '<div class="font-semibold text-red-600">' . formatCurrency($penaltyAmount) . '</div>';
+                                                } else {
+                                                    echo '<div class="text-gray-500">' . formatCurrency(0) . '</div>';
+                                                }
+                                                echo '
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="font-bold text-lg ' . ($hasDiscount ? 'text-emerald-700' : 'text-blue-700') . '">' . formatCurrency($totalAmount) . '</div>
+                                            </td>
+                                            <td class="px-4 py-3">';
                                                 
-                                                if ($isCurrentQuarter) {
-                                                    echo '<span class="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Current</span>';
+                                                if ($status == 'paid') {
+                                                    echo '<span class="status-badge status-paid">
+                                                        <i class="fas fa-check mr-1.5"></i> Paid
+                                                    </span>';
+                                                } elseif ($status == 'overdue') {
+                                                    echo '<span class="status-badge status-overdue">
+                                                        <i class="fas fa-exclamation-triangle mr-1.5"></i> Overdue
+                                                    </span>';
+                                                } else {
+                                                    echo '<span class="status-badge status-pending">
+                                                        <i class="fas fa-clock mr-1.5"></i> Pending
+                                                    </span>';
                                                 }
                                                 
                                                 echo '
-                                            </div>
-                                            <span class="' . $statusClass . '">
-                                                <i class="fas ' . $statusIcon . ' mr-1"></i>' . $statusLabel . '
-                                            </span>
-                                        </div>';
-                                        
-                                        if ($showDiscount) {
-                                            echo '
-                                        <div class="mb-3 bg-green-100 border border-green-300 rounded-lg p-2">
-                                            <div class="flex items-center text-green-700 text-sm">
-                                                <i class="fas fa-gift mr-2 text-green-600"></i>
-                                                <div>
-                                                    <div class="font-semibold">Early Payment Discount Available!</div>
-                                                    <div class="text-xs">Pay ' . $earlyDiscountPercent . '% less if paid before ' . $dueDate->format('M d') . '</div>
-                                                </div>
-                                            </div>
-                                        </div>';
-                                        }
-                                        
-                                        echo '
-                                        <div class="space-y-2 mb-4">
-                                            <div class="flex justify-between text-sm">
-                                                <span class="text-gray-500">Due Date:</span>
-                                                <span class="font-medium ' . ($isOverdue ? 'text-red-600' : ($showDiscount ? 'text-green-600' : 'text-gray-700')) . '">' . $dueDate->format('M d, Y') . '</span>
-                                            </div>';
-                                            
-                                            if ($isOverdue && ($tax['days_late'] ?? 0) > 0) {
+                                            </td>
+                                            <td class="px-4 py-3">';
+                                                
+                                                if ($status == 'paid') {
+                                                    echo '
+                                                    <button class="bg-green-100 text-green-800 px-3 py-1.5 rounded text-sm font-medium cursor-not-allowed" disabled>
+                                                        <i class="fas fa-check mr-1"></i> Paid
+                                                    </button>';
+                                                } else {
+                                                    echo '
+                                                    <button onclick="initiatePayment(' . $tax['id'] . ', \'' . $tax['quarter'] . '\', \'' . $tax['year'] . '\', ' . $totalAmount . ', \'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . htmlspecialchars($business['business_name']) . '\', ' . ($hasDiscount ? 'true' : 'false') . ', \'' . htmlspecialchars($business['business_permit_id']) . '\')" 
+                                                            class="' . ($isOverdue ? 'bg-red-600 hover:bg-red-700' : ($hasDiscount ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700')) . ' text-white px-3 py-1.5 rounded text-sm font-medium inline-flex items-center">
+                                                        <i class="fas fa-credit-card mr-1.5"></i> ' . ($hasDiscount ? 'Pay with Discount' : 'Pay Now') . '
+                                                    </button>';
+                                                }
+                                                
                                                 echo '
-                                            <div class="flex justify-between text-sm">
-                                                <span class="text-gray-500">Days Late:</span>
-                                                <span class="font-medium text-red-600">' . ($tax['days_late'] ?? 0) . ' days</span>
-                                            </div>';
-                                            }
-                                            
-                                            echo '
-                                            <div class="flex justify-between text-sm">
-                                                <span class="text-gray-500">Base Tax:</span>
-                                                <span class="font-medium">₱' . number_format($tax['total_quarterly_tax'], 2) . '</span>
-                                            </div>';
-                                            
-                                            if ($showDiscount) {
-                                                echo '
-                                            <div class="flex justify-between text-sm">
-                                                <span class="text-gray-500">Discount (' . $earlyDiscountPercent . '%):</span>
-                                                <span class="font-semibold text-green-600">-₱' . number_format($tax['total_quarterly_tax'] - $discountedAmount, 2) . '</span>
-                                            </div>';
-                                            }
-                                            
-                                            if ($penaltyAmount > 0) {
-                                                echo '
-                                            <div class="flex justify-between text-sm">
-                                                <span class="text-gray-500">Penalty:</span>
-                                                <span class="font-semibold text-red-600">+₱' . number_format($penaltyAmount, 2) . '</span>
-                                            </div>';
-                                            }
-                                            
-                                            echo '
-                                            <div class="pt-2 border-t border-gray-200">
-                                                <div class="flex justify-between text-base">
-                                                    <span class="text-gray-700 font-medium">Total:</span>
-                                                    <span class="font-bold text-gray-800">₱' . number_format($finalAmount, 2) . '</span>
-                                                </div>
-                                            </div>
-                                        </div>';
-                                        
-                                        if ($status == 'paid') {
-                                            echo '
-                                        <div class="space-y-2">
-                                            <button class="w-full bg-green-600 text-white py-2 rounded-lg font-medium cursor-not-allowed" disabled>
-                                                <i class="fas fa-check mr-2"></i>Paid on ' . (!empty($tax['payment_date']) ? date('M d, Y', strtotime($tax['payment_date'])) : '') . '
-                                            </button>';
-                                            
-                                            if (!empty($tax['receipt_number'])) {
-                                                echo '
-                                            <button onclick="viewReceipt(\'' . htmlspecialchars($tax['receipt_number']) . '\')" 
-                                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded-lg font-medium transition-colors text-sm">
-                                                <i class="fas fa-receipt mr-2"></i>View Receipt
-                                            </button>';
-                                            }
-                                            echo '
-                                        </div>';
-                                        } else {
-                                            echo '
-                                        <button onclick="initiateBusinessPayment(' . $tax['id'] . ', \'' . $tax['quarter'] . '\', \'' . $tax['year'] . '\', ' . $finalAmount . ', \'Business Tax: ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . htmlspecialchars($business['business_name']) . '\', ' . ($showDiscount ? $earlyDiscountPercent : 0) . ', \'' . htmlspecialchars($business['business_permit_id']) . '\')" 
-                                                class="w-full ' . ($isOverdue ? 'bg-red-600 hover:bg-red-700' : ($showDiscount ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700')) . ' text-white py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center">
-                                            <i class="fas fa-credit-card mr-2"></i>Pay ₱' . number_format($finalAmount, 2) . '
-                                        </button>';
-                                        }
-                                        
-                                        echo '
-                                    </div>';
-                            }
-                        }
-                        
-                        echo '
+                                            </td>
+                                        </tr>';
+                                    }
+                                    
+                                    // Add footer with totals
+                                    echo '
+                                    </tbody>
+                                    <tfoot class="bg-gray-50">
+                                        <tr>
+                                            <td colspan="2" class="px-4 py-3 text-right font-bold text-gray-700">
+                                                Totals:
+                                            </td>
+                                            <td class="px-4 py-3 font-bold text-gray-900">
+                                                ' . formatCurrency($quarter_totals['tax_amount']) . '
+                                            </td>
+                                            <td class="px-4 py-3 font-bold ' . ($quarter_totals['penalty'] > 0 ? 'text-red-600' : 'text-gray-900') . '">
+                                                ' . formatCurrency($quarter_totals['penalty']) . '
+                                            </td>
+                                            <td class="px-4 py-3 font-bold text-xl text-blue-700">
+                                                ' . formatCurrency($quarter_totals['total']) . '
+                                            </td>
+                                            <td colspan="2" class="px-4 py-3"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>';
+                            
+                            // Payment Summary
+                            echo '
+                            <!-- Payment Summary -->
+                            <div class="payment-summary-card p-4 rounded-lg">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <div class="text-sm text-gray-600">Total Annual Tax</div>
+                                        <div class="text-lg font-bold text-gray-900">' . formatCurrency($business['total_tax']) . '</div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="text-sm text-gray-600">Total Penalties</div>
+                                        <div class="text-lg font-bold ' . ($businessPenalty > 0 ? 'text-red-600' : 'text-gray-900') . '">
+                                            ' . formatCurrency($businessPenalty) . '
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            ' . ($businessPenalty > 0 ? '1% monthly penalty applied' : 'No penalties') . '
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="text-sm text-gray-600">Payment Status</div>
+                                        <div class="text-lg font-bold ' . ($overdueQuarters > 0 ? 'text-red-600' : ($paidQuarters == 4 ? 'text-green-600' : 'text-yellow-600')) . '">
+                                            ' . ($overdueQuarters > 0 ? 'Overdue' : ($paidQuarters == 4 ? 'Paid' : 'Pending')) . '
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            ' . $paidQuarters . ' paid, ' . $pendingQuarters . ' pending' . ($overdueQuarters > 0 ? ', ' . $overdueQuarters . ' overdue' : '') . '
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="text-sm text-gray-600">Total Amount Due</div>
+                                        <div class="text-xl font-bold text-blue-700">
+                                            ' . formatCurrency($business['total_tax'] + $businessPenalty) . '
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>';
-                    }
-                }
-            } catch (PDOException $e) {
-                error_log("Business Tax Payment Error: " . $e->getMessage());
-                echo '
-                <div class="lg:col-span-4">
-                    <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-                        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                            </div>';
+                            }
+                            echo '
                         </div>
-                        <h3 class="text-xl font-semibold text-red-800 mb-2">Error Loading Business Taxes</h3>
-                        <p class="text-red-600">Unable to load your business tax information. Please try again later.</p>
-                    </div>
-                </div>';
+                    </div>';
+                }
+                
+                echo '</div>';
             }
-            ?>
+        } catch (PDOException $e) {
+            echo '
+            <div class="card p-6 text-center">
+                <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="font-semibold text-red-800 mb-2">Service Unavailable</h3>
+                <p class="text-gray-600 text-sm mb-4">Please try again in a few minutes.</p>
+                <button onclick="location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center text-sm">
+                    <i class="fas fa-sync-alt mr-2"></i> Try Again
+                </button>
+            </div>';
+        }
+        ?>
+        
+        <!-- Help Section -->
+        <div class="mt-6 card p-5">
+            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                <i class="fas fa-question-circle text-blue-500 mr-2"></i> Need Assistance?
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <p class="font-medium text-gray-800 mb-1">Payment Questions</p>
+                    <p class="text-gray-600">Business Tax Division: (02) 8888-7777</p>
+                    <p class="text-xs text-gray-500 mt-1">Weekdays, 8:00 AM - 5:00 PM</p>
+                </div>
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <p class="font-medium text-gray-800 mb-1">Payment Options</p>
+                    <div class="text-gray-600 space-y-1">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
+                            <span>Pay quarterly or annually</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
+                            <span>5% discount for early payment</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </main>
-    
+    </div>
+
     <script>
-    function initiateBusinessPayment(taxId, quarter, year, amount, purpose, discountPercent = 0, businessPermitId = '') {
-        const businessElement = document.querySelector('h3.text-xl.font-semibold.text-gray-800');
+    function initiatePayment(taxId, quarter, year, amount, purpose, hasDiscount = false, businessPermitId = '') {
+        const businessElement = document.querySelector('h3.font-bold.text-gray-800');
         const businessName = businessElement ? businessElement.textContent.trim() : 'Business';
         
         const paymentData = {
             amount: amount,
             purpose: purpose,
-            tax_id: taxId,  // This is the ID from business_quarterly_taxes table
-            quarter: quarter,
-            year: year,
-            is_annual: false,
-            client_system: 'Business Tax System',  // This identifies which system
+            tax_id: taxId,
+            client_system: 'Business Tax System',
             client_reference: `BUS-TAX-${quarter}-${year}-${taxId}`,
             reference: businessName,
             description: `Business Tax Payment: ${quarter} ${year} - ${businessName}`,
-            business_permit_id: businessPermitId  // Added for tracking
+            business_permit_id: businessPermitId
         };
         
-        if (discountPercent > 0) {
-            paymentData.discount_percent = discountPercent;
+        if (hasDiscount) {
+            paymentData.discount_percent = 5.00;
         }
         
-        // Redirect to digital payment portal
-        const urlParams = new URLSearchParams(paymentData);
-        window.location.href = '../../digital/index.php?' + urlParams.toString();
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(paymentData);
+            window.location.href = '../../digital/index.php?' + urlParams.toString();
+        }, 400);
     }
-    
+
     function payAllQuarters(businessId, totalAmount, purpose, hasDiscount, discountPercent = 0, businessPermitId = '') {
-        const businessElement = document.querySelector('h3.text-xl.font-semibold.text-gray-800');
+        const businessElement = document.querySelector('h3.font-bold.text-gray-800');
         const businessName = businessElement ? businessElement.textContent.trim() : 'Business';
         
         const paymentData = {
             amount: totalAmount,
             purpose: purpose,
             is_annual: true,
-            client_system: 'Business Tax System',  // This identifies which system
+            client_system: 'Business Tax System',
             client_reference: `BUS-ANNUAL-${businessId}`,
             reference: businessName,
             description: `Annual Business Tax Payment - ${businessName}`,
-            business_permit_id: businessPermitId  // Added for tracking
+            business_permit_id: businessPermitId
         };
         
         if (hasDiscount) {
@@ -855,14 +723,15 @@ function calculateBusinessAnnualTotal($quarterly_taxes, $pdo) {
             paymentData.discount_amount = (totalAmount / (1 - discountPercent/100)) - totalAmount;
         }
         
-        // Redirect to digital payment portal
-        const urlParams = new URLSearchParams(paymentData);
-        window.location.href = '../../digital/index.php?' + urlParams.toString();
-    }
-    
-    function viewReceipt(receiptNumber) {
-        // Open receipt in new window
-        window.open(`business_receipt.php?receipt=${encodeURIComponent(receiptNumber)}`, '_blank');
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(paymentData);
+            window.location.href = '../../digital/index.php?' + urlParams.toString();
+        }, 400);
     }
     </script>
 </body>

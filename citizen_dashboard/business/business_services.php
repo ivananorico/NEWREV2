@@ -96,13 +96,13 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
             
             <!-- APPLICATION STATUS CARD -->
-            <a href="business_application_status/business_application_status.php" 
+            <a href="business_application_status/business_billing.php" 
                class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
                 <div class="h-48 overflow-hidden relative">
                     <?php 
                     $status_image = 'images/business-billing.png';
                     if (file_exists($status_image)): ?>
-                        <img src="<?php echo $status_image; ?>" alt="Application Status" 
+                        <img src="<?php echo $status_image; ?>" alt="Business Billing" 
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                     <?php else: ?>
                         <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(74, 144, 226, 0.1);">

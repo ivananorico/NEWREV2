@@ -12,19 +12,16 @@ const BusinessValidationInfo = () => {
   const [isApproving, setIsApproving] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   
-  // Tax rate adjustment states
   const [taxRates, setTaxRates] = useState([]);
   const [selectedRate, setSelectedRate] = useState(null);
   const [customRate, setCustomRate] = useState('');
   const [showRateOptions, setShowRateOptions] = useState(false);
   const [regulatoryFees, setRegulatoryFees] = useState([]);
 
-  const API_BASE = window.location.hostname === 'localhost' || 
-                   window.location.hostname === '127.0.0.1'
-    ? "http://localhost/revenue2/backend/Business/BusinessValidation"
-    : "/backend/Business/BusinessValidation";
+  const API_BASE = window.location.hostname === "localhost"
+    ? "http://localhost/revenue2/backend"
+    : "https://revenuetreasury.goserveph.com/backend";
 
-  // Load permit and tax data
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -36,8 +33,8 @@ const BusinessValidationInfo = () => {
           return;
         }
         
-        // Fetch permit details
-        const permitUrl = `${API_BASE}/get_permit_details.php?id=${id}`;
+        // Use the updated API_BASE
+        const permitUrl = `${API_BASE}/Business/BusinessValidation/get_permit_details.php?id=${id}`;
         const permitRes = await fetch(permitUrl);
         const responseText = await permitRes.text();
         
@@ -63,10 +60,8 @@ const BusinessValidationInfo = () => {
         setPermit(permitData.permit);
         setRegulatoryFees(permitData.regulatory_fees || []);
         
-        // Load tax rates from database
         await loadTaxRates(permitData.permit);
         
-        // If tax is already calculated, use it
         if (permitData.permit.tax_amount > 0 && permitData.permit.total_tax > 0) {
           const existingTax = {
             status: 'success',
@@ -80,16 +75,13 @@ const BusinessValidationInfo = () => {
           };
           setCalculatedTax(existingTax);
           
-          // Calculate quarterly breakdown
           const quarterlyData = calculateQuarterlyBreakdown(
             permitData.permit.total_tax, 
             permitData.permit.issue_date
           );
           setQuarterlyBreakdown(quarterlyData);
           
-          // Set selected rate based on current tax rate
           if (permitData.permit.tax_calculation_type === 'capital_investment') {
-            // Find matching bracket
             const matchingRate = taxRates.find(rate => 
               permitData.permit.taxable_amount >= parseFloat(rate.min_amount) && 
               permitData.permit.taxable_amount <= parseFloat(rate.max_amount)
@@ -98,7 +90,6 @@ const BusinessValidationInfo = () => {
               setSelectedRate(matchingRate.id);
             }
           } else {
-            // For gross sales, find matching business type
             const matchingRate = taxRates.find(rate => 
               rate.business_type === permitData.permit.business_type
             );
@@ -107,7 +98,6 @@ const BusinessValidationInfo = () => {
             }
           }
         } else {
-          // Automatically calculate tax if not calculated
           await calculateTax(permitData.permit);
         }
         
@@ -122,14 +112,13 @@ const BusinessValidationInfo = () => {
     loadData();
   }, [id, navigate, API_BASE]);
 
-  // Load tax rates from database
   const loadTaxRates = async (permitData) => {
     try {
       let ratesUrl;
       if (permitData.tax_calculation_type === 'capital_investment') {
-        ratesUrl = `${API_BASE}/get_capital_config.php`;
+        ratesUrl = `${API_BASE}/Business/BusinessValidation/get_capital_config.php`;
       } else {
-        ratesUrl = `${API_BASE}/get_gross_sale_confog.php`;
+        ratesUrl = `${API_BASE}/Business/BusinessValidation/get_gross_sale_confog.php`;
       }
       
       const response = await fetch(ratesUrl);
@@ -140,7 +129,6 @@ const BusinessValidationInfo = () => {
       }
     } catch (err) {
       console.error('Error loading tax rates:', err);
-      // Set default rates if API fails
       if (permitData.tax_calculation_type === 'capital_investment') {
         setTaxRates([
           { id: 1, min_amount: '1.00', max_amount: '5000.00', tax_percent: '20.00' },
@@ -159,7 +147,6 @@ const BusinessValidationInfo = () => {
     }
   };
 
-  // Calculate quarterly breakdown
   const calculateQuarterlyBreakdown = (totalTax, issueDate) => {
     const quarterlyAmount = (totalTax / 4).toFixed(2);
     const issueDateObj = issueDate ? new Date(issueDate) : new Date();
@@ -169,26 +156,26 @@ const BusinessValidationInfo = () => {
       { 
         quarter: 'Q1', 
         due_date: new Date(currentYear, 2, 31),
-        label: 'Jan-Mar',
-        color: 'bg-blue-50 text-blue-700 border border-blue-200'
+        label: 'January - March',
+        color: 'border-l-4 border-blue-500'
       },
       { 
         quarter: 'Q2', 
         due_date: new Date(currentYear, 5, 30),
-        label: 'Apr-Jun',
-        color: 'bg-green-50 text-green-700 border border-green-200'
+        label: 'April - June',
+        color: 'border-l-4 border-green-500'
       },
       { 
         quarter: 'Q3', 
         due_date: new Date(currentYear, 8, 30),
-        label: 'Jul-Sep',
-        color: 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+        label: 'July - September',
+        color: 'border-l-4 border-yellow-500'
       },
       { 
         quarter: 'Q4', 
         due_date: new Date(currentYear, 11, 31),
-        label: 'Oct-Dec',
-        color: 'bg-purple-50 text-purple-700 border border-purple-200'
+        label: 'October - December',
+        color: 'border-l-4 border-purple-500'
       }
     ];
     
@@ -203,7 +190,6 @@ const BusinessValidationInfo = () => {
     }));
   };
 
-  // Calculate tax with selected rate
   const calculateTax = async (permitData, rateId = null, customRateValue = null) => {
     try {
       setIsCalculating(true);
@@ -213,7 +199,7 @@ const BusinessValidationInfo = () => {
         return;
       }
       
-      let url = `${API_BASE}/calculate_tax.php?`;
+      let url = `${API_BASE}/Business/BusinessValidation/calculate_tax.php?`;
       url += `tax_type=${encodeURIComponent(permitData.tax_calculation_type || 'gross_sales')}`;
       url += `&taxable_amount=${encodeURIComponent(permitData.taxable_amount || 0)}`;
       url += `&business_type=${encodeURIComponent(permitData.business_type || 'Retailer')}`;
@@ -238,12 +224,10 @@ const BusinessValidationInfo = () => {
       if (data.status === 'success') {
         setCalculatedTax(data);
         
-        // Calculate quarterly breakdown
         const totalTax = data.calculation?.total_tax || 0;
         const quarterlyData = calculateQuarterlyBreakdown(totalTax, permitData.issue_date);
         setQuarterlyBreakdown(quarterlyData);
         
-        // Update selected rate
         if (rateId) {
           setSelectedRate(rateId);
         } else if (customRateValue !== null) {
@@ -255,7 +239,6 @@ const BusinessValidationInfo = () => {
     } catch (err) {
       console.error('Tax calculation error:', err);
       
-      // Fallback calculation
       const taxableAmount = permitData.taxable_amount || 0;
       const taxRate = permitData.tax_rate || (permitData.tax_calculation_type === 'capital_investment' ? 25 : 2);
       const taxAmount = taxableAmount * taxRate / 100;
@@ -281,7 +264,6 @@ const BusinessValidationInfo = () => {
     }
   };
 
-  // Handle custom rate
   const handleCustomRate = () => {
     if (!permit) {
       alert('No permit data available');
@@ -298,7 +280,6 @@ const BusinessValidationInfo = () => {
     calculateTax(permit, null, parseFloat(customRate));
   };
 
-  // Handle approve
   const handleApprove = async () => {
     if (!window.confirm('Approve this business permit with the calculated tax?')) return;
     
@@ -310,8 +291,7 @@ const BusinessValidationInfo = () => {
     setIsApproving(true);
     
     try {
-      // Update permit status and save tax calculation
-      const updateUrl = `${API_BASE}/update_permit_status.php`;
+      const updateUrl = `${API_BASE}/Business/BusinessValidation/update_permit_status.php`;
       
       const updateResponse = await fetch(updateUrl, {
         method: 'POST',
@@ -344,9 +324,8 @@ const BusinessValidationInfo = () => {
         throw new Error(updateData.message || 'Approval failed');
       }
       
-      // Generate quarterly taxes
       try {
-        const quarterlyUrl = `${API_BASE}/generate_quarterly_taxes.php`;
+        const quarterlyUrl = `${API_BASE}/Business/BusinessValidation/generate_quarterly_taxes.php`;
         await fetch(quarterlyUrl, {
           method: 'POST',
           headers: { 
@@ -374,7 +353,6 @@ const BusinessValidationInfo = () => {
     }
   };
 
-  // Format currency
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return '₱0.00';
     return new Intl.NumberFormat('en-PH', {
@@ -385,7 +363,6 @@ const BusinessValidationInfo = () => {
     }).format(amount);
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
     try {
@@ -399,7 +376,6 @@ const BusinessValidationInfo = () => {
     }
   };
 
-  // Get current tax rate info
   const getCurrentRateInfo = () => {
     if (!permit || !calculatedTax) return null;
     
@@ -407,27 +383,30 @@ const BusinessValidationInfo = () => {
       const rate = taxRates.find(r => r.id === selectedRate);
       if (rate) {
         return {
-          type: 'Bracket',
+          type: 'Capital Investment Bracket',
           range: `₱${parseFloat(rate.min_amount).toLocaleString()} - ₱${parseFloat(rate.max_amount).toLocaleString()}`,
-          rate: `${rate.tax_percent}%`
+          rate: `${rate.tax_percent}%`,
+          description: `Applicable for capital investments within this range`
         };
       }
     } else {
       const rate = taxRates.find(r => r.id === selectedRate);
       if (rate) {
         return {
-          type: 'Business Type',
+          type: 'Business Type Rate',
           range: rate.business_type,
-          rate: `${rate.tax_percent}%`
+          rate: `${rate.tax_percent}%`,
+          description: `Standard rate for ${rate.business_type.toLowerCase()} businesses`
         };
       }
     }
     
     if (selectedRate === 'custom') {
       return {
-        type: 'Custom',
+        type: 'Custom Rate',
         range: 'Manual adjustment',
-        rate: `${calculatedTax.calculation?.tax_rate}%`
+        rate: `${calculatedTax.calculation?.tax_rate}%`,
+        description: 'Manually adjusted tax rate'
       };
     }
     
@@ -478,106 +457,154 @@ const BusinessValidationInfo = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-8">
         
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Business Permit Validation</h1>
-              <p className="text-gray-600 text-sm">Review and approve business tax calculation</p>
+              <h1 className="text-2xl font-bold text-gray-900">Business Permit Validation</h1>
+              <p className="text-gray-600 mt-1">Review and validate business permit application</p>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="text-sm text-gray-500 bg-white border border-gray-300 px-3 py-1.5 rounded-lg">
-                ID: <span className="font-semibold text-blue-600">{permit.business_permit_id}</span>
+              <div className="text-sm text-gray-500 bg-white border border-gray-300 px-4 py-2 rounded-lg">
+                Permit ID: <span className="font-semibold text-blue-600 ml-1">{permit.business_permit_id}</span>
               </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </button>
               <Link 
                 to="/business/validation" 
-                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
               >
-                ← Back
+                ← Back to List
               </Link>
+            </div>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
+                permit.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                permit.status === 'Approved' ? 'bg-green-100 text-green-800 border border-green-200' :
+                permit.status === 'Active' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                'bg-gray-100 text-gray-800 border border-gray-200'
+              }`}>
+                Status: {permit.status}
+              </span>
+            </div>
+            
+            <div className="text-right">
+              <div className="text-sm text-gray-600">Application Date</div>
+              <div className="font-medium text-gray-900">{formatDate(permit.created_at)}</div>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Application Details & Tax Calculation */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Left Column - Application Details */}
+          <div className="lg:col-span-2 space-y-8">
             
-            {/* Application Information */}
+            {/* Business Information */}
             <div className="bg-white rounded-lg border border-gray-200">
-              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-semibold text-gray-900">Application Information</h2>
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">Business Information</h2>
               </div>
-              <div className="p-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   
-                  <div className="space-y-4">
+                  {/* Business Details */}
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Business Name</label>
-                      <p className="text-sm font-semibold text-gray-900">{permit.business_name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Owner</label>
-                      <p className="text-sm text-gray-900">{permit.owner_name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Contact</label>
-                      <p className="text-sm text-gray-700">
-                        {permit.contact_number || permit.phone || 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Business Type</label>
-                      <div className="flex items-center space-x-2">
-                        <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-800">
-                          {permit.business_type}
-                        </span>
-                        <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                          {permit.tax_calculation_type === 'capital_investment' ? 'Capital' : 'Gross Sales'}
-                        </span>
+                      <h3 className="text-sm font-medium text-gray-700 mb-4">Business Details</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Business Name</label>
+                          <p className="text-base font-semibold text-gray-900">{permit.business_name}</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Business Type</label>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <span className="px-3 py-1 text-xs font-medium rounded bg-gray-100 text-gray-800">
+                              {permit.business_type}
+                            </span>
+                            <span className="px-3 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
+                              {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
-                      <p className="text-sm text-gray-700">
-                        {permit.barangay}, {permit.city}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Application Date</label>
-                      <p className="text-sm text-gray-700">{formatDate(permit.created_at)}</p>
+                      <h3 className="text-sm font-medium text-gray-700 mb-4">Tax Information</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Tax Base Amount</span>
+                          <span className="text-lg font-bold text-gray-900">
+                            {formatCurrency(permit.taxable_amount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Tax Type</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Business Location & Owner */}
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-4">Business Location</h3>
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-900">
+                          {permit.business_street && <>{permit.business_street}, </>}
+                          {permit.business_barangay}
+                        </p>
+                        <p className="text-sm text-gray-900">
+                          {permit.business_city}, {permit.business_province}
+                        </p>
+                        {permit.business_zipcode && (
+                          <p className="text-sm text-gray-900">ZIP: {permit.business_zipcode}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-4">Owner Information</h3>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-gray-900">{permit.full_name}</p>
+                        {permit.personal_contact && (
+                          <p className="text-sm text-gray-700">
+                            <span className="text-gray-500">Contact: </span>
+                            {permit.personal_contact}
+                          </p>
+                        )}
+                        {permit.personal_email && (
+                          <p className="text-sm text-gray-700 truncate">
+                            <span className="text-gray-500">Email: </span>
+                            {permit.personal_email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Tax Calculation Section */}
             <div className="bg-white rounded-lg border border-gray-200">
-              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Tax Calculation</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Tax Calculation</h2>
                   {calculatedTax && (
                     <button
                       onClick={() => setShowRateOptions(!showRateOptions)}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       {showRateOptions ? 'Cancel Adjustment' : 'Adjust Tax Rate'}
                     </button>
@@ -585,47 +612,46 @@ const BusinessValidationInfo = () => {
                 </div>
               </div>
               
-              <div className="p-5">
-                {/* Tax Rate Selection */}
+              <div className="p-6">
+                {/* Tax Rate Selection Panel */}
                 {showRateOptions && (
-                  <div className="mb-6 p-4 bg-blue-50 rounded border border-blue-200">
-                    <h3 className="font-medium text-gray-900 mb-3">Select Tax Rate</h3>
+                  <div className="mb-8 p-5 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 className="font-medium text-gray-900 mb-4">Select Tax Rate</h3>
                     
-                    {/* Available Tax Rates from Database */}
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        Available {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment Tax Brackets' : 'Business Type Rates'}
+                    {/* Available Tax Rates */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Available {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment Brackets' : 'Business Type Rates'}
                       </h4>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {taxRates.map((rate) => (
                           <button
                             key={rate.id}
                             onClick={() => calculateTax(permit, rate.id)}
-                            className={`w-full text-left p-3 rounded border transition-colors ${
+                            className={`p-4 rounded border text-left transition-all ${
                               selectedRate === rate.id
-                                ? 'bg-blue-100 border-blue-300'
-                                : 'bg-white border-gray-200 hover:bg-gray-50'
+                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
+                                : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
                             }`}
                           >
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-start">
                               <div>
                                 {permit.tax_calculation_type === 'capital_investment' ? (
-                                  <>
-                                    <span className="font-medium text-gray-900">
+                                  <div>
+                                    <div className="font-medium text-gray-900">Bracket {rate.id}</div>
+                                    <div className="text-xs text-gray-500 mt-1">
                                       ₱{parseFloat(rate.min_amount).toLocaleString()} - ₱{parseFloat(rate.max_amount).toLocaleString()}
-                                    </span>
-                                    <div className="text-xs text-gray-500">Capital range</div>
-                                  </>
+                                    </div>
+                                  </div>
                                 ) : (
-                                  <>
-                                    <span className="font-medium text-gray-900">{rate.business_type}</span>
-                                    <div className="text-xs text-gray-500">Business type</div>
-                                  </>
+                                  <div>
+                                    <div className="font-medium text-gray-900">{rate.business_type}</div>
+                                    <div className="text-xs text-gray-500 mt-1">Standard rate</div>
+                                  </div>
                                 )}
                               </div>
                               <div className="text-right">
-                                <span className="font-bold text-blue-600">{rate.tax_percent}%</span>
-                                <div className="text-xs text-gray-500">Tax rate</div>
+                                <div className="text-lg font-bold text-blue-600">{rate.tax_percent}%</div>
                               </div>
                             </div>
                           </button>
@@ -634,24 +660,26 @@ const BusinessValidationInfo = () => {
                     </div>
                     
                     {/* Custom Rate Option */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Tax Rate</h4>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          value={customRate}
-                          onChange={(e) => setCustomRate(e.target.value)}
-                          placeholder="Enter custom rate %"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        />
+                    <div className="pt-5 border-t border-blue-200">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Custom Tax Rate</h4>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={customRate}
+                            onChange={(e) => setCustomRate(e.target.value)}
+                            placeholder="Enter custom rate %"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
                         <button
                           onClick={handleCustomRate}
-                          className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700"
+                          className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
                         >
-                          Apply Custom
+                          Apply Custom Rate
                         </button>
                       </div>
                     </div>
@@ -659,96 +687,108 @@ const BusinessValidationInfo = () => {
                 )}
 
                 {isCalculating ? (
-                  <div className="py-8 text-center">
+                  <div className="py-12 text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p className="text-gray-700">Calculating tax...</p>
                   </div>
                 ) : calculatedTax ? (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     
                     {/* Current Rate Information */}
                     {currentRateInfo && (
-                      <div className="bg-blue-50 p-4 rounded border border-blue-200">
-                        <div className="flex justify-between items-center">
+                      <div className="bg-blue-50 p-5 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-medium text-blue-900">Applied Tax Rate</h3>
-                            <p className="text-sm text-blue-700">
-                              {currentRateInfo.type}: {currentRateInfo.range}
-                            </p>
+                            <p className="text-blue-700 text-sm mt-1">{currentRateInfo.description}</p>
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-blue-600">{currentRateInfo.rate}</div>
+                            <div className="text-sm text-blue-700">{currentRateInfo.type}</div>
                           </div>
                         </div>
                       </div>
                     )}
 
                     {/* Tax Calculation Steps */}
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Base Amount</label>
-                          <p className="text-lg font-bold text-gray-900">
-                            {formatCurrency(calculatedTax.calculation?.taxable_amount || 0)}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Tax Rate</label>
-                          <p className="text-lg font-bold text-blue-600">
-                            {calculatedTax.calculation?.tax_rate || 0}%
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">Applied rate</p>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Tax Amount</label>
-                          <p className="text-lg font-bold text-green-600">
-                            {formatCurrency(calculatedTax.calculation?.tax_amount || 0)}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">Base × Rate</p>
+                    <div className="space-y-6">
+                      {/* Base Calculation */}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700 mb-4">Tax Calculation</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                            <div className="text-xs font-medium text-gray-500 mb-1">Taxable Base</div>
+                            <div className="text-xl font-bold text-gray-900">
+                              {formatCurrency(calculatedTax.calculation?.taxable_amount || 0)}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
+                            </div>
+                          </div>
+                          
+                          <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                            <div className="text-xs font-medium text-blue-500 mb-1">Tax Rate</div>
+                            <div className="text-xl font-bold text-blue-600">
+                              {calculatedTax.calculation?.tax_rate || 0}%
+                            </div>
+                            <div className="text-xs text-blue-500 mt-1">Applied Rate</div>
+                          </div>
+                          
+                          <div className="bg-green-50 p-4 rounded border border-green-200">
+                            <div className="text-xs font-medium text-green-500 mb-1">Tax Amount</div>
+                            <div className="text-xl font-bold text-green-600">
+                              {formatCurrency(calculatedTax.calculation?.tax_amount || 0)}
+                            </div>
+                            <div className="text-xs text-green-500 mt-1">Base × Rate</div>
+                          </div>
                         </div>
                       </div>
 
                       {/* Regulatory Fees */}
-                      <div className="border-t border-gray-200 pt-4">
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Regulatory Fees</h3>
-                        <div className="space-y-2">
-                          {regulatoryFees.map((fee, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span className="text-sm text-gray-600">{fee.fee_name}</span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatCurrency(fee.amount)}
-                              </span>
-                            </div>
-                          ))}
-                          <div className="pt-2 border-t border-gray-200">
-                            <div className="flex justify-between font-medium">
-                              <span className="text-gray-700">Total Fees</span>
-                              <span className="text-blue-600">
-                                {formatCurrency(calculatedTax.calculation?.regulatory_fees || 0)}
-                              </span>
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="text-sm font-medium text-gray-700 mb-4">Regulatory Fees</h3>
+                        <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                          <div className="space-y-3">
+                            {regulatoryFees.map((fee, index) => (
+                              <div key={index} className="flex justify-between items-center py-2">
+                                <div>
+                                  <span className="text-sm text-gray-700">{fee.fee_name}</span>
+                                  {fee.remarks && (
+                                    <div className="text-xs text-gray-500 mt-1">{fee.remarks}</div>
+                                  )}
+                                </div>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {formatCurrency(fee.amount)}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="pt-3 border-t border-gray-300">
+                              <div className="flex justify-between font-medium">
+                                <span className="text-gray-700">Total Regulatory Fees</span>
+                                <span className="text-blue-600">
+                                  {formatCurrency(calculatedTax.calculation?.regulatory_fees || 0)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Annual Business Tax */}
-                    <div className="bg-gradient-to-r from-green-50 to-green-100 p-5 rounded-lg border border-green-200">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-green-900">Annual Business Tax</h3>
-                          <p className="text-green-700 text-sm">Payable in quarterly installments</p>
-                        </div>
-                        <div className="mt-3 md:mt-0 text-right">
-                          <div className="text-3xl font-bold text-green-600">
-                            {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
+                      {/* Total Annual Tax */}
+                      <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg border border-green-200">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-bold text-green-900">Total Annual Business Tax</h3>
+                            <p className="text-green-700 mt-1">Payable quarterly as per schedule</p>
                           </div>
-                          <div className="text-green-700 text-sm mt-1">
-                            Tax: {formatCurrency(calculatedTax.calculation?.tax_amount || 0)} + 
-                            Fees: {formatCurrency(calculatedTax.calculation?.regulatory_fees || 0)}
+                          <div className="mt-4 md:mt-0 text-right">
+                            <div className="text-4xl font-bold text-green-600">
+                              {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
+                            </div>
+                            <div className="text-sm text-green-700 mt-2">
+                              Tax: {formatCurrency(calculatedTax.calculation?.tax_amount || 0)} + 
+                              Fees: {formatCurrency(calculatedTax.calculation?.regulatory_fees || 0)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -756,41 +796,66 @@ const BusinessValidationInfo = () => {
 
                     {/* Quarterly Payment Schedule */}
                     {quarterlyBreakdown && (
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-4">Quarterly Payment Schedule</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {quarterlyBreakdown.map((quarter, index) => (
-                            <div key={index} className={`p-4 rounded-lg border ${quarter.color}`}>
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="font-semibold text-gray-900">{quarter.quarter}</span>
+                      <div className="border-t border-gray-200 pt-8">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-6">Quarterly Payment Schedule</h3>
+                        
+                        <div className="mb-6">
+                          <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-gray-900">Annual Tax Breakdown</h4>
+                                <p className="text-sm text-gray-600 mt-1">Total divided into four equal installments</p>
                               </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-gray-600">{quarter.label}</p>
-                                <p className="text-lg font-bold text-gray-900">
-                                  {formatCurrency(quarter.quarterly_tax_amount)}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Due: {quarter.due_date_formatted}
-                                </p>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-gray-900">
+                                  {formatCurrency(calculatedTax?.calculation?.total_tax || 0)}
+                                </div>
+                                <div className="text-sm text-gray-600">Total Annual Tax</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {quarterlyBreakdown.map((quarter, index) => (
+                            <div key={index} className={`p-5 rounded-lg bg-white border border-gray-200 ${quarter.color}`}>
+                              <div className="flex flex-col md:flex-row md:items-center justify-between">
+                                <div className="mb-4 md:mb-0">
+                                  <div className="flex items-center space-x-4">
+                                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gray-100">
+                                      <span className="text-lg font-bold text-gray-700">{quarter.quarter}</span>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium text-gray-900">{quarter.label}</h4>
+                                      <p className="text-sm text-gray-600">Due: {quarter.due_date_formatted}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-2xl font-bold text-gray-900">
+                                    {formatCurrency(quarter.quarterly_tax_amount)}
+                                  </div>
+                                  <p className="text-sm text-gray-600">Quarterly installment</p>
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
-                        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-                          <p className="text-sm text-gray-600">
-                            Total Annual: <span className="font-bold text-gray-900">
-                              {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Each quarter: {formatCurrency((calculatedTax.calculation?.total_tax || 0) / 4)}
-                          </p>
+
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                          <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                            <div className="text-center">
+                              <p className="text-sm text-blue-700">
+                                Each quarter's payment is due on or before the specified due date. Late payments may incur penalties.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="py-8 text-center">
+                  <div className="py-12 text-center">
                     <p className="text-gray-600">Tax calculation will begin automatically...</p>
                   </div>
                 )}
@@ -798,142 +863,147 @@ const BusinessValidationInfo = () => {
             </div>
           </div>
 
-          {/* Action Panel */}
+          {/* Right Column - Action Panel & Summary */}
           <div className="space-y-6">
-            
-            {/* Approval Panel */}
+            {/* Action Panel */}
             <div className="bg-white rounded-lg border border-gray-200">
-              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-semibold text-gray-900">Actions</h2>
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">Actions</h2>
               </div>
-              
-              <div className="p-5">
-                {/* Approve Button */}
-                {!isApproving ? (
-                  <button
-                    onClick={handleApprove}
-                    disabled={!calculatedTax || isCalculating}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Approve Permit
-                  </button>
-                ) : (
-                  <div className="py-3 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-3"></div>
-                    <p className="text-sm text-gray-700">Approving...</p>
+              <div className="p-6">
+                {isCalculating ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-700">Calculating tax...</p>
                   </div>
-                )}
-
-                {/* Status Information */}
-                <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-                  <div className="flex items-start">
-                    <svg className="w-4 h-4 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-xs text-blue-700">
-                      Approving will save the tax calculation and generate quarterly payment records.
+                ) : calculatedTax ? (
+                  <div className="space-y-4">
+                    <button
+                      onClick={handleApprove}
+                      disabled={isApproving}
+                      className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isApproving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Approve Permit
+                        </>
+                      )}
+                    </button>
+                    
+                    <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                      <div className="flex items-start">
+                        <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-sm text-blue-700">
+                          Approving will save the tax calculation and generate quarterly payment records.
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-gray-600">Please wait for tax calculation...</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Application Summary */}
+            {/* Summary Card */}
             <div className="bg-white rounded-lg border border-gray-200">
-              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-semibold text-gray-900">Summary</h2>
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">Quick Summary</h2>
               </div>
-              <div className="p-5">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Status</span>
-                    <span className={`text-sm font-medium px-2 py-1 rounded ${
-                      permit.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                      permit.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                      permit.status === 'Active' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {permit.status}
-                    </span>
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-600">Business Type</span>
+                      <span className="text-sm font-medium text-gray-900">{permit.business_type}</span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-600">Tax Type</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {permit.tax_calculation_type === 'capital_investment' ? 'Capital' : 'Gross Sales'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-gray-600">Tax Base</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {formatCurrency(permit.taxable_amount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Application Date</span>
+                      <span className="text-sm text-gray-900">{formatDate(permit.created_at)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Tax Type</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {permit.tax_calculation_type === 'capital_investment' ? 'Capital' : 'Gross Sales'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Base Amount</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(permit.taxable_amount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Issue Date</span>
-                    <span className="text-sm text-gray-900">{formatDate(permit.issue_date)}</span>
-                  </div>
-                  {calculatedTax && (
-                    <>
-                      <div className="pt-3 border-t border-gray-200">
+
+                  {currentRateInfo && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <h3 className="text-sm font-medium text-gray-700 mb-3">Applied Tax Rate</h3>
+                      <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-700">Calculated Tax</span>
-                          <span className="text-sm font-bold text-green-600">
-                            {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
-                          </span>
+                          <span className="text-sm text-gray-600">Type</span>
+                          <span className="text-sm font-medium text-gray-900">{currentRateInfo.type}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Rate</span>
+                          <span className="text-sm font-bold text-blue-600">{currentRateInfo.rate}</span>
                         </div>
                       </div>
-                    </>
+                    </div>
+                  )}
+
+                  {calculatedTax && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="bg-gray-50 p-4 rounded">
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500 mb-1">Total Annual Tax</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Tax Rate Info */}
-            {currentRateInfo && (
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-                  <h2 className="font-semibold text-gray-900">Tax Rate Info</h2>
-                </div>
-                <div className="p-5">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Rate Type</span>
-                      <span className="text-sm font-medium text-gray-900">{currentRateInfo.type}</span>
+            {/* Information Card */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">System Information</h2>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-gray-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-gray-600">
+                      <strong>Tax rates are loaded from the database.</strong> You can select from available rates or enter a custom rate.
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Applied To</span>
-                      <span className="text-sm font-medium text-gray-900">{currentRateInfo.range}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-gray-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-gray-600">
+                      Approving will automatically generate quarterly payment schedules.
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Tax Rate</span>
-                      <span className="text-sm font-bold text-blue-600">{currentRateInfo.rate}</span>
-                    </div>
-                    {permit.tax_calculation_type === 'capital_investment' && (
-                      <div className="pt-2 border-t border-gray-200">
-                        <div className="text-xs text-gray-500">
-                          Capital amount: {formatCurrency(permit.taxable_amount)}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer Information */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 text-gray-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="text-sm text-gray-600">
-              <strong>LGU Business Tax System</strong> - Tax rates are loaded from the database. 
-              You can select from available rates or enter a custom rate if needed.
             </div>
           </div>
         </div>

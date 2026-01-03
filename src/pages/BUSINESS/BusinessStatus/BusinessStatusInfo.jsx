@@ -15,8 +15,18 @@ import {
   Clock,
   Printer,
   Download,
-  Eye,
-  ChevronRight
+  Home,
+  CreditCard,
+  Percent,
+  Shield,
+  Briefcase,
+  Navigation,
+  UserCircle,
+  Building2,
+  Tag,
+  AlertTriangle,
+  TrendingUp,
+  CreditCard as Card
 } from "lucide-react";
 
 export default function BusinessStatusInfo() {
@@ -39,25 +49,20 @@ export default function BusinessStatusInfo() {
     try {
       setLoading(true);
       const res = await fetch(
-        `${API_BASE}/Business/BusinessStatus/get_permit_by_id.php?id=${id}`,
-        { 
-          method: 'GET',
-          credentials: "include",
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
+        `${API_BASE}/Business/BusinessStatus/get_permit_by_id.php?id=${id}`
       );
       
       const data = await res.json();
+      console.log("API Response:", data); // Debug log
       
       if (data.status === "success") {
         setPermit(data.data.permit);
         setQuarterlyTaxes(data.data.quarterlyTaxes || []);
+      } else {
+        console.error("API Error:", data.message);
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Fetch Error:", err);
     } finally {
       setLoading(false);
     }
@@ -73,13 +78,17 @@ export default function BusinessStatusInfo() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return "Not set";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString || dateString === '0000-00-00') return "Not set";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString; // Return as-is if formatting fails
+    }
   };
 
   const getPaymentStatus = (status) => {
@@ -93,20 +102,22 @@ export default function BusinessStatusInfo() {
     }
   };
 
-  const getOverallStatus = () => {
-    if (!permit) return { text: "Loading", color: "text-gray-600", bg: "bg-gray-100" };
-    
-    const paidCount = quarterlyTaxes.filter(tax => tax.payment_status === 'paid').length;
-    const totalCount = quarterlyTaxes.length;
-    
-    if (paidCount === totalCount && totalCount > 0) {
-      return { text: "Fully Paid", color: "text-green-600", bg: "bg-green-100" };
-    } else if (quarterlyTaxes.some(tax => tax.payment_status === 'overdue')) {
-      return { text: "Has Overdue", color: "text-red-600", bg: "bg-red-100" };
-    } else if (paidCount > 0) {
-      return { text: "Partially Paid", color: "text-blue-600", bg: "bg-blue-100" };
-    } else {
-      return { text: "No Payments", color: "text-gray-600", bg: "bg-gray-100" };
+  const getGenderText = (gender) => {
+    switch(gender) {
+      case 'male': return 'Male';
+      case 'female': return 'Female';
+      case 'other': return 'Other';
+      default: return 'Not specified';
+    }
+  };
+
+  const getMaritalStatusText = (status) => {
+    switch(status) {
+      case 'single': return 'Single';
+      case 'married': return 'Married';
+      case 'divorced': return 'Divorced';
+      case 'widowed': return 'Widowed';
+      default: return 'Not specified';
     }
   };
 
@@ -142,16 +153,17 @@ export default function BusinessStatusInfo() {
     );
   }
 
-  const overallStatus = getOverallStatus();
   const paidTaxes = quarterlyTaxes.filter(tax => tax.payment_status === 'paid');
   const totalPaid = paidTaxes.reduce((sum, tax) => sum + (parseFloat(tax.total_quarterly_tax) || 0), 0);
   const collectionRate = permit.total_tax > 0 ? Math.round((totalPaid / permit.total_tax) * 100) : 0;
+  const totalPending = parseFloat(permit.total_pending_tax) || 0;
+  const totalPenalty = parseFloat(permit.total_penalty) || 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Simple Header */}
+      {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
@@ -162,7 +174,7 @@ export default function BusinessStatusInfo() {
               </button>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">{permit.business_name}</h1>
-                <p className="text-sm text-gray-600">Business Permit Details</p>
+                <p className="text-sm text-gray-600">Business Permit Details - ID: {permit.business_permit_id}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -179,93 +191,199 @@ export default function BusinessStatusInfo() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 border rounded">
-            <p className="text-sm text-gray-500">Permit ID</p>
-            <p className="font-semibold text-gray-900">{permit.business_permit_id}</p>
+            <p className="text-sm text-gray-500">Business Status</p>
+            <div className="flex items-center mt-1">
+              <span className={`inline-block px-3 py-1 text-sm rounded-full ${
+                permit.business_status === 'Active' ? 'bg-green-100 text-green-800' :
+                permit.business_status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {permit.business_status || 'N/A'}
+              </span>
+            </div>
           </div>
           
           <div className="bg-white p-4 border rounded">
             <p className="text-sm text-gray-500">Annual Tax</p>
-            <p className="font-semibold text-green-600">{formatCurrency(permit.total_tax)}</p>
+            <p className="text-lg font-bold text-green-600 mt-1">{formatCurrency(permit.total_tax)}</p>
           </div>
           
           <div className="bg-white p-4 border rounded">
             <p className="text-sm text-gray-500">Collection Rate</p>
-            <p className="font-semibold text-blue-600">{collectionRate}%</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full" 
+                  style={{ width: `${collectionRate}%` }}
+                ></div>
+              </div>
+              <span className="text-sm font-bold text-blue-600">{collectionRate}%</span>
+            </div>
           </div>
           
           <div className="bg-white p-4 border rounded">
-            <p className="text-sm text-gray-500">Status</p>
-            <span className={`inline-block px-3 py-1 text-sm rounded-full ${overallStatus.bg} ${overallStatus.color}`}>
-              {overallStatus.text}
+            <p className="text-sm text-gray-500">Payment Status</p>
+            <span className={`inline-block px-3 py-1 text-sm rounded-full ${
+              permit.overall_status_color === 'green' ? 'bg-green-100 text-green-800' :
+              permit.overall_status_color === 'red' ? 'bg-red-100 text-red-800' :
+              permit.overall_status_color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {permit.overall_status_text || 'N/A'}
             </span>
           </div>
         </div>
 
-        {/* Business Information */}
-        <div className="bg-white border rounded mb-6">
+        {/* Owner Information */}
+        <div className="bg-white border rounded">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">Business Information</h2>
+            <div className="flex items-center">
+              <UserCircle className="w-5 h-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold">Owner Information</h2>
+            </div>
           </div>
           
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Owner Name</p>
-                  <p className="font-medium">{permit.owner_name}</p>
+                  <p className="text-sm text-gray-500 mb-1">Full Name</p>
+                  <p className="font-medium text-lg">{permit.owner_name || 'Not specified'}</p>
                 </div>
                 
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Business Type</p>
-                  <div className="flex space-x-2">
-                    <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded">
-                      {permit.business_type}
-                    </span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded">
-                      {permit.tax_calculation_type === 'capital_investment' ? 'Capital' : 'Gross Sales'}
-                    </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Gender</p>
+                    <p className="font-medium">{getGenderText(permit.sex)}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Marital Status</p>
+                    <p className="font-medium">{getMaritalStatusText(permit.marital_status)}</p>
                   </div>
                 </div>
                 
+                {permit.date_of_birth && permit.date_of_birth !== '0000-00-00' && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Date of Birth</p>
+                    <p className="font-medium">{formatDate(permit.date_of_birth)}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Contact</p>
+                  <p className="text-sm text-gray-500 mb-1">Personal Address</p>
                   <div className="space-y-1">
-                    {permit.contact_number && (
+                    {permit.personal_street && (
+                      <p className="font-medium">{permit.personal_street}</p>
+                    )}
+                    <p className="text-gray-600">
+                      Brgy. {permit.personal_barangay || 'N/A'}, {permit.personal_city || 'N/A'}, {permit.personal_province || 'N/A'}
+                    </p>
+                    {permit.personal_zipcode && (
+                      <p className="text-gray-500 text-sm">ZIP: {permit.personal_zipcode}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500 mb-1">Contact Information</p>
+                  <div className="space-y-1">
+                    {permit.personal_contact && (
                       <div className="flex items-center">
                         <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                        <span>{permit.contact_number}</span>
+                        <span>{permit.personal_contact}</span>
                       </div>
                     )}
-                    {permit.owner_email && (
+                    {permit.personal_email && (
                       <div className="flex items-center">
                         <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                        <span>{permit.owner_email}</span>
+                        <span>{permit.personal_email}</span>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Business Information */}
+        <div className="bg-white border rounded">
+          <div className="px-6 py-4 border-b">
+            <div className="flex items-center">
+              <Building2 className="w-5 h-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold">Business Information</h2>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Business Name</p>
+                  <p className="font-medium text-lg">{permit.business_name}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Business Type</p>
+                    <div className="flex items-center">
+                      <Tag className="w-4 h-4 text-gray-400 mr-1" />
+                      <span className="font-medium">{permit.business_type || 'N/A'}</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Tax Type</p>
+                    <div className="flex items-center">
+                      <CreditCard className="w-4 h-4 text-gray-400 mr-1" />
+                      <span className="font-medium">
+                        {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {permit.taxable_amount > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Tax Basis</p>
+                    <p className="font-medium">
+                      {permit.tax_calculation_type === 'capital_investment' 
+                        ? `Capital: ${formatCurrency(permit.taxable_amount)}`
+                        : `Tax Rate: ${permit.tax_rate || 0}%`
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Location</p>
+                  <p className="text-sm text-gray-500 mb-1">Business Address</p>
                   <div className="space-y-1">
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                      <span>{permit.street}</span>
-                    </div>
-                    <p className="text-gray-600 text-sm ml-6">
-                      Brgy. {permit.barangay}, {permit.city}, {permit.province}
+                    {permit.business_street && (
+                      <p className="font-medium">{permit.business_street}</p>
+                    )}
+                    <p className="text-gray-600">
+                      Brgy. {permit.business_barangay || 'N/A'}, {permit.business_city || 'N/A'}, {permit.business_province || 'N/A'}
                     </p>
+                    {permit.business_zipcode && (
+                      <p className="text-gray-500 text-sm">ZIP: {permit.business_zipcode}</p>
+                    )}
+                    {permit.business_district && permit.business_district !== 'Unknown' && (
+                      <p className="text-gray-500 text-sm">District: {permit.business_district}</p>
+                    )}
                   </div>
                 </div>
                 
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Permit Dates</p>
+                  <p className="text-sm text-gray-500 mb-1">Permit Details</p>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Issued:</span>
@@ -286,28 +404,31 @@ export default function BusinessStatusInfo() {
           </div>
         </div>
 
-        {/* Tax Summary */}
-        <div className="bg-white border rounded mb-6">
+        {/* Tax Breakdown */}
+        <div className="bg-white border rounded">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">Tax Summary</h2>
+            <div className="flex items-center">
+              <CreditCard className="w-5 h-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold">Tax Breakdown</h2>
+            </div>
           </div>
           
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 mb-1">Tax Calculation</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
+                <div className="mb-6">
+                  <p className="text-sm text-gray-500 mb-3">Annual Tax Composition</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
                       <span>Basic Tax:</span>
                       <span className="font-medium">{formatCurrency(permit.tax_amount)}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span>Regulatory Fees:</span>
                       <span className="font-medium">{formatCurrency(permit.regulatory_fees)}</span>
                     </div>
-                    <div className="pt-2 border-t">
-                      <div className="flex justify-between font-semibold">
+                    <div className="pt-3 border-t">
+                      <div className="flex justify-between items-center font-semibold text-lg">
                         <span>Total Annual Tax:</span>
                         <span className="text-green-600">{formatCurrency(permit.total_tax)}</span>
                       </div>
@@ -315,50 +436,77 @@ export default function BusinessStatusInfo() {
                   </div>
                 </div>
                 
-                {permit.taxable_amount > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Tax Basis</p>
-                    <p>
-                      {permit.tax_calculation_type === 'capital_investment' 
-                        ? `Capital Investment: ${formatCurrency(permit.taxable_amount)}`
-                        : `Gross Sales Tax Rate: ${permit.tax_rate || 0}%`
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              <div>
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 mb-1">Payment Summary</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Paid Amount:</span>
-                      <span className="text-green-600 font-medium">{formatCurrency(totalPaid)}</span>
+                <div>
+                  <p className="text-sm text-gray-500 mb-3">Payment Summary</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                        <span>Total Paid:</span>
+                      </div>
+                      <span className="font-medium text-green-600">{formatCurrency(totalPaid)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Pending Amount:</span>
-                      <span className="text-yellow-600 font-medium">{formatCurrency(permit.total_tax - totalPaid)}</span>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 text-yellow-500 mr-2" />
+                        <span>Pending Balance:</span>
+                      </div>
+                      <span className="font-medium text-yellow-600">{formatCurrency(totalPending)}</span>
                     </div>
-                    {permit.total_penalty > 0 && (
-                      <div className="flex justify-between">
-                        <span>Penalties:</span>
-                        <span className="text-red-600 font-medium">{formatCurrency(permit.total_penalty)}</span>
+                    {totalPenalty > 0 && (
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <AlertTriangle className="w-4 h-4 text-red-500 mr-2" />
+                          <span>Total Penalty:</span>
+                        </div>
+                        <span className="font-medium text-red-600">{formatCurrency(totalPenalty)}</span>
                       </div>
                     )}
                   </div>
                 </div>
-                
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Collection Progress</p>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+              </div>
+              
+              <div>
+                <div className="mb-6">
+                  <p className="text-sm text-gray-500 mb-3">Collection Progress</p>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Collection Rate</span>
+                      <span className="text-lg font-bold text-blue-600">{collectionRate}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
                       <div 
-                        className="bg-green-500 h-2 rounded-full" 
+                        className="bg-green-500 h-4 rounded-full transition-all duration-500"
                         style={{ width: `${collectionRate}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium">{collectionRate}%</span>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">
+                        {totalPaid > 0 ? `${formatCurrency(totalPaid)} collected` : 'No payments yet'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-500 mb-3">Quarterly Breakdown</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-xl font-bold text-green-600">{quarterlyTaxes.filter(t => t.payment_status === 'paid').length}</div>
+                      <div className="text-xs text-green-700">Paid Quarters</div>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <div className="text-xl font-bold text-yellow-600">{quarterlyTaxes.filter(t => t.payment_status === 'pending').length}</div>
+                      <div className="text-xs text-yellow-700">Pending</div>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <div className="text-xl font-bold text-red-600">{quarterlyTaxes.filter(t => t.payment_status === 'overdue').length}</div>
+                      <div className="text-xs text-red-700">Overdue</div>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-xl font-bold text-blue-600">{quarterlyTaxes.length}</div>
+                      <div className="text-xs text-blue-700">Total Quarters</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -366,14 +514,12 @@ export default function BusinessStatusInfo() {
           </div>
         </div>
 
-        {/* Quarterly Taxes */}
+        {/* Quarterly Taxes Table */}
         <div className="bg-white border rounded">
           <div className="px-6 py-4 border-b">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Quarterly Taxes</h2>
-              <span className="text-sm text-gray-500">
-                {quarterlyTaxes.filter(t => t.payment_status === 'paid').length} of {quarterlyTaxes.length} paid
-              </span>
+            <div className="flex items-center">
+              <Calendar className="w-5 h-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold">Quarterly Tax Payments</h2>
             </div>
           </div>
           
@@ -381,18 +527,20 @@ export default function BusinessStatusInfo() {
             {quarterlyTaxes.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                <p>No quarterly taxes recorded</p>
+                <p>No quarterly tax records found</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Quarter</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Due Date</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Penalty</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Quarter</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Year</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Due Date</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Amount</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Penalty</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Payment Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -402,9 +550,10 @@ export default function BusinessStatusInfo() {
                       return (
                         <tr key={tax.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
-                            <div className="font-medium">{tax.quarter} {tax.year}</div>
+                            <span className="font-medium">{tax.quarter}</span>
                           </td>
-                          <td className="px-4 py-3 text-gray-600">{formatDate(tax.due_date)}</td>
+                          <td className="px-4 py-3">{tax.year}</td>
+                          <td className="px-4 py-3">{formatDate(tax.due_date)}</td>
                           <td className="px-4 py-3 font-medium">{formatCurrency(tax.total_quarterly_tax)}</td>
                           <td className="px-4 py-3">
                             {tax.penalty_amount > 0 ? (
@@ -414,10 +563,13 @@ export default function BusinessStatusInfo() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${status.bg}`}>
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full ${status.bg}`}>
                               <StatusIcon className={`w-3 h-3 mr-1 ${status.color}`} />
-                              <span className={status.color}>{status.text}</span>
+                              <span className={`text-xs font-medium ${status.color}`}>{status.text}</span>
                             </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {tax.payment_date ? formatDate(tax.payment_date) : '-'}
                           </td>
                         </tr>
                       );
@@ -426,39 +578,29 @@ export default function BusinessStatusInfo() {
                 </table>
               </div>
             )}
-            
-            {/* Quick Summary */}
-            {quarterlyTaxes.length > 0 && (
-              <div className="mt-6 pt-6 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {quarterlyTaxes.filter(t => t.payment_status === 'paid').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Paid Quarters</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {quarterlyTaxes.filter(t => t.payment_status === 'pending').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Pending</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">
-                      {quarterlyTaxes.filter(t => t.payment_status === 'overdue').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Overdue</div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Footer Notes */}
-        <div className="mt-6 text-sm text-gray-500">
-          <p><strong>LGU Notes:</strong> Quarterly taxes are due on the last day of each quarter. Late payments incur 2% monthly penalty.</p>
-          <p className="mt-1">Record updated: {formatDate(permit.updated_at)}</p>
+        {/* Footer Information */}
+        <div className="bg-gray-50 border rounded p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500 font-medium mb-1">Record Information</p>
+              <p className="text-gray-600">Created: {formatDate(permit.created_at)}</p>
+              <p className="text-gray-600">Last Updated: {formatDate(permit.updated_at)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-medium mb-1">Tax Information</p>
+              <p className="text-gray-600">Pending Quarters: {permit.pending_quarters_count || 0}</p>
+              <p className="text-gray-600">Total Quarters: {permit.total_quarters_count || 0}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-medium mb-1">System Notes</p>
+              <p className="text-gray-600 text-xs">
+                Quarterly taxes are due on the last day of each quarter. Late payments incur penalties.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

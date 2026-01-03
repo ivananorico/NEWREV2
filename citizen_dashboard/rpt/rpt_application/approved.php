@@ -147,14 +147,6 @@ try {
             margin-top: 0.25rem;
         }
         
-        .quarter-status {
-            border-left: 4px solid;
-            padding-left: 1rem;
-        }
-        .quarter-paid { border-color: #10b981; }
-        .quarter-pending { border-color: #f59e0b; }
-        .quarter-overdue { border-color: #ef4444; }
-        
         .progress-container {
             height: 6px;
             background: #e5e7eb;
@@ -168,7 +160,6 @@ try {
             border-radius: 3px;
         }
         
-        /* Matching pending.php styles */
         .info-card-header { 
             display: flex; 
             align-items: center; 
@@ -195,6 +186,12 @@ try {
             font-size: 1rem; 
             color: #111827; 
             font-weight: 500; 
+        }
+        
+        .section-header {
+            border-left: 5px solid #4a90e2;
+            padding-left: 1rem;
+            margin-bottom: 1.5rem;
         }
     </style>
 </head>
@@ -378,7 +375,7 @@ try {
                         </div>
                     </div>
 
-                    <!-- Property Info & Applicant Info Sections (Like pending.php) -->
+                    <!-- Property Info & Applicant Info Sections -->
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <!-- Applicant Info -->
                         <div>
@@ -487,6 +484,10 @@ try {
                                 </div>
                                 <div class="space-y-3">
                                     <div class="flex justify-between">
+                                        <span class="text-gray-600">TDN:</span>
+                                        <span class="font-medium font-mono"><?php echo $land_data['tdn'] ?? 'N/A'; ?></span>
+                                    </div>
+                                    <div class="flex justify-between">
                                         <span class="text-gray-600">Property Type:</span>
                                         <span class="font-medium"><?php echo $land_data['property_type'] ?? 'N/A'; ?></span>
                                     </div>
@@ -519,6 +520,10 @@ try {
                                                 <div class="text-sm font-medium text-gray-700 mb-2">Building <?php echo $index + 1; ?></div>
                                             <?php endif; ?>
                                             <div class="space-y-3">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-600">TDN:</span>
+                                                    <span class="font-medium font-mono"><?php echo $building['tdn'] ?? 'N/A'; ?></span>
+                                                </div>
                                                 <div class="flex justify-between">
                                                     <span class="text-gray-600">Construction Type:</span>
                                                     <span class="font-medium"><?php echo $building['material_type']; ?></span>
@@ -569,14 +574,14 @@ try {
                                     </div>
                                     <?php if (!empty($land_data['tdn'])): ?>
                                         <div class="text-xs text-gray-500 text-center mt-3 pt-3 border-t border-blue-200">
-                                            Tax No: <?php echo $land_data['tdn']; ?>
+                                            TDN: <?php echo $land_data['tdn']; ?>
                                         </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Annual Discount Offer - SMALLER VERSION -->
+                        <!-- Annual Discount Offer -->
                         <?php if ($eligible_for_discount && $total_penalty == 0 && $paid_count == 0): ?>
                             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                                 <div class="flex items-center justify-between">
@@ -593,74 +598,116 @@ try {
                                             Save: <?php echo formatCurrency($discount_amount); ?>
                                             <span class="text-xs">(Until Jan 31)</span>
                                         </div>
-                                        <a href="payment.php?ref=<?php echo $app['reference_number']; ?>&id=<?php echo $app['id']; ?>&annual=1" 
-                                           class="mt-2 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                                            <i class="fas fa-credit-card mr-1"></i> Pay Annual
-                                        </a>
                                     </div>
                                 </div>
                             </div>
                         <?php endif; ?>
 
-                        <!-- Quarterly Taxes -->
+                        <!-- Quarterly Taxes Table - Business Billing Style -->
                         <?php if (!empty($quarterly_taxes)): ?>
                             <div class="mt-8">
-                                <h4 class="font-semibold text-gray-900 mb-4 flex items-center">
-                                    <i class="fas fa-calendar-alt text-blue-600 mr-2"></i> Quarterly Payments (<?php echo $quarterly_taxes[0]['year'] ?? date('Y'); ?>)
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4 section-header">
+                                    <i class="fas fa-calendar-alt mr-2"></i>Quarterly Tax Payments (<?php echo $quarterly_taxes[0]['year'] ?? date('Y'); ?>)
                                 </h4>
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                    <?php foreach ($quarterly_taxes as $quarter): 
-                                        $days_late = $quarter['days_late'] ?? 0;
-                                        $penalty_amount = $quarter['penalty_amount'] ?? 0;
-                                        $total_due = $quarter['total_quarterly_tax'] + $penalty_amount;
-                                        $status_class = '';
-                                        if ($quarter['payment_status'] == 'paid') $status_class = 'quarter-paid';
-                                        elseif ($quarter['payment_status'] == 'overdue') $status_class = 'quarter-overdue';
-                                        else $status_class = 'quarter-pending';
-                                    ?>
-                                        <div class="quarter-status <?php echo $status_class; ?> p-4 bg-white border rounded-lg">
-                                            <div class="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <div class="font-bold text-lg text-gray-900"><?php echo $quarter['quarter']; ?></div>
-                                                    <div class="text-sm text-gray-500"><?php echo $quarter['year']; ?></div>
-                                                </div>
-                                                <div>
-                                                    <?php if ($quarter['payment_status'] == 'paid'): ?>
-                                                        <span class="status-badge status-paid">
-                                                            <i class="fas fa-check-circle mr-1"></i> Paid
-                                                        </span>
-                                                    <?php elseif ($quarter['payment_status'] == 'overdue'): ?>
-                                                        <span class="status-badge status-overdue">
+                                <!-- Quarterly Taxes Table -->
+                                <div class="overflow-x-auto mb-6">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quarter</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Amount</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penalty</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <?php foreach ($quarterly_taxes as $tax): 
+                                                $days_late = $tax['days_late'] ?? 0;
+                                                $penalty_amount = $tax['penalty_amount'] ?? 0;
+                                                $tax_amount = $tax['total_quarterly_tax'] ?? 0;
+                                                $total_due = $tax_amount + $penalty_amount;
+                                            ?>
+                                                <tr>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <span class="font-semibold"><?php echo $tax['quarter']; ?></span>
+                                                        <span class="text-gray-600"> <?php echo $tax['year']; ?></span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <?php echo date('M d, Y', strtotime($tax['due_date'])); ?>
+                                                        <?php if ($days_late > 0): ?>
+                                                            <div class="text-xs text-red-600 mt-1">
+                                                                (<?php echo $days_late; ?> days late)
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <?php echo formatCurrency($tax_amount); ?>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <?php if ($penalty_amount > 0): ?>
+                                                            <span class="text-red-600 font-semibold">
+                                                                <?php echo formatCurrency($penalty_amount); ?>
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="text-green-600">₱0.00</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap font-bold text-lg">
+                                                        <?php echo formatCurrency($total_due); ?>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <?php if ($tax['payment_status'] == 'paid'): ?>
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                                <i class="fas fa-check-circle mr-1"></i> Paid
+                                                            </span>
+                                                        <?php elseif ($tax['payment_status'] == 'overdue'): ?>
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                                <i class="fas fa-exclamation-circle mr-1"></i> Overdue
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                                <i class="fas fa-clock mr-1"></i> Pending
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                        <tfoot class="bg-gray-50">
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-4 font-bold text-right text-gray-900">
+                                                    Totals:
+                                                </td>
+                                                <td class="px-6 py-4 font-bold text-gray-900">
+                                                    <?php echo formatCurrency($total_annual_tax); ?>
+                                                </td>
+                                                <td class="px-6 py-4 font-bold <?php echo $total_penalty > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
+                                                    <?php echo formatCurrency($total_penalty); ?>
+                                                </td>
+                                                <td class="px-6 py-4 font-bold text-xl text-blue-700">
+                                                    <?php echo formatCurrency($grand_total); ?>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <?php if ($overdue_count > 0): ?>
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                             <i class="fas fa-exclamation-circle mr-1"></i> Overdue
                                                         </span>
+                                                    <?php elseif ($paid_count == 4): ?>
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            <i class="fas fa-check-circle mr-1"></i> Paid
+                                                        </span>
                                                     <?php else: ?>
-                                                        <span class="status-badge status-pending">
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                                             <i class="fas fa-clock mr-1"></i> Pending
                                                         </span>
                                                     <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <div class="text-center mb-4">
-                                                <div class="text-2xl font-bold text-gray-900"><?php echo formatCurrency($total_due); ?></div>
-                                                <div class="text-sm text-gray-600 mt-1">
-                                                    <?php echo formatCurrency($quarter['total_quarterly_tax']); ?> 
-                                                    <?php if ($penalty_amount > 0): ?>
-                                                        + <?php echo formatCurrency($penalty_amount); ?> penalty
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <div class="text-center">
-                                                <div class="text-sm font-medium text-gray-700 mb-1">Due Date</div>
-                                                <div class="font-bold <?php echo $days_late > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
-                                                    <?php echo date('F j, Y', strtotime($quarter['due_date'])); ?>
-                                                    <?php if ($days_late > 0): ?>
-                                                        <div class="text-xs text-red-600 mt-1">(<?php echo $days_late; ?> days late)</div>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
 
                                 <!-- Payment Summary -->
@@ -671,13 +718,19 @@ try {
                                             <div class="text-xl font-bold text-gray-900"><?php echo formatCurrency($total_annual_tax); ?></div>
                                         </div>
                                         
-                                        <?php if ($total_penalty > 0): ?>
                                         <div>
                                             <div class="text-sm text-gray-600">Total Penalties</div>
-                                            <div class="text-xl font-bold text-red-600"><?php echo formatCurrency($total_penalty); ?></div>
-                                            <div class="text-xs text-red-500">2% monthly penalty</div>
+                                            <div class="text-xl font-bold <?php echo $total_penalty > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
+                                                <?php echo formatCurrency($total_penalty); ?>
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                <?php if ($total_penalty > 0): ?>
+                                                    2% monthly penalty applied
+                                                <?php else: ?>
+                                                    No penalties
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
-                                        <?php endif; ?>
                                         
                                         <div>
                                             <div class="text-sm text-gray-600">Payment Status</div>
@@ -707,7 +760,7 @@ try {
                     <div class="p-6 bg-gray-50 border-t border-gray-200">
                         <div class="flex flex-col md:flex-row md:items-center justify-between">
                             <div class="mb-4 md:mb-0">
-                                <div class="font-medium text-gray-900">Ready for Payment</div>
+                                <div class="font-medium text-gray-900">Tax Assessment Details</div>
                                 <div class="text-sm text-gray-600">
                                     <?php if ($paid_count == 4): ?>
                                         <span class="text-green-700">
@@ -723,15 +776,14 @@ try {
                                             <i class="fas fa-gift mr-1"></i> Annual discount available until January 31
                                         </span>
                                     <?php else: ?>
-                                        Your property assessment has been approved. You may now proceed to pay your RPT taxes.
+                                        Your property assessment has been approved. Quarterly tax payments are now due.
                                     <?php endif; ?>
                                 </div>
                             </div>
                             <div>
-                                <a href="payment.php?ref=<?php echo $app['reference_number']; ?>&id=<?php echo $app['id']; ?>" 
-                                   class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
-                                    <i class="fas fa-credit-card mr-2"></i> Pay Taxes Now
-                                </a>
+                                <div class="text-sm text-gray-500">
+                                    TDN: <span class="font-mono font-medium text-gray-700"><?php echo $land_data['tdn'] ?? 'N/A'; ?></span>
+                                </div>
                             </div>
                         </div>
                     </div>
