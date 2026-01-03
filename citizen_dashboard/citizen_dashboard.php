@@ -1,13 +1,9 @@
 <?php
-// citizen_dashboard.php
 session_start();
-
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit();
 }
-
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 ?>
 <!DOCTYPE html>
@@ -18,216 +14,234 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
     <title>Dashboard - GoServePH</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #9aa5b1;
+            --accent: #4caf50;
+            --background: #fbfbfb;
+        }
+        
+        body {
+            background-color: var(--background);
+        }
+        
+        .service-card {
+            transition: all 0.3s ease;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(74, 144, 226, 0.15);
+        }
+        
+        .service-card:hover .service-arrow {
+            transform: translateX(8px);
+        }
+        
+        .service-arrow {
+            transition: transform 0.3s ease;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 flex flex-col min-h-screen">
-    <!-- Include Navbar -->
+<body class="flex flex-col min-h-screen">
     <?php include 'navbar.php'; ?>
     
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8 flex-grow">
-        <!-- Page Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome, <?php echo htmlspecialchars($user_name); ?>!</h1>
-            <p class="text-gray-600">Access government services and manage your applications</p>
+    <main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
+        <!-- Welcome Section -->
+        <div class="mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-3">
+                Mabuhay, <span style="color: #4a90e2;"><?php echo htmlspecialchars($user_name); ?></span>!
+            </h1>
+            <p class="text-gray-600 text-lg">Access and manage your government services online.</p>
         </div>
 
-       <!-- Services Grid -->
-<h2 class="text-2xl font-bold text-gray-800 mb-6 font-poppins">Available Services</h2>
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-    <!-- RPT Card -->
-    <a href="rpt/rpt_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
-        <!-- Image Container -->
-        <div class="h-48 overflow-hidden">
-            <?php 
-            $rpt_image = 'images/rpt-service.png';
-            if (file_exists($rpt_image)): ?>
-                <img src="<?php echo $rpt_image; ?>" alt="Real Property Tax Service" 
-                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-            <?php else: ?>
-                <div class="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-                    <i class="fas fa-home text-blue-600 text-6xl"></i>
-                </div>
-            <?php endif; ?>
+        <!-- Services Section Header -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Available Services</h2>
+            <div class="h-1 w-20 rounded-full" style="background-color: #4a90e2;"></div>
         </div>
-        
-        <!-- Card Content -->
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-home text-blue-600 text-lg"></i>
+
+        <!-- Services Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            
+            <!-- Real Property Tax Service -->
+            <a href="rpt/rpt_services.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+                <div class="h-48 overflow-hidden relative">
+                    <?php 
+                    $rpt_image = 'images/rpt-service.png';
+                    if (file_exists($rpt_image)): ?>
+                        <img src="<?php echo $rpt_image; ?>" alt="Real Property Tax" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <?php else: ?>
+                        <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(74, 144, 226, 0.1);">
+                            <i class="fas fa-home text-6xl" style="color: rgba(74, 144, 226, 0.3);"></i>
+                        </div>
+                    <?php endif; ?>
+                    <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                        <span class="text-xs font-semibold uppercase" style="color: #4a90e2;">Property</span>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Real Property Tax</h3>
                 </div>
-                <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full">Tax</span>
-            </div>
-            <p class="text-gray-600 text-sm mb-4">Manage property taxes, view assessments, and make payments online.</p>
-            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                <span class="text-blue-600 text-sm font-medium">Access Service →</span>
-                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors">
-                    <i class="fas fa-arrow-right text-blue-600 group-hover:text-white text-sm transition-colors"></i>
-                </div>
-            </div>
-        </div>
-    </a>
-
-    <!-- Business Tax Card -->
-    <a href="business/business_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
-        <!-- Image Container -->
-        <div class="h-48 overflow-hidden">
-            <?php 
-            $business_image = 'images/business-service.png';
-            if (file_exists($business_image)): ?>
-                <img src="<?php echo $business_image; ?>" alt="Business Tax Service" 
-                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-            <?php else: ?>
-                <div class="w-full h-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
-                    <i class="fas fa-briefcase text-green-600 text-6xl"></i>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Card Content -->
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-briefcase text-green-600 text-lg"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Business Tax</h3>
-                </div>
-                <span class="bg-green-100 text-green-600 text-xs font-semibold px-3 py-1 rounded-full">Business</span>
-            </div>
-            <p class="text-gray-600 text-sm mb-4">File business returns, make payments, and manage business taxes.</p>
-            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                <span class="text-green-600 text-sm font-medium">Access Service →</span>
-                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center group-hover:bg-green-600 transition-colors">
-                    <i class="fas fa-arrow-right text-green-600 group-hover:text-white text-sm transition-colors"></i>
-                </div>
-            </div>
-        </div>
-    </a>
-
-    <!-- Market Rent Card -->
-    <a href="market/market_services.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:scale-[1.02] cursor-pointer block group">
-        <!-- Image Container -->
-        <div class="h-48 overflow-hidden">
-            <?php 
-            $market_image = 'images/market-service.png';
-            if (file_exists($market_image)): ?>
-                <img src="<?php echo $market_image; ?>" alt="Market Rent Service" 
-                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-            <?php else: ?>
-                <div class="w-full h-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
-                    <i class="fas fa-store text-orange-600 text-6xl"></i>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Card Content -->
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-store text-orange-600 text-lg"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Market Rent</h3>
-                </div>
-                <span class="bg-orange-100 text-orange-600 text-xs font-semibold px-3 py-1 rounded-full">Market</span>
-            </div>
-            <p class="text-gray-600 text-sm mb-4">Manage stall rentals, pay rent fees, and handle vendor allocations.</p>
-            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                <span class="text-orange-600 text-sm font-medium">Access Service →</span>
-                <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-600 transition-colors">
-                    <i class="fas fa-arrow-right text-orange-600 group-hover:text-white text-sm transition-colors"></i>
-                </div>
-            </div>
-        </div>
-    </a>
-</div>
-
-    <!-- Footer -->
-    <footer class="bg-white border-t border-gray-200 mt-12">
-        <div class="container mx-auto px-6 py-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <!-- Brand -->
-                <div class="col-span-1">
+                <div class="p-6">
                     <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background-color: #4A90E2;">
-                            <i class="fas fa-user-tie text-white text-sm"></i>
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4a90e2;">
+                            <i class="fas fa-landmark text-white"></i>
                         </div>
-                        <div>
-                            <h1 class="text-xl font-bold" style="word-spacing: -0.2em;">
-                                <span style="color: #4A90E2;">Go</span><!--
-                                --><span style="color: #4CAF50;">Serve</span><!--
-                                --><span style="color: #4A90E2;">PH</span>
-                            </h1>
-                            <p class="text-xs text-gray-600">Citizen Dashboard</p>
-                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Real Property Tax</h3>
                     </div>
-                    <p class="text-gray-600 text-sm">
-                        Streamlining government services for Filipino citizens.
+                    <p class="text-gray-600 leading-relaxed mb-6">
+                        Register properties, view assessments, and pay your real property taxes online.
                     </p>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <span class="font-semibold" style="color: #4a90e2;">Open Service</span>
+                        <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
+                    </div>
                 </div>
+            </a>
 
-                <!-- Quick Links -->
-                <div class="col-span-1">
-                    <h3 class="font-semibold text-gray-800 mb-4">Quick Links</h3>
-                    <ul class="space-y-2">
-                        <li><a href="services.php" class="text-gray-600 hover:text-blue-600 text-sm transition-colors">Services</a></li>
-                        <li><a href="applications.php" class="text-gray-600 hover:text-blue-600 text-sm transition-colors">My Applications</a></li>
-                        <li><a href="documents.php" class="text-gray-600 hover:text-blue-600 text-sm transition-colors">Documents</a></li>
-                        <li><a href="settings.php" class="text-gray-600 hover:text-blue-600 text-sm transition-colors">Settings</a></li>
+            <!-- Business Tax Service -->
+            <a href="business/business_services.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+                <div class="h-48 overflow-hidden relative">
+                    <?php 
+                    $business_image = 'images/business-service.png';
+                    if (file_exists($business_image)): ?>
+                        <img src="<?php echo $business_image; ?>" alt="Business Tax" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <?php else: ?>
+                        <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(76, 175, 80, 0.1);">
+                            <i class="fas fa-briefcase text-6xl" style="color: rgba(76, 175, 80, 0.3);"></i>
+                        </div>
+                    <?php endif; ?>
+                    <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                        <span class="text-xs font-semibold uppercase" style="color: #4caf50;">Business</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4caf50;">
+                            <i class="fas fa-file-invoice text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Business Tax</h3>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed mb-6">
+                        Track permit applications and manage your business tax payments online.
+                    </p>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <span class="font-semibold" style="color: #4caf50;">Open Service</span>
+                        <i class="fas fa-arrow-right service-arrow" style="color: #4caf50;"></i>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Market Rent Service -->
+            <a href="market/market_services.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+                <div class="h-48 overflow-hidden relative">
+                    <?php 
+                    $market_image = 'images/market-service.png';
+                    if (file_exists($market_image)): ?>
+                        <img src="<?php echo $market_image; ?>" alt="Market Rent" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <?php else: ?>
+                        <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(255, 152, 0, 0.1);">
+                            <i class="fas fa-store text-6xl" style="color: rgba(255, 152, 0, 0.3);"></i>
+                        </div>
+                    <?php endif; ?>
+                    <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                        <span class="text-xs font-semibold text-orange-600 uppercase">Market</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-shop text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Market Rent</h3>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed mb-6">
+                        Manage market stall rentals, payments, and vendor applications.
+                    </p>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <span class="font-semibold text-orange-600">Open Service</span>
+                        <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+
+        <!-- Quick Info Section -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-2xl" style="color: #4a90e2;"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Welcome to GoServePH</h3>
+                    <p class="text-gray-600 mb-3">
+                        Our online portal makes it easy to access government services from anywhere. Select a service above to get started.
+                    </p>
+                    <ul class="text-gray-600 space-y-2">
+                        <li>• All transactions are secure and officially recorded</li>
+                        <li>• Track your applications in real-time</li>
+                        <li>• Pay online and receive instant digital receipts</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </main>
 
-                <!-- Services -->
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-16">
+        <div class="container mx-auto px-6 py-12 max-w-7xl">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+                <!-- Brand -->
                 <div class="col-span-1">
-                    <h3 class="font-semibold text-gray-800 mb-4">Services</h3>
-                    <ul class="space-y-2">
-                        <li><a href="rpt/rpt_services.php" class="text-gray-600 hover:text-blue-600 text-sm transition-colors">Real Property Tax</a></li>
-                        <li><a href="business_tax_services.php" class="text-gray-600 hover:text-green-600 text-sm transition-colors">Business Tax</a></li>
-                        <li><a href="market_rent_services.php" class="text-gray-600 hover:text-orange-600 text-sm transition-colors">Market Rent</a></li>
+                    <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
+                        <span style="color: #4a90e2;">Go</span>
+                        <span style="color: #4caf50;">Serve</span>
+                        <span style="color: #4a90e2;">PH</span>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed">
+                        The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
+                    </p>
+                </div>
+                
+                <!-- Portal Links -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                     </ul>
                 </div>
 
                 <!-- Contact -->
-                <div class="col-span-1">
-                    <h3 class="font-semibold text-gray-800 mb-4">Contact Info</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-phone text-gray-400 text-sm"></i>
-                            <span class="text-gray-600 text-sm">(02) 1234-5678</span>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-envelope text-gray-400 text-sm"></i>
-                            <span class="text-gray-600 text-sm">support@goserveph.gov.ph</span>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-clock text-gray-400 text-sm"></i>
-                            <span class="text-gray-600 text-sm">Mon-Fri: 8:00 AM - 5:00 PM</span>
-                        </div>
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                        <li><i class="fas fa-envelope mr-2 text-gray-400"></i> support@goserveph.gov.ph</li>
+                        <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                    </ul>
+                </div>
+
+                <!-- Social -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                    <div class="flex space-x-4 text-2xl">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
                     </div>
                 </div>
             </div>
-
-            <!-- Bottom Bar -->
-            <div class="border-t border-gray-200 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-                <p class="text-gray-500 text-sm mb-4 md:mb-0">
-                    &copy; 2024 GoServePH. All rights reserved.
+            
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-10 pt-8">
+                <p class="text-sm text-gray-500 text-center">
+                    &copy; 2026 GoServePH Local Government Unit. Republic of the Philippines.
                 </p>
-                <div class="flex space-x-6">
-                    <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
-                        <i class="fab fa-facebook-f"></i>
-                    </a>
-                    <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
-                        <i class="fab fa-twitter"></i>
-                    </a>
-                    <a href="#" class="text-gray-400 hover:text-red-600 transition-colors">
-                        <i class="fab fa-youtube"></i>
-                    </a>
-                </div>
             </div>
         </div>
     </footer>

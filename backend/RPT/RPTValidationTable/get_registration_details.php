@@ -16,9 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Try to include DB connection with proper error handling
+// Try to include DB connection
 $dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
-
 if (!file_exists($dbPath)) {
     http_response_code(500);
     echo json_encode(["error" => "Database config file not found at: " . $dbPath]);
@@ -38,8 +37,6 @@ if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
 
 // Determine HTTP method
 $method = $_SERVER['REQUEST_METHOD'];
-
-// Route based on method
 switch ($method) {
     case 'GET':
         getRegistrationDetails($pdo);
@@ -56,7 +53,6 @@ switch ($method) {
 // ==========================
 // FUNCTIONS
 // ==========================
-
 function getRegistrationDetails($pdo) {
     // Validate required parameters
     if (!isset($_GET['id'])) {
@@ -66,7 +62,6 @@ function getRegistrationDetails($pdo) {
     }
 
     $registrationId = trim($_GET['id']);
-    
     if (!is_numeric($registrationId)) {
         http_response_code(400);
         echo json_encode(["error" => "Invalid registration ID format"]);
@@ -74,7 +69,7 @@ function getRegistrationDetails($pdo) {
     }
 
     try {
-        // Corrected SQL query with proper name concatenation
+        // Main registration + owner data
         $query = "
             SELECT 
                 pr.id,
@@ -90,7 +85,6 @@ function getRegistrationDetails($pdo) {
                 COALESCE(pr.correction_notes, '') as correction_notes,
                 pr.created_at,
                 pr.updated_at,
-                -- Separate name fields
                 po.first_name,
                 po.last_name,
                 po.middle_name,
@@ -111,7 +105,7 @@ function getRegistrationDetails($pdo) {
             LEFT JOIN property_owners po ON pr.owner_id = po.id
             WHERE pr.id = ?
         ";
-        
+
         $stmt = $pdo->prepare($query);
         $stmt->execute([$registrationId]);
         $registration = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -122,39 +116,51 @@ function getRegistrationDetails($pdo) {
             return;
         }
 
-        // Construct full name from separate fields
+        // Construct full owner name
         $firstName = $registration['first_name'] ?? '';
         $lastName = $registration['last_name'] ?? '';
         $middleName = $registration['middle_name'] ?? '';
         $suffix = $registration['suffix'] ?? '';
-        
-        // Format: FirstName MiddleInitial. LastName Suffix (e.g., Ivan D. Anorico)
-        $ownerName = trim($firstName . ' ' . 
-            (!empty($middleName) ? substr($middleName, 0, 1) . '. ' : '') . 
-            $lastName . 
-            (!empty($suffix) ? ' ' . $suffix : ''));
-        
-        // Or if you want full middle name: Ivan Dolera Anorico
-        // $ownerName = trim($firstName . 
-        //     (!empty($middleName) ? ' ' . $middleName : '') . 
-        //     ' ' . $lastName . 
-        //     (!empty($suffix) ? ' ' . $suffix : ''));
-        
-        // Construct owner address if not already in address field
+        $ownerName = trim($firstName . ' ' . (!empty($middleName) ? substr($middleName,0,1).'. ' : '') . $lastName . (!empty($suffix) ? ' '.$suffix : ''));
+
+        // Construct owner address
         $ownerAddress = $registration['owner_address'];
         if (empty($ownerAddress)) {
             $ownerAddress = trim(
-                (!empty($registration['house_number']) ? $registration['house_number'] . ' ' : '') .
-                (!empty($registration['street']) ? $registration['street'] . ', ' : '') .
-                (!empty($registration['owner_barangay']) ? $registration['owner_barangay'] . ', ' : '') .
-                (!empty($registration['owner_district']) ? 'District ' . $registration['owner_district'] . ', ' : '') .
-                (!empty($registration['owner_city']) ? $registration['owner_city'] . ', ' : '') .
-                (!empty($registration['owner_province']) ? $registration['owner_province'] . ' ' : '') .
+                (!empty($registration['house_number']) ? $registration['house_number'].' ' : '') .
+                (!empty($registration['street']) ? $registration['street'].', ' : '') .
+                (!empty($registration['owner_barangay']) ? $registration['owner_barangay'].', ' : '') .
+                (!empty($registration['owner_district']) ? 'District '.$registration['owner_district'].', ' : '') .
+                (!empty($registration['owner_city']) ? $registration['owner_city'].', ' : '') .
+                (!empty($registration['owner_province']) ? $registration['owner_province'].' ' : '') .
                 (!empty($registration['owner_zip_code']) ? $registration['owner_zip_code'] : '')
             );
         }
-        
-        // Format response data according to expected structure
+
+        // Initialize inspection fields
+        $inspectorName = '';
+        $inspectionDate = '';
+
+        // Fetch inspection info if status is 'for inspection'
+        if (strtolower($registration['status']) === 'for inspection') {
+            $inspectionQuery = "
+                SELECT i.inspection_date, u.full_name as inspector_name
+                FROM property_inspections i
+                LEFT JOIN users u ON i.inspector_id = u.id
+                WHERE i.registration_id = ?
+                ORDER BY i.inspection_date DESC
+                LIMIT 1
+            ";
+            $stmtInspect = $pdo->prepare($inspectionQuery);
+            $stmtInspect->execute([$registrationId]);
+            $inspection = $stmtInspect->fetch(PDO::FETCH_ASSOC);
+            if ($inspection) {
+                $inspectorName = $inspection['inspector_name'] ?? '';
+                $inspectionDate = $inspection['inspection_date'] ?? '';
+            }
+        }
+
+        // Prepare response
         $responseData = [
             "id" => $registration['id'],
             "reference_number" => $registration['reference_number'],
@@ -164,7 +170,7 @@ function getRegistrationDetails($pdo) {
             "district" => $registration['district'],
             "province" => $registration['province'] ?? 'Metro Manila',
             "zip_code" => $registration['zip_code'],
-            "property_type" => "Residential", // You might want to get this from land_properties table
+            "property_type" => "Residential",
             "has_building" => $registration['has_building'],
             "status" => $registration['status'],
             "remarks" => $registration['correction_notes'],
@@ -175,20 +181,20 @@ function getRegistrationDetails($pdo) {
             "contact_number" => $registration['phone'],
             "tin" => $registration['tin_number'],
             "owner_address" => $ownerAddress,
-            // Additional fields for UI
             "first_name" => $registration['first_name'],
             "last_name" => $registration['last_name'],
             "middle_name" => $registration['middle_name'],
             "suffix" => $registration['suffix'],
             "birthdate" => $registration['birthdate'],
             "owner_city" => $registration['owner_city'] ?? 'Quezon City',
-            "owner_province" => $registration['owner_province'] ?? 'Metro Manila'
+            "owner_province" => $registration['owner_province'] ?? 'Metro Manila',
+            // Inspection fields
+            "inspector_name" => $inspectorName,
+            "inspection_date" => $inspectionDate
         ];
-        
-        // Ensure all fields have values (no nulls)
-        $responseData = array_map(function($value) {
-            return $value === null ? '' : $value;
-        }, $responseData);
+
+        // Replace nulls with empty strings
+        $responseData = array_map(function($v){ return $v===null?'':$v; }, $responseData);
 
         echo json_encode([
             "success" => true,

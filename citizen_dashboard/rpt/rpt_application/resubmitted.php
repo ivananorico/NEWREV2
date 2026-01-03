@@ -86,15 +86,16 @@ try {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .status-badge { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
-        .status-resubmitted { background-color: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
+        .status-resubmitted { background-color: #f0f9ff; color: #0369a1; border: 1px solid #0ea5e9; }
+        .status-pending { background-color: #fef9c3; color: #854d0e; border: 1px solid #fbbf24; }
         .info-card-header { display: flex; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; }
         .icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; }
         .info-label { font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 0.25rem; }
         .info-value { font-size: 1rem; color: #111827; font-weight: 500; }
         .empty-state { text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .empty-icon { font-size: 3.5rem; color: #d1d5db; margin-bottom: 1.5rem; }
-        .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 0.75rem 0; }
-        .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
+        .progress-bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 0.75rem 0; }
+        .progress-fill { height: 100%; background: #3b82f6; border-radius: 4px; }
         .document-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; transition: all 0.2s; background: white; }
         .document-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); padding: 20px; }
@@ -121,7 +122,7 @@ try {
             <a href="../rpt_services.php" class="text-blue-600 hover:text-blue-800 mr-4"><i class="fas fa-arrow-left"></i></a>
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Resubmitted Applications</h1>
-                <p class="text-gray-600">Your corrected applications are waiting for final review</p>
+                <p class="text-gray-600">Your corrected applications are pending review</p>
             </div>
         </div>
 
@@ -134,7 +135,7 @@ try {
                 </div>
                 <div class="h-8 w-px bg-gray-300"></div>
                 <div class="ml-4">
-                    <div class="status-badge status-resubmitted"><i class="fas fa-sync-alt mr-2"></i>Under Final Review</div>
+                    <div class="status-badge status-resubmitted"><i class="fas fa-sync-alt mr-2"></i>Pending Review</div>
                 </div>
             </div>
         <?php endif; ?>
@@ -185,7 +186,7 @@ try {
                         <div>
                             <div class="flex items-center mb-3">
                                 <span class="text-xl font-bold text-gray-900 mr-4"><?php echo $app['reference_number']; ?></span>
-                                <span class="status-badge status-resubmitted"><i class="fas fa-sync-alt mr-1"></i>Resubmitted</span>
+                                <span class="status-badge status-resubmitted"><i class="fas fa-sync-alt mr-1"></i>Pending Review</span>
                             </div>
                             <div class="flex items-center text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i>
                                 <span><?php echo $app['lot_location']; ?>, Brgy. <?php echo $app['barangay']; ?></span>
@@ -197,20 +198,22 @@ try {
                         </div>
                     </div>
 
-                    <div class="px-6 py-4 bg-blue-50">
-    <div class="flex justify-between items-center mb-2">
-        <div class="text-sm font-medium text-blue-800">Application Progress</div>
-        <div class="text-sm text-blue-700">Step 3 of 5</div>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" style="width: 60%"></div></div>
-    <div class="flex justify-between text-xs text-blue-600 mt-1">
-        <span>Submitted</span>
-        <span>Review</span>
-        <span>Resubmitted</span>
-        <span>Assessment</span>
-        <span>Approved</span>
-    </div>
-</div>
+                    <!-- Progress Bar - Still at Pending Stage (like in React) -->
+                    <div class="px-6 py-4 bg-blue-50 border-t border-gray-200">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Pending</span>
+                            <span>For Inspection</span>
+                            <span>Assessed</span>
+                            <span>Approved</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 25%"></div>
+                        </div>
+                        <div class="text-xs text-blue-600 mt-1 text-center">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Application is pending initial review after resubmission
+                        </div>
+                    </div>
 
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>
@@ -297,12 +300,12 @@ try {
                     <div class="px-6 py-4 bg-blue-50 border-t border-gray-200">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="font-medium text-gray-900">Final Review Stage</div>
-                                <div class="text-sm text-gray-600">Your corrections are being verified (1-3 business days)</div>
+                                <div class="font-medium text-gray-900">Pending Initial Review</div>
+                                <div class="text-sm text-gray-600">Your resubmitted application is waiting for initial review</div>
                             </div>
                             <div class="text-sm text-blue-700">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                Priority review for resubmissions
+                                <i class="fas fa-clock mr-1"></i>
+                                Review time: 2-5 business days
                             </div>
                         </div>
                     </div>
@@ -320,19 +323,19 @@ try {
         <div class="text-blue-700 space-y-2">
             <div class="flex items-start">
                 <i class="fas fa-clock text-blue-500 mt-1 mr-2"></i>
-                <span>Resubmitted applications get priority review within 1-3 working days.</span>
+                <span>Resubmitted applications restart the review process from the beginning.</span>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-sync-alt text-blue-500 mt-1 mr-2"></i>
+                <span>Your application status is now "Pending" and will be reviewed again.</span>
             </div>
             <div class="flex items-start">
                 <i class="fas fa-user-check text-blue-500 mt-1 mr-2"></i>
-                <span>The assessor verifies if your corrections are complete and accurate.</span>
+                <span>An assessor will verify your corrections before proceeding to inspection.</span>
             </div>
             <div class="flex items-start">
                 <i class="fas fa-bell text-blue-500 mt-1 mr-2"></i>
-                <span>You'll be notified via email about the final status (approved or needs more corrections).</span>
-            </div>
-            <div class="flex items-start">
-                <i class="fas fa-phone-alt text-blue-500 mt-1 mr-2"></i>
-                <span>For questions, contact City Assessor's Office: (02) 123-4567 or assessor@citylgu.gov.ph</span>
+                <span>You'll be notified via email about the next steps (approval or further corrections).</span>
             </div>
         </div>
     </div>

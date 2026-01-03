@@ -11,11 +11,11 @@ if (!isset($_SESSION['user_id'])) {
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 $user_id = $_SESSION['user_id'];
 
-// Include database connection with correct relative path
+// Include database connection
 require_once '../../db/RPT/rpt_db.php';
 $pdo = getDatabaseConnection();
 
-// Determine user's application status
+// Status counters
 $status_counts = [
     'pending' => 0,
     'for_inspection' => 0,
@@ -29,11 +29,8 @@ $status_counts = [
 $total_applications = 0;
 
 try {
-    // Get user's application status counts
     $stmt = $pdo->prepare("
-        SELECT 
-            pr.status,
-            COUNT(*) as count
+        SELECT pr.status, COUNT(*) as count
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
         WHERE po.user_id = ?
@@ -41,20 +38,13 @@ try {
     ");
     $stmt->execute([$user_id]);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     foreach ($results as $row) {
-        $status = $row['status'];
-        $count = $row['count'];
-        $total_applications += $count;
-        
-        if (isset($status_counts[$status])) {
-            $status_counts[$status] = $count;
-        }
+        $status_counts[$row['status']] = $row['count'];
+        $total_applications += $row['count'];
     }
-    
 } catch (PDOException $e) {
-    // Silently handle error
-    error_log("Database error in rpt_services.php: " . $e->getMessage());
+    error_log($e->getMessage());
 }
 ?>
 
@@ -62,372 +52,345 @@ try {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>Real Property Tax Services | GoServePH</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPT Services - GoServePH</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
-        .notification {
-            animation: slideDown 0.5s ease-out;
-            position: relative;
+        :root {
+            --primary: #4a90e2;
+            --secondary: #9aa5b1;
+            --accent: #4caf50;
+            --background: #fbfbfb;
         }
-        @keyframes slideDown {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+
+        body {
+            background-color: var(--background);
+            font-family: Inter, system-ui, sans-serif;
+        }
+
+        .service-card {
+            transition: all 0.3s ease;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(74, 144, 226, 0.15);
+        }
+        
+        .service-card:hover .service-arrow {
+            transform: translateX(8px);
+        }
+        
+        .service-arrow {
+            transition: transform 0.3s ease;
+        }
+
+        .lgu-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: all .25s ease;
+        }
+
+        .lgu-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+        }
+
+        .section-header {
+            border-left: 5px solid var(--primary);
+            padding-left: 1rem;
+        }
+
+        .notification-slide {
+            animation: slideIn .3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Include Navbar with correct path -->
-    <?php include '../../citizen_dashboard/navbar.php'; ?>
-    
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8">
-        <!-- Page Header -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div class="flex items-center mb-4">
-                <!-- Back to citizen dashboard -->
-                <a href="../../citizen_dashboard/citizen_dashboard.php" class="text-blue-600 hover:text-blue-800 mr-4">
-                    <i class="fas fa-arrow-left"></i>
+
+<body class="flex flex-col min-h-screen">
+<?php include '../../citizen_dashboard/navbar.php'; ?>
+
+<main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
+
+    <!-- Welcome Back Section -->
+    <div class="mb-8">
+        <div class="flex items-center">
+            <a href="../../citizen_dashboard/citizen_dashboard.php" 
+               class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-6">
+                <i class="fas fa-arrow-left text-xl"></i>
+            </a>
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">
+                    Real Property Tax Services
+                </h1>
+                <p class="text-gray-600 text-lg">
+                    Official property registration and tax payment services
+                </p>
+            </div>
+        </div>
+        <div class="h-1 w-20 rounded-full mt-4" style="background-color: #4a90e2;"></div>
+    </div>
+
+    <!-- PRIORITY NOTIFICATIONS -->
+    <?php if ($status_counts['needs_correction'] > 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-red-500 p-6 mb-6 bg-red-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-triangle-exclamation text-red-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-red-800 mb-2 text-lg">Action Required</h3>
+                <p class="text-red-700 mb-3">
+                    You have <strong><?= $status_counts['needs_correction'] ?></strong> application(s) requiring correction.
+                </p>
+                <a href="rpt_application/needs_correction.php"
+                   class="font-medium text-red-700 hover:underline flex items-center">
+                    Review Applications
+                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
                 </a>
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Real Property Tax Services</h1>
-                    <p class="text-gray-600">Manage your property taxes and related services</p>
-                </div>
             </div>
         </div>
+    </div>
+    <?php endif; ?>
 
-        <!-- Status Notifications -->
-        <?php if ($status_counts['needs_correction'] > 0): ?>
-        <div class="notification mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-red-800">
-                        Action Required: You have <?php echo $status_counts['needs_correction']; ?> application(s) needing correction
-                    </h3>
-                    <div class="mt-2 text-sm text-red-700">
-                        <p>Please review the assessor's notes and make the required corrections.</p>
-                    </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/needs_correction.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                            <i class="fas fa-edit mr-2"></i>
-                            Review Applications
-                        </a>
-                    </div>
-                </div>
+    <?php if ($status_counts['approved'] > 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-[var(--accent)] p-6 mb-8 bg-green-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-circle-check text-[var(--accent)] text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-green-800 mb-2 text-lg">Approved Applications</h3>
+                <p class="text-green-700 mb-3">
+                    <strong><?= $status_counts['approved'] ?></strong> property application(s) are approved and ready for payment.
+                </p>
+                <a href="rpt_tax_payment/rpt_tax_payment.php"
+                   class="font-medium text-green-700 hover:underline flex items-center">
+                    Proceed to Payment
+                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                </a>
             </div>
         </div>
-        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
-        <?php if ($status_counts['pending'] > 0): ?>
-        <div class="notification mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-clock text-blue-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-blue-800">
-                        You have <?php echo $status_counts['pending']; ?> pending application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-blue-700">
-                        <p>Your applications are waiting for initial review.</p>
+    <!-- MAIN SERVICES GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        
+        <!-- REGISTRATION CARD -->
+        <a href="rpt_registration/rpt_registration.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+            <div class="h-48 overflow-hidden relative">
+                <?php 
+                $reg_image = 'images/rpt-registration.png';
+                if (file_exists($reg_image)): ?>
+                    <img src="<?php echo $reg_image; ?>" alt="Property Registration" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(74, 144, 226, 0.1);">
+                        <i class="fas fa-file-alt text-6xl" style="color: rgba(74, 144, 226, 0.3);"></i>
                     </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/pending.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <i class="fas fa-eye mr-2"></i>
-                            View Applications
-                        </a>
-                    </div>
+                <?php endif; ?>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                    <span class="text-xs font-semibold uppercase" style="color: #4a90e2;">Registration</span>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($status_counts['for_inspection'] > 0): ?>
-        <div class="notification mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-search text-yellow-500 text-xl"></i>
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4a90e2;">
+                        <i class="fas fa-edit text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800">Property Registration</h3>
                 </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-yellow-800">
-                        Inspection Scheduled: <?php echo $status_counts['for_inspection']; ?> application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-yellow-700">
-                        <p>Your properties are scheduled for inspection.</p>
-                    </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/inspection.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                            <i class="fas fa-calendar-alt mr-2"></i>
-                            View Inspection Details
-                        </a>
-                    </div>
+                <p class="text-gray-600 leading-relaxed mb-6">
+                    Register new properties or update existing records for assessment.
+                </p>
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span class="font-semibold" style="color: #4a90e2;">Start Registration</span>
+                    <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
+        </a>
 
-        <?php if ($status_counts['resubmitted'] > 0): ?>
-        <div class="notification mb-8 bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-redo text-purple-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-purple-800">
-                        Resubmitted: <?php echo $status_counts['resubmitted']; ?> application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-purple-700">
-                        <p>Your corrected applications are under review.</p>
+        <!-- STATUS CARD -->
+        <div class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="h-48 overflow-hidden relative">
+                <?php 
+                $status_image = 'images/application-status.png';
+                if (file_exists($status_image)): ?>
+                    <img src="<?php echo $status_image; ?>" alt="Application Status" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(255, 152, 0, 0.1);">
+                        <i class="fas fa-chart-line text-6xl" style="color: rgba(255, 152, 0, 0.3);"></i>
                     </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/resubmitted.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                            <i class="fas fa-sync-alt mr-2"></i>
-                            View Resubmissions
-                        </a>
-                    </div>
+                <?php endif; ?>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                    <span class="text-xs font-semibold uppercase text-orange-600">Status</span>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($status_counts['assessed'] > 0): ?>
-        <div class="notification mb-8 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-calculator text-indigo-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-indigo-800">
-                        Assessed: <?php echo $status_counts['assessed']; ?> application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-indigo-700">
-                        <p>Your properties have been assessed and are awaiting final approval.</p>
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white"></i>
                     </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/assessed.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            <i class="fas fa-chart-bar mr-2"></i>
-                            View Assessment
-                        </a>
-                    </div>
+                    <h3 class="text-xl font-bold text-gray-800">Application Status</h3>
                 </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($status_counts['approved'] > 0): ?>
-        <div class="notification mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-green-800">
-                        Approved: <?php echo $status_counts['approved']; ?> application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-green-700">
-                        <p>Your applications have been approved. You can now pay property taxes.</p>
-                    </div>
-                    <div class="mt-3">
-                        <a href="rpt_tax_payment/rpt_tax_payment.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                            <i class="fas fa-credit-card mr-2"></i>
-                            View Approved & Pay Taxes
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($status_counts['rejected'] > 0): ?>
-        <div class="notification mb-8 bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-times-circle text-gray-500 text-xl"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <h3 class="text-sm font-medium text-gray-800">
-                        Rejected: <?php echo $status_counts['rejected']; ?> application(s)
-                    </h3>
-                    <div class="mt-2 text-sm text-gray-700">
-                        <p>Some applications were rejected. Please review the reasons.</p>
-                    </div>
-                    <div class="mt-3">
-                        <a href="rpt_application/rejected.php" 
-                           class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                            <i class="fas fa-file-excel mr-2"></i>
-                            View Rejected
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- RPT Services Cards - 3 cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Registration -->
-            <a href="rpt_registration/rpt_registration.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-purple-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-file-alt text-purple-600 text-xl"></i>
-                    </div>
-                    <span class="bg-purple-100 text-purple-600 text-xs font-semibold px-2 py-1 rounded">Registration</span>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Registration</h3>
-                <p class="text-gray-600 text-sm mb-4">Register new properties, transfer ownership, and update property records.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-purple-600 text-sm font-medium">Start Process →</span>
-                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-purple-600 text-sm"></i>
-                    </div>
-                </div>
-            </a>
-
-            <!-- Application Status Card -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-tasks text-yellow-600 text-xl"></i>
-                    </div>
-                    <span class="bg-yellow-100 text-yellow-600 text-xs font-semibold px-2 py-1 rounded">View Applications</span>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Application Status</h3>
-                <p class="text-gray-600 text-sm mb-4">View your applications by status. Click on any status below to see details.</p>
+                <p class="text-gray-600 leading-relaxed mb-4">Track your submitted applications.</p>
                 
-                <!-- Application Status Links -->
+                <?php if ($total_applications > 0): ?>
                 <div class="space-y-3 mt-4">
-                    <?php foreach ($status_counts as $status => $count): ?>
-                        <?php if ($count > 0): ?>
-                            <?php 
-                            $colors = [
-                                'pending' => 'blue',
-                                'for_inspection' => 'yellow',
-                                'needs_correction' => 'red',
-                                'resubmitted' => 'purple',
-                                'assessed' => 'indigo',
-                                'approved' => 'green',
-                                'rejected' => 'gray'
-                            ];
-                            $color = $colors[$status] ?? 'gray';
-                            ?>
-                            <a href="rpt_application/<?php echo $status; ?>.php" 
-                               class="flex items-center justify-between p-3 bg-<?php echo $color; ?>-50 border border-<?php echo $color; ?>-200 rounded-lg hover:bg-<?php echo $color; ?>-100 transition-colors">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 rounded-full bg-<?php echo $color; ?>-100 flex items-center justify-center mr-3">
-                                        <i class="fas fa-circle text-<?php echo $color; ?>-500 text-xs"></i>
-                                    </div>
-                                    <span class="text-sm font-medium text-gray-700 capitalize"><?php echo str_replace('_', ' ', $status); ?></span>
-                                </div>
-                                <div class="flex items-center">
-                                    <span class="text-sm font-bold text-<?php echo $color; ?>-600 mr-2"><?php echo $count; ?></span>
-                                    <i class="fas fa-chevron-right text-<?php echo $color; ?>-400 text-xs"></i>
-                                </div>
-                            </a>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                    
-                    <?php if ($total_applications === 0): ?>
-                        <div class="text-center py-4">
-                            <i class="fas fa-inbox text-gray-300 text-3xl mb-2"></i>
-                            <p class="text-gray-500 text-sm">No applications yet</p>
-                        </div>
-                    <?php endif; ?>
+                    <?php
+                    $labels = [
+                        'pending' => 'Pending Review',
+                        'for_inspection' => 'For Inspection',
+                        'needs_correction' => 'Needs Correction',
+                        'resubmitted' => 'Resubmitted',
+                        'assessed' => 'Assessed',
+                        'approved' => 'Approved',
+                        'rejected' => 'Rejected'
+                    ];
+                    foreach ($status_counts as $key => $count):
+                        if ($count > 0):
+                            $color_class = '';
+                            if ($key === 'approved') $color_class = 'text-green-600';
+                            elseif ($key === 'needs_correction') $color_class = 'text-red-600';
+                            elseif ($key === 'pending') $color_class = 'text-yellow-600';
+                            else $color_class = 'text-gray-600';
+                    ?>
+                    <a href="rpt_application/<?= $key ?>.php"
+                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <span class="text-gray-700"><?= $labels[$key] ?></span>
+                        <span class="font-semibold <?= $color_class ?>"><?= $count ?></span>
+                    </a>
+                    <?php endif; endforeach; ?>
+                </div>
+                <?php else: ?>
+                    <p class="text-center text-gray-500 py-6 border-t border-gray-100 mt-4">No applications yet</p>
+                <?php endif; ?>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
+                    <span class="font-semibold text-orange-600">View All</span>
+                    <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
                 </div>
             </div>
+        </div>
 
-            <!-- RPT Tax Payment Card -->
-            <a href="rpt_tax_payment/rpt_tax_payment.php" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border-l-4 border-blue-500 hover:scale-105 cursor-pointer block">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-credit-card text-blue-600 text-xl"></i>
+        <!-- PAYMENT CARD -->
+        <a href="rpt_tax_payment/rpt_tax_payment.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+            <div class="h-48 overflow-hidden relative">
+                <?php 
+                $payment_image = 'images/rpt-payment.png';
+                if (file_exists($payment_image)): ?>
+                    <img src="<?php echo $payment_image; ?>" alt="Tax Payment" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(76, 175, 80, 0.1);">
+                        <i class="fas fa-credit-card text-6xl" style="color: rgba(76, 175, 80, 0.3);"></i>
                     </div>
-                    <span class="bg-blue-100 text-blue-600 text-xs font-semibold px-2 py-1 rounded">Payment</span>
+                <?php endif; ?>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
+                    <span class="text-xs font-semibold uppercase" style="color: #4caf50;">Payment</span>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">RPT Tax Payment</h3>
-                <p class="text-gray-600 text-sm mb-4">Pay your real property taxes online, view tax assessments, and download receipts.</p>
-                <div class="flex items-center justify-between mt-4">
-                    <span class="text-blue-600 text-sm font-medium">Make Payment →</span>
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-arrow-right text-blue-600 text-sm"></i>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4caf50;">
+                        <i class="fas fa-credit-card text-white"></i>
                     </div>
+                    <h3 class="text-xl font-bold text-gray-800">Tax Payment</h3>
                 </div>
-            </a>
-        </div>
+                <p class="text-gray-600 leading-relaxed mb-6">
+                    Pay approved real property taxes securely online with instant digital receipts.
+                </p>
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span class="font-semibold" style="color: #4caf50;">Pay Now</span>
+                    <i class="fas fa-arrow-right service-arrow" style="color: #4caf50;"></i>
+                </div>
+            </div>
+        </a>
 
-        <!-- Quick Stats -->
-        <?php if ($total_applications > 0): ?>
-        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Your Applications Overview</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-gray-800"><?php echo $total_applications; ?></div>
-                    <div class="text-sm text-gray-600">Total Applications</div>
+    </div>
+
+    <!-- HELP SECTION -->
+    <div class="lgu-card p-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4 section-header">
+            Need Assistance?
+        </h3>
+        <div class="grid md:grid-cols-2 gap-8 text-gray-600 mt-6">
+            <div>
+                <p class="mb-3"><i class="fas fa-envelope mr-3 text-[var(--primary)]"></i> rpt-support@goserveph.gov.ph</p>
+                <p class="mb-3"><i class="fas fa-phone mr-3 text-[var(--primary)]"></i> (02) 1234-5678</p>
+                <p><i class="fas fa-location-dot mr-3 text-[var(--primary)]"></i> RPT Office, 2nd Floor, Municipal Hall</p>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-700 mb-2">Office Hours</p>
+                <p class="mb-1">Monday – Friday</p>
+                <p class="mb-1">8:00 AM – 5:00 PM</p>
+                <p class="text-sm text-gray-500 mt-3">Closed on weekends and holidays</p>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-white border-t border-gray-200 mt-16">
+    <div class="container mx-auto px-6 py-12 max-w-7xl">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+            <!-- Brand -->
+            <div class="col-span-1">
+                <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
+                    <span style="color: #4a90e2;">Go</span>
+                    <span style="color: #4caf50;">Serve</span>
+                    <span style="color: #4a90e2;">PH</span>
                 </div>
-                
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-blue-600"><?php echo ($status_counts['pending'] + $status_counts['for_inspection'] + $status_counts['resubmitted'] + $status_counts['assessed']); ?></div>
-                    <div class="text-sm text-blue-600">In Progress</div>
-                </div>
-                
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-red-600"><?php echo $status_counts['needs_correction']; ?></div>
-                    <div class="text-sm text-red-600">Need Correction</div>
-                </div>
-                
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-green-600"><?php echo $status_counts['approved']; ?></div>
-                    <div class="text-sm text-green-600">Approved</div>
+                <p class="text-gray-600 leading-relaxed">
+                    The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
+                </p>
+            </div>
+            
+            <!-- Portal Links -->
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                <ul class="space-y-3 text-gray-600">
+                    <li><a href="../../citizen_dashboard/citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
+                </ul>
+            </div>
+
+            <!-- Contact -->
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                <ul class="space-y-3 text-gray-600">
+                    <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> rpt@goserveph.gov.ph</li>
+                    <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                </ul>
+            </div>
+
+            <!-- Social -->
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                <div class="flex space-x-4 text-2xl">
+                    <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                        <i class="fab fa-facebook"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                        <i class="fab fa-twitter"></i>
+                    </a>
                 </div>
             </div>
         </div>
-        <?php endif; ?>
-
-        <!-- No Applications Message -->
-        <?php if ($total_applications === 0): ?>
-        <div class="mt-12 bg-white rounded-lg shadow-md p-8 text-center">
-            <div class="text-gray-400 mb-6">
-                <i class="fas fa-home text-6xl"></i>
-            </div>
-            <h3 class="text-2xl font-bold text-gray-700 mb-3">No Property Applications Yet</h3>
-            <p class="text-gray-600 mb-6">You haven't submitted any property tax applications yet.</p>
-            <a href="rpt_registration/rpt_registration.php" 
-               class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300">
-                <i class="fas fa-plus mr-2"></i>
-                Submit Your First Application
-            </a>
+        
+        <!-- Copyright -->
+        <div class="border-t border-gray-200 mt-10 pt-8">
+            <p class="text-sm text-gray-500 text-center">
+                &copy; 2026 GoServePH Local Government Unit. Republic of the Philippines.
+            </p>
         </div>
-        <?php endif; ?>
-
-        <!-- Additional Information -->
-        <div class="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">About Real Property Tax Services</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="font-semibold text-gray-700 mb-2">What is Real Property Tax?</h4>
-                    <p class="text-gray-600 text-sm">Real Property Tax (RPT) is a tax on real property such as lands, buildings, and other improvements. It is imposed by the local government unit where the property is located.</p>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-gray-700 mb-2">Need Help?</h4>
-                    <p class="text-gray-600 text-sm">For assistance with RPT services, contact our support team at <span class="text-blue-600">rpt-support@goserveph.gov.ph</span> or call (02) 1234-5678.</p>
-                </div>
-            </div>
-        </div>
-    </main>
+    </div>
+</footer>
 </body>
 </html>

@@ -78,30 +78,30 @@ try {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pending Applications - RPT Services</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .status-badge { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
-        .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-        .info-card-header { display: flex; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; }
-        .icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; }
-        .info-label { font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 0.25rem; }
-        .info-value { font-size: 1rem; color: #111827; font-weight: 500; }
-        .empty-state { text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .empty-icon { font-size: 3.5rem; color: #d1d5db; margin-bottom: 1.5rem; }
-        .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 0.75rem 0; }
-        .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
-        .document-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; transition: all 0.2s; background: white; }
-        .document-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); padding: 20px; }
-        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; border-radius: 8px; }
-        .modal-close { position: absolute; top: 20px; right: 35px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
-        .modal-close:hover { color: #fbbf24; }
-        .modal-caption { text-align: center; color: white; padding: 10px 20px; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pending Applications - RPT Services</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+    .status-badge { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+    .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+    .info-card-header { display: flex; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; }
+    .icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; }
+    .info-label { font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 0.25rem; }
+    .info-value { font-size: 1rem; color: #111827; font-weight: 500; }
+    .empty-state { text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .empty-icon { font-size: 3.5rem; color: #d1d5db; margin-bottom: 1.5rem; }
+    .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 0.75rem 0; }
+    .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
+    .document-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; transition: all 0.2s; background: white; }
+    .document-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); padding: 20px; }
+    .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; border-radius: 8px; }
+    .modal-close { position: absolute; top: 20px; right: 35px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
+    .modal-close:hover { color: #fbbf24; }
+    .modal-caption { text-align: center; color: white; padding: 10px 20px; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); }
+</style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 <?php include '../../navbar.php'; ?>
@@ -114,29 +114,32 @@ try {
 </div>
 
 <main class="max-w-6xl mx-auto px-4 py-8">
-    <!-- Page Header -->
-    <div class="mb-8">
-        <div class="flex items-center mb-3">
-            <a href="../rpt_services.php" class="text-blue-600 hover:text-blue-800 mr-4"><i class="fas fa-arrow-left"></i></a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Pending Applications</h1>
-                <p class="text-gray-600">Your submitted applications are waiting for review</p>
-            </div>
-        </div>
 
-        <!-- Status Summary -->
-        <?php if ($total_applications > 0): ?>
-            <div class="mt-6 flex items-center">
-                <div class="mr-4">
-                    <div class="text-2xl font-bold text-gray-900"><?php echo $total_applications; ?></div>
-                    <div class="text-sm text-gray-500">Application<?php echo $total_applications > 1 ? 's' : ''; ?></div>
-                </div>
-                <div class="h-8 w-px bg-gray-300"></div>
-                <div class="ml-4">
-                    <div class="status-badge status-pending"><i class="fas fa-clock mr-2"></i>Pending Review</div>
+    <!-- Page Header Box -->
+    <div class="mb-8">
+        <div class="bg-white shadow-md rounded-xl p-6 border border-gray-200">
+            <div class="flex items-center mb-4">
+                <a href="../rpt_services.php" class="text-blue-600 hover:text-blue-800 mr-4 text-lg"><i class="fas fa-arrow-left"></i></a>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Pending Applications</h1>
+                    <p class="text-gray-600 mt-1">Your submitted applications are waiting for review</p>
                 </div>
             </div>
-        <?php endif; ?>
+
+            <!-- Status Summary -->
+            <?php if ($total_applications > 0): ?>
+                <div class="mt-4 flex items-center">
+                    <div class="mr-4">
+                        <div class="text-2xl font-bold text-gray-900"><?php echo $total_applications; ?></div>
+                        <div class="text-sm text-gray-500">Application<?php echo $total_applications > 1 ? 's' : ''; ?></div>
+                    </div>
+                    <div class="h-8 w-px bg-gray-300"></div>
+                    <div class="ml-4">
+                        <div class="status-badge status-pending"><i class="fas fa-clock mr-2"></i>Pending Review</div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- Messages -->
@@ -196,21 +199,19 @@ try {
                         </div>
                     </div>
 
-                    <!-- In pending.php, find lines ~81-91 and update this section: -->
-
-<div class="px-6 py-4 bg-blue-50">
-    <div class="flex justify-between items-center mb-2">
-        <div class="text-sm font-medium text-blue-800">Application Progress</div>
-        <div class="text-sm text-blue-700">Step 1 of 4</div>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" style="width: 25%"></div></div>
-    <div class="flex justify-between text-xs text-blue-600 mt-1">
-        <span>Pending</span>
-        <span>For Inspection</span>
-        <span>Assessed</span>
-        <span>Approved</span>
-    </div>
-</div>
+                    <div class="px-6 py-4 bg-blue-50">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="text-sm font-medium text-blue-800">Application Progress</div>
+                            <div class="text-sm text-blue-700">Step 1 of 4</div>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 25%"></div></div>
+                        <div class="flex justify-between text-xs text-blue-600 mt-1">
+                            <span>Pending</span>
+                            <span>For Inspection</span>
+                            <span>Assessed</span>
+                            <span>Approved</span>
+                        </div>
+                    </div>
 
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>

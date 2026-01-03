@@ -71,18 +71,19 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* LGU Professional Theme */
+        /* Clean Citizen-Friendly Theme */
         :root {
-            --lgu-blue: #1e3a8a;
-            --lgu-green: #059669;
-            --lgu-red: #dc2626;
-            --lgu-orange: #ea580c;
-            --lgu-gray: #6b7280;
-            --lgu-light: #f8fafc;
+            --primary-blue: #2563eb;
+            --primary-green: #10b981;
+            --primary-red: #ef4444;
+            --primary-orange: #f97316;
+            --primary-gray: #6b7280;
+            --light-bg: #f9fafb;
+            --card-bg: #ffffff;
         }
 
         body {
-            background-color: #f5f7fa;
+            background-color: var(--light-bg);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
@@ -93,19 +94,20 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             padding: 20px;
         }
 
-        /* Map Title Section - More Visible */
+        /* Map Title Section */
         .map-title-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-radius: 10px;
+            background: white;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 25px;
-            border-left: 5px solid var(--lgu-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-blue);
         }
 
         .map-title {
-            color: var(--lgu-blue);
-            font-size: 1.8rem;
-            font-weight: 700;
+            color: #1f2937;
+            font-size: 1.6rem;
+            font-weight: 600;
             margin-bottom: 8px;
             display: flex;
             align-items: center;
@@ -113,61 +115,42 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         .map-subtitle {
-            color: #4b5563;
-            font-size: 1rem;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            color: #6b7280;
+            font-size: 0.95rem;
         }
 
-        .map-id-badge {
-            background: var(--lgu-blue);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        /* Map Display Area - Fixed 800x600 */
+        /* Map Display Area */
         .map-display-area {
-            background: #f8fafc;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
+            background: white;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .market-map {
             width: 800px;
             height: 600px;
-            background-color: white;
-            border: 2px solid #d1d5db;
+            background-color: #f8fafc;
+            border: 2px solid #e5e7eb;
             border-radius: 8px;
             margin: 0 auto;
             position: relative;
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        /* Stall Markers - Professional Style */
+        /* Stall Markers - Clean Style */
         .stall-marker {
             position: absolute;
             cursor: pointer;
             user-select: none;
             border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             border: 2px solid white;
             text-align: center;
-            font-family: 'Segoe UI', system-ui;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -176,13 +159,13 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         .stall-marker:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
             z-index: 100;
         }
 
         .stall-content {
-            padding: 8px;
+            padding: 6px;
             width: 100%;
             height: 100%;
             display: flex;
@@ -192,15 +175,14 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         .stall-name {
-            font-weight: 700;
+            font-weight: 600;
             font-size: 11px;
             color: white;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
             margin-bottom: 3px;
         }
 
         .stall-price {
-            font-weight: 600;
+            font-weight: 500;
             font-size: 10px;
             background: rgba(255, 255, 255, 0.2);
             padding: 2px 6px;
@@ -208,159 +190,186 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             margin-bottom: 3px;
         }
 
-        .stall-details {
-            font-size: 9px;
-            opacity: 0.9;
-        }
-
-        /* Status Colors */
+        /* Status Colors - Softer */
         .status-available {
-            background: linear-gradient(135deg, var(--lgu-green) 0%, #10b981 100%);
+            background: linear-gradient(135deg, var(--primary-green) 0%, #34d399 100%);
         }
 
         .status-occupied {
-            background: linear-gradient(135deg, var(--lgu-red) 0%, #ef4444 100%);
+            background: linear-gradient(135deg, var(--primary-red) 0%, #f87171 100%);
         }
 
         .status-reserved {
-            background: linear-gradient(135deg, var(--lgu-orange) 0%, #f97316 100%);
+            background: linear-gradient(135deg, var(--primary-orange) 0%, #fb923c 100%);
         }
 
         .status-maintenance {
-            background: linear-gradient(135deg, var(--lgu-gray) 0%, #9ca3af 100%);
+            background: linear-gradient(135deg, var(--primary-gray) 0%, #9ca3af 100%);
         }
 
         /* Selected Stall */
         .stall-marker.selected {
-            box-shadow: 0 0 0 4px var(--lgu-blue), 0 6px 20px rgba(30, 58, 138, 0.3);
-            border: 3px solid var(--lgu-blue);
-            animation: pulse-border 2s infinite;
+            box-shadow: 0 0 0 3px var(--primary-blue), 0 4px 12px rgba(37, 99, 235, 0.2);
+            border: 2px solid white;
         }
 
-        @keyframes pulse-border {
-            0% { border-color: var(--lgu-blue); }
-            50% { border-color: rgba(30, 58, 138, 0.5); }
-            100% { border-color: var(--lgu-blue); }
-        }
-
-        /* Side Panel - LGU Style */
+        /* Side Panel */
         .side-panel {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             padding: 25px;
             border: 1px solid #e5e7eb;
             height: fit-content;
         }
 
         .panel-title {
-            color: var(--lgu-blue);
-            font-size: 1.25rem;
+            color: #1f2937;
+            font-size: 1.2rem;
             font-weight: 600;
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #e5e7eb;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         /* Statistics Cards */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            gap: 12px;
             margin-bottom: 25px;
         }
 
         .stat-card {
             background: #f8fafc;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 15px;
             text-align: center;
             border: 1px solid #e5e7eb;
-            transition: transform 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-3px);
         }
 
         .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--lgu-blue);
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--primary-blue);
             margin-bottom: 5px;
         }
 
         .stat-label {
             font-size: 0.85rem;
             color: #6b7280;
-            font-weight: 500;
         }
 
         /* Legend */
         .legend-container {
             background: #f8fafc;
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 25px;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-            padding: 8px 12px;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
             background: white;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border-radius: 6px;
         }
 
         .legend-color {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 4px;
-            border: 2px solid white;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .legend-text {
-            font-size: 0.9rem;
-            color: #374151;
-            font-weight: 500;
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
 
-        /* Selected Stall Info */
-        .selected-info {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-radius: 10px;
-            padding: 20px;
-            border: 2px solid #dbeafe;
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .modal-close:hover {
+            background: #f3f4f6;
+        }
+
+        .modal-body {
             margin-bottom: 25px;
         }
 
-        .selected-title {
-            color: var(--lgu-blue);
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .details-grid {
+        /* Stall Details in Modal */
+        .stall-details-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 15px;
+            margin-bottom: 25px;
         }
 
         .detail-item {
-            background: white;
-            padding: 12px;
+            background: #f9fafb;
+            padding: 15px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border-left: 4px solid var(--primary-blue);
         }
 
         .detail-label {
@@ -368,162 +377,93 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             color: #6b7280;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .detail-value {
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: #1f2937;
             font-weight: 600;
         }
 
-        /* LGU Buttons */
-        .lgu-btn {
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .badge-available {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-occupied {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-reserved {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+
+        /* Buttons */
+        .btn {
             padding: 12px 24px;
             border-radius: 8px;
             font-weight: 600;
             font-size: 0.95rem;
-            transition: all 0.25s;
+            transition: all 0.2s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             cursor: pointer;
             border: none;
-        }
-
-        .lgu-btn-primary {
-            background: linear-gradient(135deg, var(--lgu-blue) 0%, #1e40af 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
-        }
-
-        .lgu-btn-primary:hover {
-            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
-        }
-
-        .lgu-btn-secondary {
-            background: white;
-            color: var(--lgu-blue);
-            border: 2px solid var(--lgu-blue);
-        }
-
-        .lgu-btn-secondary:hover {
-            background: #f8fafc;
-            transform: translateY(-2px);
-        }
-
-        .lgu-btn-success {
-            background: linear-gradient(135deg, var(--lgu-green) 0%, #10b981 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
-        }
-
-        .lgu-btn-success:hover {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
-        }
-
-        /* Breadcrumb */
-        .breadcrumb {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border: 1px solid #e5e7eb;
-        }
-
-        .breadcrumb a {
-            color: var(--lgu-blue);
             text-decoration: none;
-            font-weight: 500;
         }
 
-        .breadcrumb a:hover {
-            text-decoration: underline;
-        }
-
-        .breadcrumb-separator {
-            color: #9ca3af;
-            margin: 0 10px;
-        }
-
-        /* Action Bar */
-        .action-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 25px;
-        }
-
-        /* Instructions */
-        .instructions-box {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border: 2px solid #dbeafe;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-
-        .instructions-title {
-            color: var(--lgu-blue);
-            font-weight: 600;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .instruction-step {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-
-        .step-number {
-            background: var(--lgu-blue);
+        .btn-primary {
+            background: var(--primary-blue);
             color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            font-weight: 600;
-            flex-shrink: 0;
         }
 
-        .step-text {
-            color: #374151;
-            font-size: 0.95rem;
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
-        /* Map Dimensions Info */
-        .map-dimensions {
-            background: #f8fafc;
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
+        .btn-success {
+            background: var(--primary-green);
+            color: white;
         }
 
-        .dimensions-text {
-            color: #6b7280;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+
+        .btn-outline:hover {
+            background: #f0f9ff;
         }
 
         /* Responsive */
@@ -547,21 +487,13 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 grid-template-columns: 1fr;
             }
             
-            .details-grid {
+            .stall-details-grid {
                 grid-template-columns: 1fr;
             }
             
-            .action-bar {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .lgu-btn {
-                width: 100%;
-            }
-            
-            .map-title {
-                font-size: 1.5rem;
+            .modal-content {
+                width: 95%;
+                padding: 20px;
             }
         }
     </style>
@@ -570,80 +502,77 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
     <!-- Keep Original Navbar -->
     <?php include '../../navbar.php'; ?>
     
+    <!-- Modal -->
+    <div id="stallModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalStallName">Stall Information</h3>
+                <button onclick="closeModal()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="stall-details-grid" id="modalStallDetails">
+                    <!-- Stall details will be populated here by JavaScript -->
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="btn btn-secondary flex-1">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button onclick="applyForStall()" id="modalApplyBtn" class="btn btn-success flex-1">
+                    <i class="fas fa-file-contract"></i> Apply for this Stall
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <div class="main-container">
         <!-- Breadcrumb -->
-        <div class="breadcrumb">
-            <a href="../../dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-            <span class="breadcrumb-separator">›</span>
-            <a href="../market_services.php">Market Services</a>
-            <span class="breadcrumb-separator">›</span>
-            <a href="market_portal_services.php">Market Maps</a>
-            <span class="breadcrumb-separator">›</span>
-            <span class="text-gray-600 font-medium"><?php echo htmlspecialchars($map['name']); ?></span>
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div class="flex items-center text-sm text-gray-600">
+                <a href="../../dashboard.php" class="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <span class="mx-2">›</span>
+                <a href="../market_services.php" class="text-blue-600 hover:text-blue-800">Market Services</a>
+                <span class="mx-2">›</span>
+                <a href="market_portal_services.php" class="text-blue-600 hover:text-blue-800">Market Maps</a>
+                <span class="mx-2">›</span>
+                <span class="text-gray-800 font-medium"><?php echo htmlspecialchars($map['name']); ?></span>
+            </div>
         </div>
 
-        <!-- Action Bar -->
-        <div class="action-bar">
-            <div>
-                <h2 class="text-lg font-semibold text-gray-800">Market Stall Selection</h2>
-                <p class="text-sm text-gray-600">Select an available stall to proceed with rental application</p>
-            </div>
-            <div id="applyButton" style="display: none;">
-                <button onclick="proceedToApplication()" class="lgu-btn lgu-btn-success">
-                    <i class="fas fa-file-contract"></i>
-                    Proceed to Application
-                </button>
-            </div>
+        <!-- Page Title -->
+        <div class="map-title-section">
+            <h1 class="map-title">
+                <i class="fas fa-map-marked-alt text-blue-600"></i>
+                <?php echo htmlspecialchars($map['name']); ?> - Stall Selection
+            </h1>
+            <p class="map-subtitle">
+                Click on any <span class="text-green-600 font-medium">green stall</span> to view details and apply for rental
+            </p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column - Map -->
             <div class="lg:col-span-2">
-                <!-- Map Title Section - More Visible -->
-                <div class="map-title-section">
-                    <h1 class="map-title">
-                        <i class="fas fa-map-marked-alt"></i>
-                        <?php echo htmlspecialchars($map['name']); ?>
-                    </h1>
-                    <div class="flex flex-wrap items-center gap-4">
-                        <p class="map-subtitle">
-                            <i class="fas fa-calendar-alt"></i>
-                            Uploaded: <?php echo date('F d, Y', strtotime($map['created_at'])); ?>
-                        </p>
-                        <span class="map-id-badge">
-                            <i class="fas fa-hashtag"></i>
-                            Map ID: <?php echo $map['id']; ?>
-                        </span>
-                    </div>
-                </div>
-
                 <!-- Instructions -->
-                <div class="instructions-box mb-6">
-                    <h3 class="instructions-title">
-                        <i class="fas fa-graduation-cap"></i>
-                        How to Select a Stall
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+                    <h3 class="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-info-circle"></i> How to Apply for a Stall
                     </h3>
-                    <div class="instruction-step">
-                        <span class="step-number">1</span>
-                        <span class="step-text">Locate available stalls marked with green color on the map</span>
-                    </div>
-                    <div class="instruction-step">
-                        <span class="step-number">2</span>
-                        <span class="step-text">Click on your preferred stall to select it</span>
-                    </div>
-                    <div class="instruction-step">
-                        <span class="step-number">3</span>
-                        <span class="step-text">Review stall details in the right panel</span>
-                    </div>
-                    <div class="instruction-step">
-                        <span class="step-number">4</span>
-                        <span class="step-text">Click "Proceed to Application" to continue</span>
+                    <div class="space-y-2 text-blue-700">
+                        <p>1. Look for <span class="font-medium">green-colored stalls</span> on the map (these are available)</p>
+                        <p>2. Click on any available stall to see its details</p>
+                        <p>3. Review the stall information in the popup window</p>
+                        <p>4. Click "Apply for this Stall" to start your application</p>
                     </div>
                 </div>
 
                 <!-- Map Container -->
-                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
                     <!-- Map Display -->
                     <div class="map-display-area">
                         <?php if ($image_path): ?>
@@ -668,15 +597,15 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                                      data-stall-class="<?php echo htmlspecialchars($stall['class_name'] ?? 'N/A'); ?>"
                                      data-stall-section="<?php echo htmlspecialchars($stall['section_name'] ?? 'N/A'); ?>"
                                      data-stall-status="<?php echo $status; ?>"
+                                     data-stall-length="<?php echo $stall['length']; ?>"
+                                     data-stall-width="<?php echo $stall['width']; ?>"
+                                     data-stall-height="<?php echo $stall['height']; ?>"
                                      data-stall-available="<?php echo $is_available ? 'true' : 'false'; ?>"
-                                     onclick="selectStall(this)"
-                                     title="<?php echo htmlspecialchars($stall['name'] . ' - ₱' . number_format($price, 2) . ' - ' . $status); ?>">
+                                     onclick="showStallModal(this)"
+                                     title="Click to view details">
                                     <div class="stall-content">
                                         <div class="stall-name"><?php echo htmlspecialchars($stall['name']); ?></div>
                                         <div class="stall-price">₱<?php echo number_format($price, 2); ?></div>
-                                        <?php if ($stall['section_name']): ?>
-                                            <div class="stall-details"><?php echo htmlspecialchars($stall['section_name']); ?></div>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
@@ -689,12 +618,9 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                         <?php endif; ?>
                     </div>
 
-                    <!-- Map Dimensions Info -->
-                    <div class="map-dimensions">
-                        <p class="dimensions-text">
-                            <i class="fas fa-expand-alt"></i>
-                            Map Dimensions: 800×600 pixels • Stall dimensions shown to scale
-                        </p>
+                    <!-- Map Info -->
+                    <div class="mt-4 text-center text-sm text-gray-500">
+                        <p>Map shows all stalls in <?php echo htmlspecialchars($map['name']); ?>. Click on stalls for details.</p>
                     </div>
                 </div>
             </div>
@@ -704,7 +630,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 <!-- Statistics -->
                 <div class="side-panel mb-6">
                     <h3 class="panel-title">
-                        <i class="fas fa-chart-bar"></i>
+                        <i class="fas fa-chart-pie text-blue-600"></i>
                         Market Statistics
                     </h3>
                     <div class="stats-grid">
@@ -713,15 +639,15 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                             <div class="stat-label">Total Stalls</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" style="color: var(--lgu-green);"><?php echo $available_stalls; ?></div>
-                            <div class="stat-label">Available</div>
+                            <div class="stat-value" style="color: var(--primary-green);"><?php echo $available_stalls; ?></div>
+                            <div class="stat-label">Available Now</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" style="color: var(--lgu-red);"><?php echo $occupied_stalls; ?></div>
-                            <div class="stat-label">Occupied</div>
+                            <div class="stat-value" style="color: var(--primary-red);"><?php echo $occupied_stalls; ?></div>
+                            <div class="stat-label">Currently Rented</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" style="color: var(--lgu-orange);"><?php echo $reserved_stalls; ?></div>
+                            <div class="stat-value" style="color: var(--primary-orange);"><?php echo $reserved_stalls; ?></div>
                             <div class="stat-label">Reserved</div>
                         </div>
                     </div>
@@ -730,80 +656,46 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 <!-- Legend -->
                 <div class="side-panel mb-6">
                     <h3 class="panel-title">
-                        <i class="fas fa-key"></i>
-                        Status Legend
+                        <i class="fas fa-palette text-blue-600"></i>
+                        Color Guide
                     </h3>
                     <div class="legend-container">
                         <div class="legend-item">
-                            <div class="legend-color" style="background: var(--lgu-green);"></div>
-                            <span class="legend-text">Available - Ready for rental</span>
+                            <div class="legend-color" style="background: var(--primary-green);"></div>
+                            <span class="text-sm text-gray-700">Available for rent</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background: var(--lgu-red);"></div>
-                            <span class="legend-text">Occupied - Currently rented</span>
+                            <div class="legend-color" style="background: var(--primary-red);"></div>
+                            <span class="text-sm text-gray-700">Already rented</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background: var(--lgu-orange);"></div>
-                            <span class="legend-text">Reserved - Under reservation</span>
+                            <div class="legend-color" style="background: var(--primary-orange);"></div>
+                            <span class="text-sm text-gray-700">Under reservation</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background: var(--lgu-gray);"></div>
-                            <span class="legend-text">Maintenance - Under repair</span>
+                            <div class="legend-color" style="background: var(--primary-gray);"></div>
+                            <span class="text-sm text-gray-700">Under maintenance</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Selected Stall Info -->
-                <div id="selectedStallInfo" class="selected-info" style="display: none;">
-                    <h3 class="selected-title">
-                        <i class="fas fa-store"></i>
-                        Selected Stall Information
-                    </h3>
-                    <div class="details-grid">
-                        <div class="detail-item">
-                            <div class="detail-label">Stall Name</div>
-                            <div class="detail-value" id="selectedStallName">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Price (Monthly)</div>
-                            <div class="detail-value" id="selectedStallPrice">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Class</div>
-                            <div class="detail-value" id="selectedStallClass">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Section</div>
-                            <div class="detail-value" id="selectedStallSection">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Status</div>
-                            <div class="detail-value" id="selectedStallStatus">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Availability</div>
-                            <div class="detail-value text-green-600" id="selectedStallAvailability">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Actions -->
+                <!-- Quick Actions -->
                 <div class="side-panel">
                     <h3 class="panel-title">
-                        <i class="fas fa-cogs"></i>
-                        Actions
+                        <i class="fas fa-bolt text-blue-600"></i>
+                        Quick Actions
                     </h3>
                     <div class="space-y-3">
-                        <button onclick="goBack()" class="lgu-btn lgu-btn-secondary w-full">
+                        <a href="market_portal_services.php" class="btn btn-outline w-full">
                             <i class="fas fa-arrow-left"></i>
-                            Back to Market Maps
+                            Back to All Maps
+                        </a>
+                        <button onclick="refreshPage()" class="btn w-full" style="background: #f3f4f6; color: #374151;">
+                            <i class="fas fa-redo"></i>
+                            Refresh View
                         </button>
-                        <button onclick="refreshPage()" class="lgu-btn w-full" style="background: #f8fafc; color: #374151; border: 1px solid #e5e7eb;">
-                            <i class="fas fa-sync-alt"></i>
-                            Refresh Page
-                        </button>
-                        <button onclick="showHelp()" class="lgu-btn w-full" style="background: #fef3c7; color: #92400e; border: 1px solid #fbbf24;">
-                            <i class="fas fa-question-circle"></i>
+                        <button onclick="showHelp()" class="btn w-full" style="background: #fef3c7; color: #92400e;">
+                            <i class="fas fa-life-ring"></i>
                             Need Help?
                         </button>
                     </div>
@@ -811,24 +703,23 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             </div>
         </div>
 
-        <!-- Footer Note -->
+        <!-- Footer -->
         <div class="mt-8 text-center text-sm text-gray-500">
-            <p><i class="fas fa-shield-alt mr-1"></i> This is an official LGU system. All transactions are recorded and monitored.</p>
-            <p class="mt-1">For assistance, contact Market Administration Office at (02) 1234-5678 or email market-admin@lgu.gov.ph</p>
+            <p>© <?php echo date('Y'); ?> LGU Market Administration. For assistance, contact (02) 1234-5678</p>
         </div>
     </div>
 
     <!-- JavaScript -->
     <script>
         let selectedStall = null;
+        const modal = document.getElementById('stallModal');
+        const modalStallName = document.getElementById('modalStallName');
+        const modalStallDetails = document.getElementById('modalStallDetails');
+        const modalApplyBtn = document.getElementById('modalApplyBtn');
 
-        function selectStall(stallElement) {
+        function showStallModal(stallElement) {
             const isAvailable = stallElement.dataset.stallAvailable === 'true';
-            
-            if (!isAvailable) {
-                showLGUNotification('This stall is not available for rental. Please select an available stall (green color).', 'warning');
-                return;
-            }
+            const status = stallElement.dataset.stallStatus;
             
             // Remove previous selection
             document.querySelectorAll('.stall-marker').forEach(marker => {
@@ -845,39 +736,93 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 price: stallElement.dataset.stallPrice,
                 class: stallElement.dataset.stallClass,
                 section: stallElement.dataset.stallSection,
-                status: stallElement.dataset.stallStatus
+                status: status,
+                length: stallElement.dataset.stallLength,
+                width: stallElement.dataset.stallWidth,
+                height: stallElement.dataset.stallHeight,
+                isAvailable: isAvailable
             };
             
-            // Update selected stall info
-            document.getElementById('selectedStallName').textContent = selectedStall.name;
-            document.getElementById('selectedStallPrice').textContent = '₱' + selectedStall.price + '/month';
-            document.getElementById('selectedStallClass').textContent = selectedStall.class;
-            document.getElementById('selectedStallSection').textContent = selectedStall.section;
-            document.getElementById('selectedStallStatus').textContent = selectedStall.status.charAt(0).toUpperCase() + selectedStall.status.slice(1);
-            document.getElementById('selectedStallAvailability').textContent = 'Available for Rent';
+            // Update modal title
+            modalStallName.textContent = selectedStall.name;
             
-            // Show selected stall info
-            document.getElementById('selectedStallInfo').style.display = 'block';
-            
-            // Show apply button
-            document.getElementById('applyButton').style.display = 'block';
-            
-            showLGUNotification('Stall selected successfully! You may now proceed with the application.', 'success');
-            
-            // Scroll to top for mobile
-            if (window.innerWidth < 768) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Update modal details
+            let statusBadge = '';
+            if (status === 'available') {
+                statusBadge = '<span class="status-badge badge-available">Available</span>';
+            } else if (status === 'occupied') {
+                statusBadge = '<span class="status-badge badge-occupied">Occupied</span>';
+            } else if (status === 'reserved') {
+                statusBadge = '<span class="status-badge badge-reserved">Reserved</span>';
             }
+            
+            modalStallDetails.innerHTML = `
+                <div class="detail-item">
+                    <div class="detail-label">Stall Name</div>
+                    <div class="detail-value">${selectedStall.name}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Monthly Price</div>
+                    <div class="detail-value">₱${selectedStall.price}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Stall Class</div>
+                    <div class="detail-value">${selectedStall.class}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Section</div>
+                    <div class="detail-value">${selectedStall.section}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Dimensions</div>
+                    <div class="detail-value">${selectedStall.length}m × ${selectedStall.width}m</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Status</div>
+                    <div class="detail-value">${statusBadge}</div>
+                </div>
+            `;
+            
+            // Enable/disable apply button based on availability
+            if (isAvailable) {
+                modalApplyBtn.disabled = false;
+                modalApplyBtn.innerHTML = '<i class="fas fa-file-contract"></i> Apply for this Stall';
+                modalApplyBtn.className = 'btn btn-success flex-1';
+            } else {
+                modalApplyBtn.disabled = true;
+                modalApplyBtn.innerHTML = '<i class="fas fa-ban"></i> Not Available';
+                modalApplyBtn.className = 'btn btn-secondary flex-1';
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         }
 
-        function proceedToApplication() {
+        function closeModal() {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            
+            // Remove selection
+            document.querySelectorAll('.stall-marker').forEach(marker => {
+                marker.classList.remove('selected');
+            });
+            
+            selectedStall = null;
+        }
+
+        function applyForStall() {
             if (!selectedStall) {
-                showLGUNotification('Please select a stall first.', 'error');
+                showNotification('Please select a stall first.', 'error');
                 return;
             }
             
-            // Redirect to rental application form
-            window.location.href = `rental_application_form.php?map_id=<?php echo $map_id; ?>&stall_id=${selectedStall.id}`;
+            if (selectedStall.isAvailable) {
+                // Redirect to rental application form
+                window.location.href = `rental_application_form.php?map_id=<?php echo $map_id; ?>&stall_id=${selectedStall.id}`;
+            } else {
+                showNotification('This stall is not available for rental.', 'warning');
+            }
         }
 
         function goBack() {
@@ -889,10 +834,10 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         function showHelp() {
-            alert('Need Assistance?\n\n1. For technical issues: IT Support - (02) 1234-5678\n2. For rental inquiries: Market Office - (02) 1234-5679\n3. For payment concerns: Treasury Office - (02) 1234-5680\n\nOffice Hours: Monday-Friday, 8:00 AM - 5:00 PM');
+            alert('Market Stall Rental Assistance\n\nAvailable Hours: Monday-Friday, 8:00 AM - 5:00 PM\n\nContact Information:\n• Market Office: (02) 1234-5679\n• Treasury Office: (02) 1234-5680\n• IT Support: (02) 1234-5681\n\nEmail: market@lgu.gov.ph');
         }
 
-        function showLGUNotification(message, type) {
+        function showNotification(message, type) {
             // Create notification element
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white font-medium z-50 transform transition-all duration-300 ${
@@ -920,6 +865,20 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             }, 4000);
         }
 
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                closeModal();
+            }
+        });
+
         // Handle image loading errors
         document.addEventListener('DOMContentLoaded', function() {
             const marketMap = document.getElementById('marketMap');
@@ -935,7 +894,6 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                             <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
                                 <i class="fas fa-exclamation-triangle text-4xl text-gray-300 mb-4"></i>
                                 <p class="text-gray-500 font-medium">Map image could not be loaded</p>
-                                <p class="text-sm text-gray-400 mt-2">Please contact market administration</p>
                             </div>
                         `;
                     };
