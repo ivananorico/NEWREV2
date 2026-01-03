@@ -138,18 +138,23 @@ export default function NeedsCorrection({ registration, documents, fetchData, fo
             <p><span className="font-medium">City/Municipality:</span> {registration.municipality_city}</p>
             <p><span className="font-medium">Province:</span> {registration.province}</p>
             <p><span className="font-medium">Zip Code:</span> {registration.zip_code}</p>
-            <p><span className="font-medium">Property Type:</span> {registration.property_type}</p>
             <p><span className="font-medium">Has Building:</span> {registration.has_building === 'yes' ? 'Yes' : 'No'}</p>
           </div>
 
-          {/* Owner Info */}
+          {/* Owner Info - UPDATED with more details */}
           <div className="bg-gray-50 p-4 rounded-lg flex flex-col justify-between">
             <div className="space-y-2">
               <h3 className="font-semibold text-gray-700 mb-2">Owner Info</h3>
               <p><span className="font-medium">Name:</span> {registration.owner_name}</p>
+              {/* Added sex, marital status, and birthdate */}
+              <p><span className="font-medium">Sex:</span> {registration.sex || 'N/A'}</p>
+              <p><span className="font-medium">Marital Status:</span> {registration.marital_status || 'N/A'}</p>
+              <p><span className="font-medium">Birthdate:</span> {registration.birthdate ? new Date(registration.birthdate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
               <p><span className="font-medium">Address:</span> {registration.owner_address}</p>
               <p><span className="font-medium">Contact:</span> {registration.contact_number}</p>
               <p><span className="font-medium">Email:</span> {registration.email_address}</p>
+              {/* Added TIN if available */}
+              <p><span className="font-medium">TIN:</span> {registration.tin || 'N/A'}</p>
             </div>
 
             {/* Date Registered at bottom */}

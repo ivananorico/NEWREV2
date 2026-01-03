@@ -32,7 +32,7 @@ function getDocumentUrl(string $dbPath): string
     return '/revenue2/' . $clean;
 }
 
-// Fetch user's assessed applications
+// Fetch user's assessed applications - UPDATED WITH ALL FIELDS
 $applications = [];
 $total_applications = 0;
 
@@ -44,6 +44,9 @@ try {
             pr.lot_location,
             pr.barangay,
             pr.district,
+            pr.city,
+            pr.province,
+            pr.zip_code,
             pr.has_building,
             pr.status,
             DATE(pr.created_at) as application_date,
@@ -62,7 +65,10 @@ try {
             po.district as owner_district,
             po.city as owner_city,
             po.province as owner_province,
-            po.zip_code as owner_zip_code
+            po.zip_code as owner_zip_code,
+            po.birthdate,
+            po.sex,
+            po.marital_status
             
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
@@ -104,7 +110,6 @@ try {
         .modal-close { position: absolute; top: 20px; right: 35px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
         .modal-close:hover { color: #fbbf24; }
         .modal-caption { text-align: center; color: white; padding: 10px 20px; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); }
-        .value-card { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 12px; padding: 1.5rem; text-align: center; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -188,21 +193,7 @@ try {
                     foreach ($documents as $doc) $docs_by_type[$doc['document_type']] = $doc;
                 ?>
 
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <!-- Status Card -->
-                    <div class="value-card">
-                        <div class="flex items-center justify-center mb-4">
-                            <i class="fas fa-check-circle text-3xl mr-3"></i>
-                            <div>
-                                <div class="text-lg font-bold">Property Assessment Complete</div>
-                                <div class="text-sm opacity-90">Ready for Final Approval</div>
-                            </div>
-                        </div>
-                        <div class="text-sm opacity-90">
-                            Your property has been successfully assessed and is now pending final approval from the City Assessor.
-                        </div>
-                    </div>
-
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                     <div class="p-6 border-b border-gray-100 flex justify-between items-start">
                         <div>
                             <div class="flex items-center mb-3">
@@ -222,7 +213,7 @@ try {
                         </div>
                     </div>
 
-                    <!-- PROGRESS BAR - Step 3 of 4 (75%) -->
+                    <!-- PROGRESS BAR - Step 3 of 4 (75%) - SAME AS pending.php -->
                     <div class="px-6 py-4 bg-blue-50">
                         <div class="flex justify-between items-center mb-2">
                             <div class="text-sm font-medium text-blue-800">Application Progress</div>
@@ -239,33 +230,33 @@ try {
                         </div>
                     </div>
 
+                    <!-- UPDATED: Same layout as pending.php -->
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>
                             <div class="info-card-header">
                                 <div class="icon-circle bg-blue-100 text-blue-600"><i class="fas fa-user"></i></div>
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Applicant Information</h3>
-                                    <p class="text-sm text-gray-500">Property owner details</p>
-                                </div>
+                                <!-- CHANGED: Applicant Information to Owner Info -->
+                                <div><h3 class="font-semibold text-gray-900">Owner Info</h3><p class="text-sm text-gray-500">Your registered information</p></div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <div class="info-label">Full Name</div>
-                                    <div class="info-value"><?php echo $full_name; ?></div>
-                                </div>
-                                <div>
-                                    <div class="info-label">Contact Number</div>
-                                    <div class="info-value"><?php echo $app['phone']; ?></div>
-                                </div>
-                                <div>
-                                    <div class="info-label">Email Address</div>
-                                    <div class="info-value"><?php echo $app['email']; ?></div>
-                                </div>
+                                <div><div class="info-label">Full Name</div><div class="info-value"><?php echo $full_name; ?></div></div>
+                                <!-- ADDED: Birthdate, Sex, Marital Status -->
+                                <div><div class="info-label">Birthdate</div><div class="info-value"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div></div>
+                                <div><div class="info-label">Sex</div><div class="info-value"><?php echo ucfirst($app['sex'] ?? '-'); ?></div></div>
+                                <div><div class="info-label">Marital Status</div><div class="info-value"><?php echo ucfirst($app['marital_status'] ?? '-'); ?></div></div>
+                                <div><div class="info-label">Contact</div><div class="info-value"><?php echo $app['phone']; ?></div></div>
+                                <div><div class="info-label">Email</div><div class="info-value"><?php echo $app['email']; ?></div></div>
                                 <?php if (!empty($app['tin_number'])): ?>
-                                <div>
-                                    <div class="info-label">TIN Number</div>
-                                    <div class="info-value"><?php echo $app['tin_number']; ?></div>
-                                </div>
+                                <div><div class="info-label">TIN</div><div class="info-value"><?php echo $app['tin_number']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_city'])): ?>
+                                <div><div class="info-label">City</div><div class="info-value"><?php echo $app['owner_city']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_province'])): ?>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['owner_province']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_zip_code'])): ?>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['owner_zip_code']; ?></div></div>
                                 <?php endif; ?>
                             </div>
                             <div class="mt-4">
@@ -277,9 +268,6 @@ try {
                                     if (!empty($app['street'])) $address_parts[] = $app['street'];
                                     if (!empty($app['owner_barangay'])) $address_parts[] = 'Brgy. ' . $app['owner_barangay'];
                                     if (!empty($app['owner_district'])) $address_parts[] = 'Dist. ' . $app['owner_district'];
-                                    if (!empty($app['owner_city'])) $address_parts[] = $app['owner_city'];
-                                    if (!empty($app['owner_province'])) $address_parts[] = $app['owner_province'];
-                                    if (!empty($app['owner_zip_code'])) $address_parts[] = $app['owner_zip_code'];
                                     echo implode(', ', $address_parts);
                                     ?>
                                 </div>
@@ -289,47 +277,23 @@ try {
                         <div>
                             <div class="info-card-header">
                                 <div class="icon-circle bg-green-100 text-green-600"><i class="fas fa-home"></i></div>
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Property Details</h3>
-                                    <p class="text-sm text-gray-500">Location and features</p>
-                                </div>
+                                <div><h3 class="font-semibold text-gray-900">Property</h3><p class="text-sm text-gray-500">Property details</p></div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <div class="info-label">Lot Location</div>
-                                    <div class="info-value"><?php echo $app['lot_location']; ?></div>
-                                </div>
-                                <div>
-                                    <div class="info-label">Barangay</div>
-                                    <div class="info-value">Brgy. <?php echo $app['barangay']; ?></div>
-                                </div>
-                                <div>
-                                    <div class="info-label">District</div>
-                                    <div class="info-value"><?php echo $app['district']; ?></div>
-                                </div>
-                                <div>
-                                    <div class="info-label">Property Type</div>
-                                    <div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'With Building' : 'Vacant Land'; ?></div>
-                                </div>
-                            </div>
-                            
-                            <!-- Status Information -->
-                            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                <div class="flex items-center">
-                                    <i class="fas fa-info-circle text-green-600 mr-3 text-xl"></i>
-                                    <div>
-                                        <div class="font-medium text-green-900">Assessment Status</div>
-                                        <div class="text-sm text-green-700 mt-1">
-                                            Your property has been successfully assessed. It is now in queue for final approval.
-                                        </div>
-                                    </div>
-                                </div>
+                                <div><div class="info-label">Location</div><div class="info-value"><?php echo $app['lot_location']; ?></div></div>
+                                <div><div class="info-label">Barangay</div><div class="info-value">Brgy. <?php echo $app['barangay']; ?></div></div>
+                                <div><div class="info-label">District</div><div class="info-value"><?php echo $app['district']; ?></div></div>
+                                <!-- ADDED: City/Municipality, Province, Zip Code -->
+                                <div><div class="info-label">City/Municipality</div><div class="info-value"><?php echo $app['city']; ?></div></div>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['province']; ?></div></div>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['zip_code']; ?></div></div>
+                                <div><div class="info-label">Building</div><div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div></div>
                             </div>
                         </div>
                     </div>
 
                     <?php if (!empty($documents)): ?>
-                        <div class="mt-8 pt-8 border-t border-gray-200 px-6">
+                        <div class="mt-8 pt-8 border-t border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                                 <i class="fas fa-file-alt text-purple-600 mr-2"></i>Uploaded Documents
                             </h3>
@@ -355,13 +319,9 @@ try {
                                             <div class="text-xs text-gray-500 mt-1 truncate" title="<?php echo htmlspecialchars($docs_by_type[$type]['file_name']); ?>">
                                                 <?php echo htmlspecialchars($docs_by_type[$type]['file_name']); ?>
                                             </div>
-                                            <div class="mt-2">
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Click to view</span>
-                                            </div>
+                                            <div class="mt-2"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Click to view</span></div>
                                         <?php else: ?>
-                                            <div class="mb-3">
-                                                <i class="fas fa-question-circle text-gray-300 text-3xl"></i>
-                                            </div>
+                                            <div class="mb-3"><i class="fas fa-question-circle text-gray-300 text-3xl"></i></div>
                                             <div class="text-sm font-medium text-gray-900"><?php echo $label; ?></div>
                                             <div class="text-xs text-gray-500 mt-1">Not uploaded</div>
                                         <?php endif; ?>
@@ -372,15 +332,16 @@ try {
                     <?php endif; ?>
 
                     <div class="px-6 py-4 bg-green-50 border-t border-gray-200">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between">
-                            <div class="mb-4 md:mb-0">
-                                <div class="font-medium text-gray-900">Final Approval Pending</div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-900">What's Next?</div>
                                 <div class="text-sm text-gray-600">
-                                    Your property assessment is complete. Awaiting final approval from the City Assessor.
+                                    Property assessment is complete. Waiting for final approval from City Assessor.
                                 </div>
                             </div>
-                            <div class="text-sm text-green-600 font-medium flex items-center">
-                                <i class="fas fa-check-circle mr-2"></i> Assessment Completed
+                            <div class="text-sm text-green-700">
+                                <i class="fas fa-clock mr-1"></i>
+                                Final approval: 2-3 business days
                             </div>
                         </div>
                     </div>

@@ -80,15 +80,30 @@ export default function Assessed({ registration, documents, fetchData, formatDat
     total_annual_tax: 0
   });
 
+  // File icon function (matching Pending component)
+  const fileIcon = (fileName) => {
+    const ext = fileName.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif'].includes(ext)) return '🖼️';
+    if (['pdf'].includes(ext)) return '📄';
+    return '📁';
+  };
+
+  // Get document URL (matching Pending component)
+  const getDocumentUrl = (filePath) => {
+    const cleanPath = filePath.replace(/^(http:\/\/localhost\/revenue2\/|https:\/\/revenuetreasury.goserveph.com\/)/, '');
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `http://localhost/revenue2/${cleanPath}`;
+    }
+    return `https://revenuetreasury.goserveph.com/${cleanPath}`;
+  };
+
   // Get API Base URL - FIXED for both localhost and domain
   const getApiBaseUrl = () => {
-    // Use environment variable if available
     const envApiUrl = import.meta.env.VITE_API_URL;
     if (envApiUrl) {
       return `${envApiUrl}/RPT/RPTValidationTable`;
     }
     
-    // Fallback to automatic detection
     const isLocalhost = window.location.hostname === "localhost" || 
                         window.location.hostname === "127.0.0.1";
     
@@ -100,13 +115,11 @@ export default function Assessed({ registration, documents, fetchData, formatDat
 
   // Get Document Base URL - FIXED for both localhost and domain
   const getDocumentBaseUrl = () => {
-    // Use environment variable if available
     const envApiUrl = import.meta.env.VITE_API_URL;
     if (envApiUrl) {
       return envApiUrl.replace('/backend', '');
     }
     
-    // Fallback to automatic detection
     const isLocalhost = window.location.hostname === "localhost" || 
                         window.location.hostname === "127.0.0.1";
     
@@ -116,61 +129,10 @@ export default function Assessed({ registration, documents, fetchData, formatDat
     return "https://revenuetreasury.goserveph.com";
   };
 
-  // Function to get document URL - FIXED
-  const getDocumentUrl = (filePath) => {
-    const baseUrl = getDocumentBaseUrl();
-    
-    // Clean up file path (remove any existing domain or double slashes)
-    let cleanPath = filePath.trim();
-    
-    // Remove any http:// or https:// prefixes
-    cleanPath = cleanPath.replace(/^(http:\/\/|https:\/\/)[^\/]+\//, '');
-    
-    // Remove leading slashes
-    cleanPath = cleanPath.replace(/^\/+/, '');
-    
-    // For localhost, make sure path starts correctly
-    if (cleanPath.startsWith('revenue2/')) {
-      cleanPath = cleanPath.replace('revenue2/', '');
-    }
-    
-    return `${baseUrl}/${cleanPath}`;
-  };
-
-  // Function to view document in modal
+  // Function to view document
   const viewDocument = (document) => {
-    setSelectedDocument(document);
-    setShowDocumentModal(true);
-  };
-
-  // Function to download document
-  const downloadDocument = (document) => {
     const fullUrl = getDocumentUrl(document.file_path);
     window.open(fullUrl, '_blank');
-  };
-
-  // Get file extension
-  const getFileExtension = (filename) => {
-    return filename.split('.').pop().toLowerCase();
-  };
-
-  // Check if file is image
-  const isImageFile = (filename) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    const ext = getFileExtension(filename);
-    return imageExtensions.includes(ext);
-  };
-
-  // Check if file is PDF
-  const isPdfFile = (filename) => {
-    return getFileExtension(filename) === 'pdf';
-  };
-
-  // Function to get document icon
-  const getDocumentIcon = (filename) => {
-    if (isImageFile(filename)) return '🖼️';
-    if (isPdfFile(filename)) return '📕';
-    return '📄';
   };
 
   // Helper function to extract data from API response
@@ -284,7 +246,6 @@ export default function Assessed({ registration, documents, fetchData, formatDat
       let assessmentData = extractDataFromResponse(data);
       
       if (assessmentData) {
-        // Based on your database, land assessment is in land_properties table
         const landData = assessmentData.land_assessment || assessmentData.land || null;
         const buildingData = assessmentData.building_assessment || assessmentData.building || null;
         
@@ -850,55 +811,68 @@ export default function Assessed({ registration, documents, fetchData, formatDat
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto px-4">
+
+        {/* Header / Status Card - Matching Pending */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <button
-                onClick={() => navigate(-1)}
-                className="text-gray-600 hover:text-blue-600 mb-4 flex items-center"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Assessed Property</h1>
-              <p className="text-gray-600">Reference: {registration.reference_number}</p>
+              <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-blue-600 mb-1 flex items-center">← Back</button>
+              <h1 className="text-2xl font-bold text-gray-900">Assessed Application</h1>
+              <p className="text-gray-600 mt-1">Reference: <span className="font-medium">{registration.reference_number}</span></p>
             </div>
-            <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
-              ASSESSED
-            </span>
+            <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-semibold">ASSESSED</span>
+          </div>
+
+          {/* Progress Bar - Updated for Assessed status */}
+          <div className="mt-4">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Pending</span>
+              <span>For Inspection</span>
+              <span className="text-purple-600 font-semibold">Assessed</span>
+              <span>Approved</span>
+            </div>
+            <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-3 bg-purple-500 rounded-full" style={{ width: '75%' }}></div>
+            </div>
           </div>
         </div>
 
-        {/* Documents Section */}
-        {documents.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+        {/* Documents + Admin Actions - Matching Pending layout */}
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* Documents Section - Matching Pending */}
+          <div className="flex-1 bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Uploaded Documents ({documents.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {documents.map((doc, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition">
-                  <div className="flex items-start mb-2">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      <span className="text-2xl">{getDocumentIcon(doc.file_name)}</span>
+            <div className="grid grid-cols-2 gap-4">
+              {documents.map((doc, i) => (
+                <div key={i} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition flex flex-col">
+                  <div className="flex items-center mb-2">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3 text-2xl">
+                      {fileIcon(doc.file_name)}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">{getDocumentTypeName(doc.document_type)}</h3>
-                      <p className="text-sm text-gray-600 truncate">{doc.file_name}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(doc.created_at)}
-                      </p>
+                      <p className="text-sm text-gray-500 truncate" title={doc.file_name}>{doc.file_name}</p>
                     </div>
                   </div>
-                  <div className="flex space-x-2 mt-2">
+                  <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => viewDocument(doc)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded transition"
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded text-sm transition"
                     >
                       View
                     </button>
                     <button
-                      onClick={() => downloadDocument(doc)}
-                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-2 rounded transition"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = getDocumentUrl(doc.file_path);
+                        link.download = doc.file_name;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition"
                     >
                       Download
                     </button>
@@ -907,59 +881,104 @@ export default function Assessed({ registration, documents, fetchData, formatDat
               ))}
             </div>
           </div>
-        )}
 
-        {/* Registration Details */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Registration Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-2">Property Information</h3>
-              <div className="space-y-2">
-                <p><span className="font-medium">Type:</span> {registration.property_type}</p>
-                <p><span className="font-medium">Address:</span> {registration.lot_location || registration.location_address}</p>
-                <p><span className="font-medium">Barangay:</span> {registration.barangay}</p>
-                <p><span className="font-medium">City:</span> {registration.city}</p>
+          {/* Admin Actions - Matching Pending with purple background */}
+          <div className="w-full lg:w-64 flex flex-col gap-4 p-6 bg-purple-50 rounded-xl shadow-lg">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Admin Actions</h2>
+            <button
+              onClick={() => setShowAssessmentForm(true)}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-3 rounded-lg flex items-center justify-center shadow hover:shadow-md transition"
+            >
+              📊 {landAssessment ? 'Edit Assessment' : 'Input Assessment Data'}
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={loading || !canApproveProperty()}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-3 rounded-lg flex items-center justify-center shadow hover:shadow-md transition"
+            >
+              ✅ Approve Property
+            </button>
+            <button
+              onClick={() => setShowRejectForm(true)}
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-3 rounded-lg flex items-center justify-center shadow hover:shadow-md transition"
+            >
+              ❌ Mark Needs Correction
+            </button>
+            
+            {/* Warning message if can't approve */}
+            {!canApproveProperty() && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs text-red-700">
+                  ⚠️ Complete assessment before approving
+                  {!landAssessment && " Land assessment missing."}
+                  {registration.has_building === 'yes' && !buildingAssessment && " Building assessment missing."}
+                </p>
               </div>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-2">Owner Information</h3>
-              <div className="space-y-2">
-                <p><span className="font-medium">Name:</span> {registration.owner_name}</p>
-                <p><span className="font-medium">Address:</span> {registration.owner_address}</p>
-                <p><span className="font-medium">Contact:</span> {registration.contact_number || registration.phone}</p>
-                <p><span className="font-medium">Email:</span> {registration.email_address || registration.email}</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p><span className="font-medium">Date Registered:</span> {formatDate(registration.created_at)}</p>
-            <p><span className="font-medium">Has Building:</span> {registration.has_building === 'yes' ? 'Yes' : 'No'}</p>
+            )}
           </div>
         </div>
 
-        {/* Current Assessment Display */}
+        {/* Registration Details - Matching Pending layout */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Property Info - Matching Pending */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <h3 className="font-semibold text-gray-700 mb-2">Property Info</h3>
+            <p><span className="font-medium">Location:</span> {registration.location_address || registration.lot_location}</p>
+            <p><span className="font-medium">Barangay:</span> {registration.barangay}</p>
+            <p><span className="font-medium">District:</span> {registration.district || 'N/A'}</p>
+            <p><span className="font-medium">City/Municipality:</span> {registration.municipality_city || registration.city}</p>
+            <p><span className="font-medium">Province:</span> {registration.province || 'N/A'}</p>
+            <p><span className="font-medium">Zip Code:</span> {registration.zip_code || 'N/A'}</p>
+            <p><span className="font-medium">Has Building:</span> {registration.has_building === 'yes' ? 'Yes' : 'No'}</p>
+            <p><span className="font-medium">Property Type:</span> {registration.property_type || 'N/A'}</p>
+          </div>
+
+          {/* Owner Info - Matching Pending */}
+          <div className="bg-gray-50 p-4 rounded-lg flex flex-col justify-between">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-gray-700 mb-2">Owner Info</h3>
+              <p><span className="font-medium">Name:</span> {registration.owner_name}</p>
+              <p><span className="font-medium">Sex:</span> {registration.sex || 'N/A'}</p>
+              <p><span className="font-medium">Marital Status:</span> {registration.marital_status || 'N/A'}</p>
+              <p><span className="font-medium">Birthdate:</span> {registration.birthdate ? formatDate(registration.birthdate, 'MMMM d, yyyy') : 'N/A'}</p>
+              <p><span className="font-medium">Address:</span> {registration.owner_address}</p>
+              <p><span className="font-medium">Contact:</span> {registration.contact_number || registration.phone}</p>
+              <p><span className="font-medium">Email:</span> {registration.email_address || registration.email}</p>
+            </div>
+
+            {/* Date Registered at bottom - Matching Pending */}
+            <div className="mt-4 text-sm text-gray-500 border-t border-gray-300 pt-2">
+              Date Registered: {formatDate(registration.date_registered || registration.created_at, 'MMMM d, yyyy at hh:mm a')}
+            </div>
+          </div>
+        </div>
+
+        {/* Current Assessment Display - New section for assessed data */}
         {(landAssessment || buildingAssessment) && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Current Assessment</h2>
+          <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Current Assessment Summary</h2>
             
+            {/* Land Assessment Summary */}
             {landAssessment && (
-              <div className="mb-6">
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Land Assessment</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Property Type</p>
                     <p className="font-semibold">{landAssessment.property_type}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Area (sqm)</p>
                     <p className="font-semibold">{landAssessment.land_area_sqm}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Market Value</p>
                     <p className="font-semibold">{formatCurrency(parseFloat(landAssessment.land_market_value || 0))}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Assessed Value</p>
                     <p className="font-semibold">{formatCurrency(parseFloat(landAssessment.land_assessed_value || 0))}</p>
                   </div>
@@ -967,23 +986,24 @@ export default function Assessed({ registration, documents, fetchData, formatDat
               </div>
             )}
             
+            {/* Building Assessment Summary */}
             {buildingAssessment && (
-              <div>
+              <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Building Assessment</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Construction Type</p>
                     <p className="font-semibold">{buildingAssessment.construction_type}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Floor Area (sqm)</p>
                     <p className="font-semibold">{buildingAssessment.floor_area_sqm}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Year Built</p>
                     <p className="font-semibold">{buildingAssessment.year_built}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-white p-3 rounded border">
                     <p className="text-sm text-gray-600">Assessed Value</p>
                     <p className="font-semibold">{formatCurrency(parseFloat(buildingAssessment.building_assessed_value || 0))}</p>
                   </div>
@@ -993,136 +1013,72 @@ export default function Assessed({ registration, documents, fetchData, formatDat
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Admin Actions</h2>
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => setShowAssessmentForm(true)}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg flex items-center"
-            >
-              <span className="mr-2">📊</span>
-              {landAssessment ? 'Edit Assessment' : 'Input Assessment Data'}
-            </button>
+        {/* Tax Calculation Summary - Show only if assessments exist */}
+        {(landCalculations.assessed_value > 0 || buildingCalculations.assessed_value > 0) && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Tax Calculation Summary</h2>
             
-            <button
-              onClick={handleApprove}
-              disabled={loading || !canApproveProperty()}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-6 py-3 rounded-lg flex items-center"
-            >
-              <span className="mr-2">✅</span>
-              Approve Property
-            </button>
-            
-            <button
-              onClick={() => setShowRejectForm(true)}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-6 py-3 rounded-lg flex items-center"
-            >
-              <span className="mr-2">❌</span>
-              Mark Needs Correction
-            </button>
-          </div>
-          
-          {!canApproveProperty() && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-700">
-                ⚠️ Complete all required assessments before approving.
-                {!landAssessment && " Land assessment missing."}
-                {registration.has_building === 'yes' && !buildingAssessment && " Building assessment missing."}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Document Viewer Modal */}
-        {showDocumentModal && selectedDocument && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-              <div className="flex justify-between items-center border-b border-gray-200 p-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{getDocumentTypeName(selectedDocument.document_type)}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{selectedDocument.file_name}</p>
-                  <div className="flex items-center mt-2 text-sm text-gray-500">
-                    <span className="mr-4">Type: {selectedDocument.file_type}</span>
-                    <span>Size: {(selectedDocument.file_size / 1024).toFixed(2)} KB</span>
-                  </div>
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-blue-800 mb-2">Tax Rates</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-white rounded border">
+                  <p className="text-sm text-gray-600">Basic Tax</p>
+                  <p className="text-lg font-bold text-blue-700">{taxCalculations.basic_tax_percent}%</p>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => downloadDocument(selectedDocument)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-                  >
-                    <span>📥</span>
-                    <span>Download</span>
-                  </button>
-                  <button
-                    onClick={() => setShowDocumentModal(false)}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg"
-                  >
-                    Close
-                  </button>
+                <div className="text-center p-3 bg-white rounded border">
+                  <p className="text-sm text-gray-600">SEF Tax</p>
+                  <p className="text-lg font-bold text-blue-700">{taxCalculations.sef_tax_percent}%</p>
+                </div>
+                <div className="text-center p-3 bg-white rounded border border-green-300">
+                  <p className="text-sm text-gray-600">Total Tax Rate</p>
+                  <p className="text-lg font-bold text-green-700">{taxCalculations.total_tax_rate}%</p>
                 </div>
               </div>
-              
-              <div className="p-6 overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
-                {isImageFile(selectedDocument.file_name) ? (
-                  <div className="text-center">
-                    <img 
-                      src={getDocumentUrl(selectedDocument.file_path)}
-                      alt={selectedDocument.file_name}
-                      className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f5f5f5"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="%23666">Image not available</text></svg>';
-                      }}
-                    />
-                    <p className="text-sm text-gray-500 mt-4">
-                      Image preview. Click Download for original quality.
-                    </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Land Tax */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-3">Land Tax</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Basic Tax:</span> {formatCurrency(taxCalculations.land_basic_tax)}</p>
+                  <p><span className="font-medium">SEF Tax:</span> {formatCurrency(taxCalculations.land_sef_tax)}</p>
+                  <div className="pt-2 border-t border-gray-300">
+                    <p className="font-semibold text-green-700">Annual Tax: {formatCurrency(taxCalculations.land_annual_tax)}</p>
                   </div>
-                ) : isPdfFile(selectedDocument.file_name) ? (
-                  <div className="text-center">
-                    <div className="mb-6">
-                      <div className="text-6xl text-red-500 mb-4">📕</div>
-                      <p className="text-gray-600">PDF files cannot be previewed in the browser.</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Please download the file to view it.
-                      </p>
+                </div>
+              </div>
+
+              {/* Building Tax */}
+              {buildingCalculations.assessed_value > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-800 mb-3">Building Tax</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Basic Tax:</span> {formatCurrency(taxCalculations.building_basic_tax)}</p>
+                    <p><span className="font-medium">SEF Tax:</span> {formatCurrency(taxCalculations.building_sef_tax)}</p>
+                    <div className="pt-2 border-t border-gray-300">
+                      <p className="font-semibold text-green-700">Annual Tax: {formatCurrency(taxCalculations.building_annual_tax)}</p>
                     </div>
-                    <button
-                      onClick={() => downloadDocument(selectedDocument)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
-                    >
-                      <span>📥</span>
-                      <span>Download PDF</span>
-                    </button>
                   </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="mb-6">
-                      <div className="text-6xl text-gray-400 mb-4">📄</div>
-                      <p className="text-gray-600">This file type cannot be previewed.</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        File type: {selectedDocument.file_type}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => downloadDocument(selectedDocument)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
-                    >
-                      <span>📥</span>
-                      <span>Download File</span>
-                    </button>
+                </div>
+              )}
+
+              {/* Total Tax */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h3 className="font-semibold text-green-800 mb-3">Total Property Tax</h3>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Total Basic Tax:</span> {formatCurrency(taxCalculations.total_basic_tax)}</p>
+                  <p><span className="font-medium">Total SEF Tax:</span> {formatCurrency(taxCalculations.total_sef_tax)}</p>
+                  <div className="pt-2 border-t border-green-300">
+                    <p className="text-xl font-bold text-green-700">Total Annual Tax: {formatCurrency(taxCalculations.total_annual_tax)}</p>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Assessment Form Modal with Automated Calculations */}
+        {/* Assessment Form Modal - KEEPING YOUR EXISTING CODE */}
         {showAssessmentForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -1446,7 +1402,7 @@ export default function Assessed({ registration, documents, fetchData, formatDat
           </div>
         )}
 
-        {/* Rejection Form Modal */}
+        {/* Rejection Form Modal - KEEPING YOUR EXISTING CODE */}
         {showRejectForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
@@ -1495,6 +1451,6 @@ export default function Assessed({ registration, documents, fetchData, formatDat
           </div>
         )}
       </div>
-    </div> 
+    </div>
   );
 }

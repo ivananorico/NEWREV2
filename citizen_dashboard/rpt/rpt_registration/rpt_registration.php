@@ -54,7 +54,10 @@ if ($user_details) {
         'city' => $user_details['city'] ?? 'Quezon City',
         'province' => $user_details['province'] ?? 'Metro Manila',
         'zip_code' => $user_details['zip_code'] ?? '',
-        'birthdate' => $user_details['birthdate'] ?? ''
+        'birthdate' => $user_details['birthdate'] ?? '',
+        // Note: sex and marital_status may not exist in users table
+        'sex' => $user_details['sex'] ?? '',
+        'marital_status' => $user_details['marital_status'] ?? ''
     ];
 } else {
     $autofill_data = [
@@ -71,7 +74,9 @@ if ($user_details) {
         'city' => 'Quezon City',
         'province' => 'Metro Manila',
         'zip_code' => '',
-        'birthdate' => ''
+        'birthdate' => '',
+        'sex' => '',
+        'marital_status' => ''
     ];
 }
 
@@ -127,12 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                  ($_POST['province'] ? $_POST['province'] . ' ' : '') . 
                                  ($_POST['zip_code'] ? $_POST['zip_code'] : ''));
             
-            // 1. Create new property owner record with separate name fields
+            // 1. Create new property owner record with new fields
             $owner_stmt = $pdo->prepare("INSERT INTO property_owners 
                 (owner_code, first_name, last_name, middle_name, suffix, 
-                 birthdate, email, phone, address, house_number, street, barangay, 
+                 birthdate, sex, marital_status, email, phone, address, house_number, street, barangay, 
                  district, city, province, zip_code, tin_number, user_id, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
             
             $owner_code = 'OWNER-' . date('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
             $owner_stmt->execute([
@@ -142,6 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 !empty($_POST['middle_name']) ? $_POST['middle_name'] : null,
                 !empty($_POST['suffix']) ? $_POST['suffix'] : null,
                 !empty($_POST['birthdate']) ? $_POST['birthdate'] : null,
+                !empty($_POST['sex']) ? $_POST['sex'] : null,
+                !empty($_POST['marital_status']) ? $_POST['marital_status'] : null,
                 $_POST['email'],
                 $_POST['phone'],
                 $owner_address,
@@ -424,6 +431,27 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Sex</label>
+                            <select name="sex"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Select Sex</option>
+                                <option value="male" <?php echo ($form_data['sex'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
+                                <option value="female" <?php echo ($form_data['sex'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
+                                <option value="other" <?php echo ($form_data['sex'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                            <select name="marital_status"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Select Marital Status</option>
+                                <option value="single" <?php echo ($form_data['marital_status'] ?? '') == 'single' ? 'selected' : ''; ?>>Single</option>
+                                <option value="married" <?php echo ($form_data['marital_status'] ?? '') == 'married' ? 'selected' : ''; ?>>Married</option>
+                                <option value="divorced" <?php echo ($form_data['marital_status'] ?? '') == 'divorced' ? 'selected' : ''; ?>>Divorced</option>
+                                <option value="widowed" <?php echo ($form_data['marital_status'] ?? '') == 'widowed' ? 'selected' : ''; ?>>Widowed</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                             <input type="email" name="email" required 
                                 value="<?php echo htmlspecialchars($form_data['email']); ?>"
@@ -568,138 +596,138 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                 </div>
 
                 <!-- Documents Upload Section -->
-<div class="border-b border-gray-200 pb-6">
-    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <i class="fas fa-file-upload text-red-500 mr-2"></i>
-        Required Documents Upload
-    </h3>
-    
-    <div class="space-y-6">
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <h4 class="font-semibold text-yellow-800 mb-1 flex items-center text-sm">
-                <i class="fas fa-exclamation-triangle mr-2 text-xs"></i>
-                Important Notes:
-            </h4>
-            <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
-                <li>All documents must be clear and readable images</li>
-                <li>Accepted formats: JPG, JPEG, PNG only</li>
-                <li>Maximum file size: 5MB per file</li>
-                <li>Make sure documents are not expired</li>
-                <li>Take clear photos or scans of documents</li>
-            </ul>
-        </div>
+                <div class="border-b border-gray-200 pb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-file-upload text-red-500 mr-2"></i>
+                        Required Documents Upload
+                    </h3>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <h4 class="font-semibold text-yellow-800 mb-1 flex items-center text-sm">
+                                <i class="fas fa-exclamation-triangle mr-2 text-xs"></i>
+                                Important Notes:
+                            </h4>
+                            <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
+                                <li>All documents must be clear and readable images</li>
+                                <li>Accepted formats: JPG, JPEG, PNG only</li>
+                                <li>Maximum file size: 5MB per file</li>
+                                <li>Make sure documents are not expired</li>
+                                <li>Take clear photos or scans of documents</li>
+                            </ul>
+                        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Barangay Certificate -->
-            <div class="space-y-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    <span class="text-red-500">*</span> Barangay Certificate
-                </label>
-                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
-                    <input type="file" 
-                           name="barangay_certificate" 
-                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                           required
-                           class="hidden" 
-                           id="barangay_certificate"
-                           onchange="showFileName(this, 'barangay_filename')">
-                    <label for="barangay_certificate" class="cursor-pointer flex items-center">
-                        <div class="flex-1">
-                            <div class="text-sm text-gray-600">Click to upload</div>
-                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
-                        </div>
-                        <div class="text-gray-400 text-sm">
-                            <i class="fas fa-upload"></i>
-                        </div>
-                    </label>
-                    <div id="barangay_filename" class="mt-2"></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Issued by the barangay where the property is located</p>
-            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Barangay Certificate -->
+                            <div class="space-y-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    <span class="text-red-500">*</span> Barangay Certificate
+                                </label>
+                                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                                    <input type="file" 
+                                           name="barangay_certificate" 
+                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                                           required
+                                           class="hidden" 
+                                           id="barangay_certificate"
+                                           onchange="showFileName(this, 'barangay_filename')">
+                                    <label for="barangay_certificate" class="cursor-pointer flex items-center">
+                                        <div class="flex-1">
+                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                                        </div>
+                                        <div class="text-gray-400 text-sm">
+                                            <i class="fas fa-upload"></i>
+                                        </div>
+                                    </label>
+                                    <div id="barangay_filename" class="mt-2"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Issued by the barangay where the property is located</p>
+                            </div>
 
-            <!-- Proof of Ownership -->
-            <div class="space-y-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    <span class="text-red-500">*</span> Proof of Ownership
-                </label>
-                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
-                    <input type="file" 
-                           name="ownership_proof" 
-                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                           required
-                           class="hidden" 
-                           id="ownership_proof"
-                           onchange="showFileName(this, 'ownership_filename')">
-                    <label for="ownership_proof" class="cursor-pointer flex items-center">
-                        <div class="flex-1">
-                            <div class="text-sm text-gray-600">Click to upload</div>
-                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
-                        </div>
-                        <div class="text-gray-400 text-sm">
-                            <i class="fas fa-upload"></i>
-                        </div>
-                    </label>
-                    <div id="ownership_filename" class="mt-2"></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Deed of Sale, Tax Declaration, Title, etc.</p>
-            </div>
+                            <!-- Proof of Ownership -->
+                            <div class="space-y-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    <span class="text-red-500">*</span> Proof of Ownership
+                                </label>
+                                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                                    <input type="file" 
+                                           name="ownership_proof" 
+                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                                           required
+                                           class="hidden" 
+                                           id="ownership_proof"
+                                           onchange="showFileName(this, 'ownership_filename')">
+                                    <label for="ownership_proof" class="cursor-pointer flex items-center">
+                                        <div class="flex-1">
+                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                                        </div>
+                                        <div class="text-gray-400 text-sm">
+                                            <i class="fas fa-upload"></i>
+                                        </div>
+                                    </label>
+                                    <div id="ownership_filename" class="mt-2"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Deed of Sale, Tax Declaration, Title, etc.</p>
+                            </div>
 
-            <!-- Valid ID -->
-            <div class="space-y-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    <span class="text-red-500">*</span> Valid ID
-                </label>
-                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
-                    <input type="file" 
-                           name="valid_id" 
-                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                           required
-                           class="hidden" 
-                           id="valid_id"
-                           onchange="showFileName(this, 'validid_filename')">
-                    <label for="valid_id" class="cursor-pointer flex items-center">
-                        <div class="flex-1">
-                            <div class="text-sm text-gray-600">Click to upload</div>
-                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
-                        </div>
-                        <div class="text-gray-400 text-sm">
-                            <i class="fas fa-upload"></i>
-                        </div>
-                    </label>
-                    <div id="validid_filename" class="mt-2"></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Government-issued ID (Driver's License, Passport, etc.)</p>
-            </div>
+                            <!-- Valid ID -->
+                            <div class="space-y-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    <span class="text-red-500">*</span> Valid ID
+                                </label>
+                                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                                    <input type="file" 
+                                           name="valid_id" 
+                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                                           required
+                                           class="hidden" 
+                                           id="valid_id"
+                                           onchange="showFileName(this, 'validid_filename')">
+                                    <label for="valid_id" class="cursor-pointer flex items-center">
+                                        <div class="flex-1">
+                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                                        </div>
+                                        <div class="text-gray-400 text-sm">
+                                            <i class="fas fa-upload"></i>
+                                        </div>
+                                    </label>
+                                    <div id="validid_filename" class="mt-2"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Government-issued ID (Driver's License, Passport, etc.)</p>
+                            </div>
 
-            <!-- Survey Plan -->
-            <div class="space-y-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    <span class="text-red-500">*</span> Survey Plan
-                </label>
-                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
-                    <input type="file" 
-                           name="survey_plan" 
-                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                           required
-                           class="hidden" 
-                           id="survey_plan"
-                           onchange="showFileName(this, 'survey_filename')">
-                    <label for="survey_plan" class="cursor-pointer flex items-center">
-                        <div class="flex-1">
-                            <div class="text-sm text-gray-600">Click to upload</div>
-                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                            <!-- Survey Plan -->
+                            <div class="space-y-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    <span class="text-red-500">*</span> Survey Plan
+                                </label>
+                                <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
+                                    <input type="file" 
+                                           name="survey_plan" 
+                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
+                                           required
+                                           class="hidden" 
+                                           id="survey_plan"
+                                           onchange="showFileName(this, 'survey_filename')">
+                                    <label for="survey_plan" class="cursor-pointer flex items-center">
+                                        <div class="flex-1">
+                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
+                                        </div>
+                                        <div class="text-gray-400 text-sm">
+                                            <i class="fas fa-upload"></i>
+                                        </div>
+                                    </label>
+                                    <div id="survey_filename" class="mt-2"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Property sketch or survey plan</p>
+                            </div>
                         </div>
-                        <div class="text-gray-400 text-sm">
-                            <i class="fas fa-upload"></i>
-                        </div>
-                    </label>
-                    <div id="survey_filename" class="mt-2"></div>
+                    </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Property sketch or survey plan</p>
-            </div>
-        </div>
-    </div>
-</div>
 
                 <!-- Building Information Section -->
                 <div class="pb-6">
@@ -881,4 +909,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 </body>
-</html> 
+</html>

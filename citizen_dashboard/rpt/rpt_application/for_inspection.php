@@ -37,7 +37,7 @@ $applications = [];
 $total_applications = 0;
 
 try {
-    // First get registrations
+    // First get registrations - UPDATED WITH ALL FIELDS LIKE pending.php
     $stmt = $pdo->prepare("
         SELECT 
             pr.id,
@@ -45,6 +45,9 @@ try {
             pr.lot_location,
             pr.barangay,
             pr.district,
+            pr.city,
+            pr.province,
+            pr.zip_code,
             pr.has_building,
             pr.status,
             DATE(pr.created_at) as application_date,
@@ -61,7 +64,10 @@ try {
             po.district as owner_district,
             po.city as owner_city,
             po.province as owner_province,
-            po.zip_code as owner_zip_code
+            po.zip_code as owner_zip_code,
+            po.birthdate,
+            po.sex,
+            po.marital_status
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
         WHERE po.user_id = ? 
@@ -283,18 +289,33 @@ try {
                         </div>
                     </div>
 
+                    <!-- UPDATED: Same as pending.php layout -->
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>
                             <div class="info-card-header">
                                 <div class="icon-circle bg-blue-100 text-blue-600"><i class="fas fa-user"></i></div>
-                                <div><h3 class="font-semibold text-gray-900">Applicant</h3><p class="text-sm text-gray-500">Your registered information</p></div>
+                                <!-- CHANGED: Applicant to Owner Info -->
+                                <div><h3 class="font-semibold text-gray-900">Owner Info</h3><p class="text-sm text-gray-500">Your registered information</p></div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div><div class="info-label">Full Name</div><div class="info-value"><?php echo $full_name; ?></div></div>
+                                <!-- ADDED: Birthdate, Sex, Marital Status -->
+                                <div><div class="info-label">Birthdate</div><div class="info-value"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div></div>
+                                <div><div class="info-label">Sex</div><div class="info-value"><?php echo ucfirst($app['sex'] ?? '-'); ?></div></div>
+                                <div><div class="info-label">Marital Status</div><div class="info-value"><?php echo ucfirst($app['marital_status'] ?? '-'); ?></div></div>
                                 <div><div class="info-label">Contact</div><div class="info-value"><?php echo $app['phone']; ?></div></div>
                                 <div><div class="info-label">Email</div><div class="info-value"><?php echo $app['email']; ?></div></div>
                                 <?php if (!empty($app['tin_number'])): ?>
                                 <div><div class="info-label">TIN</div><div class="info-value"><?php echo $app['tin_number']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_city'])): ?>
+                                <div><div class="info-label">City</div><div class="info-value"><?php echo $app['owner_city']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_province'])): ?>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['owner_province']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['owner_zip_code'])): ?>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['owner_zip_code']; ?></div></div>
                                 <?php endif; ?>
                             </div>
                             <div class="mt-4">
@@ -321,6 +342,10 @@ try {
                                 <div><div class="info-label">Location</div><div class="info-value"><?php echo $app['lot_location']; ?></div></div>
                                 <div><div class="info-label">Barangay</div><div class="info-value">Brgy. <?php echo $app['barangay']; ?></div></div>
                                 <div><div class="info-label">District</div><div class="info-value"><?php echo $app['district']; ?></div></div>
+                                <!-- ADDED: City/Municipality, Province, Zip Code -->
+                                <div><div class="info-label">City/Municipality</div><div class="info-value"><?php echo $app['city']; ?></div></div>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['province']; ?></div></div>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['zip_code']; ?></div></div>
                                 <div><div class="info-label">Building</div><div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div></div>
                             </div>
                         </div>

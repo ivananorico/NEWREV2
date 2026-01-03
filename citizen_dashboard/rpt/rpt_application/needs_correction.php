@@ -45,25 +45,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_application'])) {
         
         $pdo->beginTransaction();
         
-        // Update owner information
+        // Update owner information with all fields from rpt_registration.php
         $owner_stmt = $pdo->prepare("
             UPDATE property_owners 
             SET first_name = ?, last_name = ?, middle_name = ?, suffix = ?,
-                email = ?, phone = ?, tin_number = ?, 
-                house_number = ?, street = ?, barangay = ?,
-                district = ?, city = ?, province = ?, zip_code = ?,
-                birthdate = ?
+                birthdate = ?, sex = ?, marital_status = ?, email = ?, phone = ?, 
+                tin_number = ?, house_number = ?, street = ?, barangay = ?,
+                district = ?, city = ?, province = ?, zip_code = ?
             WHERE id = (SELECT owner_id FROM property_registrations WHERE id = ?)
         ");
         
         $owner_stmt->execute([
             $_POST['first_name'],
             $_POST['last_name'],
-            $_POST['middle_name'] ?? NULL,
-            $_POST['suffix'] ?? NULL,
+            !empty($_POST['middle_name']) ? $_POST['middle_name'] : null,
+            !empty($_POST['suffix']) ? $_POST['suffix'] : null,
+            !empty($_POST['birthdate']) ? $_POST['birthdate'] : null,
+            !empty($_POST['sex']) ? $_POST['sex'] : null,
+            !empty($_POST['marital_status']) ? $_POST['marital_status'] : null,
             $_POST['email'],
             $_POST['phone'],
-            $_POST['tin_number'] ?? NULL,
+            !empty($_POST['tin_number']) ? $_POST['tin_number'] : null,
             $_POST['house_number'],
             $_POST['street'],
             $_POST['barangay'],
@@ -71,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_application'])) {
             $_POST['city'] ?? 'Quezon City',
             $_POST['province'] ?? 'Metro Manila',
             $_POST['zip_code'],
-            !empty($_POST['birthdate']) ? $_POST['birthdate'] : NULL,
             $registration_id
         ]);
         
@@ -79,15 +80,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_application'])) {
         $reg_stmt = $pdo->prepare("
             UPDATE property_registrations 
             SET lot_location = ?, barangay = ?, district = ?, 
-                has_building = ?, status = 'resubmitted', 
-                correction_notes = NULL, updated_at = NOW()
+                city = ?, province = ?, zip_code = ?, has_building = ?, 
+                status = 'resubmitted', correction_notes = NULL, updated_at = NOW()
             WHERE id = ?
         ");
         
         $reg_stmt->execute([
-            $_POST['property_lot_location'],
-            $_POST['property_barangay'],
-            $_POST['property_district'],
+            trim($_POST['property_lot_location']),
+            trim($_POST['property_barangay']),
+            trim($_POST['property_district']),
+            $_POST['property_city'] ?? 'Quezon City',
+            $_POST['property_province'] ?? 'Metro Manila',
+            $_POST['property_zip_code'],
             $_POST['has_building'],
             $registration_id
         ]);
@@ -110,11 +114,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_application'])) {
         foreach ($document_types as $field_name => $doc_name) {
             if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] == UPLOAD_ERR_OK) {
                 $file = $_FILES[$field_name];
-                $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+                $allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
                 $file_type = mime_content_type($file['tmp_name']);
                 
                 if (!in_array($file_type, $allowed_types)) {
-                    throw new Exception("$doc_name must be an image or PDF");
+                    throw new Exception("$doc_name must be an image (JPG, JPEG, PNG)");
                 }
                 
                 $max_size = 5 * 1024 * 1024;
@@ -230,6 +234,9 @@ try {
             pr.lot_location,
             pr.barangay,
             pr.district,
+            pr.city,
+            pr.province,
+            pr.zip_code,
             pr.has_building,
             pr.status,
             pr.correction_notes,
@@ -247,7 +254,12 @@ try {
             po.street,
             po.barangay as owner_barangay,
             po.district as owner_district,
-            po.zip_code as owner_zip_code
+            po.city as owner_city,
+            po.province as owner_province,
+            po.zip_code as owner_zip_code,
+            po.birthdate,
+            po.sex,
+            po.marital_status
             
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
@@ -469,7 +481,7 @@ if (empty($_SESSION['csrf_token'])) {
                                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                 <input type="hidden" name="MAX_FILE_SIZE" value="5242880">
                                 
-                                <!-- Personal Information Section -->
+                                <!-- Personal Information Section - Same as rpt_registration.php -->
                                 <div class="border-b border-gray-200 pb-6">
                                     <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                                         <i class="fas fa-user text-blue-500 mr-2"></i>
@@ -480,19 +492,22 @@ if (empty($_SESSION['csrf_token'])) {
                                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                                             <input type="text" name="first_name" required 
                                                 value="<?php echo htmlspecialchars($edit_data['first_name']); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter your first name">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                                             <input type="text" name="last_name" required 
                                                 value="<?php echo htmlspecialchars($edit_data['last_name']); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter your last name">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                                             <input type="text" name="middle_name"
                                                 value="<?php echo htmlspecialchars($edit_data['middle_name'] ?? ''); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter middle name (optional)">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Suffix</label>
@@ -507,16 +522,52 @@ if (empty($_SESSION['csrf_token'])) {
                                             </select>
                                         </div>
                                         <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Birthdate</label>
+                                            <input type="date" name="birthdate"
+                                                value="<?php echo htmlspecialchars($edit_data['birthdate'] ?? ''); ?>"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Sex</label>
+                                            <select name="sex"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                <option value="">Select Sex</option>
+                                                <option value="male" <?php echo ($edit_data['sex'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
+                                                <option value="female" <?php echo ($edit_data['sex'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
+                                                <option value="other" <?php echo ($edit_data['sex'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                                            <select name="marital_status"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                <option value="">Select Marital Status</option>
+                                                <option value="single" <?php echo ($edit_data['marital_status'] ?? '') == 'single' ? 'selected' : ''; ?>>Single</option>
+                                                <option value="married" <?php echo ($edit_data['marital_status'] ?? '') == 'married' ? 'selected' : ''; ?>>Married</option>
+                                                <option value="divorced" <?php echo ($edit_data['marital_status'] ?? '') == 'divorced' ? 'selected' : ''; ?>>Divorced</option>
+                                                <option value="widowed" <?php echo ($edit_data['marital_status'] ?? '') == 'widowed' ? 'selected' : ''; ?>>Widowed</option>
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                                             <input type="email" name="email" required 
                                                 value="<?php echo htmlspecialchars($edit_data['email']); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter your email">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
                                             <input type="text" name="phone" required 
                                                 value="<?php echo htmlspecialchars($edit_data['phone']); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter your phone number">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">TIN Number</label>
+                                            <input type="text" name="tin_number" 
+                                                value="<?php echo htmlspecialchars($edit_data['tin_number'] ?? ''); ?>"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                placeholder="Enter TIN (optional)">
                                         </div>
                                     </div>
                                     
@@ -531,19 +582,22 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">House Number *</label>
                                                 <input type="text" name="house_number" required 
                                                     value="<?php echo htmlspecialchars($edit_data['house_number'] ?? ''); ?>"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="123">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">Street *</label>
                                                 <input type="text" name="street" required 
                                                     value="<?php echo htmlspecialchars($edit_data['street'] ?? ''); ?>"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="Main Street">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
                                                 <input type="text" name="barangay" required 
                                                     value="<?php echo htmlspecialchars($edit_data['owner_barangay'] ?? ''); ?>"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="Barangay Name">
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
@@ -571,13 +625,14 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
                                                 <input type="text" name="zip_code" required 
                                                     value="<?php echo htmlspecialchars($edit_data['owner_zip_code'] ?? ''); ?>"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    placeholder="1100">
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Property Information Section -->
+                                <!-- Property Information Section - Same as rpt_registration.php -->
                                 <div class="border-b border-gray-200 pb-6">
                                     <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                                         <i class="fas fa-map-marker-alt text-green-500 mr-2"></i>
@@ -588,14 +643,18 @@ if (empty($_SESSION['csrf_token'])) {
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Lot Location *</label>
                                             <input type="text" name="property_lot_location" required 
                                                 value="<?php echo htmlspecialchars($edit_data['lot_location']); ?>"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                placeholder="e.g., Lot 5, Block 2 or specific location">
+                                            <p class="text-xs text-gray-500 mt-1">The physical location identifier of your property</p>
                                         </div>
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">Property Barangay *</label>
                                                 <input type="text" name="property_barangay" required 
                                                     value="<?php echo htmlspecialchars($edit_data['barangay']); ?>"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                    placeholder="Enter property barangay">
+                                                <p class="text-xs text-gray-500 mt-1">Barangay where the property is located</p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">Property District *</label>
@@ -608,32 +667,27 @@ if (empty($_SESSION['csrf_token'])) {
                                                         </option>
                                                     <?php endfor; ?>
                                                 </select>
+                                                <p class="text-xs text-gray-500 mt-1">District where the property is located</p>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <!-- Building Information Section -->
-                                <div class="pb-6">
-                                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                                        <i class="fas fa-building text-purple-500 mr-2"></i>
-                                        Building Information
-                                    </h3>
-                                    <div class="bg-gray-50 p-4 rounded-lg">
-                                        <label class="block text-sm font-medium text-gray-700 mb-3">Does this property have any buildings? *</label>
-                                        <div class="flex space-x-6">
-                                            <label class="flex items-center">
-                                                <input type="radio" name="has_building" value="yes" required 
-                                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                                                    <?php echo ($edit_data['has_building'] == 'yes') ? 'checked' : ''; ?>>
-                                                <span class="ml-2 text-gray-700">Yes, there is a building/house</span>
-                                            </label>
-                                            <label class="flex items-center">
-                                                <input type="radio" name="has_building" value="no" 
-                                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                                                    <?php echo ($edit_data['has_building'] == 'no') ? 'checked' : ''; ?>>
-                                                <span class="ml-2 text-gray-700">No, it's vacant land</span>
-                                            </label>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Property City *</label>
+                                                <input type="text" name="property_city" value="Quezon City" required readonly
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Property Province *</label>
+                                                <input type="text" name="property_province" value="Metro Manila" required readonly
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Property ZIP Code *</label>
+                                                <input type="text" name="property_zip_code" required 
+                                                    value="<?php echo htmlspecialchars($edit_data['zip_code'] ?? ''); ?>"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                    placeholder="1100">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -652,8 +706,8 @@ if (empty($_SESSION['csrf_token'])) {
                                                 Important Notes:
                                             </h4>
                                             <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
-                                                <li>All documents must be clear and readable images or PDFs</li>
-                                                <li>Accepted formats: JPG, JPEG, PNG, PDF only</li>
+                                                <li>All documents must be clear and readable images</li>
+                                                <li>Accepted formats: JPG, JPEG, PNG only</li>
                                                 <li>Maximum file size: 5MB per file</li>
                                                 <li>Make sure documents are not expired</li>
                                                 <li>Take clear photos or scans of documents</li>
@@ -699,14 +753,14 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                                     <input type="file" 
                                                            name="barangay_certificate" 
-                                                           accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/jpg,image/png,application/pdf"
+                                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
                                                            class="hidden" 
                                                            id="barangay_certificate"
                                                            onchange="showFileName(this, 'barangay_filename')">
                                                     <label for="barangay_certificate" class="cursor-pointer flex items-center">
                                                         <div class="flex-1">
                                                             <div class="text-sm text-gray-600">Click to upload</div>
-                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG, PDF up to 5MB</div>
+                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                                         </div>
                                                         <div class="text-gray-400 text-sm">
                                                             <i class="fas fa-upload"></i>
@@ -754,14 +808,14 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                                     <input type="file" 
                                                            name="ownership_proof" 
-                                                           accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/jpg,image/png,application/pdf"
+                                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
                                                            class="hidden" 
                                                            id="ownership_proof"
                                                            onchange="showFileName(this, 'ownership_filename')">
                                                     <label for="ownership_proof" class="cursor-pointer flex items-center">
                                                         <div class="flex-1">
                                                             <div class="text-sm text-gray-600">Click to upload</div>
-                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG, PDF up to 5MB</div>
+                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                                         </div>
                                                         <div class="text-gray-400 text-sm">
                                                             <i class="fas fa-upload"></i>
@@ -809,14 +863,14 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                                     <input type="file" 
                                                            name="valid_id" 
-                                                           accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/jpg,image/png,application/pdf"
+                                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
                                                            class="hidden" 
                                                            id="valid_id"
                                                            onchange="showFileName(this, 'validid_filename')">
                                                     <label for="valid_id" class="cursor-pointer flex items-center">
                                                         <div class="flex-1">
                                                             <div class="text-sm text-gray-600">Click to upload</div>
-                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG, PDF up to 5MB</div>
+                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                                         </div>
                                                         <div class="text-gray-400 text-sm">
                                                             <i class="fas fa-upload"></i>
@@ -864,14 +918,14 @@ if (empty($_SESSION['csrf_token'])) {
                                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                                     <input type="file" 
                                                            name="survey_plan" 
-                                                           accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/jpg,image/png,application/pdf"
+                                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
                                                            class="hidden" 
                                                            id="survey_plan"
                                                            onchange="showFileName(this, 'survey_filename')">
                                                     <label for="survey_plan" class="cursor-pointer flex items-center">
                                                         <div class="flex-1">
                                                             <div class="text-sm text-gray-600">Click to upload</div>
-                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG, PDF up to 5MB</div>
+                                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                                         </div>
                                                         <div class="text-gray-400 text-sm">
                                                             <i class="fas fa-upload"></i>
@@ -881,6 +935,31 @@ if (empty($_SESSION['csrf_token'])) {
                                                 </div>
                                                 <p class="text-xs text-gray-500 mt-1">Property sketch or survey plan</p>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Building Information Section -->
+                                <div class="pb-6">
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                        <i class="fas fa-building text-purple-500 mr-2"></i>
+                                        Building Information
+                                    </h3>
+                                    <div class="bg-gray-50 p-4 rounded-lg">
+                                        <label class="block text-sm font-medium text-gray-700 mb-3">Does this property have any buildings? *</label>
+                                        <div class="flex space-x-6">
+                                            <label class="flex items-center">
+                                                <input type="radio" name="has_building" value="yes" required 
+                                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                                                    <?php echo ($edit_data['has_building'] == 'yes') ? 'checked' : ''; ?>>
+                                                <span class="ml-2 text-gray-700">Yes, there is a building/house</span>
+                                            </label>
+                                            <label class="flex items-center">
+                                                <input type="radio" name="has_building" value="no" 
+                                                    class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                                                    <?php echo ($edit_data['has_building'] == 'no') ? 'checked' : ''; ?>>
+                                                <span class="ml-2 text-gray-700">No, it's vacant land</span>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -896,19 +975,31 @@ if (empty($_SESSION['csrf_token'])) {
                                 </div>
                             </form>
                         <?php else: ?>
-                            <!-- View Mode -->
+                            <!-- View Mode - Changed "Applicant" to "Owner Info" -->
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 <div>
                                     <div class="info-card-header">
                                         <div class="icon-circle bg-blue-100 text-blue-600"><i class="fas fa-user"></i></div>
-                                        <div><h3 class="font-semibold text-gray-900">Applicant</h3><p class="text-sm text-gray-500">Your registered information</p></div>
+                                        <div><h3 class="font-semibold text-gray-900">Owner Info</h3><p class="text-sm text-gray-500">Your registered information</p></div>
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div><div class="info-label">Full Name</div><div class="info-value"><?php echo $full_name; ?></div></div>
+                                        <div><div class="info-label">Birthdate</div><div class="info-value"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div></div>
+                                        <div><div class="info-label">Sex</div><div class="info-value"><?php echo ucfirst($app['sex'] ?? '-'); ?></div></div>
+                                        <div><div class="info-label">Marital Status</div><div class="info-value"><?php echo ucfirst($app['marital_status'] ?? '-'); ?></div></div>
                                         <div><div class="info-label">Contact</div><div class="info-value"><?php echo $app['phone']; ?></div></div>
                                         <div><div class="info-label">Email</div><div class="info-value"><?php echo $app['email']; ?></div></div>
                                         <?php if (!empty($app['tin_number'])): ?>
                                         <div><div class="info-label">TIN</div><div class="info-value"><?php echo $app['tin_number']; ?></div></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($app['owner_city'])): ?>
+                                        <div><div class="info-label">City</div><div class="info-value"><?php echo $app['owner_city']; ?></div></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($app['owner_province'])): ?>
+                                        <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['owner_province']; ?></div></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($app['owner_zip_code'])): ?>
+                                        <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['owner_zip_code']; ?></div></div>
                                         <?php endif; ?>
                                     </div>
                                     <div class="mt-4">
@@ -935,6 +1026,9 @@ if (empty($_SESSION['csrf_token'])) {
                                         <div><div class="info-label">Location</div><div class="info-value"><?php echo $app['lot_location']; ?></div></div>
                                         <div><div class="info-label">Barangay</div><div class="info-value">Brgy. <?php echo $app['barangay']; ?></div></div>
                                         <div><div class="info-label">District</div><div class="info-value"><?php echo $app['district']; ?></div></div>
+                                        <div><div class="info-label">City</div><div class="info-value"><?php echo $app['city']; ?></div></div>
+                                        <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['province']; ?></div></div>
+                                        <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['zip_code']; ?></div></div>
                                         <div><div class="info-label">Building</div><div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div></div>
                                     </div>
                                 </div>
@@ -1023,7 +1117,7 @@ function showFileName(input, displayId) {
     
     if (file) {
         // Check file type
-        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        if (file.type.startsWith('image/')) {
             // Format file size
             let fileSize = '';
             if (file.size < 1024 * 1024) { // Less than 1MB
@@ -1058,7 +1152,7 @@ function showFileName(input, displayId) {
             display.innerHTML = `
                 <div class="bg-red-50 border border-red-200 rounded px-2 py-1 text-xs text-red-600">
                     <i class="fas fa-exclamation-circle mr-1"></i>
-                    Invalid file type. Use JPG, JPEG, PNG, or PDF
+                    Invalid file type. Use JPG, JPEG, or PNG
                 </div>
             `;
             input.value = ''; // Clear the input
@@ -1075,6 +1169,38 @@ function removeFile(button, inputId, displayId) {
     input.value = '';
     display.innerHTML = '';
 }
+
+// Add drag and drop functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(input => {
+        const parentLabel = input.parentElement.querySelector('label[for]');
+        const parentDiv = parentLabel.parentElement;
+        
+        // Highlight on drag over
+        parentDiv.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('border-blue-500', 'bg-blue-50');
+        });
+        
+        parentDiv.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+        
+        parentDiv.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('border-blue-500', 'bg-blue-50');
+            
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
+            }
+        });
+    });
+});
 </script>
 </body>
 </html>

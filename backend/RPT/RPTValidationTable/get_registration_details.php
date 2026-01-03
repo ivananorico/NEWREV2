@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Try to include DB connection
+// Include DB connection
 $dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
 if (!file_exists($dbPath)) {
     http_response_code(500);
@@ -54,7 +54,6 @@ switch ($method) {
 // FUNCTIONS
 // ==========================
 function getRegistrationDetails($pdo) {
-    // Validate required parameters
     if (!isset($_GET['id'])) {
         http_response_code(400);
         echo json_encode(["error" => "Registration ID is required"]);
@@ -72,19 +71,7 @@ function getRegistrationDetails($pdo) {
         // Main registration + owner data
         $query = "
             SELECT 
-                pr.id,
-                pr.reference_number,
-                pr.lot_location,
-                pr.barangay,
-                pr.district,
-                pr.city,
-                pr.province,
-                pr.zip_code,
-                pr.has_building,
-                pr.status,
-                COALESCE(pr.correction_notes, '') as correction_notes,
-                pr.created_at,
-                pr.updated_at,
+                pr.*,
                 po.first_name,
                 po.last_name,
                 po.middle_name,
@@ -100,7 +87,9 @@ function getRegistrationDetails($pdo) {
                 po.city as owner_city,
                 po.province as owner_province,
                 po.zip_code as owner_zip_code,
-                po.birthdate
+                po.birthdate,
+                po.sex,
+                po.marital_status
             FROM property_registrations pr
             LEFT JOIN property_owners po ON pr.owner_id = po.id
             WHERE pr.id = ?
@@ -117,13 +106,14 @@ function getRegistrationDetails($pdo) {
         }
 
         // Construct full owner name
-        $firstName = $registration['first_name'] ?? '';
-        $lastName = $registration['last_name'] ?? '';
-        $middleName = $registration['middle_name'] ?? '';
-        $suffix = $registration['suffix'] ?? '';
-        $ownerName = trim($firstName . ' ' . (!empty($middleName) ? substr($middleName,0,1).'. ' : '') . $lastName . (!empty($suffix) ? ' '.$suffix : ''));
+        $ownerName = trim(
+            $registration['first_name'] . ' ' .
+            (!empty($registration['middle_name']) ? substr($registration['middle_name'],0,1).'. ' : '') .
+            $registration['last_name'] .
+            (!empty($registration['suffix']) ? ' '.$registration['suffix'] : '')
+        );
 
-        // Construct owner address
+        // Construct owner address if empty
         $ownerAddress = $registration['owner_address'];
         if (empty($ownerAddress)) {
             $ownerAddress = trim(
@@ -137,28 +127,21 @@ function getRegistrationDetails($pdo) {
             );
         }
 
-        // Initialize inspection fields
-        $inspectorName = '';
-        $inspectionDate = '';
+        // Fetch latest inspection for this registration
+        $inspectionQuery = "
+            SELECT assessor_name, scheduled_date, status
+            FROM property_inspections
+            WHERE registration_id = ?
+            ORDER BY scheduled_date DESC
+            LIMIT 1
+        ";
+        $stmtInspect = $pdo->prepare($inspectionQuery);
+        $stmtInspect->execute([$registrationId]);
+        $inspection = $stmtInspect->fetch(PDO::FETCH_ASSOC);
 
-        // Fetch inspection info if status is 'for inspection'
-        if (strtolower($registration['status']) === 'for inspection') {
-            $inspectionQuery = "
-                SELECT i.inspection_date, u.full_name as inspector_name
-                FROM property_inspections i
-                LEFT JOIN users u ON i.inspector_id = u.id
-                WHERE i.registration_id = ?
-                ORDER BY i.inspection_date DESC
-                LIMIT 1
-            ";
-            $stmtInspect = $pdo->prepare($inspectionQuery);
-            $stmtInspect->execute([$registrationId]);
-            $inspection = $stmtInspect->fetch(PDO::FETCH_ASSOC);
-            if ($inspection) {
-                $inspectorName = $inspection['inspector_name'] ?? '';
-                $inspectionDate = $inspection['inspection_date'] ?? '';
-            }
-        }
+        $inspectorName = $inspection['assessor_name'] ?? '';
+        $inspectionDate = $inspection['scheduled_date'] ?? '';
+        $inspectionStatus = $inspection['status'] ?? '';
 
         // Prepare response
         $responseData = [
@@ -173,7 +156,7 @@ function getRegistrationDetails($pdo) {
             "property_type" => "Residential",
             "has_building" => $registration['has_building'],
             "status" => $registration['status'],
-            "remarks" => $registration['correction_notes'],
+            "remarks" => $registration['correction_notes'] ?? '',
             "date_registered" => $registration['created_at'],
             "last_updated" => $registration['updated_at'],
             "owner_name" => $ownerName,
@@ -186,11 +169,14 @@ function getRegistrationDetails($pdo) {
             "middle_name" => $registration['middle_name'],
             "suffix" => $registration['suffix'],
             "birthdate" => $registration['birthdate'],
+            "sex" => $registration['sex'],
+            "marital_status" => $registration['marital_status'],
             "owner_city" => $registration['owner_city'] ?? 'Quezon City',
             "owner_province" => $registration['owner_province'] ?? 'Metro Manila',
-            // Inspection fields
+            // Latest inspection
             "inspector_name" => $inspectorName,
-            "inspection_date" => $inspectionDate
+            "inspection_date" => $inspectionDate,
+            "inspection_status" => $inspectionStatus
         ];
 
         // Replace nulls with empty strings

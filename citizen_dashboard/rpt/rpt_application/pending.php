@@ -17,50 +17,23 @@ $pdo = getDatabaseConnection();
 // Function to get proper document URL
 function getDocumentUrl(string $dbPath): string
 {
-    // Remove ../ and ./
     $clean = str_replace(['../', './'], '', $dbPath);
-
-    // Remove leading slash
     $clean = ltrim($clean, '/');
-
-    // If DB path already has revenue2/, remove it
     if (strpos($clean, 'revenue2/') === 0) {
         $clean = substr($clean, strlen('revenue2/'));
     }
-
-    // Final browser-safe URL
     return '/revenue2/' . $clean;
 }
 
-// Fetch user's pending applications
+// Fetch user's pending applications with all owner info and property registration info
 $applications = [];
 $total_applications = 0;
 
 try {
     $stmt = $pdo->prepare("
         SELECT 
-            pr.id,
-            pr.reference_number,
-            pr.lot_location,
-            pr.barangay,
-            pr.district,
-            pr.has_building,
-            pr.status,
-            DATE(pr.created_at) as application_date,
-            po.first_name,
-            po.last_name,
-            po.middle_name,
-            po.suffix,
-            po.email,
-            po.phone,
-            po.tin_number,
-            po.house_number,
-            po.street,
-            po.barangay as owner_barangay,
-            po.district as owner_district,
-            po.city as owner_city,
-            po.province as owner_province,
-            po.zip_code as owner_zip_code
+            pr.*,
+            po.* 
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
         WHERE po.user_id = ? 
@@ -84,23 +57,24 @@ try {
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
-    .status-badge { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
-    .status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-    .info-card-header { display: flex; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; }
-    .icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; }
-    .info-label { font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 0.25rem; }
-    .info-value { font-size: 1rem; color: #111827; font-weight: 500; }
-    .empty-state { text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .empty-icon { font-size: 3.5rem; color: #d1d5db; margin-bottom: 1.5rem; }
-    .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 0.75rem 0; }
-    .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
-    .document-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; transition: all 0.2s; background: white; }
-    .document-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; }
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); padding: 20px; }
-    .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; border-radius: 8px; }
-    .modal-close { position: absolute; top: 20px; right: 35px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
-    .modal-close:hover { color: #fbbf24; }
-    .modal-caption { text-align: center; color: white; padding: 10px 20px; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); }
+/* Tailwind + custom classes */
+.status-badge { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+.status-pending { background-color: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.info-card-header { display: flex; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; }
+.icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1rem; }
+.info-label { font-size: 0.875rem; color: #6b7280; font-weight: 500; margin-bottom: 0.25rem; }
+.info-value { font-size: 1rem; color: #111827; font-weight: 500; }
+.empty-state { text-align: center; padding: 3rem 1.5rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.empty-icon { font-size: 3.5rem; color: #d1d5db; margin-bottom: 1.5rem; }
+.progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 0.75rem 0; }
+.progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
+.document-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; transition: all 0.2s; background: white; }
+.document-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer; }
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); padding: 20px; }
+.modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; border-radius: 8px; }
+.modal-close { position: absolute; top: 20px; right: 35px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
+.modal-close:hover { color: #fbbf24; }
+.modal-caption { text-align: center; color: white; padding: 10px 20px; position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -126,7 +100,6 @@ try {
                 </div>
             </div>
 
-            <!-- Status Summary -->
             <?php if ($total_applications > 0): ?>
                 <div class="mt-4 flex items-center">
                     <div class="mr-4">
@@ -195,7 +168,7 @@ try {
                         </div>
                         <div class="text-right">
                             <div class="text-sm text-gray-500">Submitted</div>
-                            <div class="font-medium text-gray-900"><?php echo date('M j, Y', strtotime($app['application_date'])); ?></div>
+                            <div class="font-medium text-gray-900"><?php echo date('M j, Y', strtotime($app['created_at'])); ?></div>
                         </div>
                     </div>
 
@@ -221,10 +194,22 @@ try {
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div><div class="info-label">Full Name</div><div class="info-value"><?php echo $full_name; ?></div></div>
+                                <div><div class="info-label">Birthdate</div><div class="info-value"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div></div>
                                 <div><div class="info-label">Contact</div><div class="info-value"><?php echo $app['phone']; ?></div></div>
                                 <div><div class="info-label">Email</div><div class="info-value"><?php echo $app['email']; ?></div></div>
+                                <div><div class="info-label">Sex</div><div class="info-value"><?php echo ucfirst($app['sex']); ?></div></div>
+                                <div><div class="info-label">Marital Status</div><div class="info-value"><?php echo ucfirst($app['marital_status']); ?></div></div>
                                 <?php if (!empty($app['tin_number'])): ?>
                                 <div><div class="info-label">TIN</div><div class="info-value"><?php echo $app['tin_number']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['city'])): ?>
+                                <div><div class="info-label">City</div><div class="info-value"><?php echo $app['city']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['province'])): ?>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['province']; ?></div></div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['zip_code'])): ?>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['zip_code']; ?></div></div>
                                 <?php endif; ?>
                             </div>
                             <div class="mt-4">
@@ -234,8 +219,8 @@ try {
                                     $address_parts = [];
                                     if (!empty($app['house_number'])) $address_parts[] = $app['house_number'];
                                     if (!empty($app['street'])) $address_parts[] = $app['street'];
-                                    if (!empty($app['owner_barangay'])) $address_parts[] = 'Brgy. ' . $app['owner_barangay'];
-                                    if (!empty($app['owner_district'])) $address_parts[] = 'Dist. ' . $app['owner_district'];
+                                    if (!empty($app['barangay'])) $address_parts[] = 'Brgy. ' . $app['barangay'];
+                                    if (!empty($app['district'])) $address_parts[] = 'Dist. ' . $app['district'];
                                     echo implode(', ', $address_parts);
                                     ?>
                                 </div>
@@ -251,6 +236,9 @@ try {
                                 <div><div class="info-label">Location</div><div class="info-value"><?php echo $app['lot_location']; ?></div></div>
                                 <div><div class="info-label">Barangay</div><div class="info-value">Brgy. <?php echo $app['barangay']; ?></div></div>
                                 <div><div class="info-label">District</div><div class="info-value"><?php echo $app['district']; ?></div></div>
+                                <div><div class="info-label">City</div><div class="info-value"><?php echo $app['city']; ?></div></div>
+                                <div><div class="info-label">Province</div><div class="info-value"><?php echo $app['province']; ?></div></div>
+                                <div><div class="info-label">Zip Code</div><div class="info-value"><?php echo $app['zip_code']; ?></div></div>
                                 <div><div class="info-label">Building</div><div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div></div>
                             </div>
                         </div>

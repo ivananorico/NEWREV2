@@ -11,7 +11,11 @@ import {
   MapPin,
   User,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Mail,
+  Phone,
+  CalendarDays
 } from "lucide-react";
 
 export default function RPTStatusInfo() {
@@ -63,9 +67,22 @@ export default function RPTStatusInfo() {
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString || dateString === "0000-00-00") return "N/A";
-    return new Date(dateString).toLocaleDateString('en-PH', {
+  const formatDate = (dateString, options = {}) => {
+    if (!dateString || dateString === "0000-00-00" || dateString === "0000-00-00 00:00:00") return "N/A";
+    
+    const date = new Date(dateString);
+    
+    if (options.format === 'full') {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    return date.toLocaleDateString('en-PH', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -174,36 +191,107 @@ export default function RPTStatusInfo() {
           </div>
         </div>
 
-        {/* Owner Info */}
-        <div className="bg-white border rounded shadow-sm mb-6">
-          <div className="px-6 py-4 border-b">
-            <div className="flex items-center">
-              <User className="w-5 h-5 text-blue-600 mr-2" />
-              <h2 className="text-lg font-semibold">Owner Information</h2>
+        {/* Property and Owner Information Grid - REVISED */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Property Information */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="flex items-center mb-3">
+              <MapPin className="w-5 h-5 text-blue-600 mr-2" />
+              <h3 className="font-semibold text-gray-700 text-lg">Property Information</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">Location:</span>
+                <span className="text-gray-700">{property.lot_location}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">Barangay:</span>
+                <span className="text-gray-700">{property.barangay}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">District:</span>
+                <span className="text-gray-700">{property.district}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">City:</span>
+                <span className="text-gray-700">{property.city || 'N/A'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">Province:</span>
+                <span className="text-gray-700">{property.province || 'N/A'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">Zip Code:</span>
+                <span className="text-gray-700">{property.zip_code || 'N/A'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-medium min-w-28">Has Building:</span>
+                <span className={`px-2 py-1 text-xs rounded-full ${property.has_building === 'yes' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  {property.has_building === 'yes' ? 'Yes' : 'No'}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="font-medium text-lg">{property.owner_name}</p>
-                <div className="mt-2 space-y-1 text-gray-600">
-                  {property.phone && <p>📱 {property.phone}</p>}
-                  {property.email && <p>✉️ {property.email}</p>}
-                </div>
+
+          {/* Owner Information - Updated from Pending.js */}
+          <div className="bg-gray-50 p-4 rounded-lg flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center mb-3">
+                <User className="w-5 h-5 text-blue-600 mr-2" />
+                <h3 className="font-semibold text-gray-700 text-lg">Owner Information</h3>
               </div>
-              <div>
+              
+              <div className="space-y-3">
                 <div className="flex items-start">
-                  <MapPin className="w-5 h-5 text-gray-400 mr-2 mt-0.5" />
-                  <div>
-                    <p className="font-medium">{property.lot_location}</p>
-                    <p className="text-sm text-gray-600">
-                      Brgy. {property.barangay}, Dist. {property.district}
-                    </p>
+                  <span className="font-medium min-w-28">Name:</span>
+                  <span className="text-gray-700">{property.owner_name}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Sex:</span>
+                  <span className="text-gray-700">{property.sex ? property.sex.charAt(0).toUpperCase() + property.sex.slice(1) : 'N/A'}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Marital Status:</span>
+                  <span className="text-gray-700">{property.marital_status ? property.marital_status.charAt(0).toUpperCase() + property.marital_status.slice(1) : 'N/A'}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Birthdate:</span>
+                  <div className="flex items-center text-gray-700">
+                    <CalendarDays className="w-4 h-4 mr-1 text-gray-500" />
+                    {property.birthdate ? formatDate(property.birthdate, { format: 'full' }).split(' at ')[0] : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Address:</span>
+                  <span className="text-gray-700">{property.owner_address || 'N/A'}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Contact:</span>
+                  <div className="flex items-center text-gray-700">
+                    <Phone className="w-4 h-4 mr-1 text-gray-500" />
+                    {property.contact_number || 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium min-w-28">Email:</span>
+                  <div className="flex items-center text-gray-700">
+                    <Mail className="w-4 h-4 mr-1 text-gray-500" />
+                    {property.email_address || 'N/A'}
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Date Registered at bottom */}
+            <div className="mt-6 pt-4 border-t border-gray-300">
+              <div className="text-sm text-gray-500 flex items-center">
+                <FileText className="w-4 h-4 mr-2" />
+                Date Registered: {formatDate(property.created_at, { format: 'full' })}
+              </div>
+            </div>
           </div>
+
         </div>
 
         {/* Property Assessment - Side by Side */}
@@ -426,8 +514,9 @@ export default function RPTStatusInfo() {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 text-sm text-gray-500">
-          <p>Property registered: {formatDate(property.created_at)} | Last updated: {formatDate(property.updated_at)}</p>
+        <div className="mt-6 text-sm text-gray-500 flex items-center">
+          <FileText className="w-4 h-4 mr-2" />
+          <p>Property last updated: {formatDate(property.updated_at, { format: 'full' })}</p>
         </div>
       </div>
     </div>
