@@ -32,7 +32,7 @@ try {
         throw new Exception("Map not found");
     }
 
-    // Fetch stalls for this map WITH PIXEL DIMENSIONS - UPDATED QUERY
+    // Fetch stalls for this map - CORRECTED QUERY (no sections table)
     $stmtStalls = $pdo->prepare("
         SELECT 
             s.id, 
@@ -43,16 +43,13 @@ try {
             s.height, 
             s.length, 
             s.width,
-            s.pixel_width,     -- ADD THIS
-            s.pixel_height,    -- ADD THIS
+            s.pixel_width,
+            s.pixel_height,
             s.status,
             s.class_id,
-            s.section_id,
-            sc.class_name,
-            sec.name as section_name
+            sc.class_name
         FROM stalls s 
         LEFT JOIN stall_rights sc ON s.class_id = sc.class_id 
-        LEFT JOIN sections sec ON s.section_id = sec.id
         WHERE s.map_id = ?
     ");
     $stmtStalls->execute([$mapId]);
@@ -63,7 +60,7 @@ try {
         "map" => [
             "id" => (int)$map['id'],
             "name" => $map['name'],
-            "image_path" => $map['file_path']
+            "file_path" => $map['file_path']  // Changed from image_path to file_path
         ],
         "stalls" => $stalls
     ]);

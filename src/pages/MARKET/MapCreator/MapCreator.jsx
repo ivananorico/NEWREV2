@@ -9,14 +9,11 @@ export default function Market1() {
   const [mapImage, setMapImage] = useState(null);
   const [mapFile, setMapFile] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
-  const [sections, setSections] = useState([]);
-  const [selectedSection, setSelectedSection] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedStallIndex, setSelectedStallIndex] = useState(null);
-  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
 
   // Resize state
   const [resizing, setResizing] = useState(false);
@@ -27,39 +24,11 @@ export default function Market1() {
   const modalRef = useRef(null);
   const navigate = useNavigate();
   
-  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
-
-  useEffect(() => {
-    fetchSections();
-  }, []);
-
-  const fetchSections = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      console.log('Fetching sections from:', `${API_BASE}/get_sections.php`);
-      
-      const res = await fetch(`${API_BASE}/get_sections.php`);
-      const data = await res.json();
-      
-      console.log('Sections response:', data);
-      
-      if (data.status === "success") {
-        setSections(data.sections);
-        console.log('Sections loaded successfully:', data.sections);
-      } else {
-        console.error("Failed to fetch sections from database:", data.message);
-        setSections([]);
-        setError("Failed to load sections: " + data.message);
-      }
-    } catch (err) {
-      console.error("Error fetching sections:", err);
-      setSections([]);
-      setError("Network error: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Detect if running in production or local
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const API_BASE = isProduction 
+    ? "/backend/Market/MapCreator"
+    : "http://localhost/revenue2/backend/Market/MapCreator";
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -88,8 +57,7 @@ export default function Market1() {
         price: 5000.00,
         height: 0,          // Physical height in meters
         length: 0,          // Physical length in meters
-        width: 0,           // Physical width in meters
-        section_id: sections.length > 0 ? sections[0].id : null
+        width: 0           // Physical width in meters
       }
     ]);
   };
@@ -112,20 +80,32 @@ export default function Market1() {
     formData.append("stalls", JSON.stringify(stalls));
 
     try {
+      setLoading(true);
+      setError(null);
+      
       const res = await fetch(`${API_BASE}/save_stalls.php`, {
         method: "POST",
         body: formData
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! Status: ${res.status}`);
+      }
+      
       const data = await res.json();
+      
       if (data.status === "success") {
         alert("Map and stalls saved!");
         setMapId(data.map_id);
         navigate(`/Market/MarketOutput/view/${data.map_id}`);
       } else {
-        alert("Save failed: " + (data.message || "Unknown"));
+        setError("Save failed: " + (data.message || "Unknown error"));
       }
     } catch (err) {
-      alert("Upload error: " + err.message);
+      console.error('Save error:', err);
+      setError("Upload error: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -267,18 +247,6 @@ export default function Market1() {
   const openPriceModal = (index, e) => {
     e.preventDefault();
     setSelectedStallIndex(index);
-    const viewportX = e.clientX;
-    const viewportY = e.clientY;
-    const modalWidth = 350;
-    const modalHeight = 550;
-
-    let x = viewportX;
-    let y = viewportY;
-    if (x + modalWidth > window.innerWidth) x = window.innerWidth - modalWidth - 10;
-    if (y + modalHeight > window.innerHeight) y = window.innerHeight - modalHeight - 10;
-    x = Math.max(10, x);
-    y = Math.max(10, y);
-    setModalPos({ x, y });
     setModalOpen(true);
   };
 
@@ -308,41 +276,14 @@ export default function Market1() {
     setStalls(updated);
   };
 
-  const updateStallSection = (section_id) => {
-    const updated = [...stalls];
-    updated[selectedStallIndex].section_id = section_id ? parseInt(section_id) : null;
-    setStalls(updated);
-  };
-
-  const filteredStalls = selectedSection === "all" 
-    ? stalls 
-    : stalls.filter(stall => stall.section_id == selectedSection);
-
-  const getSectionName = (section_id) => {
-    const section = sections.find(s => s.id == section_id);
-    return section ? section.name : "No Section";
-  };
-
-  const getStallRightsPrice = (class_id) => {
-    const prices = {
-      1: 15000.00,
-      2: 10000.00,
-      3: 5000.00
-    };
-    return prices[class_id] || 5000.00;
-  };
-
-  if (loading) {
-    return (
-      <div className="market-container">
-        <div className="loading">Loading sections...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="market-container">
-      <h1>{isFinished ? "Finished Market Map" : "Market Map Creator"}</h1>
+      <div className="market-header">
+        <div className="header-content">
+          <h1>{isFinished ? "Finished Market Map" : "Market Map Creator"}</h1>
+          <p className="subtitle">Design and arrange stalls on your market map</p>
+        </div>
+      </div>
 
       {error && (
         <div className="error-banner">
@@ -351,111 +292,189 @@ export default function Market1() {
             <div className="error-message">
               <strong>Error:</strong> {error}
             </div>
-            <button onClick={fetchSections} className="retry-btn">
-              Retry
+            <button onClick={() => setError(null)} className="retry-btn">
+              Dismiss
             </button>
           </div>
         </div>
       )}
 
-      {!isFinished && (
-        <div className="upload-form">
-          <input type="text" name="mapName" placeholder="Map Name" required />
-          <input type="file" name="mapImage" accept="image/*" onChange={handleFileSelect} required />
-        </div>
-      )}
+      <div className="market-content">
+        {/* Left Panel - Controls */}
+        <div className="control-panel">
+          {!isFinished && (
+            <div className="upload-section">
+              <h3>Map Setup</h3>
+              <div className="form-group">
+                <label>Map Name</label>
+                <input 
+                  type="text" 
+                  name="mapName" 
+                  placeholder="Enter map name" 
+                  required 
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Upload Map Image</label>
+                <div className="file-upload">
+                  <input 
+                    type="file" 
+                    name="mapImage" 
+                    accept="image/*" 
+                    onChange={handleFileSelect} 
+                    required 
+                    id="mapUpload"
+                  />
+                  <label htmlFor="mapUpload" className="file-upload-label">
+                    Choose Image
+                  </label>
+                  {mapFile && (
+                    <span className="file-name">{mapFile.name}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-      {stalls.length > 0 && sections.length > 0 && (
-        <div className="section-filter">
-          <label htmlFor="sectionFilter">Filter by Market Section:</label>
-          <select 
-            id="sectionFilter"
-            value={selectedSection} 
-            onChange={(e) => setSelectedSection(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Sections</option>
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.name}
-              </option>
-            ))}
-          </select>
-          <div className="filter-info">
-            Showing {filteredStalls.length} of {stalls.length} stalls
-            {selectedSection !== "all" && ` in "${getSectionName(selectedSection)}"`}
+          <div className="stats-section">
+            <h3>Summary</h3>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <span className="stat-number">{stallCount}</span>
+                <span className="stat-label">Total Stalls</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">₱{(stalls.reduce((sum, stall) => sum + stall.price, 0)).toLocaleString()}</span>
+                <span className="stat-label">Total Value</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="actions-section">
+            <h3>Actions</h3>
+            <div className="action-buttons">
+              <button 
+                onClick={addStall} 
+                disabled={!mapImage}
+                className="btn btn-primary"
+              >
+                <span className="btn-icon">+</span> Add Stall
+              </button>
+              <button 
+                onClick={saveStalls} 
+                disabled={!mapFile || loading}
+                className="btn btn-success"
+              >
+                {loading ? "Saving..." : "Save Map"}
+              </button>
+              <button 
+                onClick={() => navigate("/Market/ViewAllMaps")}
+                className="btn btn-secondary"
+              >
+                View All Maps
+              </button>
+              <button 
+                onClick={() => navigate("/Market/Config")}
+                className="btn btn-accent"
+              >
+                Configuration
+              </button>
+            </div>
           </div>
         </div>
-      )}
 
-      {sections.length === 0 && !loading && (
-        <div className="debug-info">
-          No sections loaded. Check if the PHP file exists and returns valid JSON.
-        </div>
-      )}
+        {/* Right Panel - Map Area */}
+        <div className="map-panel">
+          <div className="map-header">
+            <h3>Market Map</h3>
+            <div className="map-info">
+              <span className="info-item">
+                <span className="info-label">Size:</span> 800×600px
+              </span>
+              <span className="info-item">
+                <span className="info-label">Stalls:</span> {stallCount}
+              </span>
+            </div>
+          </div>
+          
+          <div
+            id="marketMap"
+            ref={marketMapRef}
+            className="market-map"
+            style={{ backgroundImage: mapImage ? `url('${mapImage}')` : "none" }}
+          >
+            {!mapImage && (
+              <div className="map-placeholder">
+                <div className="placeholder-icon">🗺️</div>
+                <p>Upload a map image to begin</p>
+              </div>
+            )}
+            
+            {stalls.map((stall, index) => (
+              <div
+                key={index}
+                className={`stall ${stall.status} ${activeStallIndex === index ? 'active' : ''}`}
+                style={{ 
+                  left: `${stall.pos_x}px`, 
+                  top: `${stall.pos_y}px`,
+                  width: `${stall.pixel_width}px`,
+                  height: `${stall.pixel_height}px`
+                }}
+                onMouseDown={(e) => handleDragStart(e, index)}
+                onContextMenu={(e) => openPriceModal(index, e)}
+              >
+                <div className="stall-content">
+                  <div className="stall-header">
+                    <div className="stall-name">{stall.name}</div>
+                    <div className="stall-class-badge">{stall.class_name}</div>
+                  </div>
+                  <div className="stall-details">
+                    <div className="stall-price">₱{stall.price.toLocaleString()}</div>
+                    <div className="stall-dimensions">
+                      {Math.round(stall.pixel_width)}×{Math.round(stall.pixel_height)}px
+                    </div>
+                  </div>
+                </div>
 
-      <div
-        id="marketMap"
-        ref={marketMapRef}
-        className="market-map"
-        style={{ backgroundImage: mapImage ? `url('${mapImage}')` : "none" }}
-      >
-        {filteredStalls.map((stall, index) => {
-          const originalIndex = stalls.findIndex(s => s.name === stall.name);
-          return (
-            <div
-              key={originalIndex}
-              className={`stall ${stall.status} ${selectedSection !== "all" ? "filtered" : ""} ${activeStallIndex === originalIndex ? 'active' : ''}`}
-              style={{ 
-                left: `${stall.pos_x}px`, 
-                top: `${stall.pos_y}px`,
-                width: `${stall.pixel_width}px`,
-                height: `${stall.pixel_height}px`
-              }}
-              onMouseDown={(e) => handleDragStart(e, originalIndex)}
-              onContextMenu={(e) => openPriceModal(originalIndex, e)}
-            >
-              <div className="stall-content">
-                <div className="stall-name">{stall.name}</div>
-                <div className="stall-class">Class: {stall.class_name}</div>
-                <div className="stall-price">₱{stall.price.toLocaleString()}</div>
-                <div className="stall-dimensions">
-                  {Math.round(stall.pixel_width)}×{Math.round(stall.pixel_height)}px
-                </div>
-                <div className="stall-size">
-                  {stall.length}m × {stall.width}m × {stall.height}m
-                </div>
-                {stall.section_id && (
-                  <div className="stall-section">Section: {getSectionName(stall.section_id)}</div>
+                {/* Resize handles */}
+                {!isFinished && (
+                  <>
+                    <div className="resize-handle nw" onMouseDown={(e) => handleResizeStart(e, index, 'nw')}></div>
+                    <div className="resize-handle ne" onMouseDown={(e) => handleResizeStart(e, index, 'ne')}></div>
+                    <div className="resize-handle sw" onMouseDown={(e) => handleResizeStart(e, index, 'sw')}></div>
+                    <div className="resize-handle se" onMouseDown={(e) => handleResizeStart(e, index, 'se')}></div>
+                  </>
+                )}
+
+                {!isFinished && (
+                  <button
+                    className="delete-stall-btn"
+                    onClick={(e) => { e.stopPropagation(); deleteStall(index); }}
+                    title="Delete stall"
+                  >
+                    ×
+                  </button>
                 )}
               </div>
-
-              {/* Resize handles */}
-              {!isFinished && (
-                <>
-                  <div className="resize-handle nw" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'nw')}></div>
-                  <div className="resize-handle ne" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'ne')}></div>
-                  <div className="resize-handle sw" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'sw')}></div>
-                  <div className="resize-handle se" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'se')}></div>
-                  <div className="resize-handle n" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'n')}></div>
-                  <div className="resize-handle s" onMouseDown={(e) => handleResizeStart(e, originalIndex, 's')}></div>
-                  <div className="resize-handle w" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'w')}></div>
-                  <div className="resize-handle e" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'e')}></div>
-                </>
-              )}
-
-              {!isFinished && (
-                <button
-                  className="delete-stall-btn"
-                  onClick={(e) => { e.stopPropagation(); deleteStall(originalIndex); }}
-                  title="Delete stall"
-                >
-                  ×
-                </button>
-              )}
+            ))}
+          </div>
+          
+          <div className="map-legend">
+            <div className="legend-item">
+              <div className="legend-color available"></div>
+              <span>Available</span>
             </div>
-          );
-        })}
+            <div className="legend-item">
+              <div className="legend-color reserved"></div>
+              <span>Reserved</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color occupied"></div>
+              <span>Occupied</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {modalOpen && (
@@ -463,106 +482,131 @@ export default function Market1() {
           <div
             ref={modalRef}
             className="price-modal"
-            style={{ left: `${modalPos.x}px`, top: `${modalPos.y}px`, position: 'fixed' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h4>Set Stall Details - {stalls[selectedStallIndex]?.name}</h4>
+            <div className="modal-header">
+              <h4>Edit Stall Details</h4>
+              <button className="modal-close" onClick={() => setModalOpen(false)}>×</button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="stall-summary">
+                <h5>{stalls[selectedStallIndex]?.name}</h5>
+                <div className="summary-grid">
+                  <div className="summary-item">
+                    <span>Position:</span>
+                    <span>{Math.round(stalls[selectedStallIndex]?.pos_x)}px, {Math.round(stalls[selectedStallIndex]?.pos_y)}px</span>
+                  </div>
+                  <div className="summary-item">
+                    <span>Size:</span>
+                    <span>{Math.round(stalls[selectedStallIndex]?.pixel_width)}×{Math.round(stalls[selectedStallIndex]?.pixel_height)}px</span>
+                  </div>
+                </div>
+              </div>
 
-            <label>Market Section</label>
-            <select
-              value={stalls[selectedStallIndex]?.section_id || ""}
-              onChange={(e) => updateStallSection(e.target.value)}
-            >
-              <option value="">No Section</option>
-              {sections.map((section) => (
-                <option key={section.id} value={section.id}>
-                  {section.name}
-                </option>
-              ))}
-            </select>
+              <div className="form-section">
+                <label>Stall Class</label>
+                <div className="class-selector">
+                  {[
+                    { id: 1, name: "A", price: 15000.00 },
+                    { id: 2, name: "B", price: 10000.00 },
+                    { id: 3, name: "C", price: 5000.00 }
+                  ].map((cls) => (
+                    <button
+                      key={cls.id}
+                      className={`class-option ${stalls[selectedStallIndex]?.class_id === cls.id ? 'selected' : ''}`}
+                      onClick={() => updateStallClass(cls.id)}
+                    >
+                      <span className="class-name">Class {cls.name}</span>
+                      <span className="class-price">₱{cls.price.toLocaleString()}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            <label>Stall Class</label>
-            <select
-              value={stalls[selectedStallIndex]?.class_id || ""}
-              onChange={(e) => updateStallClass(e.target.value)}
-            >
-              <option value="1">Class A - ₱15,000.00</option>
-              <option value="2">Class B - ₱10,000.00</option>
-              <option value="3">Class C - ₱5,000.00</option>
-            </select>
+              <div className="form-section">
+                <label>Custom Price (₱)</label>
+                <input
+                  type="number"
+                  value={stalls[selectedStallIndex]?.price || 0}
+                  onChange={(e) => updateStallPrice(e.target.value)}
+                  step="0.01"
+                  min="0"
+                  className="form-input"
+                />
+              </div>
 
-            <div className="current-class-info">
-              <strong>Selected: Class {stalls[selectedStallIndex]?.class_name}</strong>
-              <br />
-              <span>Stall Rights: ₱{getStallRightsPrice(stalls[selectedStallIndex]?.class_id).toLocaleString()}</span>
+              <div className="dimensions-section">
+                <h6>Physical Dimensions (meters)</h6>
+                <div className="dimensions-grid">
+                  <div className="dimension-input">
+                    <label>Length</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.length || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].length = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="dimension-input">
+                    <label>Width</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.width || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].width = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="dimension-input">
+                    <label>Height</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.height || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].height = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <label>Custom Price (₱)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.price || 0}
-              onChange={(e) => updateStallPrice(e.target.value)}
-              step="0.01"
-              min="0"
-            />
-
-            <label>Length (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.length || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].length = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <label>Width (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.width || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].width = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <label>Height (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.height || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].height = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <div className="modal-buttons">
-              <button onClick={() => setModalOpen(false)}>Save</button>
-              <button onClick={() => setModalOpen(false)}>Cancel</button>
+            <div className="modal-actions">
+              <button 
+                onClick={() => setModalOpen(false)} 
+                className="btn btn-success"
+              >
+                Save Changes
+              </button>
+              <button 
+                onClick={() => setModalOpen(false)} 
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      {!isFinished && (
-        <div className="controls">
-          <button onClick={addStall} disabled={!mapImage}>Add Stall</button>
-          <button onClick={saveStalls} disabled={!mapFile}>Save Stalls</button>
-          <button onClick={() => navigate("/Market/ViewAllMaps")}>View All Maps</button>
-          <button onClick={fetchSections}>Refresh Sections</button>
-          <button 
-            onClick={() => navigate("/Market/Config")}
-            className="config-btn"
-            title="Configure stall rights and sections"
-          >
-            ⚙️ Configuration
-          </button>
+      
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Saving map and stalls...</p>
         </div>
       )}
     </div>

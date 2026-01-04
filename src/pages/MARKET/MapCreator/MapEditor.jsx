@@ -9,54 +9,48 @@ export default function MapEditor() {
   const [mapData, setMapData] = useState(null);
   const [stalls, setStalls] = useState([]);
   const [stallClasses, setStallClasses] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [stallCount, setStallCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedStallIndex, setSelectedStallIndex] = useState(null);
-  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
-
-  // Resize state
-  const [resizing, setResizing] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState(null);
   const [activeStallIndex, setActiveStallIndex] = useState(null);
-
-  // Market section filter states
-  const [selectedSection, setSelectedSection] = useState("all");
 
   const marketMapRef = useRef(null);
   const modalRef = useRef(null);
   
-  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const API_BASE = isProduction 
+    ? "/backend/Market/MapCreator"
+    : "http://localhost/revenue2/backend/Market/MapCreator";
 
-  // Fetch map, stalls, stall classes, and sections data
   useEffect(() => {
     fetchMapData();
     fetchStallClasses();
-    fetchSections();
   }, [id]);
 
   const fetchMapData = async () => {
     try {
-      console.log('Fetching map data from:', `${API_BASE}/map_display.php?map_id=${id}`);
+      setLoading(true);
+      setError(null);
+      
       const res = await fetch(`${API_BASE}/map_display.php?map_id=${id}`);
       if (!res.ok) throw new Error(`Network error: ${res.status}`);
       
       const data = await res.json();
-      console.log('Map data response:', data);
       
       if (data.status === "success") {
         setMapData(data.map);
-        // Ensure stalls have pixel dimensions, use defaults if not present
         const stallsWithPixelDims = (data.stalls || []).map(stall => ({
           ...stall,
           pixel_width: stall.pixel_width || 80,
-          pixel_height: stall.pixel_height || 60
+          pixel_height: stall.pixel_height || 60,
+          length: stall.length || 0,
+          width: stall.width || 0,
+          height: stall.height || 0,
+          price: parseFloat(stall.price) || 0 // Ensure price is a number
         }));
         setStalls(stallsWithPixelDims);
-        setStallCount(stallsWithPixelDims.length);
       } else {
         throw new Error(data.message || "Failed to fetch map data");
       }
@@ -70,15 +64,22 @@ export default function MapEditor() {
 
   const fetchStallClasses = async () => {
     try {
-      console.log('Fetching stall classes from:', `${API_BASE}/get_stall_rights.php`);
       const res = await fetch(`${API_BASE}/get_stall_rights.php`);
+      if (!res.ok) {
+        console.log("Failed to fetch stall classes");
+        return;
+      }
+      
       const data = await res.json();
-      console.log('Stall classes response:', data);
       
       if (data.status === "success") {
-        setStallClasses(data.classes);
+        // Make sure price is parsed as float
+        const classesWithParsedPrices = (data.classes || []).map(cls => ({
+          ...cls,
+          price: parseFloat(cls.price) || 0
+        }));
+        setStallClasses(classesWithParsedPrices);
       } else {
-        console.error("Failed to fetch stall classes from database");
         setStallClasses([]);
       }
     } catch (err) {
@@ -87,52 +88,46 @@ export default function MapEditor() {
     }
   };
 
-  const fetchSections = async () => {
-    try {
-      console.log('Fetching sections from:', `${API_BASE}/get_sections.php`);
-      const res = await fetch(`${API_BASE}/get_sections.php`);
-      const data = await res.json();
-      console.log('Sections response:', data);
-      
-      if (data.status === "success") {
-        setSections(data.sections);
-      } else {
-        console.error("Failed to fetch sections from database");
-        setSections([]);
-      }
-    } catch (err) {
-      console.error("Error fetching sections:", err);
-      setSections([]);
+  const getImageUrl = (filePath) => {
+    if (!filePath) return null;
+    
+    if (isProduction) {
+      return filePath.startsWith('/') ? filePath : `/${filePath}`;
+    } else {
+      const baseUrl = "http://localhost/revenue2";
+      return filePath.startsWith('http') ? filePath : `${baseUrl}/${filePath}`;
     }
   };
 
-  // Add a new stall with pixel dimensions - SAME AS CREATOR
   const addStall = () => {
-    const newCount = stallCount + 1;
+    if (!stallClasses || stallClasses.length === 0) {
+      alert("No stall classes available. Please fetch stall classes first.");
+      return;
+    }
     
-    setStallCount(newCount);
+    // Use first stall class from database
+    const defaultClass = stallClasses[0];
+    
     setStalls([
       ...stalls,
       { 
-        name: `Stall ${newCount}`, 
+        name: `Stall ${stalls.length + 1}`, 
         pos_x: 50, 
         pos_y: 50, 
-        pixel_width: 80,    // Visual width in pixels
-        pixel_height: 60,   // Visual height in pixels
+        pixel_width: 80,
+        pixel_height: 60,
         status: "available", 
-        class_id: 3, // Default to Class C - SAME AS CREATOR
-        class_name: "C",
-        price: 5000.00, // Default price for Class C - SAME AS CREATOR
+        class_id: parseInt(defaultClass.class_id),
+        class_name: defaultClass.class_name,
+        price: parseFloat(defaultClass.price) || 5000, // Use DB price
         height: 0, 
         length: 0, 
         width: 0,
-        section_id: sections.length > 0 ? sections[0].id : null,
         isNew: true
       }
     ]);
   };
 
-  // Delete a stall
   const deleteStall = async (index) => {
     const stall = stalls[index];
     if (window.confirm(`Delete ${stall.name}?`)) {
@@ -140,12 +135,10 @@ export default function MapEditor() {
         try {
           const formData = new FormData();
           formData.append("stall_id", stall.id);
-
           const res = await fetch(`${API_BASE}/delete_stall.php`, {
             method: "POST",
             body: formData
           });
-          
           const data = await res.json();
           if (data.status !== "success") {
             throw new Error(data.message || "Failed to delete stall");
@@ -155,40 +148,34 @@ export default function MapEditor() {
           return;
         }
       }
-      
-      const updated = stalls.filter((_, i) => i !== index);
-      setStalls(updated);
-      setStallCount(updated.length);
+      setStalls(stalls.filter((_, i) => i !== index));
     }
   };
 
-  // Toggle maintenance status
   const toggleMaintenance = (index) => {
     const updated = [...stalls];
-    const stall = updated[index];
-    
-    if (stall.status === "maintenance") {
-      stall.status = "available";
-    } else {
-      stall.status = "maintenance";
-    }
-    
+    updated[index].status = updated[index].status === "maintenance" ? "available" : "maintenance";
     setStalls(updated);
   };
 
-  // Save updates to backend
   const saveUpdates = async () => {
     try {
-      console.log('Saving updates to:', `${API_BASE}/update_map.php`);
+      const payload = {
+        map_id: id,
+        stalls: stalls.map(stall => ({
+          ...stall,
+          class_id: parseInt(stall.class_id),
+          price: parseFloat(stall.price) || 0,
+          height: parseFloat(stall.height) || 0,
+          length: parseFloat(stall.length) || 0,
+          width: parseFloat(stall.width) || 0
+        }))
+      };
+      
       const res = await fetch(`${API_BASE}/update_map.php`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          map_id: id,
-          stalls: stalls
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
       
       const data = await res.json();
@@ -203,10 +190,7 @@ export default function MapEditor() {
     }
   };
 
-  // Drag stalls - FIXED POSITION CALCULATION
   const handleDrag = (e, index) => {
-    if (resizing) return;
-    
     const containerRect = marketMapRef.current.getBoundingClientRect();
     const x = e.clientX - containerRect.left - (stalls[index].pixel_width / 2);
     const y = e.clientY - containerRect.top - (stalls[index].pixel_height / 2);
@@ -217,7 +201,6 @@ export default function MapEditor() {
     setStalls(updated);
   };
 
-  // Resize stalls - FIXED POSITION CALCULATION
   const handleResize = (e, index, direction) => {
     const containerRect = marketMapRef.current.getBoundingClientRect();
     const mouseX = e.clientX - containerRect.left;
@@ -253,23 +236,8 @@ export default function MapEditor() {
         newWidth = Math.max(minSize, mouseX - stall.pos_x);
         newHeight = Math.max(minSize, mouseY - stall.pos_y);
         break;
-      case 'n':
-        newHeight = Math.max(minSize, stall.pos_y + stall.pixel_height - mouseY);
-        newY = mouseY;
-        break;
-      case 's':
-        newHeight = Math.max(minSize, mouseY - stall.pos_y);
-        break;
-      case 'w':
-        newWidth = Math.max(minSize, stall.pos_x + stall.pixel_width - mouseX);
-        newX = mouseX;
-        break;
-      case 'e':
-        newWidth = Math.max(minSize, mouseX - stall.pos_x);
-        break;
     }
 
-    // Boundary checks
     if (newX < 0) {
       newWidth += newX;
       newX = 0;
@@ -285,7 +253,6 @@ export default function MapEditor() {
       newHeight = containerRect.height - newY;
     }
 
-    // Ensure minimum size
     newWidth = Math.max(minSize, newWidth);
     newHeight = Math.max(minSize, newHeight);
 
@@ -301,8 +268,6 @@ export default function MapEditor() {
   };
 
   const handleDragStart = (e, index) => {
-    if (resizing) return;
-    
     e.preventDefault();
     setActiveStallIndex(index);
     
@@ -321,16 +286,12 @@ export default function MapEditor() {
     e.preventDefault();
     e.stopPropagation();
     
-    setResizing(true);
-    setResizeDirection(direction);
     setActiveStallIndex(index);
     
     const onMouseMove = (ev) => handleResize(ev, index, direction);
     const onMouseUp = () => {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      setResizing(false);
-      setResizeDirection(null);
       setActiveStallIndex(null);
     };
     
@@ -338,22 +299,9 @@ export default function MapEditor() {
     document.addEventListener("mouseup", onMouseUp);
   };
 
-  // Open stall modal for editing
   const openEditModal = (index, e) => {
     e.preventDefault();
     setSelectedStallIndex(index);
-    const viewportX = e.clientX;
-    const viewportY = e.clientY;
-    const modalWidth = 350;
-    const modalHeight = 550;
-
-    let x = viewportX;
-    let y = viewportY;
-    if (x + modalWidth > window.innerWidth) x = window.innerWidth - modalWidth - 10;
-    if (y + modalHeight > window.innerHeight) y = window.innerHeight - modalHeight - 10;
-    x = Math.max(10, x);
-    y = Math.max(10, y);
-    setModalPos({ x, y });
     setModalOpen(true);
   };
 
@@ -363,77 +311,46 @@ export default function MapEditor() {
     }
   };
 
-  // Update stall class - SAME AS CREATOR
   const updateStallClass = (class_id) => {
+    const class_id_int = parseInt(class_id);
+    const selectedClass = stallClasses.find(cls => cls.class_id === class_id_int);
+    
+    if (!selectedClass) return;
+    
     const updated = [...stalls];
-    const classPrices = {
-      1: 15000.00, // Class A
-      2: 10000.00, // Class B
-      3: 5000.00   // Class C
+    updated[selectedStallIndex] = {
+      ...updated[selectedStallIndex],
+      class_id: class_id_int,
+      class_name: selectedClass.class_name,
+      price: parseFloat(selectedClass.price) || 0
     };
     
-    updated[selectedStallIndex].class_id = parseInt(class_id);
-    updated[selectedStallIndex].class_name = class_id == 1 ? "A" : class_id == 2 ? "B" : "C";
-    updated[selectedStallIndex].price = classPrices[class_id] || 5000.00;
     setStalls(updated);
   };
 
-  // Update price separately - SAME AS CREATOR
   const updateStallPrice = (price) => {
     const updated = [...stalls];
     updated[selectedStallIndex].price = parseFloat(price) || 0;
     setStalls(updated);
   };
 
-  // Update stall section - SAME AS CREATOR
-  const updateStallSection = (section_id) => {
-    const updated = [...stalls];
-    updated[selectedStallIndex].section_id = section_id ? parseInt(section_id) : null;
-    setStalls(updated);
-  };
-
-  // Filter stalls by section - SAME AS CREATOR
-  const filteredStalls = selectedSection === "all" 
-    ? stalls 
-    : stalls.filter(stall => stall.section_id == selectedSection);
-
-  // Get section name by ID - SAME AS CREATOR
-  const getSectionName = (section_id) => {
-    const section = sections.find(s => s.id == section_id);
-    return section ? section.name : "No Section";
-  };
-
-  // Get stall rights price based on class - SAME AS CREATOR
-  const getStallRightsPrice = (class_id) => {
-    const prices = {
-      1: 15000.00, // Class A
-      2: 10000.00, // Class B
-      3: 5000.00   // Class C
-    };
-    return prices[class_id] || 5000.00;
-  };
-
   if (loading) return (
-    <div className="market-container">
-      <div className="loading">Loading map data...</div>
+    <div className="loading-overlay">
+      <div className="loading-spinner"></div>
+      <p>Loading map data...</p>
     </div>
   );
 
   if (error) return (
-    <div className="market-container">
-      <h1>Error</h1>
-      <div className="error-banner">
-        <div className="error-content">
-          <span className="error-icon">⚠️</span>
-          <div className="error-message">
-            <strong>Error:</strong> {error}
-          </div>
-          <button 
-            onClick={() => navigate("/Market/ViewAllMaps")}
-            className="retry-btn"
-          >
-            Back to Maps
-          </button>
+    <div className="error-banner">
+      <div className="error-content">
+        <span className="error-icon">⚠️</span>
+        <div className="error-message">
+          <strong>Error:</strong> {error}
+        </div>
+        <div className="error-actions">
+          <button onClick={() => navigate("/Market/ViewAllMaps")} className="btn btn-secondary">Back to Maps</button>
+          <button onClick={fetchMapData} className="btn btn-primary">Try Again</button>
         </div>
       </div>
     </div>
@@ -441,114 +358,173 @@ export default function MapEditor() {
 
   return (
     <div className="market-container">
-      <h1>Edit Market Map: {mapData?.name}</h1>
-
-      <div className="instructions">
-        <p>
-          <strong>Instructions:</strong> Drag stalls to reposition. Right-click to edit details. 
-          Click the × button to delete stalls. Add new stalls with the button below.
-          Click the wrench button to toggle maintenance mode (turns stall gray).
-          Drag resize handles to change stall size.
-        </p>
+      <div className="market-header">
+        <div className="header-content">
+          <h1>Edit Market Map</h1>
+          <p className="subtitle">{mapData?.name} • {stalls.length} Stalls</p>
+        </div>
       </div>
 
-      {/* Market Section Filter */}
-      {stalls.length > 0 && sections.length > 0 && (
-        <div className="section-filter">
-          <label htmlFor="sectionFilter">Filter by Market Section:</label>
-          <select 
-            id="sectionFilter"
-            value={selectedSection} 
-            onChange={(e) => setSelectedSection(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Sections</option>
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.name}
-              </option>
-            ))}
-          </select>
-          <div className="filter-info">
-            Showing {filteredStalls.length} of {stalls.length} stalls
-            {selectedSection !== "all" && ` in "${getSectionName(selectedSection)}"`}
-          </div>
-        </div>
-      )}
-
-      {/* Debug info for sections */}
-      {sections.length === 0 && !loading && (
-        <div className="debug-info">
-          No sections loaded. Check if the PHP file exists and returns valid JSON.
-        </div>
-      )}
-
-      <div
-        id="marketMap"
-        ref={marketMapRef}
-        className="market-map"
-        style={{ backgroundImage: mapData ? `url(http://localhost/revenue2/${mapData.image_path})` : "none" }}
-      >
-        {filteredStalls.map((stall, index) => {
-          const originalIndex = stalls.findIndex(s => s.name === stall.name);
-          return (
-            <div
-              key={originalIndex}
-              className={`stall ${stall.status} ${selectedSection !== "all" ? "filtered" : ""} ${activeStallIndex === originalIndex ? 'active' : ''}`}
-              style={{ 
-                left: `${stall.pos_x}px`, 
-                top: `${stall.pos_y}px`,
-                width: `${stall.pixel_width}px`,
-                height: `${stall.pixel_height}px`
-              }}
-              onMouseDown={(e) => handleDragStart(e, originalIndex)}
-              onContextMenu={(e) => openEditModal(originalIndex, e)}
-            >
-              <div className="stall-content">
-                <div className="stall-name">{stall.name}</div>
-                <div className="stall-class">Class: {stall.class_name}</div>
-                <div className="stall-price">₱{stall.price.toLocaleString()}</div>
-                <div className="stall-dimensions">
-                  {Math.round(stall.pixel_width)}×{Math.round(stall.pixel_height)}px
-                </div>
-                <div className="stall-size">{stall.length}m × {stall.width}m × {stall.height}m</div>
-                {stall.section_id && (
-                  <div className="stall-section">Section: {getSectionName(stall.section_id)}</div>
-                )}
+      <div className="market-content">
+        {/* Left Panel - Controls */}
+        <div className="control-panel">
+          <div className="stats-section">
+            <h3>Summary</h3>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <span className="stat-number">{stalls.length}</span>
+                <span className="stat-label">Total Stalls</span>
               </div>
+              <div className="stat-card">
+                <span className="stat-number">₱{(stalls.reduce((sum, stall) => sum + (parseFloat(stall.price) || 0), 0)).toLocaleString()}</span>
+                <span className="stat-label">Total Value</span>
+              </div>
+            </div>
+          </div>
 
-              {/* Resize handles */}
-              <>
-                <div className="resize-handle nw" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'nw')}></div>
-                <div className="resize-handle ne" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'ne')}></div>
-                <div className="resize-handle sw" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'sw')}></div>
-                <div className="resize-handle se" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'se')}></div>
-                <div className="resize-handle n" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'n')}></div>
-                <div className="resize-handle s" onMouseDown={(e) => handleResizeStart(e, originalIndex, 's')}></div>
-                <div className="resize-handle w" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'w')}></div>
-                <div className="resize-handle e" onMouseDown={(e) => handleResizeStart(e, originalIndex, 'e')}></div>
-              </>
-
-              {/* Delete button */}
-              <button
-                className="delete-stall-btn"
-                onClick={(e) => { e.stopPropagation(); deleteStall(originalIndex); }}
-                title="Delete stall"
+          <div className="actions-section">
+            <h3>Actions</h3>
+            <div className="action-buttons">
+              <button 
+                onClick={addStall} 
+                disabled={!stallClasses || stallClasses.length === 0}
+                className="btn btn-primary"
               >
-                ×
+                <span className="btn-icon">+</span> Add Stall
               </button>
-
-              {/* Maintenance button - EDITOR ONLY */}
-              <button
-                className={`maintenance-stall-btn ${stall.status === "maintenance" ? "active" : ""}`}
-                onClick={(e) => { e.stopPropagation(); toggleMaintenance(originalIndex); }}
-                title={stall.status === "maintenance" ? "Remove from maintenance" : "Put under maintenance"}
+              <button 
+                onClick={saveUpdates}
+                className="btn btn-success"
               >
-                ⚙️
+                Save Changes
+              </button>
+              <button 
+                onClick={() => navigate(`/Market/MarketOutput/view/${id}`)}
+                className="btn btn-secondary"
+              >
+                View as Customer
+              </button>
+              <button 
+                onClick={() => navigate("/Market/ViewAllMaps")}
+                className="btn btn-secondary"
+              >
+                Back to Maps
               </button>
             </div>
-          );
-        })}
+          </div>
+
+          <div className="status-section">
+            <h3>Status</h3>
+            <div className="status-list">
+              <div className="status-item">
+                <div className="status-dot available"></div>
+                <span>Available: {stalls.filter(s => s.status === "available").length}</span>
+              </div>
+              <div className="status-item">
+                <div className="status-dot occupied"></div>
+                <span>Occupied: {stalls.filter(s => s.status === "occupied").length}</span>
+              </div>
+              <div className="status-item">
+                <div className="status-dot reserved"></div>
+                <span>Reserved: {stalls.filter(s => s.status === "reserved").length}</span>
+              </div>
+              <div className="status-item">
+                <div className="status-dot maintenance"></div>
+                <span>Maintenance: {stalls.filter(s => s.status === "maintenance").length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Map Area */}
+        <div className="map-panel">
+          <div className="map-header">
+            <h3>Market Map Editor</h3>
+            <div className="map-info">
+              <span className="info-item">
+                <span className="info-label">Size:</span> 800×600px
+              </span>
+              <span className="info-item">
+                <span className="info-label">Map:</span> {mapData?.name}
+              </span>
+            </div>
+          </div>
+          
+          <div
+            id="marketMap"
+            ref={marketMapRef}
+            className="market-map"
+            style={{ backgroundImage: mapData ? `url('${getImageUrl(mapData.file_path)}')` : "none" }}
+          >
+            {stalls.map((stall, index) => (
+              <div
+                key={index}
+                className={`stall ${stall.status} ${activeStallIndex === index ? 'active' : ''}`}
+                style={{ 
+                  left: `${stall.pos_x}px`, 
+                  top: `${stall.pos_y}px`,
+                  width: `${stall.pixel_width}px`,
+                  height: `${stall.pixel_height}px`
+                }}
+                onMouseDown={(e) => handleDragStart(e, index)}
+                onContextMenu={(e) => openEditModal(index, e)}
+              >
+                <div className="stall-content">
+                  <div className="stall-header">
+                    <div className="stall-name">{stall.name}</div>
+                    <div className="stall-class-badge">{stall.class_name}</div>
+                  </div>
+                  <div className="stall-details">
+                    <div className="stall-price">₱{(parseFloat(stall.price) || 0).toLocaleString()}</div>
+                    <div className="stall-dimensions">
+                      {Math.round(stall.pixel_width)}×{Math.round(stall.pixel_height)}px
+                    </div>
+                  </div>
+                </div>
+
+                <div className="resize-handle nw" onMouseDown={(e) => handleResizeStart(e, index, 'nw')}></div>
+                <div className="resize-handle ne" onMouseDown={(e) => handleResizeStart(e, index, 'ne')}></div>
+                <div className="resize-handle sw" onMouseDown={(e) => handleResizeStart(e, index, 'sw')}></div>
+                <div className="resize-handle se" onMouseDown={(e) => handleResizeStart(e, index, 'se')}></div>
+
+                <button
+                  className="delete-stall-btn"
+                  onClick={(e) => { e.stopPropagation(); deleteStall(index); }}
+                  title="Delete stall"
+                >
+                  ×
+                </button>
+
+                <button
+                  className={`maintenance-stall-btn ${stall.status === "maintenance" ? "active" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); toggleMaintenance(index); }}
+                  title={stall.status === "maintenance" ? "Remove from maintenance" : "Put under maintenance"}
+                >
+                  ⚙️
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          <div className="map-legend">
+            <div className="legend-item">
+              <div className="legend-color available"></div>
+              <span>Available</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color reserved"></div>
+              <span>Reserved</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color occupied"></div>
+              <span>Occupied</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color maintenance"></div>
+              <span>Maintenance</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {modalOpen && (
@@ -556,106 +532,125 @@ export default function MapEditor() {
           <div
             ref={modalRef}
             className="price-modal"
-            style={{ left: `${modalPos.x}px`, top: `${modalPos.y}px`, position: 'fixed' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h4>Set Stall Details - {stalls[selectedStallIndex]?.name}</h4>
+            <div className="modal-header">
+              <h4>Edit Stall Details</h4>
+              <button className="modal-close" onClick={() => setModalOpen(false)}>×</button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="stall-summary">
+                <h5>{stalls[selectedStallIndex]?.name}</h5>
+                <div className="summary-grid">
+                  <div className="summary-item">
+                    <span>Position:</span>
+                    <span>{Math.round(stalls[selectedStallIndex]?.pos_x)}px, {Math.round(stalls[selectedStallIndex]?.pos_y)}px</span>
+                  </div>
+                  <div className="summary-item">
+                    <span>Size:</span>
+                    <span>{Math.round(stalls[selectedStallIndex]?.pixel_width)}×{Math.round(stalls[selectedStallIndex]?.pixel_height)}px</span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Section Selection Field */}
-            <label>Market Section</label>
-            <select
-              value={stalls[selectedStallIndex]?.section_id || ""}
-              onChange={(e) => updateStallSection(e.target.value)}
-            >
-              <option value="">No Section</option>
-              {sections.map((section) => (
-                <option key={section.id} value={section.id}>
-                  {section.name}
-                </option>
-              ))}
-            </select>
+              <div className="form-section">
+                <label>Stall Class</label>
+                <select
+                  value={stalls[selectedStallIndex]?.class_id || ""}
+                  onChange={(e) => updateStallClass(e.target.value)}
+                  className="form-select"
+                >
+                  {stallClasses && stallClasses.length > 0 ? (
+                    stallClasses.map((cls) => (
+                      <option key={cls.class_id} value={cls.class_id}>
+                        Class {cls.class_name} - ₱{parseFloat(cls.price).toLocaleString()}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No classes available</option>
+                  )}
+                </select>
+              </div>
 
-            <label>Stall Class</label>
-            <select
-              value={stalls[selectedStallIndex]?.class_id || ""}
-              onChange={(e) => updateStallClass(e.target.value)}
-            >
-              <option value="1">Class A - ₱15,000.00 (Premium Location)</option>
-              <option value="2">Class B - ₱10,000.00 (Standard Location)</option>
-              <option value="3">Class C - ₱5,000.00 (Economy Location)</option>
-            </select>
+              <div className="form-section">
+                <label>Monthly Rent (₱)</label>
+                <input
+                  type="number"
+                  value={stalls[selectedStallIndex]?.price || 0}
+                  onChange={(e) => updateStallPrice(e.target.value)}
+                  step="0.01"
+                  min="0"
+                  className="form-input"
+                />
+              </div>
 
-            <div className="current-class-info">
-              <strong>Selected: Class {stalls[selectedStallIndex]?.class_name}</strong>
-              <br />
-              <span>Stall Rights: ₱{getStallRightsPrice(stalls[selectedStallIndex]?.class_id).toLocaleString()}</span>
+              <div className="dimensions-section">
+                <h6>Physical Dimensions (meters)</h6>
+                <div className="dimensions-grid">
+                  <div className="dimension-input">
+                    <label>Length</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.length || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].length = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="dimension-input">
+                    <label>Width</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.width || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].width = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="dimension-input">
+                    <label>Height</label>
+                    <input
+                      type="number"
+                      value={stalls[selectedStallIndex]?.height || 0}
+                      onChange={(e) => {
+                        const updated = [...stalls];
+                        updated[selectedStallIndex].height = parseFloat(e.target.value) || 0;
+                        setStalls(updated);
+                      }}
+                      step="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <label>Custom Price (₱)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.price || 0}
-              onChange={(e) => updateStallPrice(e.target.value)}
-              step="0.01"
-              min="0"
-            />
-
-            <label>Height (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.height || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].height = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <label>Length (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.length || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].length = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <label>Width (m)</label>
-            <input
-              type="number"
-              value={stalls[selectedStallIndex]?.width || 0}
-              onChange={(e) => {
-                const updated = [...stalls];
-                updated[selectedStallIndex].width = parseFloat(e.target.value) || 0;
-                setStalls(updated);
-              }}
-              step="0.01"
-            />
-
-            <div className="modal-buttons">
-              <button onClick={() => setModalOpen(false)}>Save</button>
-              <button onClick={() => setModalOpen(false)}>Cancel</button>
+            <div className="modal-actions">
+              <button 
+                onClick={() => setModalOpen(false)} 
+                className="btn btn-success"
+              >
+                Save Changes
+              </button>
+              <button 
+                onClick={() => setModalOpen(false)} 
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      <div className="controls">
-        <button onClick={addStall}>Add Stall</button>
-        <button onClick={saveUpdates}>Save Changes</button>
-        <button onClick={() => navigate("/Market/ViewAllMaps")}>View All Maps</button>
-        <button onClick={fetchMapData}>Refresh Data</button>
-        <button 
-          onClick={() => navigate(`/Market/MarketOutput/view/${id}`)}
-          className="view-customer-btn"
-        >
-          View as Customer
-        </button>
-      </div>
     </div>
   );
 }

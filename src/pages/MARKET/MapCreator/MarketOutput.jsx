@@ -11,27 +11,41 @@ export default function MarketOutput() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const API_BASE = "http://localhost/revenue2/backend/Market/MapCreator";
+  // Detect environment and set base URLs
+  const isProduction = window.location.hostname !== 'localhost' && 
+                       window.location.hostname !== '127.0.0.1';
+  
+  const API_BASE = isProduction 
+    ? "/backend/Market/MapCreator"
+    : "http://localhost/revenue2/backend/Market/MapCreator";
 
-  console.log("MarketOutput mounted with ID:", id);
+  // For images, handle differently based on environment
+  const getImageUrl = (filePath) => {
+    if (!filePath) return null;
+    
+    if (isProduction) {
+      return filePath.startsWith('/') ? filePath : `/${filePath}`;
+    } else {
+      const baseUrl = "http://localhost/revenue2";
+      return filePath.startsWith('http') ? filePath : `${baseUrl}/${filePath}`;
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
       try {
-        console.log("Fetching data for map ID:", id);
         const res = await fetch(`${API_BASE}/map_display.php?map_id=${id}`);
         
         if (!res.ok) throw new Error(`Network error: ${res.status}`);
         
         const data = await res.json();
-        console.log("API Response:", data);
 
         if (data.status === "success") {
           setMapName(data.map.name);
-          const baseUrl = "http://localhost/revenue2";
-          setMapImage(`${baseUrl}/${data.map.image_path}`);
           
-          // Ensure stalls have pixel dimensions, use defaults if not present
+          const imageUrl = getImageUrl(data.map.file_path || data.map.image_path);
+          setMapImage(imageUrl);
+          
           const stallsWithPixelDims = (data.stalls || []).map(stall => ({
             ...stall,
             pixel_width: stall.pixel_width || 80,
@@ -57,11 +71,10 @@ export default function MarketOutput() {
     }
   }, [id]);
 
-  console.log("Current state:", { loading, error, mapName, mapImage, stalls });
-
   if (loading) return (
     <div className="loading-container">
-      <h2>Loading market map ID: {id}...</h2>
+      <h2>Loading market map...</h2>
+      <div className="loading-spinner"></div>
     </div>
   );
   
@@ -72,17 +85,19 @@ export default function MarketOutput() {
       <p>Map ID: {id}</p>
       <button 
         className="back-button"
-        onClick={() => navigate("/Market/MapCreator")}
+        onClick={() => navigate("/Market/ViewAllMaps")}
       >
-        Back to Market Creator
+        Back to Maps
       </button>
     </div>
   );
 
   return (
     <div className="market-output-container">
-      <h1>Market Map: {mapName || "Unknown"}</h1>
-      <p>Map ID: {id}</p>
+      <div className="header-section">
+        <h1>Market Map: {mapName || "Unnamed Map"}</h1>
+        <p className="map-info">Map ID: {id} • {stalls.length} Stalls</p>
+      </div>
       
       {/* Status Legend */}
       <div className="status-legend">
@@ -104,48 +119,66 @@ export default function MarketOutput() {
         </div>
       </div>
       
-      {mapImage ? (
-        <div
-          className="market-map-display"
-          style={{
-            backgroundImage: `url('${mapImage}')`
-          }}
-        >
-          {stalls.map((stall) => (
+      <div className="map-section">
+        {mapImage ? (
+          <div className="map-container">
             <div
-              key={stall.id}
-              className={`stall-marker ${stall.status || 'available'}`}
+              className="market-map-display"
               style={{
-                left: `${stall.pos_x}px`,
-                top: `${stall.pos_y}px`,
-                width: `${stall.pixel_width}px`,
-                height: `${stall.pixel_height}px`
+                backgroundImage: `url('${mapImage}')`
               }}
-              title={`${stall.name} - ₱${stall.price?.toLocaleString()} - ${stall.status || 'available'}`}
             >
-              <div className="stall-content">
-                <div className="stall-name">{stall.name}</div>
-                <div className="stall-class">Class: {stall.class_name}</div>
-                <div className="stall-price">₱{stall.price?.toLocaleString()}</div>
-                {stall.section_name && (
-                  <div className="stall-section">Section: {stall.section_name}</div>
-                )}
-              </div>
+              {stalls.map((stall) => (
+                <div
+                  key={stall.id}
+                  className={`stall-marker ${stall.status || 'available'}`}
+                  style={{
+                    left: `${stall.pos_x}px`,
+                    top: `${stall.pos_y}px`,
+                    width: `${stall.pixel_width}px`,
+                    height: `${stall.pixel_height}px`
+                  }}
+                  title={`${stall.name} - ₱${stall.price?.toLocaleString()} - ${stall.status || 'available'}`}
+                >
+                  <div className="stall-content">
+                    <div className="stall-name">{stall.name}</div>
+                    <div className="stall-details">
+                      <span className="stall-class">{stall.class_name}</span>
+                      <span className="stall-price">₱{stall.price?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="no-image-message">
-          No map image available
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="no-image-message">
+            <p>No map image available</p>
+            <p className="image-info">Trying to load: {mapName}</p>
+          </div>
+        )}
+      </div>
 
-      <button 
-        className="back-button"
-        onClick={() => navigate("/Market/MapCreator")}
-      >
-        Back to Market Creator
-      </button>
+      <div className="controls">
+        <button 
+          className="btn btn-secondary"
+          onClick={() => navigate("/Market/ViewAllMaps")}
+        >
+          Back to All Maps
+        </button>
+        <button 
+          className="btn btn-primary"
+          onClick={() => navigate(`/Market/MapEditor/${id}`)}
+        >
+          Edit This Map
+        </button>
+        <button 
+          className="btn btn-success"
+          onClick={() => navigate("/Market/MapCreator")}
+        >
+          Create New Map
+        </button>
+      </div>
     </div>
   );
 }
