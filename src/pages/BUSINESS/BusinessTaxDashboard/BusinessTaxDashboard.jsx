@@ -1,16 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer
+  Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area
 } from 'recharts';
 import { 
-  Building, DollarSign, Calendar, AlertCircle, 
-  RefreshCw, MapPin, Download, 
-  CheckCircle, Percent, CalendarDays,
-  Banknote, AlertTriangle, ChevronDown,
-  FileSpreadsheet, Database, Map,
-  Activity, Grid3x3, BarChart as BarChartIcon, PieChart as PieIcon,
-  Archive
+  Building, Home, DollarSign, Users, Calendar, AlertCircle, 
+  TrendingUp, TrendingDown, RefreshCw, MapPin, Tag, Filter,
+  Download, FileText, BarChart3, PieChart as PieChartIcon,
+  CheckCircle, Clock, XCircle, Landmark, Percent, Eye, Target,
+  ArrowUpRight, ArrowDownRight, CircleDollarSign, ShieldAlert,
+  CreditCard, Wallet, Timer, CalendarDays, TrendingUp as TrendingUpIcon,
+  Banknote, AlertTriangle, CheckCheck, ArrowRightLeft, ChevronRight,
+  Building2, Layers, Grid3x3, Compass, LandPlot, FileBarChart,
+  Activity, LineChart as LineChartIcon, Calculator,
+  FileSpreadsheet, Database, Table, ChevronDown, ChevronUp,
+  Map, Award, Trophy, Star, TrendingDown as TrendingDownIcon,
+  BarChart as BarChartIcon, LineChart as LineChartIcon2,
+  ChartBar, Grid3x3 as GridIcon, BarChart4,
+  Archive, Target as TargetIcon, Percent as PercentIcon,
+  Calculator as CalculatorIcon, Calendar as CalendarIcon,
+  AlertTriangle as AlertTriangleIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -29,97 +38,76 @@ const getApiBase = () => {
 const API_BASE = getApiBase();
 
 export default function BusinessTaxDashboard() {
-  // State variables
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState([]);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('cards');
-  
-  // Current quarter
-  const currentQuarter = (() => {
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'charts'
+  const [currentQuarter] = useState(() => {
     const month = new Date().getMonth() + 1;
     if (month >= 1 && month <= 3) return 'Q1';
     if (month >= 4 && month <= 6) return 'Q2';
     if (month >= 7 && month <= 9) return 'Q3';
     return 'Q4';
-  })();
+  });
 
-  // Fetch available years - NO dependencies
-  const fetchAvailableYears = useCallback(async () => {
-    console.log('Fetching available years...');
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(
-        `${API_BASE}/BusinessTaxDashboard.php?action=get_years`,
-        {
-          signal: controller.signal,
-          headers: { 'Accept': 'application/json' }
-        }
-      );
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  useEffect(() => {
+    fetchAvailableYears();
+  }, []);
+
+  useEffect(() => {
+    if (availableYears.length > 0) {
+      const latestYear = Math.max(...availableYears);
+      if (!availableYears.includes(selectedYear)) {
+        setSelectedYear(latestYear);
       }
+    }
+  }, [availableYears]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedYear]);
+
+  const fetchAvailableYears = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/BusinessTaxDashboard.php?action=get_years`);
+      const data = await response.json();
       
-      const yearsData = await response.json();
-      console.log('Years response:', yearsData);
-      
-      let years = [];
-      if (yearsData.success && yearsData.years && yearsData.years.length > 0) {
-        years = yearsData.years.sort((a, b) => b - a);
+      if (data.success && data.years && data.years.length > 0) {
+        const sortedYears = [...data.years].sort((a, b) => b - a);
+        setAvailableYears(sortedYears);
       } else {
         const currentYear = new Date().getFullYear();
-        years = [currentYear, currentYear - 1, currentYear - 2];
+        const years = [currentYear, currentYear - 1, currentYear - 2];
+        setAvailableYears(years);
+        setSelectedYear(currentYear);
       }
-      
-      setAvailableYears(years);
-      
     } catch (err) {
       console.error('Error fetching years:', err);
-      setAvailableYears([new Date().getFullYear(), new Date().getFullYear() - 1]);
+      const currentYear = new Date().getFullYear();
+      setAvailableYears([currentYear, currentYear - 1]);
+      setSelectedYear(currentYear);
     }
-  }, []); // NO dependencies
+  };
 
-  // Memoized fetch function with proper error handling
-  const fetchDashboardData = useCallback(async (year) => {
-    console.log('Fetching dashboard data for year:', year);
-    
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const response = await fetch(
-        `${API_BASE}/BusinessTaxDashboard.php?action=dashboard&year=${year}`,
-        {
-          signal: controller.signal,
-          headers: { 
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      clearTimeout(timeoutId);
+      const response = await fetch(`${API_BASE}/BusinessTaxDashboard.php?action=dashboard&year=${selectedYear}`, {
+        headers: { 'Accept': 'application/json' }
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Dashboard response:', data);
       
       if (!data.success) {
         throw new Error(data.error || data.message || 'Failed to load dashboard data');
@@ -129,28 +117,13 @@ export default function BusinessTaxDashboard() {
       setDashboardData(parsedData);
       
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError(`Failed to load data: ${err.message}`);
+      console.error('Error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // Initialize - fetch years on mount
-  useEffect(() => {
-    console.log('Component mounted, fetching years...');
-    fetchAvailableYears();
-  }, []); // Empty dependency array - runs once
-
-  // Fetch dashboard when selectedYear changes
-  useEffect(() => {
-    if (selectedYear) {
-      console.log('Selected year changed to:', selectedYear);
-      fetchDashboardData(selectedYear);
-    }
-  }, [selectedYear]); // Only depends on selectedYear
-
-  // Parse numbers in data
   const parseNumbersInData = (data) => {
     if (!data) return data;
     
@@ -174,7 +147,6 @@ export default function BusinessTaxDashboard() {
     return parsed;
   };
 
-  // Format currency
   const formatCurrency = (amount) => {
     if (amount === null || amount === undefined || amount === '' || isNaN(amount)) {
       return '₱0';
@@ -186,7 +158,7 @@ export default function BusinessTaxDashboard() {
       return `₱${(numAmount / 1000000000).toFixed(2)}B`;
     }
     if (numAmount >= 1000000) {
-      return `₱${(numAmount / 1000000).toFixed(2)}M`;
+      return `₱${(numAmount / 1000000000).toFixed(2)}M`;
     }
     if (numAmount >= 1000) {
       return `₱${(numAmount / 1000).toFixed(2)}K`;
@@ -194,26 +166,38 @@ export default function BusinessTaxDashboard() {
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  // Safe parse float
   const safeParseFloat = (value, defaultValue = 0) => {
     if (value === null || value === undefined || value === '') return defaultValue;
     const num = typeof value === 'string' ? parseFloat(value) : value;
     return isNaN(num) ? defaultValue : num;
   };
 
-  // Format number
   const formatNumber = (num) => {
     const parsedNum = safeParseFloat(num);
     return new Intl.NumberFormat('en-PH').format(parsedNum);
   };
 
-  // Format percent
   const formatPercent = (value) => {
     const parsedValue = safeParseFloat(value);
     return `${parsedValue.toFixed(1)}%`;
   };
 
-  // Export to Excel
+  const getProgressColor = (value) => {
+    const numValue = safeParseFloat(value);
+    if (numValue >= 90) return 'bg-green-500';
+    if (numValue >= 75) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const exportToExcel = (data, fileName, sheetName = 'Sheet1') => {
     try {
       if (!data || data.length === 0) {
@@ -232,7 +216,6 @@ export default function BusinessTaxDashboard() {
     }
   };
 
-  // Export barangay report
   const exportBarangayReport = () => {
     if (!dashboardData?.barangay_collection) return;
     
@@ -247,7 +230,7 @@ export default function BusinessTaxDashboard() {
         'Percentage of Total (%)': totalCollection > 0 ? (safeParseFloat(b.total_collection) / totalCollection) * 100 : 0
       }));
 
-      exportToExcel(barangayData, `Business_Barangay_Report_${selectedYear}`, 'Barangay Collection');
+      exportToExcel(barangayData, `Business_Tax_Barangay_Report_${selectedYear}`, 'Barangay Collection');
     } catch (error) {
       console.error('Export error:', error);
       alert('Error exporting barangay report');
@@ -256,7 +239,6 @@ export default function BusinessTaxDashboard() {
     }
   };
 
-  // Export quarterly report
   const exportQuarterlyReport = () => {
     if (!dashboardData?.quarterly_analysis) return;
     
@@ -278,7 +260,7 @@ export default function BusinessTaxDashboard() {
         'Total Penalties (PHP)': safeParseFloat(q.total_penalties)
       }));
 
-      exportToExcel(quarterlyData, `Business_Quarterly_Report_${selectedYear}`, 'Quarterly Analysis');
+      exportToExcel(quarterlyData, `Business_Tax_Quarterly_Report_${selectedYear}`, 'Quarterly Analysis');
     } catch (error) {
       console.error('Export error:', error);
       alert('Error exporting quarterly report');
@@ -287,7 +269,6 @@ export default function BusinessTaxDashboard() {
     }
   };
 
-  // Export complete dashboard report
   const exportCompleteDashboardReport = () => {
     if (!dashboardData) return;
     
@@ -297,23 +278,12 @@ export default function BusinessTaxDashboard() {
       const dateStr = new Date().toISOString().split('T')[0];
       
       // Summary Sheet
-      const overallCollection = dashboardData.quarterly_analysis.reduce((acc, q) => {
-        return {
-          total_due: acc.total_due + safeParseFloat(q.total_due),
-          collected: acc.collected + safeParseFloat(q.collected)
-        };
-      }, { total_due: 0, collected: 0 });
-      
-      const effectiveCollectionRate = overallCollection.total_due > 0 
-        ? (overallCollection.collected / overallCollection.total_due) * 100 
-        : 0;
-
       const summaryData = [{
         'Year': selectedYear,
         'Total Businesses': formatNumber(dashboardData.business_stats?.total_businesses),
         'Active Businesses': formatNumber(dashboardData.business_stats?.active_businesses),
         'Total Annual Tax': formatCurrency(dashboardData.tax_stats?.annual?.total_annual_tax),
-        'Collection Rate': formatPercent(effectiveCollectionRate),
+        'Collection Rate': formatPercent(dashboardData.yearly_summary?.collection_rate),
         'Current Quarter': dashboardData.current_quarter,
         'Total Outstanding': formatCurrency(dashboardData.tax_stats?.outstanding?.total_outstanding),
         'Data Updated': dashboardData.timestamp
@@ -332,15 +302,7 @@ export default function BusinessTaxDashboard() {
     }
   };
 
-  // Handle year change
-  const handleYearChange = (year) => {
-    console.log('Changing year to:', year);
-    setSelectedYear(year);
-    setYearDropdownOpen(false);
-  };
-
-  // Loading state
-  if (loading && !dashboardData) {
+  if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-white">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-800 mb-4"></div>
@@ -350,8 +312,7 @@ export default function BusinessTaxDashboard() {
     );
   }
 
-  // Error state
-  if (error && !dashboardData) {
+  if (error) {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-white">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -363,7 +324,7 @@ export default function BusinessTaxDashboard() {
             </div>
           </div>
           <button 
-            onClick={() => fetchDashboardData(selectedYear)}
+            onClick={fetchDashboardData}
             className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
@@ -374,14 +335,13 @@ export default function BusinessTaxDashboard() {
     );
   }
 
-  // No data state
   if (!dashboardData) {
     return (
       <div className="text-center py-12 bg-white">
         <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-500">No dashboard data available for {selectedYear}</p>
         <button 
-          onClick={() => fetchDashboardData(selectedYear)}
+          onClick={fetchDashboardData}
           className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2 mx-auto"
         >
           <RefreshCw className="w-4 h-4" />
@@ -405,26 +365,16 @@ export default function BusinessTaxDashboard() {
     yearly_summary = {},
     current_quarter: dataCurrentQuarter,
     timestamp,
-    available_years: dataAvailableYears = []
+    available_years = []
   } = dashboardData;
 
   // Calculate key metrics
-  const overallCollection = quarterly_analysis.reduce((acc, q) => {
-    return {
-      total_due: acc.total_due + safeParseFloat(q.total_due),
-      collected: acc.collected + safeParseFloat(q.collected)
-    };
-  }, { total_due: 0, collected: 0 });
-
-  const effectiveCollectionRate = overallCollection.total_due > 0 
-    ? (overallCollection.collected / overallCollection.total_due) * 100 
-    : 0;
-
+  const collectionRate = safeParseFloat(yearly_summary.collection_rate);
   const totalAnnualTax = safeParseFloat(tax_stats.annual?.total_annual_tax);
   const quarterlyTarget = safeParseFloat(tax_stats.annual?.total_annual_tax) / 4;
   const currentQuarterCollected = safeParseFloat(tax_stats.current_quarter?.current_quarter_paid);
   const totalOutstanding = safeParseFloat(tax_stats.outstanding?.total_outstanding);
-
+  
   // Prepare chart data
   const quarterlyChartData = quarterly_analysis.map(q => ({
     quarter: q.quarter,
@@ -448,9 +398,29 @@ export default function BusinessTaxDashboard() {
     avg_tax: safeParseFloat(b.avg_tax_per_business)
   }));
 
-  // Sort barangays by revenue (highest first)
-  const sortedBarangays = [...barangaysData].sort((a, b) => b.revenue - a.revenue);
-  const topBarangaysData = sortedBarangays.slice(0, 5);
+  // Calculate overall collection rate
+  const overallCollection = quarterly_analysis.reduce((acc, q) => {
+    return {
+      total_due: acc.total_due + safeParseFloat(q.total_due),
+      collected: acc.collected + safeParseFloat(q.collected)
+    };
+  }, { total_due: 0, collected: 0 });
+
+  const effectiveCollectionRate = overallCollection.total_due > 0 
+    ? (overallCollection.collected / overallCollection.total_due) * 100 
+    : 0;
+
+  // Get activities for active tab
+  const getActivitiesForTab = () => {
+    switch(activeTab) {
+      case 'payments':
+        return recent_payments || [];
+      case 'overdue':
+        return overdue_taxes || [];
+      default:
+        return recent_payments || [];
+    }
+  };
 
   const formattedDate = timestamp 
     ? new Date(timestamp).toLocaleDateString('en-PH', { 
@@ -467,23 +437,9 @@ export default function BusinessTaxDashboard() {
       })
     : 'Now';
 
-  const getActivitiesForTab = () => {
-    switch(activeTab) {
-      case 'payments':
-        return recent_payments || [];
-      case 'overdue':
-        return overdue_taxes || [];
-      default:
-        return recent_payments || [];
-    }
-  };
-
-  // Colors for charts
-  const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
+      {/* Header - Clean White Design */}
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -493,7 +449,7 @@ export default function BusinessTaxDashboard() {
               </h1>
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
+                  <CalendarIcon className="w-4 h-4" />
                   <span>{dataCurrentQuarter || currentQuarter} {selectedYear} • {formattedDate} at {formattedTime}</span>
                 </div>
               </div>
@@ -506,7 +462,7 @@ export default function BusinessTaxDashboard() {
                   onClick={() => setYearDropdownOpen(!yearDropdownOpen)}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
                 >
-                  <Calendar className="w-4 h-4" />
+                  <CalendarIcon className="w-4 h-4" />
                   <span>Year: {selectedYear}</span>
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -514,10 +470,13 @@ export default function BusinessTaxDashboard() {
                 {yearDropdownOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                     <div className="py-1 max-h-60 overflow-y-auto">
-                      {(dataAvailableYears.length > 0 ? dataAvailableYears : availableYears).map(year => (
+                      {available_years.length > 0 ? available_years : availableYears.map(year => (
                         <button
                           key={year}
-                          onClick={() => handleYearChange(year)}
+                          onClick={() => {
+                            setSelectedYear(year);
+                            setYearDropdownOpen(false);
+                          }}
                           className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
                             selectedYear === year 
                               ? 'bg-gray-100 text-gray-900 font-medium' 
@@ -539,7 +498,7 @@ export default function BusinessTaxDashboard() {
               
               {/* Refresh Button */}
               <button
-                onClick={() => fetchDashboardData(selectedYear)}
+                onClick={fetchDashboardData}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -569,10 +528,10 @@ export default function BusinessTaxDashboard() {
           
           {/* Available Years Quick Select */}
           <div className="mt-4 flex flex-wrap gap-2">
-            {(dataAvailableYears.length > 0 ? dataAvailableYears : availableYears).map(year => (
+            {(available_years.length > 0 ? available_years : availableYears).map(year => (
               <button
                 key={year}
-                onClick={() => handleYearChange(year)}
+                onClick={() => setSelectedYear(year)}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors border ${
                   selectedYear === year
                     ? 'bg-gray-900 text-white border-gray-900'
@@ -590,7 +549,7 @@ export default function BusinessTaxDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Export Options Bar */}
         {exportLoading && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2">
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
               <span className="text-sm text-blue-600">Preparing Excel export for {selectedYear}...</span>
@@ -598,14 +557,15 @@ export default function BusinessTaxDashboard() {
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        {/* Export Buttons */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={exportQuarterlyReport}
               disabled={exportLoading || quarterly_analysis.length === 0}
               className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
             >
-              <Calendar className="w-4 h-4" />
+              <CalendarIcon className="w-4 h-4" />
               Quarterly Report
             </button>
             <button
@@ -619,7 +579,7 @@ export default function BusinessTaxDashboard() {
             <button
               onClick={exportCompleteDashboardReport}
               disabled={exportLoading}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-black text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
             >
               <Database className="w-4 h-4" />
               Complete Report
@@ -633,7 +593,7 @@ export default function BusinessTaxDashboard() {
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-blue-50 rounded-lg">
-                <Percent className="w-6 h-6 text-blue-600" />
+                <PercentIcon className="w-6 h-6 text-blue-600" />
               </div>
               <span className={`text-sm px-3 py-1 rounded-full ${
                 effectiveCollectionRate >= 90 ? 'bg-green-100 text-green-800' :
@@ -667,11 +627,11 @@ export default function BusinessTaxDashboard() {
             </div>
           </div>
 
-          {/* Annual Tax Card */}
+          {/* Annual Tax Assessment Card */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-green-50 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
+                <CalculatorIcon className="w-6 h-6 text-green-600" />
               </div>
               <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
                 {selectedYear} Assessment
@@ -681,7 +641,7 @@ export default function BusinessTaxDashboard() {
               Total Assessment
             </h3>
             <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalAnnualTax)}</p>
-            <div className="text-sm text-gray-600 space-y-2">
+            <div className="space-y-2 text-sm text-gray-600">
               <div className="flex justify-between">
                 <span className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -705,12 +665,8 @@ export default function BusinessTaxDashboard() {
               <div className="p-3 bg-yellow-50 rounded-lg">
                 <CalendarDays className="w-6 h-6 text-yellow-600" />
               </div>
-              <span className={`text-sm px-3 py-1 rounded-full ${
-                (currentQuarterCollected / quarterlyTarget) >= 0.8 ? 'bg-green-100 text-green-800' :
-                (currentQuarterCollected / quarterlyTarget) >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {dataCurrentQuarter || currentQuarter} Progress
+              <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
+                {dataCurrentQuarter || currentQuarter}
               </span>
             </div>
             <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
@@ -739,7 +695,7 @@ export default function BusinessTaxDashboard() {
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-red-50 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <AlertTriangleIcon className="w-6 h-6 text-red-600" />
               </div>
               <span className="text-sm px-3 py-1 bg-red-100 text-red-800 rounded-full">
                 Delinquent
@@ -749,7 +705,7 @@ export default function BusinessTaxDashboard() {
               Outstanding Balance
             </h3>
             <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalOutstanding)}</p>
-            <div className="text-sm text-gray-600 space-y-2">
+            <div className="space-y-2 text-sm text-gray-600">
               <div className="flex justify-between">
                 <span>Pending:</span>
                 <span>{formatCurrency(tax_stats.outstanding?.pending_balance)}</span>
@@ -778,7 +734,7 @@ export default function BusinessTaxDashboard() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <Grid3x3 className="w-4 h-4" />
+                <GridIcon className="w-4 h-4" />
                 Cards
               </div>
             </button>
@@ -791,7 +747,7 @@ export default function BusinessTaxDashboard() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <BarChartIcon className="w-4 h-4" />
+                <BarChart4 className="w-4 h-4" />
                 Charts
               </div>
             </button>
@@ -838,14 +794,14 @@ export default function BusinessTaxDashboard() {
                         labelFormatter={(label) => `Quarter: ${label}`}
                       />
                       <Legend />
-                      <Bar dataKey="collected" fill="#4F46E5" name="Paid" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="collected" fill="#10B981" name="Paid" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="overdue_amount" fill="#EF4444" name="Overdue" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="pending_amount" fill="#F59E0B" name="Pending" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <BarChartIcon className="w-12 h-12 mb-2" />
+                    <BarChart3 className="w-12 h-12 mb-2" />
                     <p>No quarterly data available for {selectedYear}</p>
                   </div>
                 )}
@@ -856,7 +812,7 @@ export default function BusinessTaxDashboard() {
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <PieIcon className="w-5 h-5 text-gray-600" />
+                  <PieChartIcon className="w-5 h-5 text-gray-600" />
                   Business Types Distribution
                 </h3>
                 <button
@@ -896,7 +852,7 @@ export default function BusinessTaxDashboard() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <PieIcon className="w-12 h-12 mb-2" />
+                    <PieChartIcon className="w-12 h-12 mb-2" />
                     <p>No business type data available</p>
                   </div>
                 )}
@@ -912,7 +868,7 @@ export default function BusinessTaxDashboard() {
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-gray-600" />
+                  <CalendarIcon className="w-5 h-5 text-gray-600" />
                   Quarterly Analysis {selectedYear}
                 </h3>
                 <button
@@ -955,51 +911,43 @@ export default function BusinessTaxDashboard() {
               </div>
             </div>
 
-            {/* Barangay Collection Cards */}
+            {/* Business Types Cards */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-gray-600" />
-                  Top Barangays {selectedYear}
+                  <Building2 className="w-5 h-5 text-gray-600" />
+                  Business Types {selectedYear}
                 </h3>
                 <button
-                  onClick={exportBarangayReport}
-                  disabled={exportLoading || barangay_collection.length === 0}
+                  onClick={exportCompleteDashboardReport}
+                  disabled={exportLoading || business_types.length === 0}
                   className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
                 >
                   Export
                 </button>
               </div>
               <div className="space-y-4">
-                {topBarangaysData.map((barangay, index) => {
-                  const totalCollection = barangay_collection.reduce((total, b) => total + safeParseFloat(b.total_collection), 0);
-                  const percentage = totalCollection > 0 
-                    ? (barangay.revenue / totalCollection) * 100 
-                    : 0;
-                  
-                  return (
-                    <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-gray-900">{barangay.name}</span>
-                        <span className={`text-sm px-3 py-1 rounded-full ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-800' :
-                          index === 1 ? 'bg-gray-200 text-gray-800' :
-                          index === 2 ? 'bg-orange-100 text-orange-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          #{index + 1}
-                        </span>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-900 mb-2">
-                        {formatCurrency(barangay.revenue)}
-                      </p>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>{formatNumber(barangay.businesses)} businesses</span>
-                        <span>{percentage.toFixed(1)}% of total</span>
-                      </div>
+                {business_types.slice(0, 5).map((business, index) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium text-gray-900">{business.business_type}</span>
+                      <span className="text-sm text-gray-600">
+                        {formatNumber(business.count)} businesses
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-3">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="h-2 rounded-full bg-blue-500"
+                          style={{ width: `${Math.min(safeParseFloat(business.percentage), 100)}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {formatPercent(business.percentage)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1008,91 +956,121 @@ export default function BusinessTaxDashboard() {
         {/* Barangay Collection Section */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Map className="w-5 h-5 text-gray-600" />
-                Barangay Tax Collection {selectedYear}
-              </h3>
-              <button
-                onClick={exportBarangayReport}
-                disabled={exportLoading || barangay_collection.length === 0}
-                className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Map className="w-5 h-5 text-gray-600" />
+                  Barangay Collection {selectedYear}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {barangaysData.length} barangays with business tax revenue
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportBarangayReport}
+                  disabled={exportLoading || barangaysData.length === 0}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              </div>
             </div>
           </div>
           
           <div className="p-6">
             {barangaysData.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Barangay
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Businesses
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Collection
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Avg per Business
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        % of Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {barangaysData.map((barangay, index) => {
+              <div className="space-y-6">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Total Barangays</span>
+                      <MapPin className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">{barangaysData.length}</p>
+                    <p className="text-sm text-gray-600 mt-1">With Business Tax Revenue</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Total Collection</span>
+                      <DollarSign className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(barangaysData.reduce((total, b) => total + b.revenue, 0))}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">From All Barangays</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Total Businesses</span>
+                      <Building className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatNumber(barangaysData.reduce((total, b) => total + b.businesses, 0))}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Across All Barangays</p>
+                  </div>
+                </div>
+                
+                {/* Top Barangays List */}
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-gray-600" />
+                    Top Performing Barangays
+                  </h4>
+                  <div className="space-y-3">
+                    {[...barangaysData].sort((a, b) => b.revenue - a.revenue).slice(0, 5).map((barangay, index) => {
                       const totalCollection = barangaysData.reduce((total, b) => total + b.revenue, 0);
                       const percentage = totalCollection > 0 
                         ? (barangay.revenue / totalCollection) * 100 
                         : 0;
                       
                       return (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="ml-2">
-                                <div className="text-sm font-medium text-gray-900">{barangay.name}</div>
-                              </div>
+                        <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                              index === 1 ? 'bg-gray-200 text-gray-800' :
+                              index === 2 ? 'bg-orange-100 text-orange-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {index === 0 && <Trophy className="w-4 h-4" />}
+                              {index === 1 && <Star className="w-4 h-4" />}
+                              {index === 2 && <Award className="w-4 h-4" />}
+                              {index > 2 && <span className="text-sm font-bold">{index + 1}</span>}
                             </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{formatNumber(barangay.businesses)}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-gray-900">{formatCurrency(barangay.revenue)}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{formatCurrency(barangay.avg_tax)}</div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div>
+                              <h5 className="font-medium text-gray-900">{barangay.name}</h5>
+                              <p className="text-sm text-gray-500">{formatNumber(barangay.businesses)} businesses</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg text-gray-900">{formatCurrency(barangay.revenue)}</p>
+                            <div className="flex items-center justify-end gap-2 text-sm">
+                              <span className="text-gray-500">{percentage.toFixed(1)}%</span>
+                              <div className="w-24 bg-gray-200 rounded-full h-2">
                                 <div 
-                                  className="h-2 rounded-full bg-green-500"
+                                  className="h-2 rounded-full bg-blue-500"
                                   style={{ width: `${Math.min(percentage, 100)}%` }}
                                 ></div>
                               </div>
-                              <span className="text-sm text-gray-600 w-12">{percentage.toFixed(1)}%</span>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-400">
                 <Map className="w-12 h-12 mx-auto mb-2" />
                 <p>No barangay collection data available for {selectedYear}</p>
+                <p className="text-sm mt-1">Business tax collection data by barangay will appear here</p>
               </div>
             )}
           </div>
@@ -1137,8 +1115,7 @@ export default function BusinessTaxDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
-                        activeTab === 'payments' ? 'bg-green-100' :
-                        'bg-red-100'
+                        activeTab === 'payments' ? 'bg-green-100' : 'bg-red-100'
                       }`}>
                         {activeTab === 'payments' ? (
                           <CheckCircle className="w-5 h-5 text-green-600" />
@@ -1156,8 +1133,7 @@ export default function BusinessTaxDashboard() {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold text-lg ${
-                        activeTab === 'payments' ? 'text-green-600' :
-                        'text-red-600'
+                        activeTab === 'payments' ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {formatCurrency(activity.total_quarterly_tax || activity.amount)}
                       </p>
@@ -1189,10 +1165,13 @@ export default function BusinessTaxDashboard() {
         <div className="text-center text-sm text-gray-500 pt-6 border-t border-gray-200">
           <p>Business Tax Collection Dashboard • Year: {selectedYear} • Updated {formattedDate} at {formattedTime}</p>
           <p className="text-xs text-gray-400 mt-1">
-            Available years: {(dataAvailableYears.length > 0 ? dataAvailableYears : availableYears).join(', ')}
+            Available years: {(available_years.length > 0 ? available_years : availableYears).join(', ')}
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+// Colors for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
