@@ -1,0 +1,215 @@
+<?php
+// revenue2/citizen_dashboard/digital/gcash.php
+session_start();
+
+// Check if payment data exists
+if (!isset($_SESSION['payment_data'])) {
+    header('Location: index.php');
+    exit();
+}
+
+$payment_data = $_SESSION['payment_data'];
+$quarterly_id = $payment_data['quarterly_id'];
+$amount = $payment_data['amount'];
+$purpose = $payment_data['purpose'];
+
+// Initialize variables
+$error = '';
+$phone = '';
+
+// Check if form was submitted
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $phone = $_POST['phone'] ?? '';
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'verify_phone') {
+        // Validate phone number
+        $clean_phone = preg_replace('/\D/', '', $phone);
+        
+        if (strlen($clean_phone) === 11 && strpos($clean_phone, '09') === 0) {
+            // Store phone in session
+            $_SESSION['phone'] = $clean_phone;
+            
+            // Generate OTP
+            $generated_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            $_SESSION['generated_otp'] = $generated_otp;
+            $_SESSION['otp_expires'] = time() + (5 * 60);
+            $_SESSION['otp_attempts'] = 0;
+            
+            // Redirect to OTP page
+            header('Location: gcash_otp.php');
+            exit();
+        } else {
+            $error = 'Please enter a valid 11-digit mobile number starting with 09';
+        }
+    }
+}
+
+// Get phone from session if available
+if (empty($phone) && isset($_SESSION['phone'])) {
+    $phone = $_SESSION['phone'];
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCash Payment - Enter Phone Number</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gcash-bg {
+            background: linear-gradient(135deg, #00a859 0%, #00b894 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-md mx-auto p-4">
+        <!-- Back Button -->
+        <a href="index.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Payment Methods
+        </a>
+
+        <!-- GCash Header -->
+        <div class="gcash-bg text-white rounded-t-xl p-6">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center mr-4">
+                    <i class="fas fa-mobile-alt text-green-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold">GCash Payment</h1>
+                    <p class="text-green-100">Step 1: Enter your mobile number</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Details -->
+        <div class="bg-white rounded-b-xl shadow-lg p-6 mb-6">
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Summary</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Purpose:</span>
+                        <span class="font-medium"><?php echo htmlspecialchars($purpose); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Amount:</span>
+                        <span class="font-bold text-lg text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($error): ?>
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
+                    <p class="text-red-700"><?php echo $error; ?></p>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <form method="POST" action="">
+                <input type="hidden" name="action" value="verify_phone">
+                
+                <!-- Phone Input -->
+                <div class="mb-6">
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-mobile-alt mr-2"></i>GCash Mobile Number
+                    </label>
+                    <div class="relative">
+                        <input type="tel" 
+                               id="phone" 
+                               name="phone" 
+                               value="<?php echo htmlspecialchars($phone); ?>"
+                               placeholder="09123456789"
+                               required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                               oninput="formatPhoneNumber(this)">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Enter your 11-digit GCash mobile number
+                    </p>
+                </div>
+
+                <!-- Continue Button -->
+                <button type="submit" 
+                        class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg">
+                    <i class="fas fa-arrow-right mr-2"></i> Continue to OTP Verification
+                </button>
+            </form>
+            
+            <!-- Demo Info -->
+            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-600 mr-3 mt-1"></i>
+                    <div>
+                        <p class="text-sm text-blue-700">
+                            <strong>For demo:</strong> Enter <span class="font-bold">09123456789</span> or any 11-digit number starting with 09
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Info -->
+        <div class="bg-green-50 border border-green-200 rounded-xl p-6">
+            <div class="flex items-start">
+                <i class="fas fa-shield-alt text-green-600 text-xl mr-3 mt-1"></i>
+                <div>
+                    <h3 class="font-bold text-green-800 mb-2">Secure GCash Payment</h3>
+                    <ul class="text-sm text-green-700 space-y-1">
+                        <li><i class="fas fa-check-circle mr-2"></i> We will send an OTP to verify your number</li>
+                        <li><i class="fas fa-check-circle mr-2"></i> No GCash PIN required for this transaction</li>
+                        <li><i class="fas fa-check-circle mr-2"></i> Secure payment processing</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Format phone number as user types
+        function formatPhoneNumber(input) {
+            // Remove all non-digits
+            let value = input.value.replace(/\D/g, '');
+            
+            // Limit to 11 digits
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
+            
+            // Format as 09XX-XXX-XXXX
+            if (value.length > 4) {
+                value = value.substring(0, 4) + '-' + value.substring(4);
+            }
+            if (value.length > 8) {
+                value = value.substring(0, 8) + '-' + value.substring(8);
+            }
+            
+            input.value = value;
+        }
+        
+        // Auto-focus phone input
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneInput = document.getElementById('phone');
+            if (phoneInput.value === '') {
+                phoneInput.value = '0912';
+                phoneInput.focus();
+                phoneInput.setSelectionRange(4, 4);
+            } else {
+                phoneInput.focus();
+                phoneInput.select();
+            }
+        });
+        
+        // Enter key to submit
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                document.querySelector('form').submit();
+            }
+        });
+    </script>
+</body>
+</html>

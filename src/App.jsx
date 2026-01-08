@@ -39,6 +39,9 @@ import ViewAllMaps from './pages/MARKET/MapCreator/ViewAllMaps'
 import MapEditor from './pages/MARKET/MapCreator/MapEditor'
 import MarketConfig from './pages/MARKET/MapCreator/MarketConfig'
 
+import MarketValidation from './pages/MARKET/MarketValidation/MarketValidation'
+import MarketValidationInfo from './pages/MARKET/MarketValidation/MarketValidationInfo' // ADD THIS IMPORT
+
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const location = useLocation()
@@ -100,6 +103,9 @@ function App() {
               <Route path="/market/viewallmaps" element={<ViewAllMaps />} />
               <Route path="/market/mapeditor/:id" element={<MapEditor />} />
               <Route path="/Market/Config" element={<MarketConfig />} />
+
+              <Route path="/market/marketvalidation" element={<MarketValidation />} />
+              <Route path="/market/marketvalidationinfo/:id" element={<MarketValidationInfo />} /> {/* ADD THIS ROUTE */}
 
               {/* Settings */}
               <Route path="/settings/general" element={<GeneralSettings />} />

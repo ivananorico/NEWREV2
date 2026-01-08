@@ -54,7 +54,7 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "market1", label: "Market Stall Map Creator", path: "/MARKET/MapCreator" },
-      { id: "market2", label: "MARKET2", path: "/MARKET/MARKET2" },
+      { id: "market2", label: "Market Validation", path: "/MARKET/MarketValidation" },
     ]
   },
   {

@@ -8,7 +8,60 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
+$user_id = $_SESSION['user_id'];
+
+// Include database connection - FIXED PATH
+include_once '../../db/Market/market_db.php';
+
+// Status counters
+$status_counts = [
+    'pending' => 0,
+    'interviewed' => 0,
+    'paying' => 0,
+    'paid' => 0,
+    'need_correction' => 0,
+    'resubmitted' => 0,
+    'approved' => 0,
+    'rejected' => 0
+];
+
+$total_applications = 0;
+$latest_application = null;
+
+try {
+    // Get status counts
+    $stmt = $pdo->prepare("
+        SELECT application_status, COUNT(*) as count
+        FROM rental_registration
+        WHERE user_id = ?
+        GROUP BY application_status
+    ");
+    $stmt->execute([$user_id]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($results as $row) {
+        $status_counts[$row['application_status']] = $row['count'];
+        $total_applications += $row['count'];
+    }
+
+    // Get latest application for notification
+    $latest_stmt = $pdo->prepare("
+        SELECT rr.*, s.name as stall_name, ro.renter_code
+        FROM rental_registration rr
+        LEFT JOIN stalls s ON rr.stall_id = s.id
+        LEFT JOIN renter_owner ro ON rr.id = ro.registration_id
+        WHERE rr.user_id = ?
+        ORDER BY rr.created_at DESC
+        LIMIT 1
+    ");
+    $latest_stmt->execute([$user_id]);
+    $latest_application = $latest_stmt->fetch(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    error_log("Market services error: " . $e->getMessage());
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,6 +117,15 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             border-left: 5px solid var(--primary);
             padding-left: 1rem;
         }
+
+        .notification-slide {
+            animation: slideIn .3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 
@@ -91,7 +153,66 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         <div class="h-1 w-20 rounded-full mt-4" style="background-color: #ff9800;"></div>
     </div>
 
-    <!-- MARKET SERVICES GRID -->
+    <!-- PRIORITY NOTIFICATIONS -->
+    <?php if ($status_counts['need_correction'] > 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-red-500 p-6 mb-6 bg-red-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-triangle-exclamation text-red-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-red-800 mb-2 text-lg">Action Required</h3>
+                <p class="text-red-700 mb-3">
+                    You have <strong><?php echo $status_counts['need_correction']; ?></strong> application(s) requiring correction.
+                </p>
+                <a href="market_application/need_correction.php"
+                   class="font-medium text-red-700 hover:underline flex items-center">
+                    Review Applications
+                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($status_counts['paying'] > 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-purple-500 p-6 mb-6 bg-purple-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-money-bill-wave text-purple-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-purple-800 mb-2 text-lg">Payment Required</h3>
+                <p class="text-purple-700 mb-3">
+                    You have <strong><?php echo $status_counts['paying']; ?></strong> application(s) ready for payment.
+                </p>
+                <a href="market_application/paying.php"
+                   class="font-medium text-purple-700 hover:underline flex items-center">
+                    Proceed to Payment
+                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($latest_application && $latest_application['application_status'] == 'pending'): ?>
+    <div class="notification-slide lgu-card border-l-4 border-blue-500 p-6 mb-8 bg-blue-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-clock text-blue-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-blue-800 mb-2 text-lg">Application Submitted</h3>
+                <p class="text-blue-700 mb-3">
+                    Your application for <strong><?php echo htmlspecialchars($latest_application['stall_name']); ?></strong> 
+                    has been submitted. Application ID: <strong><?php echo htmlspecialchars($latest_application['stall_rights_no']); ?></strong>
+                </p>
+                <a href="market_application/pending.php"
+                   class="font-medium text-blue-700 hover:underline flex items-center">
+                    Track Status
+                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- MAIN SERVICES GRID -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         
         <!-- RENT STALL CARD -->
@@ -130,8 +251,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         </a>
 
         <!-- APPLICATION STATUS CARD -->
-        <a href="market_application_status.php"
-           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+        <div class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $status_image = 'images/application-status.png';
@@ -140,29 +260,60 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                 <?php else: ?>
                     <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(154, 165, 177, 0.1);">
-                        <i class="fas fa-clipboard-list text-6xl" style="color: rgba(154, 165, 177, 0.3);"></i>
+                        <i class="fas fa-chart-bar text-6xl" style="color: rgba(154, 165, 177, 0.3);"></i>
                     </div>
                 <?php endif; ?>
                 <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
-                    <span class="text-xs font-semibold uppercase text-gray-600">Tracking</span>
+                    <span class="text-xs font-semibold uppercase text-orange-600">Status</span>
                 </div>
             </div>
             <div class="p-6">
                 <div class="flex items-center space-x-3 mb-4">
-                    <div class="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-clipboard-list text-white"></i>
+                    <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-white"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-800">Application Status</h3>
                 </div>
-                <p class="text-gray-600 leading-relaxed mb-6">
-                    Track approval status and inspection progress of your application.
-                </p>
-                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span class="font-semibold text-gray-600">View Status</span>
-                    <i class="fas fa-arrow-right service-arrow text-gray-600"></i>
+                <p class="text-gray-600 leading-relaxed mb-4">Track your submitted applications.</p>
+                
+                <?php if ($total_applications > 0): ?>
+                <div class="space-y-3 mt-4">
+                    <?php
+                    $status_labels = [
+                        'pending' => ['Pending Interview', 'text-yellow-600'],
+                        'interviewed' => ['Interview Completed', 'text-yellow-600'],
+                        'paying' => ['Payment Required', 'text-purple-600'],
+                        'paid' => ['Payment Completed', 'text-indigo-600'],
+                        'need_correction' => ['Needs Correction', 'text-red-600'],
+                        'resubmitted' => ['Resubmitted', 'text-orange-600'],
+                        'approved' => ['Approved', 'text-green-600'],
+                        'rejected' => ['Rejected', 'text-gray-600']
+                    ];
+                    
+                    foreach ($status_labels as $key => $label_info):
+                        if ($status_counts[$key] > 0):
+                    ?>
+                    <a href="market_application/<?php echo $key; ?>.php"
+                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <span class="text-gray-700"><?php echo $label_info[0]; ?></span>
+                        <span class="font-semibold <?php echo $label_info[1]; ?>"><?php echo $status_counts[$key]; ?></span>
+                    </a>
+                    <?php endif; endforeach; ?>
+                </div>
+                <?php else: ?>
+                    <p class="text-center text-gray-500 py-6 border-t border-gray-100 mt-4">No applications yet</p>
+                <?php endif; ?>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
+                    <a href="market_application/pending.php" class="font-semibold text-orange-600 hover:underline">
+                        View All Applications
+                    </a>
+                    <a href="market_application/pending.php" class="flex items-center">
+                        <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
+                    </a>
                 </div>
             </div>
-        </a>
+        </div>
 
         <!-- RENT PAYMENT CARD -->
         <a href="market_rent_payment.php"
@@ -201,6 +352,44 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
     </div>
 
+    <!-- APPLICATION SUMMARY -->
+    <?php if ($total_applications > 0): ?>
+    <div class="lgu-card p-8 mb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-6 section-header">
+            Your Applications Summary
+        </h3>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <div class="text-3xl font-bold text-blue-600"><?php echo $total_applications; ?></div>
+                <div class="text-sm text-blue-800 font-medium">Total Applications</div>
+            </div>
+            
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <div class="text-3xl font-bold text-green-600"><?php echo $status_counts['approved']; ?></div>
+                <div class="text-sm text-green-800 font-medium">Approved</div>
+            </div>
+            
+            <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                <div class="text-3xl font-bold text-yellow-600"><?php echo $status_counts['pending'] + $status_counts['interviewed']; ?></div>
+                <div class="text-sm text-yellow-800 font-medium">In Progress</div>
+            </div>
+            
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <div class="text-3xl font-bold text-purple-600"><?php echo $status_counts['paying'] + $status_counts['paid']; ?></div>
+                <div class="text-sm text-purple-800 font-medium">Payment Stage</div>
+            </div>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <a href="market_application/pending.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+                <i class="fas fa-list mr-2"></i>
+                View Detailed Application Status
+            </a>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- INFORMATION SECTION -->
     <div class="lgu-card p-8 mb-8">
         <h3 class="text-xl font-semibold text-gray-800 mb-6 section-header">
@@ -210,22 +399,37 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
             <div>
                 <h4 class="font-medium text-gray-800 mb-2">
-                    Market Stall Rental
+                    Market Stall Rental Process
                 </h4>
-                <p class="text-gray-600">
-                    Rent stalls in government-managed public markets. Stall sizes and
-                    locations vary depending on availability.
-                </p>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>Apply for stall and submit required documents</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>Attend interview with market administrator</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>Pay stall rights fee and security bond</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>Sign contract and receive stall assignment</span>
+                    </li>
+                </ul>
             </div>
 
             <div>
                 <h4 class="font-medium text-gray-800 mb-2">
                     Need Assistance?
                 </h4>
-                <div class="space-y-2 text-gray-600">
+                <div class="space-y-3 text-gray-600">
                     <p><i class="fas fa-envelope mr-2 text-[var(--primary)]"></i> market-support@goserveph.gov.ph</p>
                     <p><i class="fas fa-phone mr-2 text-[var(--primary)]"></i> (02) 1234-5680</p>
                     <p><i class="fas fa-clock mr-2 text-[var(--primary)]"></i> Mon-Fri: 8AM - 5PM</p>
+                    <p><i class="fas fa-map-marker-alt mr-2 text-[var(--primary)]"></i> Market Office, Public Market Building</p>
                 </div>
             </div>
         </div>
@@ -254,7 +458,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
                     <li><a href="../citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
-                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                    <li><a href="market_application/pending.php" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                 </ul>
             </div>
