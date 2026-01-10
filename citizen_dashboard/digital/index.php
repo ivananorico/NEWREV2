@@ -2,47 +2,94 @@
 // revenue2/citizen_dashboard/digital/index.php
 session_start();
 
-// Check if parameters are passed
-if (isset($_GET['id']) && isset($_GET['amount']) && isset($_GET['purpose'])) {
-    // Store from GET parameters
-    $_SESSION['payment_data'] = [
-        'quarterly_id' => $_GET['id'],
-        'amount' => $_GET['amount'],
-        'purpose' => $_GET['purpose']
-    ];
-} elseif (!isset($_SESSION['payment_data'])) {
-    die("Invalid request. Missing parameters.");
+// Clear previous session
+session_regenerate_id(true);
+
+// Get parameters from ANY system via GET
+$client_system = $_GET['system'] ?? 'rpt';
+$reference_id = $_GET['ref'] ?? '';
+$amount = $_GET['amount'] ?? 0;
+$purpose = $_GET['purpose'] ?? '';
+$callback_url = $_GET['callback'] ?? '';
+$system_data = $_GET['data'] ?? '{}';
+
+// Log for debugging
+error_log("=== Digital Payment Received ===");
+error_log("System: $client_system");
+error_log("Ref: $reference_id");
+error_log("Amount: $amount");
+error_log("Purpose: $purpose");
+error_log("Callback: $callback_url");
+
+// Validate required parameters
+if (empty($reference_id) || $amount <= 0) {
+    die("
+        <div style='padding: 20px; text-align: center;'>
+            <h2>Invalid Payment Request</h2>
+            <p>Missing required parameters.</p>
+            <p>Reference: " . htmlspecialchars($reference_id) . "</p>
+            <p>Amount: " . htmlspecialchars($amount) . "</p>
+            <p><a href='javascript:history.back()'>Go Back</a></p>
+        </div>
+    ");
 }
 
-$payment_data = $_SESSION['payment_data'];
-$quarterly_id = $payment_data['quarterly_id'];
-$amount = $payment_data['amount'];
-$purpose = $payment_data['purpose'];
+// Store in session for the payment flow
+$_SESSION['payment_data'] = [
+    'client_system' => $client_system,
+    'reference_id' => $reference_id,
+    'amount' => $amount,
+    'purpose' => $purpose,
+    'callback_url' => $callback_url,
+    'system_data' => json_decode($system_data, true) ?: []
+];
+
+// Map system names to display names
+$system_names = [
+    'rpt' => 'Real Property Tax',
+    'business' => 'Business Permits',
+    'health' => 'Health Services',
+    'assets' => 'Public Assets',
+    'others' => 'Other Services'
+];
+
+$display_system = $system_names[$client_system] ?? 'Unknown System';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Choose Payment Method - LGU Digital Payment</title>
+    <title>LGU Digital Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        .system-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .badge-rpt { background: #dbeafe; color: #1e40af; }
+        .badge-business { background: #f0f9ff; color: #0369a1; }
+        .badge-health { background: #f0fdf4; color: #15803d; }
+        .badge-assets { background: #fef3c7; color: #92400e; }
+        .badge-others { background: #f3f4f6; color: #374151; }
+        
         .payment-card {
             transition: all 0.3s ease;
             border: 2px solid transparent;
         }
         .payment-card:hover {
             transform: translateY(-5px);
-            border-color: #3b82f6;
             box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
         }
         .payment-card.selected {
             border-color: #3b82f6;
             background-color: #f0f7ff;
-        }
-        .amount-display {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
     </style>
 </head>
@@ -50,23 +97,25 @@ $purpose = $payment_data['purpose'];
     <div class="max-w-4xl mx-auto p-4">
         <!-- Header -->
         <div class="mb-8">
-            <a href="../../services/rpt/rpt_tax_payment.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
-                <i class="fas fa-arrow-left mr-2"></i> Back to RPT Payment
+            <a href="javascript:history.back()" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
+                <i class="fas fa-arrow-left mr-2"></i> Back
             </a>
-            <h1 class="text-3xl font-bold text-gray-800">Choose Payment Method</h1>
-            <p class="text-gray-600">Select your preferred payment method</p>
-        </div>
-
-        <!-- Payment Summary -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div class="flex flex-col md:flex-row items-center justify-between">
-                <div class="mb-4 md:mb-0">
-                    <h2 class="text-xl font-bold text-gray-800 mb-2">Payment Details</h2>
-                    <p class="text-gray-600"><?php echo htmlspecialchars($purpose); ?></p>
-                </div>
-                <div class="amount-display text-white px-6 py-4 rounded-xl">
-                    <p class="text-sm font-medium mb-1">Amount to Pay</p>
-                    <p class="text-3xl font-bold">₱<?php echo number_format($amount, 2); ?></p>
+            
+            <div class="bg-white rounded-xl shadow p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <span class="system-badge badge-<?php echo $client_system; ?>">
+                            <i class="fas fa-building mr-2"></i><?php echo $display_system; ?>
+                        </span>
+                        <h1 class="text-2xl font-bold text-gray-800 mt-2">Digital Payment</h1>
+                        <p class="text-gray-600">Reference: <?php echo htmlspecialchars($reference_id); ?></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold text-blue-600">
+                            ₱<?php echo number_format($amount, 2); ?>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1"><?php echo htmlspecialchars($purpose); ?></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -74,41 +123,44 @@ $purpose = $payment_data['purpose'];
         <!-- Payment Methods -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <!-- GCash -->
-            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" onclick="selectPayment('gcash')" id="gcash-card">
+            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" 
+                 onclick="selectPayment('gcash')" id="gcash-card">
                 <div class="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-mobile-alt text-green-600 text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">GCash</h3>
                 <p class="text-gray-600 mb-4">Pay using your GCash account</p>
                 <div class="flex items-center justify-center text-green-600">
-                    <i class="fas fa-check-circle mr-2"></i>
+                    <i class="fas fa-bolt mr-2"></i>
                     <span class="font-medium">Instant Payment</span>
                 </div>
             </div>
 
             <!-- Maya -->
-            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" onclick="selectPayment('maya')" id="maya-card">
+            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" 
+                 onclick="selectPayment('maya')" id="maya-card">
                 <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-wallet text-purple-600 text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">Maya</h3>
                 <p class="text-gray-600 mb-4">Pay using Maya wallet</p>
                 <div class="flex items-center justify-center text-purple-600">
-                    <i class="fas fa-bolt mr-2"></i>
-                    <span class="font-medium">Fast Processing</span>
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    <span class="font-medium">Secure</span>
                 </div>
             </div>
 
             <!-- Credit/Debit Card -->
-            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" onclick="selectPayment('card')" id="card-card">
+            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" 
+                 onclick="selectPayment('card')" id="card-card">
                 <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-credit-card text-blue-600 text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">Credit/Debit Card</h3>
                 <p class="text-gray-600 mb-4">Pay using your card</p>
                 <div class="flex items-center justify-center text-blue-600">
-                    <i class="fas fa-shield-alt mr-2"></i>
-                    <span class="font-medium">Secure Payment</span>
+                    <i class="fas fa-globe mr-2"></i>
+                    <span class="font-medium">VISA/Mastercard</span>
                 </div>
             </div>
         </div>
@@ -122,17 +174,18 @@ $purpose = $payment_data['purpose'];
             <p class="text-gray-500 text-sm mt-3">Please select a payment method above</p>
         </div>
 
-        <!-- Security Notice -->
+        <!-- Info Section -->
         <div class="mt-12 bg-blue-50 border border-blue-200 rounded-xl p-6">
             <div class="flex items-start">
-                <i class="fas fa-shield-alt text-blue-600 text-2xl mr-4 mt-1"></i>
+                <i class="fas fa-info-circle text-blue-600 text-2xl mr-4 mt-1"></i>
                 <div>
-                    <h3 class="text-lg font-bold text-blue-800 mb-2">Secure Payment</h3>
-                    <p class="text-blue-700">Your payment is secured with SSL encryption. We do not store your payment details.</p>
-                    <div class="flex items-center mt-3">
-                        <i class="fas fa-lock text-green-600 mr-2"></i>
-                        <span class="text-sm text-gray-600">Secure Connection • PCI DSS Compliant</span>
-                    </div>
+                    <h3 class="text-lg font-bold text-blue-800 mb-2">Universal Payment System</h3>
+                    <ul class="text-sm text-blue-700 space-y-2">
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Works for all LGU services</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Secure OTP verification</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Automatic system notifications</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Instant digital receipts</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -156,7 +209,7 @@ $purpose = $payment_data['purpose'];
             const continueBtn = document.getElementById('continue-btn');
             continueBtn.disabled = false;
             continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            continueBtn.classList.add('cursor-pointer');
+            continueBtn.classList.add('cursor-pointer', 'hover:shadow-lg');
             
             // Update button text
             continueBtn.innerHTML = `<i class="fas fa-arrow-right mr-3"></i> Continue with ${method.charAt(0).toUpperCase() + method.slice(1)}`;
@@ -177,7 +230,7 @@ $purpose = $payment_data['purpose'];
             // Redirect to selected payment method
             setTimeout(() => {
                 window.location.href = selectedMethod + '.php';
-            }, 1000);
+            }, 500);
         }
         
         // Enter key to proceed

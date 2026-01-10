@@ -2,16 +2,23 @@
 // revenue2/citizen_dashboard/digital/gcash_otp.php
 session_start();
 
-// Check if we have phone and OTP data
+// Check if we have required session data
 if (!isset($_SESSION['payment_data']) || !isset($_SESSION['phone']) || !isset($_SESSION['generated_otp'])) {
     header('Location: gcash.php');
     exit();
 }
 
 $payment_data = $_SESSION['payment_data'];
-$quarterly_id = $payment_data['quarterly_id'];
+$client_system = $payment_data['client_system'];
+$reference_id = $payment_data['reference_id'];
 $amount = $payment_data['amount'];
 $purpose = $payment_data['purpose'];
+$callback_url = $payment_data['callback_url'];
+$system_data = $payment_data['system_data'];
+
+// Extract quarterly_id from system_data
+$quarterly_id = $system_data['quarterly_id'] ?? $reference_id;
+
 $phone = $_SESSION['phone'];
 $generated_otp = $_SESSION['generated_otp'];
 $otp_expires = $_SESSION['otp_expires'] ?? 0;
@@ -25,19 +32,8 @@ if (time() > $otp_expires) {
     exit();
 }
 
-// Check if max attempts reached
-if ($otp_attempts >= 3) {
-    unset($_SESSION['generated_otp']);
-    $_SESSION['otp_error'] = 'Maximum OTP attempts exceeded. Please start over.';
-    header('Location: gcash.php');
-    exit();
-}
-
 // Initialize variables
 $error = '';
-$success = false;
-$receipt_number = '';
-$payment_id = '';
 
 // Check if form was submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -48,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (strlen($entered_otp) !== 6 || !is_numeric($entered_otp)) {
             $error = 'Please enter a valid 6-digit OTP';
         } elseif ($entered_otp !== $generated_otp) {
-            // Increment attempts
             $_SESSION['otp_attempts'] = $otp_attempts + 1;
             $attempts_left = 3 - ($otp_attempts + 1);
             
@@ -63,31 +58,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // OTP is correct - Process payment
             try {
-                // Generate receipt and payment IDs
-                $receipt_number = 'RCPT-' . date('YmdHis') . '-' . rand(1000, 9999);
+                // Connect to digital database
+                $pdo = new PDO('mysql:host=localhost;port=3307;dbname=digital;charset=utf8mb4', 'root', '');
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                
+                // Generate IDs
                 $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
+                $receipt_number = 'RCPT-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $paid_at = date('Y-m-d H:i:s');
                 
-                // 1. Store in digital database
-                $digital_pdo = new PDO('mysql:host=localhost;port=3307;dbname=digital;charset=utf8mb4', 'root', '');
-                $digital_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                // =====================================================
+                // AUTOMATED CALLBACK SYSTEM
+                // =====================================================
+                $callback_success = false;
+                $callback_response = '';
                 
+                // Send callback to ANY system that provided a callback URL
+                if (!empty($callback_url)) {
+                    // Prepare callback data with quarterly_id
+                    $callback_data = [
+                        'quarterly_id' => $quarterly_id,  // This is the key field for RPT system
+                        'amount' => $amount,
+                        'purpose' => $purpose,
+                        'receipt_number' => $receipt_number,
+                        'paid_at' => $paid_at,
+                        'payment_id' => $payment_id,
+                        'client_system' => $client_system,
+                        'reference_id' => $reference_id,
+                        'payment_status' => 'paid',
+                        'payment_method' => 'gcash',
+                        'phone' => $phone
+                    ];
+                    
+                    error_log("=== SENDING CALLBACK TO: $callback_url ===");
+                    error_log("Quarterly ID: " . $quarterly_id);
+                    error_log("Reference ID: " . $reference_id);
+                    error_log("Callback Data: " . print_r($callback_data, true));
+                    
+                    $ch = curl_init($callback_url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/json',
+                        'Accept: application/json'
+                    ]);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($callback_data));
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                    
+                    $callback_response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $curl_error = curl_error($ch);
+                    
+                    curl_close($ch);
+                    
+                    $callback_success = ($http_code === 200);
+                    
+                    error_log("Callback Response HTTP: $http_code");
+                    error_log("Callback Response: $callback_response");
+                    
+                    if ($curl_error) {
+                        error_log("cURL Error: $curl_error");
+                    }
+                }
+                
+                // =====================================================
+                // SAVE TO DIGITAL DATABASE
+                // =====================================================
                 $insert_query = "
                     INSERT INTO payment_transactions 
                     (payment_id, client_system, client_reference, purpose, amount, phone, 
                      payment_method, payment_status, otp_code, otp_verified, receipt_number, 
-                     created_at, paid_at)
+                     created_at, paid_at, callback_url, callback_sent, callback_response)
                     VALUES 
                     (:payment_id, :client_system, :client_reference, :purpose, :amount, :phone,
                      :payment_method, :payment_status, :otp_code, :otp_verified, :receipt_number,
-                     :created_at, :paid_at)
+                     :created_at, :paid_at, :callback_url, :callback_sent, :callback_response)
                 ";
                 
-                $stmt = $digital_pdo->prepare($insert_query);
+                $stmt = $pdo->prepare($insert_query);
                 $stmt->execute([
                     ':payment_id' => $payment_id,
-                    ':client_system' => 'RPT System',
-                    ':client_reference' => $quarterly_id,
+                    ':client_system' => $client_system,
+                    ':client_reference' => $reference_id,
                     ':purpose' => $purpose,
                     ':amount' => $amount,
                     ':phone' => $phone,
@@ -97,29 +151,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':otp_verified' => 1,
                     ':receipt_number' => $receipt_number,
                     ':created_at' => $paid_at,
-                    ':paid_at' => $paid_at
+                    ':paid_at' => $paid_at,
+                    ':callback_url' => $callback_url,
+                    ':callback_sent' => !empty($callback_url) ? 1 : 0,
+                    ':callback_response' => $callback_response
                 ]);
                 
-                // 2. Call RPT API to update RPT database
-                $api_response = callRPTAPI($quarterly_id, $amount, $purpose, $receipt_number, $paid_at);
-                
-                // Check if API call was successful
-                if ($api_response['status'] !== 'success') {
-                    // Update status to 'pending_retry' if API failed
-                    $update_stmt = $digital_pdo->prepare("
-                        UPDATE payment_transactions 
-                        SET payment_status = 'pending_retry'
-                        WHERE payment_id = :payment_id
-                    ");
-                    
-                    $update_stmt->execute([
-                        ':payment_id' => $payment_id
-                    ]);
-                    
-                    $_SESSION['api_error'] = $api_response;
-                }
-                
-                // Store receipt data in session for success page
+                // Store receipt data
                 $_SESSION['receipt_data'] = [
                     'payment_id' => $payment_id,
                     'receipt_number' => $receipt_number,
@@ -127,22 +165,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'purpose' => $purpose,
                     'phone' => $phone,
                     'paid_at' => $paid_at,
-                    'api_status' => $api_response['status'] ?? 'unknown'
+                    'client_system' => $client_system,
+                    'callback_url' => $callback_url,
+                    'callback_success' => $callback_success,
+                    'callback_response' => $callback_response,
+                    'quarterly_id' => $quarterly_id
                 ];
                 
-                // Clear OTP session data
+                // Clear session
                 unset($_SESSION['generated_otp']);
                 unset($_SESSION['otp_expires']);
                 unset($_SESSION['otp_attempts']);
                 unset($_SESSION['phone']);
+                unset($_SESSION['payment_data']);
                 
-                // Redirect to success page
+                // Redirect to success
                 header('Location: success_gcash.php');
                 exit();
                 
             } catch (PDOException $e) {
-                $error = 'Payment processing error: ' . $e->getMessage();
-                error_log("Database error: " . $e->getMessage());
+                $error = 'Payment processing error. Please try again.';
+                error_log("Payment Error: " . $e->getMessage());
             }
         }
     } elseif ($action === 'resend_otp') {
@@ -151,11 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['generated_otp'] = $new_otp;
         $_SESSION['otp_expires'] = time() + (5 * 60);
         $_SESSION['otp_attempts'] = 0;
-        
-        // Update variables
         $generated_otp = $new_otp;
         $otp_expires = $_SESSION['otp_expires'];
-        $otp_attempts = 0;
     }
 }
 
@@ -163,108 +203,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $remaining_time = max(0, $otp_expires - time());
 $minutes = floor($remaining_time / 60);
 $seconds = $remaining_time % 60;
-
-// Function to call RPT API - CORRECTED URL
-function callRPTAPI($quarterly_id, $amount, $purpose, $receipt_number, $paid_at) {
-    // CORRECTED API URL - Use the right path
-    $api_url = 'http://localhost/revenue2/citizen_dashboard/rpt/api/rpt_payment_api.php';
-    
-    $post_data = [
-        'quarterly_id' => $quarterly_id,
-        'amount' => $amount,
-        'purpose' => $purpose,
-        'receipt_number' => $receipt_number,
-        'paid_at' => $paid_at
-    ];
-    
-    // Log what we're sending
-    error_log("=== RPT API CALL ===");
-    error_log("URL: $api_url");
-    error_log("Data: " . print_r($post_data, true));
-    
-    $ch = curl_init($api_url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post_data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Accept: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // For local testing
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false); // For local testing
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    
-    curl_close($ch);
-    
-    // Log response
-    error_log("HTTP Code: $http_code");
-    error_log("Response: $response");
-    error_log("cURL Error: $error");
-    error_log("=== END API CALL ===");
-    
-    if ($http_code === 200) {
-        $result = json_decode($response, true);
-        if ($result && isset($result['status'])) {
-            return $result;
-        } else {
-            return [
-                'status' => 'error',
-                'message' => 'Invalid JSON response: ' . $response,
-                'http_code' => $http_code
-            ];
-        }
-    } else {
-        return [
-            'status' => 'error',
-            'message' => 'API call failed. HTTP Code: ' . $http_code . ($error ? ' Error: ' . $error : ''),
-            'http_code' => $http_code,
-            'curl_error' => $error
-        ];
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GCash Payment - OTP Verification</title>
+    <title>GCash OTP Verification</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .gcash-bg {
-            background: linear-gradient(135deg, #00a859 0%, #00b894 100%);
-        }
-        .otp-input {
-            letter-spacing: 10px;
-            font-size: 24px;
-            text-align: center;
-        }
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        .gcash-bg { background: linear-gradient(135deg, #00a859 0%, #00b894 100%); }
+        .otp-input { letter-spacing: 10px; font-size: 24px; text-align: center; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-md mx-auto p-4">
         <!-- Back Button -->
         <a href="gcash.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Phone Number
+            <i class="fas fa-arrow-left mr-2"></i> Back
         </a>
 
         <!-- GCash Header -->
         <div class="gcash-bg text-white rounded-t-xl p-6">
             <div class="flex items-center mb-4">
                 <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center mr-4">
-                    <i class="fas fa-mobile-alt text-green-600 text-2xl"></i>
+                    <i class="fas fa-key text-green-600 text-2xl"></i>
                 </div>
                 <div>
                     <h1 class="text-2xl font-bold">GCash Payment</h1>
@@ -273,65 +237,42 @@ function callRPTAPI($quarterly_id, $amount, $purpose, $receipt_number, $paid_at)
             </div>
         </div>
 
-        <!-- Payment Details -->
-        <div class="bg-white rounded-b-xl shadow-lg p-6 mb-6">
+        <!-- OTP Section -->
+        <div class="bg-white rounded-b-xl shadow-lg p-6">
             <div class="mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Summary</h2>
-                <div class="space-y-3">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Details</h2>
+                <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Purpose:</span>
-                        <span class="font-medium"><?php echo htmlspecialchars($purpose); ?></span>
+                        <span class="text-gray-600">System:</span>
+                        <span class="font-bold"><?php echo strtoupper($client_system); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Reference:</span>
+                        <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Quarterly ID:</span>
+                        <span class="font-medium text-blue-600"><?php echo $quarterly_id; ?></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Amount:</span>
-                        <span class="font-bold text-lg text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                        <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Mobile Number:</span>
+                        <span class="text-gray-600">Mobile:</span>
                         <span class="font-medium"><?php echo htmlspecialchars($phone); ?></span>
                     </div>
                 </div>
             </div>
 
-            <!-- OTP Display -->
-            <div class="mb-6 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-5">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-key text-emerald-600"></i>
+            <!-- Demo OTP -->
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div class="text-center">
+                    <p class="text-sm text-gray-600 mb-2">For demo, use this OTP:</p>
+                    <div class="text-3xl font-bold text-blue-600 tracking-widest">
+                        <?php echo $generated_otp; ?>
                     </div>
-                    <div>
-                        <h3 class="font-bold text-emerald-800">OTP Generated</h3>
-                        <p class="text-sm text-emerald-700">Enter the OTP below to complete payment</p>
-                    </div>
-                </div>
-                
-                <div class="bg-white border border-emerald-300 rounded-lg p-4 mb-4">
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600 mb-2">Your 6-digit OTP:</p>
-                        <div class="flex items-center justify-center space-x-3">
-                            <div id="otp-display" class="text-3xl font-bold text-emerald-600 tracking-widest pulse">
-                                <?php echo $generated_otp; ?>
-                            </div>
-                            <button type="button" onclick="copyOTP('<?php echo $generated_otp; ?>')" class="text-emerald-600 hover:text-emerald-800">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-3">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            For demo purposes, use this OTP
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="text-sm text-gray-600 flex justify-between">
-                    <div>
-                        <i class="fas fa-clock text-emerald-500 mr-1"></i>
-                        Expires in: <span id="otp-timer" class="font-bold text-emerald-700"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span>
-                    </div>
-                    <div>
-                        <i class="fas fa-exclamation-triangle text-orange-500 mr-1"></i>
-                        Attempts: <span class="font-bold"><?php echo $otp_attempts; ?>/3</span>
-                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Expires in: <span id="otp-timer"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span></p>
                 </div>
             </div>
 
@@ -350,119 +291,55 @@ function callRPTAPI($quarterly_id, $amount, $purpose, $receipt_number, $paid_at)
                 <!-- OTP Input -->
                 <div class="mb-6">
                     <label for="otp" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-key mr-2"></i>Enter OTP
+                        Enter 6-digit OTP
                     </label>
                     <input type="text" 
                            id="otp" 
                            name="otp" 
-                           value=""
-                           placeholder="Enter 6-digit OTP" 
+                           placeholder="000000" 
                            maxlength="6"
                            pattern="[0-9]{6}"
                            class="otp-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                    <p class="text-xs text-gray-500 mt-2">Enter the 6-digit OTP shown above</p>
                 </div>
 
-                <!-- Action Buttons -->
+                <!-- Buttons -->
                 <div class="space-y-3">
                     <button type="submit" 
                             class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg">
-                        <i class="fas fa-check-circle mr-2"></i> Verify & Complete Payment
+                        <i class="fas fa-check-circle mr-2"></i> Complete Payment
                     </button>
                     
                     <button type="submit" name="action" value="resend_otp"
-                            class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg font-medium">
-                        <i class="fas fa-redo mr-2"></i> Resend New OTP
+                            class="w-full border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg">
+                        <i class="fas fa-redo mr-2"></i> Resend OTP
                     </button>
                 </div>
             </form>
         </div>
-
-        <!-- Security Info -->
-        <div class="bg-green-50 border border-green-200 rounded-xl p-6">
-            <div class="flex items-start">
-                <i class="fas fa-shield-alt text-green-600 text-xl mr-3 mt-1"></i>
-                <div>
-                    <h3 class="font-bold text-green-800 mb-2">Secure OTP Verification</h3>
-                    <ul class="text-sm text-green-700 space-y-1">
-                        <li><i class="fas fa-check-circle mr-2"></i> OTP is randomly generated for security</li>
-                        <li><i class="fas fa-check-circle mr-2"></i> Expires in 5 minutes</li>
-                        <li><i class="fas fa-check-circle mr-2"></i> Maximum 3 attempts allowed</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
-        // OTP Timer
+        // Timer
         let totalSeconds = <?php echo $remaining_time; ?>;
-        const otpTimerElement = document.getElementById('otp-timer');
+        const otpTimer = document.getElementById('otp-timer');
         
-        function updateOTPTimer() {
+        function updateTimer() {
             if (totalSeconds <= 0) {
-                otpTimerElement.textContent = "00:00";
-                otpTimerElement.classList.add('text-red-600');
-                
-                // Auto-submit form to go back when expired
-                setTimeout(() => {
-                    window.location.href = 'gcash.php?expired=1';
-                }, 1000);
+                otpTimer.textContent = "00:00";
+                otpTimer.classList.add('text-red-600');
+                setTimeout(() => window.location.href = 'gcash.php?expired=1', 1000);
                 return;
             }
-            
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            otpTimerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            if (minutes === 0) {
-                otpTimerElement.classList.add('text-red-600');
-            }
-            
+            const min = Math.floor(totalSeconds / 60);
+            const sec = totalSeconds % 60;
+            otpTimer.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
             totalSeconds--;
         }
         
-        updateOTPTimer();
-        setInterval(updateOTPTimer, 1000);
+        setInterval(updateTimer, 1000);
         
-        function copyOTP(otp) {
-            navigator.clipboard.writeText(otp).then(() => {
-                const btn = event.target.closest('button');
-                const originalIcon = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check text-green-600"></i>';
-                
-                // Show copied message
-                const otpDisplay = document.getElementById('otp-display');
-                const originalText = otpDisplay.textContent;
-                otpDisplay.textContent = 'COPIED!';
-                otpDisplay.classList.remove('pulse');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalIcon;
-                    otpDisplay.textContent = originalText;
-                    otpDisplay.classList.add('pulse');
-                }, 2000);
-            });
-        }
-        
-        // Auto-focus OTP input
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('otp').focus();
-        });
-        
-        // Auto-submit when 6 digits entered
-        document.getElementById('otp').addEventListener('input', function(e) {
-            this.value = this.value.replace(/\D/g, '');
-            if (this.value.length === 6) {
-                document.querySelector('button[type="submit"]').focus();
-            }
-        });
-        
-        // Enter key to submit
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                document.querySelector('button[type="submit"]').click();
-            }
         });
     </script>
 </body>

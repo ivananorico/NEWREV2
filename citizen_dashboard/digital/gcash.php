@@ -9,9 +9,12 @@ if (!isset($_SESSION['payment_data'])) {
 }
 
 $payment_data = $_SESSION['payment_data'];
-$quarterly_id = $payment_data['quarterly_id'];
+$client_system = $payment_data['client_system'];
+$reference_id = $payment_data['reference_id'];
 $amount = $payment_data['amount'];
 $purpose = $payment_data['purpose'];
+$callback_url = $payment_data['callback_url'];
+$system_data = $payment_data['system_data'];
 
 // Initialize variables
 $error = '';
@@ -44,24 +47,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-// Get phone from session if available
-if (empty($phone) && isset($_SESSION['phone'])) {
-    $phone = $_SESSION['phone'];
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GCash Payment - Enter Phone Number</title>
+    <title>GCash Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .gcash-bg {
-            background: linear-gradient(135deg, #00a859 0%, #00b894 100%);
-        }
+        .gcash-bg { background: linear-gradient(135deg, #00a859 0%, #00b894 100%); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -79,7 +75,7 @@ if (empty($phone) && isset($_SESSION['phone'])) {
                 </div>
                 <div>
                     <h1 class="text-2xl font-bold">GCash Payment</h1>
-                    <p class="text-green-100">Step 1: Enter your mobile number</p>
+                    <p class="text-green-100">Step 1: Enter mobile number</p>
                 </div>
             </div>
         </div>
@@ -87,15 +83,19 @@ if (empty($phone) && isset($_SESSION['phone'])) {
         <!-- Payment Details -->
         <div class="bg-white rounded-b-xl shadow-lg p-6 mb-6">
             <div class="mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Summary</h2>
-                <div class="space-y-3">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Details</h2>
+                <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Purpose:</span>
-                        <span class="font-medium"><?php echo htmlspecialchars($purpose); ?></span>
+                        <span class="text-gray-600">Reference:</span>
+                        <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Amount:</span>
-                        <span class="font-bold text-lg text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                        <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Purpose:</span>
+                        <span class="font-medium text-right"><?php echo htmlspecialchars($purpose); ?></span>
                     </div>
                 </div>
             </div>
@@ -152,62 +152,20 @@ if (empty($phone) && isset($_SESSION['phone'])) {
                 </div>
             </div>
         </div>
-
-        <!-- Security Info -->
-        <div class="bg-green-50 border border-green-200 rounded-xl p-6">
-            <div class="flex items-start">
-                <i class="fas fa-shield-alt text-green-600 text-xl mr-3 mt-1"></i>
-                <div>
-                    <h3 class="font-bold text-green-800 mb-2">Secure GCash Payment</h3>
-                    <ul class="text-sm text-green-700 space-y-1">
-                        <li><i class="fas fa-check-circle mr-2"></i> We will send an OTP to verify your number</li>
-                        <li><i class="fas fa-check-circle mr-2"></i> No GCash PIN required for this transaction</li>
-                        <li><i class="fas fa-check-circle mr-2"></i> Secure payment processing</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
-        // Format phone number as user types
         function formatPhoneNumber(input) {
-            // Remove all non-digits
             let value = input.value.replace(/\D/g, '');
-            
-            // Limit to 11 digits
-            if (value.length > 11) {
-                value = value.substring(0, 11);
-            }
-            
-            // Format as 09XX-XXX-XXXX
-            if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4);
-            }
-            if (value.length > 8) {
-                value = value.substring(0, 8) + '-' + value.substring(8);
-            }
-            
+            if (value.length > 11) value = value.substring(0, 11);
             input.value = value;
         }
         
-        // Auto-focus phone input
         document.addEventListener('DOMContentLoaded', function() {
             const phoneInput = document.getElementById('phone');
             if (phoneInput.value === '') {
-                phoneInput.value = '0912';
+                phoneInput.value = '09';
                 phoneInput.focus();
-                phoneInput.setSelectionRange(4, 4);
-            } else {
-                phoneInput.focus();
-                phoneInput.select();
-            }
-        });
-        
-        // Enter key to submit
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                document.querySelector('form').submit();
             }
         });
     </script>
