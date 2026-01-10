@@ -17,7 +17,6 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
-// FIXED: Correct callback URL to existing file
 $rpt_callback_url = 'http://localhost/revenue2/citizen_dashboard/rpt/api/rpt_payment_api.php';
 
 function calculatePenalties($quarterly_taxes, $pdo) {
@@ -162,7 +161,6 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RPT Tax Payment - LGU System</title>
-    <!-- Replace CDN with local Tailwind or keep for development -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -293,20 +291,6 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
             </div>
         </div>
         <?php endif; ?>
-
-        <!-- Test Payment Link -->
-        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-            <div class="flex items-center">
-                <i class="fas fa-vial text-yellow-600 mr-3"></i>
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-yellow-800">Test Universal Payment System</p>
-                    <a href="../../digital/index.php?system=rpt&ref=TEST-123&amount=16800&purpose=RPT+Q1+2024+-+TEST&callback=<?php echo urlencode($rpt_callback_url); ?>" 
-                       class="text-blue-600 hover:text-blue-800 text-sm">
-                       Click here to test the payment system →
-                    </a>
-                </div>
-            </div>
-        </div>
 
         <!-- Properties Section -->
         <?php
@@ -684,18 +668,12 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                                                         <i class="fas fa-receipt mr-2"></i> View Receipt
                                                     </button>';
                                                 } else {
-                                                    // Create purpose string - SIMPLIFIED to avoid quote issues
+                                                    // Create purpose string
                                                     $purpose_text = 'RPT ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $property['reference_number'];
-                                                    // Clean the purpose text
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
-                                                    // Create system data
-                                                    $system_data = htmlspecialchars(json_encode(['quarterly_id' => $tax['id']]), ENT_QUOTES);
                                                     
                                                     echo '
-                                                    <button onclick="simplePay(' . $tax['id'] . ', ' . $totalAmount . ')" 
-                                                            data-purpose="' . $purpose_text . '"
-                                                            data-callback="' . $rpt_callback_url . '"
-                                                            data-system="' . $system_data . '"
+                                                    <button onclick="makePayment(' . $tax['id'] . ', ' . $totalAmount . ', \'' . $purpose_text . '\')" 
                                                             class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
                                                         <i class="fas fa-credit-card mr-2"></i> Pay Now
                                                     </button>';
@@ -871,34 +849,26 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
     </div>
 
 <script>
-// Simple payment function using data attributes
-function simplePay(taxId, amount) {
-    console.log('Pay button clicked - Tax ID:', taxId, 'Amount:', amount);
+function makePayment(taxId, amount, purpose) {
+    console.log('Initiating payment for Tax ID:', taxId, 'Amount:', amount);
     
-    // Get button and its data attributes
     const btn = event.target;
-    const purpose = btn.getAttribute('data-purpose') || 'RPT Payment';
-    const callbackUrl = btn.getAttribute('data-callback') || '';
-    const systemData = btn.getAttribute('data-system') || JSON.stringify({ quarterly_id: taxId });
-    
-    console.log('Purpose:', purpose);
-    console.log('Callback URL:', callbackUrl);
-    console.log('System Data:', systemData);
     
     // Show loading state
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Redirecting...';
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     btn.disabled = true;
     
-    // Build URL
+    // Build payment parameters
     const params = new URLSearchParams();
     params.append('system', 'rpt');
     params.append('ref', taxId.toString());
     params.append('amount', amount.toString());
     params.append('purpose', purpose);
-    params.append('callback', callbackUrl);
-    params.append('data', systemData);
+    params.append('callback', '<?php echo $rpt_callback_url; ?>');
+    params.append('data', JSON.stringify({ quarterly_id: taxId }));
     
-    // Redirect
+    // Redirect to payment page
     setTimeout(() => {
         window.location.href = '../../digital/index.php?' + params.toString();
     }, 300);
@@ -913,48 +883,12 @@ function viewReceipt(receiptNumber) {
     alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
 }
 
-// Debug: Add test button
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Page loaded successfully');
-    
-    // Add test button for debugging
-    const testButton = document.createElement('button');
-    testButton.textContent = 'TEST: Click Me First';
-    testButton.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50 shadow-lg';
-    testButton.onclick = function() {
-        console.log('Test button clicked!');
-        // Test with sample data
-        const params = new URLSearchParams();
-        params.append('system', 'rpt');
-        params.append('ref', '3');
-        params.append('amount', '16800');
-        params.append('purpose', 'RPT Q3 2026 - RPT-20260103-3052');
-        params.append('callback', '<?php echo $rpt_callback_url; ?>');
-        params.append('data', JSON.stringify({ quarterly_id: 3 }));
-        
-        window.location.href = '../../digital/index.php?' + params.toString();
-    };
-    document.body.appendChild(testButton);
-    
-    // Log all pay buttons
-    const payButtons = document.querySelectorAll('button[onclick^="simplePay"]');
-    console.log('Found', payButtons.length, 'pay buttons');
-    
-    // Add click listeners for debugging
-    payButtons.forEach((btn, index) => {
-        btn.addEventListener('click', function(e) {
-            console.log('Pay button', index, 'clicked directly');
-        });
-    });
-    
-    // Auto-refresh page every 5 minutes to update penalties
-    setTimeout(() => {
-        if (document.querySelector('.pulse')) {
-            console.log('Auto-refreshing to update penalties...');
-            window.location.reload();
-        }
-    }, 300000);
-});
+// Auto-refresh page every 5 minutes to update penalties
+setTimeout(() => {
+    if (document.querySelector('.pulse')) {
+        window.location.reload();
+    }
+}, 300000);
 </script>
 </body>
 </html>
