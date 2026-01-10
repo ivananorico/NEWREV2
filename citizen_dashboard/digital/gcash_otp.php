@@ -68,30 +68,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $paid_at = date('Y-m-d H:i:s');
                 
                 // =====================================================
-                // AUTOMATED CALLBACK SYSTEM
+                // AUTOMATED CALLBACK SYSTEM - UNIVERSAL
                 // =====================================================
                 $callback_success = false;
                 $callback_response = '';
                 
                 // Send callback to ANY system that provided a callback URL
                 if (!empty($callback_url)) {
-                    // Prepare callback data with quarterly_id
+                    // Prepare callback data - UNIVERSAL for all systems
                     $callback_data = [
-                        'quarterly_id' => $quarterly_id,  // This is the key field for RPT system
+                        // COMMON FIELDS for ALL systems
+                        'reference_id' => $reference_id,
                         'amount' => $amount,
                         'purpose' => $purpose,
                         'receipt_number' => $receipt_number,
                         'paid_at' => $paid_at,
                         'payment_id' => $payment_id,
                         'client_system' => $client_system,
-                        'reference_id' => $reference_id,
                         'payment_status' => 'paid',
                         'payment_method' => 'gcash',
                         'phone' => $phone
                     ];
                     
-                    error_log("=== SENDING CALLBACK TO: $callback_url ===");
-                    error_log("Quarterly ID: " . $quarterly_id);
+                    // Add system-specific data
+                    if ($client_system === 'rpt') {
+                        // For RPT system
+                        if (strpos($reference_id, 'ANNUAL-') === 0) {
+                            // Annual payment for RPT
+                            $callback_data['type'] = 'annual';
+                            $callback_data['quarterly_ids'] = $system_data['quarterly_ids'] ?? [];
+                            $callback_data['discount_applied'] = $system_data['discount_applied'] ?? false;
+                            $callback_data['discount_percent'] = $system_data['discount_percent'] ?? 0;
+                            $callback_data['discount_amount'] = $system_data['discount_amount'] ?? 0;
+                        } else {
+                            // Quarterly payment for RPT
+                            $callback_data['type'] = 'quarterly';
+                            $callback_data['quarterly_id'] = $quarterly_id;
+                        }
+                    } else if ($client_system === 'business') {
+                        // For Business Permit system
+                        $callback_data['business_id'] = $system_data['business_id'] ?? $reference_id;
+                        $callback_data['permit_type'] = $system_data['permit_type'] ?? '';
+                    } else if ($client_system === 'health') {
+                        // For Health Services system
+                        $callback_data['service_id'] = $system_data['service_id'] ?? $reference_id;
+                        $callback_data['patient_id'] = $system_data['patient_id'] ?? '';
+                    } else if ($client_system === 'assets') {
+                        // For Public Assets system
+                        $callback_data['asset_id'] = $system_data['asset_id'] ?? $reference_id;
+                        $callback_data['asset_type'] = $system_data['asset_type'] ?? '';
+                    }
+                    // Add more systems as needed...
+                    
+                    error_log("=== SENDING UNIVERSAL CALLBACK TO: $callback_url ===");
+                    error_log("Client System: " . $client_system);
                     error_log("Reference ID: " . $reference_id);
                     error_log("Callback Data: " . print_r($callback_data, true));
                     
