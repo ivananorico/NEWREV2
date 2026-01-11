@@ -1,5 +1,5 @@
 <?php
-// rental_application_form.php
+// revenue2/citizen_dashboard/market/market_portal_services/rental_application_form.php
 session_start();
 
 // Check if user is logged in

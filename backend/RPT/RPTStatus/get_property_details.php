@@ -86,7 +86,7 @@ try {
         throw new Exception("Database connection failed");
     }
 
-    // Get property + owner + land info - UPDATED to include all necessary fields
+    // Get property + owner + land info
     $propertyQuery = "
         SELECT 
             pr.id,
@@ -102,7 +102,7 @@ try {
             pr.created_at,
             pr.updated_at,
 
-            -- Owner fields - UPDATED to include all fields
+            -- Owner fields
             po.first_name,
             po.last_name,
             po.middle_name,
@@ -142,6 +142,7 @@ try {
             lp.tdn as land_tdn,
 
             -- Property totals
+            pt.id as property_total_id,
             pt.total_annual_tax
 
         FROM property_registrations pr
@@ -175,8 +176,8 @@ try {
     $property['marital_status'] = $property['marital_status'] ?? null;
     $property['email'] = $property['email'] ?? '';
     $property['phone'] = $property['phone'] ?? '';
-    $property['contact_number'] = $property['phone']; // Add alias for React component
-    $property['email_address'] = $property['email']; // Add alias for React component
+    $property['contact_number'] = $property['phone'];
+    $property['email_address'] = $property['email'];
     $property['owner_address'] = $property['owner_address'] ?? '';
     
     // Property location fields
@@ -184,7 +185,7 @@ try {
     $property['barangay'] = $property['barangay'] ?? '';
     $property['district'] = $property['district'] ?? '';
     $property['city'] = $property['city'] ?? '';
-    $property['municipality_city'] = $property['city']; // Add alias for React component
+    $property['municipality_city'] = $property['city'];
     $property['province'] = $property['province'] ?? '';
     $property['zip_code'] = $property['zip_code'] ?? '';
     
@@ -200,7 +201,7 @@ try {
     // Dates formatting
     $property['created_at'] = $property['created_at'] ?? '';
     $property['updated_at'] = $property['updated_at'] ?? '';
-    $property['date_registered'] = $property['created_at']; // Add alias for React component
+    $property['date_registered'] = $property['created_at'];
 
     // Get building details if exists
     $buildings = [];
@@ -234,7 +235,6 @@ try {
         $buildings = $buildingStmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($buildings as &$b) {
-            // Format building fields
             $b['floor_area_sqm'] = floatval($b['floor_area_sqm'] ?? 0);
             $b['building_market_value'] = floatval($b['building_market_value'] ?? 0);
             $b['building_depreciated_value'] = floatval($b['building_depreciated_value'] ?? 0);
@@ -249,9 +249,9 @@ try {
         }
     }
 
-    // Get quarterly taxes
+    // Get quarterly taxes - FIXED with proper DISTINCT and ORDER
     $quarterlyTaxes = [];
-    if (isset($property['id'])) {
+    if (isset($property['property_total_id']) && $property['property_total_id']) {
         $taxQuery = "
             SELECT 
                 qt.id,
@@ -269,8 +269,13 @@ try {
                 qt.days_late,
                 qt.penalty_percent_used
             FROM quarterly_taxes qt
-            INNER JOIN property_totals pt ON qt.property_total_id = pt.id
-            WHERE pt.registration_id = ?
+            WHERE qt.property_total_id = ?
+            AND qt.id IN (
+                SELECT MIN(id) 
+                FROM quarterly_taxes 
+                WHERE property_total_id = ? 
+                GROUP BY quarter, year
+            )
             ORDER BY year DESC, 
                      CASE quarter 
                         WHEN 'Q1' THEN 1 
@@ -280,11 +285,10 @@ try {
                      END DESC
         ";
         $taxStmt = $pdo->prepare($taxQuery);
-        $taxStmt->execute([$property_id]);
+        $taxStmt->execute([$property['property_total_id'], $property['property_total_id']]);
         $quarterlyTaxes = $taxStmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($quarterlyTaxes as &$tax) {
-            // Format tax fields
             $tax['total_quarterly_tax'] = floatval($tax['total_quarterly_tax'] ?? 0);
             $tax['penalty_amount'] = floatval($tax['penalty_amount'] ?? 0);
             $tax['discount_amount'] = floatval($tax['discount_amount'] ?? 0);

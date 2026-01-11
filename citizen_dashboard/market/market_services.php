@@ -1,5 +1,5 @@
 <?php
-// market_services.php
+// market_services.php - FIXED VERSION
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 $user_id = $_SESSION['user_id'];
 
-// Include database connection - FIXED PATH
+// Include database connection
 include_once '../../db/Market/market_db.php';
 
 // Status counters
@@ -59,6 +59,26 @@ try {
 
 } catch (PDOException $e) {
     error_log("Market services error: " . $e->getMessage());
+}
+
+// Determine which page to use for "View All" based on priority
+$view_all_page = 'pending.php'; // Default
+$priority_order = [
+    'need_correction' => 1,
+    'paying' => 2,
+    'pending' => 3,
+    'interviewed' => 4,
+    'resubmitted' => 5,
+    'approved' => 6,
+    'paid' => 7,
+    'rejected' => 8
+];
+
+foreach ($priority_order as $status => $priority) {
+    if ($status_counts[$status] > 0) {
+        $view_all_page = $status . '.php';
+        break; // Stop at first found status
+    }
 }
 ?>
 
@@ -126,6 +146,16 @@ try {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
         }
+        
+        .urgent-badge {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 
@@ -155,25 +185,28 @@ try {
 
     <!-- PRIORITY NOTIFICATIONS -->
     <?php if ($status_counts['need_correction'] > 0): ?>
-    <div class="notification-slide lgu-card border-l-4 border-red-500 p-6 mb-6 bg-red-50">
+    <div class="notification-slide lgu-card border-l-4 border-red-500 p-6 mb-6 bg-red-50 urgent-badge">
         <div class="flex items-start gap-4">
             <i class="fas fa-triangle-exclamation text-red-500 text-2xl mt-1"></i>
             <div class="flex-1">
-                <h3 class="font-semibold text-red-800 mb-2 text-lg">Action Required</h3>
+                <h3 class="font-semibold text-red-800 mb-2 text-lg">🚨 ACTION REQUIRED</h3>
                 <p class="text-red-700 mb-3">
-                    You have <strong><?php echo $status_counts['need_correction']; ?></strong> application(s) requiring correction.
+                    You have <strong class="text-xl"><?php echo $status_counts['need_correction']; ?></strong> application(s) requiring correction.
+                    <span class="block text-sm mt-1 text-red-600">
+                        <i class="fas fa-info-circle"></i> Please fix these applications to proceed
+                    </span>
                 </p>
                 <a href="market_application/need_correction.php"
-                   class="font-medium text-red-700 hover:underline flex items-center">
-                    Review Applications
-                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                   class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300 flex items-center w-fit">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    Fix Applications Now
                 </a>
             </div>
         </div>
     </div>
     <?php endif; ?>
 
-    <?php if ($status_counts['paying'] > 0): ?>
+    <?php if ($status_counts['paying'] > 0 && $status_counts['need_correction'] == 0): ?>
     <div class="notification-slide lgu-card border-l-4 border-purple-500 p-6 mb-6 bg-purple-50">
         <div class="flex items-start gap-4">
             <i class="fas fa-money-bill-wave text-purple-500 text-2xl mt-1"></i>
@@ -183,29 +216,9 @@ try {
                     You have <strong><?php echo $status_counts['paying']; ?></strong> application(s) ready for payment.
                 </p>
                 <a href="market_application/paying.php"
-                   class="font-medium text-purple-700 hover:underline flex items-center">
+                   class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300 flex items-center w-fit">
+                    <i class="fas fa-credit-card mr-2"></i>
                     Proceed to Payment
-                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
-                </a>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($latest_application && $latest_application['application_status'] == 'pending'): ?>
-    <div class="notification-slide lgu-card border-l-4 border-blue-500 p-6 mb-8 bg-blue-50">
-        <div class="flex items-start gap-4">
-            <i class="fas fa-clock text-blue-500 text-2xl mt-1"></i>
-            <div class="flex-1">
-                <h3 class="font-semibold text-blue-800 mb-2 text-lg">Application Submitted</h3>
-                <p class="text-blue-700 mb-3">
-                    Your application for <strong><?php echo htmlspecialchars($latest_application['stall_name']); ?></strong> 
-                    has been submitted. Application ID: <strong><?php echo htmlspecialchars($latest_application['stall_rights_no']); ?></strong>
-                </p>
-                <a href="market_application/pending.php"
-                   class="font-medium text-blue-700 hover:underline flex items-center">
-                    Track Status
-                    <i class="fas fa-arrow-right ml-2 service-arrow"></i>
                 </a>
             </div>
         </div>
@@ -280,35 +293,59 @@ try {
                 <div class="space-y-3 mt-4">
                     <?php
                     $status_labels = [
-                        'pending' => ['Pending Interview', 'text-yellow-600'],
-                        'interviewed' => ['Interview Completed', 'text-yellow-600'],
-                        'paying' => ['Payment Required', 'text-purple-600'],
-                        'paid' => ['Payment Completed', 'text-indigo-600'],
-                        'need_correction' => ['Needs Correction', 'text-red-600'],
-                        'resubmitted' => ['Resubmitted', 'text-orange-600'],
-                        'approved' => ['Approved', 'text-green-600'],
-                        'rejected' => ['Rejected', 'text-gray-600']
+                        'need_correction' => ['Needs Correction', 'text-red-600', 'fas fa-exclamation-triangle'],
+                        'paying' => ['Payment Required', 'text-purple-600', 'fas fa-money-bill-wave'],
+                        'pending' => ['Pending Interview', 'text-yellow-600', 'fas fa-clock'],
+                        'interviewed' => ['Interview Completed', 'text-yellow-600', 'fas fa-user-check'],
+                        'paid' => ['Payment Completed', 'text-indigo-600', 'fas fa-check-circle'],
+                        'resubmitted' => ['Resubmitted', 'text-orange-600', 'fas fa-redo'],
+                        'approved' => ['Approved', 'text-green-600', 'fas fa-thumbs-up'],
+                        'rejected' => ['Rejected', 'text-gray-600', 'fas fa-times-circle']
                     ];
                     
                     foreach ($status_labels as $key => $label_info):
                         if ($status_counts[$key] > 0):
+                            $is_urgent = ($key == 'need_correction') ? 'border-l-4 border-red-500 bg-red-50' : '';
                     ?>
                     <a href="market_application/<?php echo $key; ?>.php"
-                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <span class="text-gray-700"><?php echo $label_info[0]; ?></span>
-                        <span class="font-semibold <?php echo $label_info[1]; ?>"><?php echo $status_counts[$key]; ?></span>
+                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors <?php echo $is_urgent; ?>">
+                        <div class="flex items-center">
+                            <i class="<?php echo $label_info[2]; ?> <?php echo $label_info[1]; ?> mr-3"></i>
+                            <span class="text-gray-700 <?php echo $key == 'need_correction' ? 'font-semibold' : ''; ?>">
+                                <?php echo $label_info[0]; ?>
+                            </span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="font-semibold <?php echo $label_info[1]; ?> mr-2"><?php echo $status_counts[$key]; ?></span>
+                            <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
+                        </div>
                     </a>
                     <?php endif; endforeach; ?>
                 </div>
                 <?php else: ?>
-                    <p class="text-center text-gray-500 py-6 border-t border-gray-100 mt-4">No applications yet</p>
+                    <div class="text-center py-8 border-t border-gray-100 mt-4">
+                        <i class="fas fa-inbox text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500">No applications yet</p>
+                        <a href="market_portal_services/market_portal_services.php" 
+                           class="inline-block mt-3 text-blue-600 hover:text-blue-800 font-medium">
+                            <i class="fas fa-plus mr-1"></i> Apply for a stall
+                        </a>
+                    </div>
                 <?php endif; ?>
                 
+                <!-- FIXED: This link now goes to the highest priority status page -->
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
-                    <a href="market_application/pending.php" class="font-semibold text-orange-600 hover:underline">
+                    <a href="market_application/<?php echo $view_all_page; ?>" 
+                       class="font-semibold text-orange-600 hover:underline flex items-center">
+                        <i class="fas fa-list mr-2"></i>
                         View All Applications
+                        <?php if ($status_counts['need_correction'] > 0): ?>
+                        <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                            <?php echo $status_counts['need_correction']; ?> need attention
+                        </span>
+                        <?php endif; ?>
                     </a>
-                    <a href="market_application/pending.php" class="flex items-center">
+                    <a href="market_application/<?php echo $view_all_page; ?>" class="flex items-center">
                         <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
                     </a>
                 </div>
@@ -365,26 +402,46 @@ try {
                 <div class="text-sm text-blue-800 font-medium">Total Applications</div>
             </div>
             
+            <?php if ($status_counts['need_correction'] > 0): ?>
+            <div class="text-center p-4 bg-red-50 rounded-lg">
+                <div class="text-3xl font-bold text-red-600"><?php echo $status_counts['need_correction']; ?></div>
+                <div class="text-sm text-red-800 font-medium">Need Correction</div>
+            </div>
+            <?php else: ?>
             <div class="text-center p-4 bg-green-50 rounded-lg">
                 <div class="text-3xl font-bold text-green-600"><?php echo $status_counts['approved']; ?></div>
                 <div class="text-sm text-green-800 font-medium">Approved</div>
             </div>
+            <?php endif; ?>
             
+            <?php if ($status_counts['paying'] > 0): ?>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <div class="text-3xl font-bold text-purple-600"><?php echo $status_counts['paying']; ?></div>
+                <div class="text-sm text-purple-800 font-medium">Payment Required</div>
+            </div>
+            <?php else: ?>
             <div class="text-center p-4 bg-yellow-50 rounded-lg">
                 <div class="text-3xl font-bold text-yellow-600"><?php echo $status_counts['pending'] + $status_counts['interviewed']; ?></div>
                 <div class="text-sm text-yellow-800 font-medium">In Progress</div>
             </div>
+            <?php endif; ?>
             
-            <div class="text-center p-4 bg-purple-50 rounded-lg">
-                <div class="text-3xl font-bold text-purple-600"><?php echo $status_counts['paying'] + $status_counts['paid']; ?></div>
-                <div class="text-sm text-purple-800 font-medium">Payment Stage</div>
+            <div class="text-center p-4 bg-indigo-50 rounded-lg">
+                <div class="text-3xl font-bold text-indigo-600"><?php echo $status_counts['paid']; ?></div>
+                <div class="text-sm text-indigo-800 font-medium">Paid</div>
             </div>
         </div>
         
         <div class="mt-6 text-center">
-            <a href="market_application/pending.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+            <!-- FIXED: This link now goes to the highest priority status page -->
+            <a href="market_application/<?php echo $view_all_page; ?>" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
                 <i class="fas fa-list mr-2"></i>
                 View Detailed Application Status
+                <?php if ($status_counts['need_correction'] > 0): ?>
+                <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                    Action Required
+                </span>
+                <?php endif; ?>
             </a>
         </div>
     </div>
@@ -458,7 +515,8 @@ try {
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
                     <li><a href="../citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
-                    <li><a href="market_application/pending.php" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                    <!-- FIXED: This link now goes to the highest priority status page -->
+                    <li><a href="market_application/<?php echo $view_all_page; ?>" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                 </ul>
             </div>
@@ -495,5 +553,20 @@ try {
         </div>
     </div>
 </footer>
+
+<script>
+// Debug logging
+console.log('Market Services Loaded');
+console.log('View All Page: <?php echo $view_all_page; ?>');
+console.log('Need Correction Count: <?php echo $status_counts['need_correction']; ?>');
+console.log('Paying Count: <?php echo $status_counts['paying']; ?>');
+
+// Track clicks for debugging
+document.querySelectorAll('a[href*="market_application/"]').forEach(link => {
+    link.addEventListener('click', function(e) {
+        console.log('Clicked link to:', this.getAttribute('href'));
+    });
+});
+</script>
 </body>
 </html>

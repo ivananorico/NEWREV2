@@ -10,7 +10,6 @@ import {
   Calendar,
   MapPin,
   User,
-  CheckCircle,
   AlertCircle,
   FileText,
   Mail,
@@ -24,6 +23,7 @@ export default function RPTStatusInfo() {
   const [property, setProperty] = useState(null);
   const [buildings, setBuildings] = useState([]);
   const [quarterlyTaxes, setQuarterlyTaxes] = useState([]);
+  const [debugInfo, setDebugInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const API_BASE = window.location.hostname === "localhost" 
@@ -46,10 +46,16 @@ export default function RPTStatusInfo() {
       );
       
       const data = await res.json();
+      console.log("API Response:", data);
+      
       if (data.status === "success") {
         setProperty(data.data.property);
         setBuildings(data.data.buildings || []);
         setQuarterlyTaxes(data.data.quarterly_taxes || []);
+        setDebugInfo(data.debug || null);
+        
+        console.log("Debug Info:", data.debug);
+        console.log("Quarterly Taxes:", data.data.quarterly_taxes);
       }
     } catch (err) {
       console.error("Error:", err);
@@ -70,23 +76,27 @@ export default function RPTStatusInfo() {
   const formatDate = (dateString, options = {}) => {
     if (!dateString || dateString === "0000-00-00" || dateString === "0000-00-00 00:00:00") return "N/A";
     
-    const date = new Date(dateString);
-    
-    if (options.format === 'full') {
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
+    try {
+      const date = new Date(dateString);
+      
+      if (options.format === 'full') {
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      
+      return date.toLocaleDateString('en-PH', {
+        month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
       });
+    } catch (e) {
+      return "N/A";
     }
-    
-    return date.toLocaleDateString('en-PH', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
   };
 
   const getPaymentStatus = (status) => {
@@ -128,9 +138,11 @@ export default function RPTStatusInfo() {
   const totalLandTax = parseFloat(property.land_annual_tax) || 0;
   const totalBuildingTax = buildings.reduce((sum, b) => sum + (parseFloat(b.building_annual_tax) || 0), 0);
   const totalAnnualTax = parseFloat(property.total_annual_tax) || (totalLandTax + totalBuildingTax);
+  
   const totalPaid = quarterlyTaxes
     .filter(tax => tax.payment_status === 'paid')
     .reduce((sum, tax) => sum + (parseFloat(tax.total_quarterly_tax) || 0), 0);
+    
   const collectionRate = totalAnnualTax > 0 ? Math.round((totalPaid / totalAnnualTax) * 100) : 0;
 
   return (
@@ -171,6 +183,29 @@ export default function RPTStatusInfo() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Debug Info (only in development) */}
+        {debugInfo && window.location.hostname === "localhost" && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+            <h3 className="font-semibold text-yellow-800 mb-2">Debug Information:</h3>
+            <div className="text-sm text-yellow-700">
+              <p>Property Total ID: {debugInfo.property_total_id || 'Not found'}</p>
+              <p>Quarterly Taxes Count: {debugInfo.quarterly_taxes_count}</p>
+              {debugInfo.quarterly_taxes_details && debugInfo.quarterly_taxes_details.length > 0 && (
+                <div className="mt-2">
+                  <p className="font-medium">Quarterly Taxes Found:</p>
+                  <ul className="list-disc pl-5 mt-1">
+                    {debugInfo.quarterly_taxes_details.map((tax, index) => (
+                      <li key={index}>
+                        ID: {tax.id}, {tax.quarter} {tax.year} - {tax.status}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 border rounded shadow-sm">
@@ -191,7 +226,7 @@ export default function RPTStatusInfo() {
           </div>
         </div>
 
-        {/* Property and Owner Information Grid - REVISED */}
+        {/* Property and Owner Information Grid */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* Property Information */}
@@ -234,7 +269,7 @@ export default function RPTStatusInfo() {
             </div>
           </div>
 
-          {/* Owner Information - Updated from Pending.js */}
+          {/* Owner Information */}
           <div className="bg-gray-50 p-4 rounded-lg flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center mb-3">
@@ -467,6 +502,9 @@ export default function RPTStatusInfo() {
                 <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
                   {quarterlyTaxes.filter(t => t.payment_status === 'pending').length} pending
                 </span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                  {quarterlyTaxes.length} total
+                </span>
               </div>
             </div>
           </div>
@@ -481,6 +519,8 @@ export default function RPTStatusInfo() {
                       <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Due Date</th>
                       <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Amount</th>
                       <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Status</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Payment Date</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -490,6 +530,7 @@ export default function RPTStatusInfo() {
                         <tr key={tax.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             <div className="font-medium">{tax.quarter} {tax.year}</div>
+                            <div className="text-xs text-gray-500">ID: {tax.id}</div>
                           </td>
                           <td className="px-4 py-3 text-gray-600">{formatDate(tax.due_date)}</td>
                           <td className="px-4 py-3 font-medium">{formatCurrency(tax.total_quarterly_tax)}</td>
@@ -497,6 +538,16 @@ export default function RPTStatusInfo() {
                             <span className={`px-3 py-1 text-xs rounded-full ${status.color}`}>
                               {status.text}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {tax.payment_date ? formatDate(tax.payment_date) : 'N/A'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {tax.receipt_number ? (
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                {tax.receipt_number}
+                              </span>
+                            ) : 'N/A'}
                           </td>
                         </tr>
                       );
