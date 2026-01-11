@@ -35,6 +35,20 @@ ini_set('display_errors', 1);
  */
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Failed to connect to database',
+        'permits' => [],
+        'count'   => 0
+    ]);
+    exit();
+}
+
 try {
     /**
      * ======================================

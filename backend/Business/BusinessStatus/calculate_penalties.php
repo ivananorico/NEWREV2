@@ -47,6 +47,9 @@ if (!file_exists($dbPath)) {
 
 require_once $dbPath;
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
 try {
     // Check connection
     if (!$pdo) {
@@ -118,21 +121,38 @@ try {
                 
                 // Only update if new penalty is greater
                 if ($newPenalty > $currentPenalty) {
-                    // FIXED: Removed updated_at column since it doesn't exist
-                    $updateSql = "UPDATE business_quarterly_taxes 
-                                 SET penalty_amount = ?,
-                                     penalty_percent_used = ?,
-                                     payment_status = 'overdue',
-                                     days_late = ?
-                                 WHERE id = ?";
+                    // Check if penalty_percent_used column exists
+                    $checkColumns = $pdo->query("SHOW COLUMNS FROM business_quarterly_taxes LIKE 'penalty_percent_used'");
+                    $hasPenaltyPercentColumn = ($checkColumns->rowCount() > 0);
                     
-                    $updateStmt = $pdo->prepare($updateSql);
-                    $updateStmt->execute([
-                        $newPenalty,
-                        $penaltyPercent,
-                        $daysLate,
-                        $tax['id']
-                    ]);
+                    if ($hasPenaltyPercentColumn) {
+                        $updateSql = "UPDATE business_quarterly_taxes 
+                                     SET penalty_amount = ?,
+                                         penalty_percent_used = ?,
+                                         payment_status = 'overdue',
+                                         days_late = ?
+                                     WHERE id = ?";
+                        $updateStmt = $pdo->prepare($updateSql);
+                        $updateStmt->execute([
+                            $newPenalty,
+                            $penaltyPercent,
+                            $daysLate,
+                            $tax['id']
+                        ]);
+                    } else {
+                        // Column doesn't exist, update without it
+                        $updateSql = "UPDATE business_quarterly_taxes 
+                                     SET penalty_amount = ?,
+                                         payment_status = 'overdue',
+                                         days_late = ?
+                                     WHERE id = ?";
+                        $updateStmt = $pdo->prepare($updateSql);
+                        $updateStmt->execute([
+                            $newPenalty,
+                            $daysLate,
+                            $tax['id']
+                        ]);
+                    }
                     
                     $updatedCount++;
                     $totalPenalty += ($newPenalty - $currentPenalty);

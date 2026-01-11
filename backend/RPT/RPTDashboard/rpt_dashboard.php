@@ -16,14 +16,19 @@ class RPTDashboard {
     
     private function connectToRPTDB() {
         try {
-            $this->rpt_pdo = getDatabaseConnection();
+            // Create database connection using the config from rpt_db.php
+            $config = getDatabaseConfig();
             
-            if (is_array($this->rpt_pdo) && isset($this->rpt_pdo['error'])) {
-                $this->rpt_pdo = null;
-                error_log("RPT DB Connection failed: " . $this->rpt_pdo['message']);
-                throw new Exception("Database connection failed");
-            }
-        } catch (Exception $e) {
+            $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['dbname']};charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ];
+
+            $this->rpt_pdo = new PDO($dsn, $config['user'], $config['pass'], $options);
+            
+        } catch (PDOException $e) {
             $this->rpt_pdo = null;
             error_log("RPT DB Connection failed: " . $e->getMessage());
             throw new Exception("Database connection failed: " . $e->getMessage());

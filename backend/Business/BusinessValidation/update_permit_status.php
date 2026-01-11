@@ -15,6 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Use your existing database connection
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Failed to connect to database'
+    ]);
+    exit();
+}
+
 $response = ['status' => 'error', 'message' => ''];
 
 // Function to get tax rate based on business type and taxable amount

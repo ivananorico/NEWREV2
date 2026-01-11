@@ -11,6 +11,12 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+if (!$pdo) {
+    die("Database connection failed. Please try again later.");
+}
+
 // Function to get discount percentage from config
 function getDiscountPercentage($pdo) {
     try {

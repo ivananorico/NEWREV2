@@ -15,6 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Include database connection
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode(["error" => "Failed to connect to database"]);
+    exit();
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {

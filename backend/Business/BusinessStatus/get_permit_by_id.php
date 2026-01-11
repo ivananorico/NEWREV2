@@ -35,6 +35,18 @@ if (!file_exists($dbPath)) {
 
 require_once $dbPath;
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Failed to connect to database"
+    ]);
+    exit();
+}
+
 try {
     $id = $_GET['id'] ?? null;
     

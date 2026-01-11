@@ -16,6 +16,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+// Create database connection using the config from rpt_db.php
+function createPDOConnection() {
+    $config = getDatabaseConfig();
+    
+    try {
+        $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['dbname']};charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        $pdo = new PDO($dsn, $config['user'], $config['pass'], $options);
+        return $pdo;
+        
+    } catch (PDOException $e) {
+        // Log error but don't expose details to user
+        error_log("Database connection failed: " . $e->getMessage());
+        
+        // Return user-friendly error
+        return [
+            'error' => true,
+            'message' => 'Database connection failed. Please try again later.',
+            'debug' => ($_SERVER['HTTP_HOST'] !== 'revenuetreasury.goserveph.com') ? $e->getMessage() : null
+        ];
+    }
+}
+
 // Try to include DB connection with proper error handling
 $dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
 
@@ -28,7 +56,7 @@ if (!file_exists($dbPath)) {
 require_once $dbPath;
 
 // Get PDO connection
-$pdo = getDatabaseConnection();
+$pdo = createPDOConnection();
 if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
     http_response_code(500);
     $errorMsg = is_array($pdo) ? $pdo['message'] : "Failed to connect to database";
@@ -323,3 +351,4 @@ function deletePropertyConfiguration($pdo, $id) {
         echo json_encode(["error" => "Failed to delete property configuration: " . $e->getMessage()]);
     }
 }
+?>

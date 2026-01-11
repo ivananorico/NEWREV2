@@ -16,6 +16,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Include database connection
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Failed to connect to database',
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    exit();
+}
+
 // Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -28,11 +41,6 @@ $year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 error_log("Dashboard Request: Action=$action, Year=$year");
 
 try {
-    // Validate PDO connection
-    if (!isset($pdo) || !$pdo) {
-        throw new Exception('Database connection failed');
-    }
-
     switch ($action) {
         case 'dashboard':
             getDashboardData($pdo, $year);

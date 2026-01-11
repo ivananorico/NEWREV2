@@ -19,8 +19,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Include DB connection
 require_once '../../../db/RPT/rpt_db.php';
 
+// Create database connection using the config from rpt_db.php
+function createPDOConnection() {
+    $config = getDatabaseConfig();
+    
+    try {
+        $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['dbname']};charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        $pdo = new PDO($dsn, $config['user'], $config['pass'], $options);
+        return $pdo;
+        
+    } catch (PDOException $e) {
+        // Log error but don't expose details to user
+        error_log("Database connection failed: " . $e->getMessage());
+        
+        // Return user-friendly error
+        return [
+            'error' => true,
+            'message' => 'Database connection failed. Please try again later.',
+            'debug' => ($_SERVER['HTTP_HOST'] !== 'revenuetreasury.goserveph.com') ? $e->getMessage() : null
+        ];
+    }
+}
+
 // Get PDO connection
-$pdo = getDatabaseConnection();
+$pdo = createPDOConnection();
 if (is_array($pdo) && isset($pdo['error']) && $pdo['error'] === true) {
     http_response_code(500);
     echo json_encode(["error" => $pdo['message']]);

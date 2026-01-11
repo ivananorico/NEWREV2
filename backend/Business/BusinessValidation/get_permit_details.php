@@ -15,6 +15,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Include database
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Failed to connect to database',
+        'code' => 'DATABASE_CONNECTION_ERROR'
+    ]);
+    exit();
+}
+
 try {
     // Set error reporting
     error_reporting(E_ALL & ~E_NOTICE);

@@ -31,9 +31,12 @@ try {
     // Include database connection
     require_once '../../../db/Business/business_db.php';
     
+    // Get database connection
+    $pdo = getDatabaseConnection();
+    
     // Check if connection was successful
-    if (!isset($pdo) || !($pdo instanceof PDO)) {
-        throw new Exception("Database connection failed - PDO object not created");
+    if (!$pdo) {
+        throw new Exception("Failed to connect to database");
     }
     
     // Initialize variables

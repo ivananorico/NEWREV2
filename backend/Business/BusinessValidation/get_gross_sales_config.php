@@ -15,6 +15,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Use your existing database connection
 require_once '../../../db/Business/business_db.php';
 
+// Get database connection
+$pdo = getDatabaseConnection();
+
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Failed to connect to database'
+    ]);
+    exit();
+}
+
 try {
     // Get all active gross sales tax rates
     $query = "SELECT * FROM gross_sales_tax_config 
