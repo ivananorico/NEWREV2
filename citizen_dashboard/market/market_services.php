@@ -1,5 +1,5 @@
 <?php
-// market_services.php - UPDATED VERSION (with interviewed status)
+// revenue2/citizen_dashboard/market/market_services.php
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -439,7 +439,7 @@ foreach ($priority_order as $status => $priority) {
         </div>
 
         <!-- RENT PAYMENT CARD - CHANGED FROM h-40 TO h-48 -->
-        <a href="market_rent_payment.php"
+        <a href="market_rent_payment/market_rent_payment.php"
            class="service-card group bg-white block">
             <div class="h-48 overflow-hidden relative">
                 <?php 
