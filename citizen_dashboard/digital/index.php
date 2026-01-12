@@ -2,8 +2,19 @@
 // revenue2/citizen_dashboard/digital/index.php
 session_start();
 
-// Clear previous session
-session_regenerate_id(true);
+// Clear previous payment session data
+if (isset($_SESSION['payment_data'])) {
+    unset($_SESSION['payment_data']);
+}
+if (isset($_SESSION['phone'])) {
+    unset($_SESSION['phone']);
+}
+if (isset($_SESSION['generated_otp'])) {
+    unset($_SESSION['generated_otp']);
+}
+if (isset($_SESSION['receipt_data'])) {
+    unset($_SESSION['receipt_data']);
+}
 
 // Get parameters from ANY system via GET
 $client_system = $_GET['system'] ?? 'unknown';
@@ -11,15 +22,8 @@ $reference_id = $_GET['ref'] ?? '';
 $amount = $_GET['amount'] ?? 0;
 $purpose = $_GET['purpose'] ?? '';
 $callback_url = $_GET['callback'] ?? '';
-$system_name = $_GET['system_name'] ?? ucfirst($client_system); // Optional display name
-
-// Log for debugging
-error_log("=== Digital Payment Received ===");
-error_log("System: $client_system");
-error_log("Ref: $reference_id");
-error_log("Amount: $amount");
-error_log("Purpose: $purpose");
-error_log("Callback: $callback_url");
+$return_url = $_GET['return_url'] ?? ''; // NEW: Return URL after payment
+$system_name = $_GET['system_name'] ?? ucfirst($client_system);
 
 // Validate required parameters
 if (empty($reference_id) || $amount <= 0) {
@@ -34,13 +38,14 @@ if (empty($reference_id) || $amount <= 0) {
     ");
 }
 
-// Store in session for the payment flow - SIMPLE DATA ONLY
+// Store in session for the payment flow
 $_SESSION['payment_data'] = [
     'client_system' => $client_system,
     'reference_id' => $reference_id,
     'amount' => $amount,
     'purpose' => $purpose,
-    'callback_url' => $callback_url
+    'callback_url' => $callback_url,
+    'return_url' => $return_url // Store return URL
 ];
 
 // Generate a dynamic badge color based on system name
@@ -50,11 +55,13 @@ function getBadgeColor($system) {
         'business' => 'bg-gradient-to-r from-green-100 to-green-200 text-green-800',
         'health' => 'bg-gradient-to-r from-red-100 to-red-200 text-red-800',
         'assets' => 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800',
+        'market' => 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800',
     ];
     
     return $colors[$system] ?? 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800';
 }
 
+// FIX: Define $display_system here before using it
 $display_system = $system_name ?: ucfirst($client_system);
 $badge_class = getBadgeColor($client_system);
 ?>

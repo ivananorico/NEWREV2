@@ -15,7 +15,6 @@ const MarketValidationInfo = () => {
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showInterviewCompleteModal, setShowInterviewCompleteModal] = useState(false); // NEW
   
   // Form states
   const [interviewer, setInterviewer] = useState("");
@@ -26,9 +25,10 @@ const MarketValidationInfo = () => {
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [approvalNotes, setApprovalNotes] = useState("");
-  const [interviewResultNotes, setInterviewResultNotes] = useState(""); // NEW
   
   const [actionLoading, setActionLoading] = useState(false);
+  const [showDocumentPreview, setShowDocumentPreview] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
 
   // Dynamic API base URL
   const getApiBaseUrl = () => {
@@ -121,7 +121,7 @@ const MarketValidationInfo = () => {
   // Handle Schedule Interview
   const handleScheduleInterview = async () => {
     if (!interviewer.trim()) {
-      alert("⚠️ Please enter interviewer name");
+      alert("Please enter interviewer name");
       return;
     }
     
@@ -133,38 +133,35 @@ const MarketValidationInfo = () => {
         interview_notes: interviewNotes || ""
       });
       
-      alert("✅ Interview scheduled!");
+      alert("Interview scheduled!");
       setShowInterviewModal(false);
       setInterviewer("");
       setInterviewDate("");
       setInterviewNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to schedule interview: " + error.message);
+      alert("Failed to schedule interview: " + error.message);
     }
   };
 
-  // Handle Mark Interview as Completed (Simple - just update status)
+  // Handle Mark Interview as Completed
   const handleInterviewCompleted = async () => {
     try {
-      await callApi("mark_interview_completed.php", { // NEW endpoint
+      await callApi("mark_interview_completed.php", {
         application_id: parseInt(application.id)
       });
       
-      alert("✅ Interview marked as completed!");
-      setShowInterviewCompleteModal(false);
-      setInterviewer("");
-      setInterviewResultNotes("");
+      alert("Interview marked as completed!");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to mark interview as completed: " + error.message);
+      alert("Failed to mark interview as completed: " + error.message);
     }
   };
 
   // Handle Need Correction
   const handleNeedCorrection = async () => {
     if (!correctionNotes.trim()) {
-      alert("⚠️ Please enter correction notes");
+      alert("Please enter correction notes");
       return;
     }
     
@@ -174,19 +171,19 @@ const MarketValidationInfo = () => {
         correction_notes: correctionNotes
       });
       
-      alert("✅ Application marked as needs correction!");
+      alert("Application marked as needs correction!");
       setShowCorrectionModal(false);
       setCorrectionNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to mark for correction: " + error.message);
+      alert("Failed to mark for correction: " + error.message);
     }
   };
 
   // Handle Reject
   const handleReject = async () => {
     if (!rejectionNotes.trim()) {
-      alert("⚠️ Please enter rejection reason");
+      alert("Please enter rejection reason");
       return;
     }
     
@@ -196,33 +193,33 @@ const MarketValidationInfo = () => {
         remarks: rejectionNotes
       });
       
-      alert("✅ Application rejected!");
+      alert("Application rejected!");
       setShowRejectModal(false);
       setRejectionNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to reject application: " + error.message);
+      alert("Failed to reject application: " + error.message);
     }
   };
 
   // Handle Mark as Paying (from interviewed status)
   const handleMarkAsPaying = async () => {
     try {
-      await callApi("proceed_to_payment.php", { // CHANGED endpoint name
+      await callApi("proceed_to_payment.php", {
         application_id: parseInt(application.id)
       });
       
-      alert("✅ Application marked as ready for payment!");
+      alert("Application marked as ready for payment!");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to update status: " + error.message);
+      alert("Failed to update status: " + error.message);
     }
   };
 
   // Handle Mark as Paid
   const handleMarkAsPaid = async () => {
     if (!paymentReference.trim()) {
-      alert("⚠️ Please enter payment reference");
+      alert("Please enter payment reference");
       return;
     }
     
@@ -233,13 +230,13 @@ const MarketValidationInfo = () => {
         payment_notes: paymentNotes || ""
       });
       
-      alert("✅ Payment recorded!");
+      alert("Payment recorded!");
       setShowPaymentModal(false);
       setPaymentReference("");
       setPaymentNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to record payment: " + error.message);
+      alert("Failed to record payment: " + error.message);
     }
   };
 
@@ -251,12 +248,12 @@ const MarketValidationInfo = () => {
         approval_notes: approvalNotes || ""
       });
       
-      alert("✅ Application approved!");
+      alert("Application approved!");
       setShowApproveModal(false);
       setApprovalNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to approve application: " + error.message);
+      alert("Failed to approve application: " + error.message);
     }
   };
 
@@ -267,11 +264,23 @@ const MarketValidationInfo = () => {
         application_id: parseInt(application.id)
       });
       
-      alert("✅ Application marked as resubmitted!");
+      alert("Application marked as resubmitted!");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to update status: " + error.message);
+      alert("Failed to update status: " + error.message);
     }
+  };
+
+  // Handle document preview
+  const handleDocumentPreview = (docType, filePath) => {
+    if (!filePath) {
+      alert("No document available");
+      return;
+    }
+    
+    const url = getDocumentUrl(filePath);
+    setPreviewUrl(url);
+    setShowDocumentPreview(docType);
   };
 
   useEffect(() => {
@@ -318,33 +327,16 @@ const MarketValidationInfo = () => {
   const getStatusColor = () => {
     const status = application?.application_status?.toLowerCase();
     switch (status) {
-      case 'pending': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case 'interview_scheduled': return 'bg-blue-50 border-blue-200 text-blue-800';
-      case 'interviewed': return 'bg-green-50 border-green-200 text-green-800';
-      case 'paying': return 'bg-purple-50 border-purple-200 text-purple-800';
-      case 'paid': return 'bg-indigo-50 border-indigo-200 text-indigo-800';
-      case 'need_correction': return 'bg-red-50 border-red-200 text-red-800';
-      case 'resubmitted': return 'bg-orange-50 border-orange-200 text-orange-800';
-      case 'approved': return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-      case 'rejected': return 'bg-gray-50 border-gray-200 text-gray-800';
-      default: return 'bg-gray-50 border-gray-200 text-gray-800';
-    }
-  };
-
-  // Get status icon
-  const getStatusIcon = () => {
-    const status = application?.application_status?.toLowerCase();
-    switch (status) {
-      case 'pending': return '⏳';
-      case 'interview_scheduled': return '📅';
-      case 'interviewed': return '✅';
-      case 'paying': return '💰';
-      case 'paid': return '💳';
-      case 'need_correction': return '⚠️';
-      case 'resubmitted': return '📄';
-      case 'approved': return '🎉';
-      case 'rejected': return '❌';
-      default: return '📋';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'interview_scheduled': return 'bg-blue-100 text-blue-800';
+      case 'interviewed': return 'bg-green-100 text-green-800';
+      case 'paying': return 'bg-purple-100 text-purple-800';
+      case 'paid': return 'bg-indigo-100 text-indigo-800';
+      case 'need_correction': return 'bg-red-100 text-red-800';
+      case 'resubmitted': return 'bg-orange-100 text-orange-800';
+      case 'approved': return 'bg-emerald-100 text-emerald-800';
+      case 'rejected': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -352,7 +344,7 @@ const MarketValidationInfo = () => {
   const getStatusText = () => {
     const status = application?.application_status?.toLowerCase();
     const statusMap = {
-      'pending': 'Pending',
+      'pending': 'Pending Interview',
       'interview_scheduled': 'Interview Scheduled',
       'interviewed': 'Interview Completed',
       'paying': 'Payment Required',
@@ -363,6 +355,64 @@ const MarketValidationInfo = () => {
       'rejected': 'Rejected'
     };
     return statusMap[status] || status || 'Unknown';
+  };
+
+  // Get progress bar status based on current status
+  const getProgressBarStatus = () => {
+    const status = application?.application_status?.toLowerCase();
+    
+    // If status is need_correction or resubmitted, keep bar at pending
+    if (status === 'need_correction' || status === 'resubmitted') {
+      return 'pending';
+    }
+    
+    return status;
+  };
+
+  // Render progress bar steps
+  const renderProgressBar = () => {
+    const currentStatus = getProgressBarStatus();
+    const steps = [
+      { key: 'pending', label: 'Pending' },
+      { key: 'interview_scheduled', label: 'Sched Interview' },
+      { key: 'interviewed', label: 'Interviewed' },
+      { key: 'paying', label: 'Proceed Payment' },
+      { key: 'paid', label: 'Paid' },
+      { key: 'approved', label: 'Approve' }
+    ];
+
+    // Determine which step is active
+    const stepIndex = steps.findIndex(step => step.key === currentStatus);
+    const activeIndex = stepIndex === -1 ? 0 : stepIndex;
+
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          {steps.map((step, index) => (
+            <div key={step.key} className="flex flex-col items-center w-full">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                index <= activeIndex 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-400'
+              }`}>
+                {index + 1}
+              </div>
+              <span className={`text-xs mt-1 text-center ${
+                index <= activeIndex ? 'font-semibold text-blue-600' : 'text-gray-500'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="relative h-1 bg-gray-200 rounded-full">
+          <div 
+            className="absolute h-full bg-blue-600 rounded-full transition-all duration-500"
+            style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
+          ></div>
+        </div>
+      </div>
+    );
   };
 
   // Get document URL
@@ -380,199 +430,232 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Render action buttons based on status - UPDATED FOR interview_scheduled
+  // Render action buttons based on status - CORRECTED VERSION
   const renderActionButtons = () => {
     const status = application?.application_status?.toLowerCase();
     
     switch (status) {
+      // PENDING: Can schedule interview, mark as need correction, or reject
       case 'pending':
         return (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <button
               onClick={() => setShowInterviewModal(true)}
               disabled={actionLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              📅 Schedule Interview
+              Schedule Interview
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
               disabled={actionLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ⚠️ Needs Correction
+              Needs Correction
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ❌ Reject
+              Reject
             </button>
           </div>
         );
       
-      case 'interview_scheduled': // NEW: Mark interview as completed
+      // INTERVIEW SCHEDULED: Can mark as interviewed or cancel interview (back to pending)
+      case 'interview_scheduled':
         return (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <button
               onClick={handleInterviewCompleted}
               disabled={actionLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ✅ Mark Interview Completed
+              Mark as Interviewed
             </button>
             <button
-              onClick={() => setShowCorrectionModal(true)}
+              onClick={() => {
+                if (window.confirm("Reset back to pending status?")) {
+                  // Call API to reset to pending
+                  handleResetToPending();
+                }
+              }}
               disabled={actionLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ⚠️ Needs Correction
-            </button>
-            <button
-              onClick={() => setShowRejectModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
-            >
-              ❌ Reject
+              Reset to Pending
             </button>
           </div>
         );
       
-      case 'interviewed': // CHANGED: Show "Proceed to Payment" instead of "Mark as Paying"
+      // INTERVIEWED: Can proceed to payment, mark as need correction, or reject
+      case 'interviewed':
         return (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <button
               onClick={handleMarkAsPaying}
               disabled={actionLoading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              💰 Proceed to Payment
+              Proceed to Payment
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
               disabled={actionLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ⚠️ Needs Correction
+              Needs Correction
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ❌ Reject
+              Reject
             </button>
           </div>
         );
       
-      case 'paying': // CHANGED: Don't show "Mark as Paid" button - citizen will update to paid
+      // PAYING: Can mark as paid, needs correction, or reject
+      case 'paying':
         return (
-          <div className="text-center py-4">
-            <p className="text-gray-600 mb-4">Waiting for citizen to pay stall rights and security bond</p>
-            <div className="bg-yellow-50 p-4 rounded-md mb-4">
-              <p className="font-semibold">Total Amount Due:</p>
-              <p className="text-xl font-bold text-blue-700">{formatCurrency(application.total_amount_due)}</p>
+          <div className="space-y-2">
+            <div className="bg-yellow-50 p-3 rounded border border-yellow-200 mb-2">
+              <p className="text-sm text-yellow-700 font-medium">Waiting for payment</p>
+              <p className="text-lg font-bold text-blue-700">{formatCurrency(application.total_amount_due)}</p>
             </div>
             <button
+              onClick={() => setShowPaymentModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Mark as Paid
+            </button>
+            <button
               onClick={() => setShowCorrectionModal(true)}
               disabled={actionLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50 mb-3"
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ⚠️ Needs Correction
+              Needs Correction
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ❌ Reject
+              Reject
             </button>
           </div>
         );
       
-      case 'paid': // Show "Approve" button when citizen has paid
+      // PAID: Can approve, needs correction, or reject
+      case 'paid':
         return (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <button
               onClick={() => setShowApproveModal(true)}
               disabled={actionLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              🎉 Approve Application
-            </button>
-            <button
-              onClick={() => setShowRejectModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
-            >
-              ❌ Reject
-            </button>
-          </div>
-        );
-      
-      case 'need_correction':
-        return (
-          <div className="space-y-4">
-            <button
-              onClick={handleMarkAsResubmitted}
-              disabled={actionLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
-            >
-              📄 Mark as Resubmitted
-            </button>
-            <button
-              onClick={() => setShowRejectModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
-            >
-              ❌ Reject
-            </button>
-          </div>
-        );
-      
-      case 'resubmitted':
-        return (
-          <div className="space-y-4">
-            <button
-              onClick={() => setShowInterviewModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
-            >
-              📅 Schedule Interview (Again)
+              Approve Application
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
               disabled={actionLoading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ⚠️ Needs More Correction
+              Needs Correction
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              ❌ Reject
+              Reject
             </button>
           </div>
         );
       
-      default:
+      // NEED CORRECTION: Can mark as resubmitted or reject
+      case 'need_correction':
         return (
-          <div className="text-center py-4">
-            <p className="text-gray-600">No actions available</p>
+          <div className="space-y-2">
+            <button
+              onClick={handleMarkAsResubmitted}
+              disabled={actionLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Mark as Resubmitted
+            </button>
+            <button
+              onClick={() => setShowRejectModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Reject
+            </button>
           </div>
         );
+      
+      // RESUBMITTED: Can schedule interview, needs correction, or reject
+      case 'resubmitted':
+        return (
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowInterviewModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Schedule Interview
+            </button>
+            <button
+              onClick={() => setShowCorrectionModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Needs Correction
+            </button>
+            <button
+              onClick={() => setShowRejectModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              Reject
+            </button>
+          </div>
+        );
+      
+      // DEFAULT: No actions available
+      default:
+        return (
+          <div className="text-center py-2">
+            <p className="text-gray-500">No actions available</p>
+          </div>
+        );
+    }
+  };
+
+  // Handle reset to pending (for interview_scheduled status)
+  const handleResetToPending = async () => {
+    try {
+      await callApi("reset_to_pending.php", {
+        application_id: parseInt(application.id)
+      });
+      
+      alert("Application reset to pending!");
+      fetchData();
+    } catch (error) {
+      alert("Failed to reset to pending: " + error.message);
     }
   };
 
   // Render loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading application data...</p>
         </div>
       </div>
@@ -583,12 +666,14 @@ const MarketValidationInfo = () => {
   if (error || !application) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
-          <div className="text-red-500 text-4xl mb-4 text-center">⚠️</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Error Loading Data</h2>
-          <p className="text-gray-600 mb-6 text-center">{error || "Application not found"}</p>
+        <div className="bg-white rounded shadow p-6 max-w-md w-full">
+          <div className="text-red-500 text-4xl mb-3 text-center">
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2 text-center">Error Loading Data</h2>
+          <p className="text-gray-600 mb-4 text-center">{error || "Application not found"}</p>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             <button 
               onClick={() => navigate(-1)}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded"
@@ -609,148 +694,251 @@ const MarketValidationInfo = () => {
 
   const status = application.application_status?.toLowerCase() || 'pending';
   const statusColor = getStatusColor();
-  const statusIcon = getStatusIcon();
   const statusText = getStatusText();
 
   return (
-    <div className='mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg'>
+    <div className='mx-auto p-4 max-w-7xl'>
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
+      <div className="mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
           <div>
             <button 
               onClick={() => navigate(-1)} 
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
+              className="text-blue-600 hover:text-blue-800 mb-3 inline-flex items-center"
             >
-              ← Back to Applications
+              <i className="fas fa-arrow-left mr-1"></i> Back
             </button>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-              Application Review
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+              Market Application Review
             </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
-              ID: <span className="font-medium text-blue-600 dark:text-blue-400">
+            <p className="text-gray-600 mt-1">
+              ID: <span className="font-medium text-blue-600">
                 {application.stall_rights_no || application.id}
               </span>
             </p>
           </div>
-          <button
-            onClick={fetchData}
-            disabled={loading || actionLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            🔄 Refresh
-          </button>
+          
+          <div className="mt-3 md:mt-0">
+            <button
+              onClick={fetchData}
+              disabled={loading || actionLoading}
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
-        {/* Status Card */}
-        <div className={`rounded-lg p-4 mb-6 border ${statusColor}`}>
-          <div className="flex items-center">
-            <div className={`p-3 rounded-lg mr-4 ${statusColor.replace('bg-', 'bg-').replace('border-', 'border-')}`}>
-              <span className="text-2xl">{statusIcon}</span>
-            </div>
+        {/* Progress Bar */}
+        {renderProgressBar()}
+
+        {/* Status Display */}
+        <div className={`rounded p-3 mb-4 ${statusColor}`}>
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-lg">Application Status: {statusText.toUpperCase()}</h3>
-              <p className="mt-1">
-                {status === 'pending' && "This application is waiting for interview."}
-                {status === 'interview_scheduled' && `Interview is scheduled for ${formatDate(application.interview_date)}.`}
-                {status === 'interviewed' && "Interview completed. Ready for payment."}
-                {status === 'paying' && "Waiting for citizen to pay stall rights and security bond."}
-                {status === 'paid' && "Payment completed. Ready for final approval."}
-                {status === 'need_correction' && "Application needs correction."}
-                {status === 'resubmitted' && "Application has been resubmitted."}
-                {status === 'approved' && "Application has been approved."}
-                {status === 'rejected' && "Application has been rejected."}
+              <p className="font-bold">Status: {statusText}</p>
+              <p className="text-sm text-gray-700">
+                {status === 'pending' && "Waiting for interview scheduling"}
+                {status === 'interview_scheduled' && `Interview scheduled for ${formatDate(application.interview_date)}`}
+                {status === 'interviewed' && "Interview completed"}
+                {status === 'paying' && "Waiting for payment"}
+                {status === 'paid' && "Payment completed"}
+                {status === 'need_correction' && "Needs correction"}
+                {status === 'resubmitted' && "Resubmitted"}
+                {status === 'approved' && "Approved"}
+                {status === 'rejected' && "Rejected"}
               </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-600">Submitted</p>
+              <p className="text-sm font-medium">{formatDate(application.created_at)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           
-          {/* Applicant Info */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold mb-4">Applicant Information</h2>
+          {/* Applicant Information */}
+          <div className="bg-white rounded border border-gray-200 p-4">
+            <h2 className="text-lg font-bold mb-3">Applicant Information</h2>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Full Name</p>
-                <p className="font-semibold">
-                  {application.first_name} {application.middle_name ? application.middle_name + ' ' : ''}{application.last_name}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Email</p>
-                <p>{application.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Mobile</p>
-                <p>{application.mobile}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Renter Code</p>
-                <p className="font-mono text-blue-600">{application.renter_code}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-sm text-gray-500">Address</p>
-                <p>
-                  {application.house_number} {application.street}, {application.barangay}, {application.city}, {application.province} {application.zip_code}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Business Info */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold mb-4">Business Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Business Name</p>
-                <p className="font-semibold">{application.business_name || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Business Type</p>
-                <p>{application.business_type || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Stall Name</p>
-                <p className="font-semibold">{application.stall_name || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Stall Class</p>
-                <p className="font-semibold text-blue-600">{application.stall_class || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Financial Info */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold mb-4">Financial Information</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span>Monthly Rent:</span>
-                <span className="font-semibold">{formatCurrency(application.monthly_rent)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Stall Rights Fee:</span>
-                <span className="font-semibold">{formatCurrency(application.stall_rights_amount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Security Bond:</span>
-                <span className="font-semibold">{formatCurrency(application.security_bond)}</span>
-              </div>
-              <div className="border-t border-gray-300 pt-3 mt-3">
-                <div className="flex justify-between">
-                  <span className="font-bold">Total Amount Due:</span>
-                  <span className="font-bold text-blue-700 text-lg">{formatCurrency(application.total_amount_due)}</span>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-600">Full Name</p>
+                  <p className="font-semibold">
+                    {application.first_name} {application.middle_name ? application.middle_name + ' ' : ''}{application.last_name}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Email Address</p>
+                  <p>{application.email}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Mobile Number</p>
+                  <p>{application.mobile}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Renter Code</p>
+                  <p className="font-semibold text-blue-600">{application.renter_code}</p>
                 </div>
               </div>
-              {application.payment_date && (
-                <div className="border-t border-gray-300 pt-3 mt-3">
+              
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-600">Gender</p>
+                  <p>{application.gender ? application.gender.charAt(0).toUpperCase() + application.gender.slice(1) : 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Birth Date</p>
+                  <p>{application.birth_date ? new Date(application.birth_date).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                
+                {application.emergency_name && (
+                  <div>
+                    <p className="text-sm text-gray-600">Emergency Contact</p>
+                    <p>{application.emergency_name} ({application.emergency_contact})</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm text-gray-600">Complete Address</p>
+              <p>{application.full_address || 'N/A'}</p>
+            </div>
+          </div>
+
+          {/* Stall Information */}
+          <div className="bg-white rounded border border-gray-200 p-4">
+            <h2 className="text-lg font-bold mb-3">Stall Information</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-600">Stall Name</p>
+                  <p className="font-semibold">{application.stall_name || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Stall Class</p>
+                  <p className="font-semibold text-blue-600">{application.stall_class || 'N/A'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-gray-600">Business Name</p>
+                  <p>{application.business_name || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-600">Business Type</p>
+                  <p>{application.business_type || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+            
+            {application.interview_date && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h3 className="font-medium text-gray-800 mb-2">Interview Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-sm text-gray-600">Interview Date</p>
+                    <p className="font-medium">{formatDate(application.interview_date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Interviewer</p>
+                    <p className="font-medium">{application.interviewer || 'N/A'}</p>
+                  </div>
+                  {application.interview_notes && (
+                    <div className="md:col-span-2">
+                      <p className="text-sm text-gray-600">Interview Notes</p>
+                      <p className="mt-1 p-2 bg-gray-50 rounded text-sm">{application.interview_notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Financial Information */}
+          <div className="bg-white rounded border border-gray-200 p-4">
+            <h2 className="text-lg font-bold mb-3">Financial Information</h2>
+            
+            <div className="space-y-4">
+              {/* Monthly Rent */}
+              <div className="p-3 bg-blue-50 rounded border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-gray-900">Monthly Rent</p>
+                    <p className="text-sm text-gray-600">Payable monthly</p>
+                  </div>
+                  <p className="text-xl font-bold text-blue-700">
+                    {formatCurrency(application.monthly_rent)}
+                  </p>
+                </div>
+              </div>
+
+              {/* One-time Payments */}
+              <div className="p-3 bg-purple-50 rounded border border-purple-100">
+                <p className="font-bold text-gray-900 mb-2">One-time Payments</p>
+                
+                <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="font-semibold">Payment Date:</span>
-                    <span>{formatDate(application.payment_date)}</span>
+                    <div>
+                      <p className="font-medium text-gray-800">Stall Rights Fee</p>
+                      <p className="text-sm text-gray-600">Non-refundable</p>
+                    </div>
+                    <p className="font-semibold">
+                      {formatCurrency(application.stall_rights_amount)}
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-medium text-gray-800">Security Bond</p>
+                      <p className="text-sm text-gray-600">Refundable</p>
+                    </div>
+                    <p className="font-semibold">
+                      {formatCurrency(application.security_bond)}
+                    </p>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-purple-200 mt-2">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-gray-900">Total Amount Due</p>
+                        <p className="text-sm text-gray-600">Payable after interview</p>
+                      </div>
+                      <p className="text-xl font-bold text-purple-600">
+                        {formatCurrency(application.total_amount_due)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              {application.payment_date && (
+                <div className="p-3 bg-green-50 rounded border border-green-100">
+                  <p className="font-bold text-gray-900 mb-2">Payment Information</p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment Date:</span>
+                      <span className="font-medium">{formatDate(application.payment_date)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Reference Number:</span>
+                      <span className="font-medium text-blue-600">{application.reference_number || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -758,94 +946,112 @@ const MarketValidationInfo = () => {
           </div>
 
           {/* Documents */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold mb-4">Uploaded Documents</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded border border-gray-200 p-4">
+            <h2 className="text-lg font-bold mb-3">Uploaded Documents</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Barangay Clearance */}
               {application.barangay_clearance && (
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      📄
+                <div 
+                  className="border border-gray-200 rounded p-3 hover:border-blue-300 hover:shadow cursor-pointer"
+                  onClick={() => handleDocumentPreview('barangay_clearance', application.barangay_clearance)}
+                >
+                  <div className="flex items-center mb-2">
+                    <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center mr-2">
+                      <i className="fas fa-file-contract text-blue-500"></i>
                     </div>
                     <div>
-                      <h3 className="font-semibold">Barangay Clearance</h3>
+                      <p className="font-semibold text-gray-900">Barangay Clearance</p>
+                      <p className="text-xs text-gray-500">Click to view</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => window.open(getDocumentUrl(application.barangay_clearance), '_blank')}
-                    className="w-full bg-gray-100 hover:bg-gray-200 py-2 rounded"
-                  >
-                    View Document
-                  </button>
                 </div>
               )}
               
+              {/* 2x2 ID Photo */}
               {application.id_photo_2x2 && (
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      📸
+                <div 
+                  className="border border-gray-200 rounded p-3 hover:border-blue-300 hover:shadow cursor-pointer"
+                  onClick={() => handleDocumentPreview('id_photo', application.id_photo_2x2)}
+                >
+                  <div className="flex items-center mb-2">
+                    <div className="w-10 h-10 bg-green-50 rounded flex items-center justify-center mr-2">
+                      <i className="fas fa-user-circle text-green-500"></i>
                     </div>
                     <div>
-                      <h3 className="font-semibold">2x2 ID Photo</h3>
+                      <p className="font-semibold text-gray-900">2x2 ID Photo</p>
+                      <p className="text-xs text-gray-500">Click to view</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => window.open(getDocumentUrl(application.id_photo_2x2), '_blank')}
-                    className="w-full bg-gray-100 hover:bg-gray-200 py-2 rounded"
-                  >
-                    View Photo
-                  </button>
                 </div>
               )}
               
+              {/* Valid ID */}
               {application.valid_id && (
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      🪪
+                <div 
+                  className="border border-gray-200 rounded p-3 hover:border-blue-300 hover:shadow cursor-pointer"
+                  onClick={() => handleDocumentPreview('valid_id', application.valid_id)}
+                >
+                  <div className="flex items-center mb-2">
+                    <div className="w-10 h-10 bg-purple-50 rounded flex items-center justify-center mr-2">
+                      <i className="fas fa-id-card text-purple-500"></i>
                     </div>
                     <div>
-                      <h3 className="font-semibold">Valid ID</h3>
+                      <p className="font-semibold text-gray-900">Valid ID</p>
+                      <p className="text-xs text-gray-500">Click to view</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => window.open(getDocumentUrl(application.valid_id), '_blank')}
-                    className="w-full bg-gray-100 hover:bg-gray-200 py-2 rounded"
-                  >
-                    View ID
-                  </button>
                 </div>
               )}
             </div>
+            
+            {!application.barangay_clearance && !application.id_photo_2x2 && !application.valid_id && (
+              <div className="text-center py-4">
+                <p className="text-gray-500">No documents uploaded</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Action Panel */}
         <div className="lg:col-span-1">
-          <div className="bg-blue-50 rounded-lg border border-blue-200 p-6 sticky top-6">
-            <h2 className="text-xl font-bold mb-4">Admin Actions</h2>
+          <div className="bg-white rounded border border-gray-200 p-4 sticky top-4">
+            <h2 className="text-lg font-bold mb-3">Admin Actions</h2>
             
             {renderActionButtons()}
 
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="font-semibold mb-3">Application Details</h3>
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="font-semibold mb-2">Application Summary</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Application ID:</span>
-                  <span className="font-mono font-semibold">{application.stall_rights_no || application.id}</span>
+                  <span className="text-gray-600">Application ID:</span>
+                  <span className="font-semibold">{application.stall_rights_no || application.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Renter Code:</span>
+                  <span className="text-gray-600">Renter Code:</span>
                   <span className="font-semibold">{application.renter_code}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Stall Class:</span>
+                  <span className="text-gray-600">Stall Class:</span>
                   <span className="font-semibold">{application.stall_class}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Submitted:</span>
+                  <span className="text-gray-600">Status:</span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusColor}`}>
+                    {statusText}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Submitted:</span>
                   <span>{formatDate(application.created_at)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Last Updated:</span>
+                  <span>{formatDate(application.updated_at)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Amount Due:</span>
+                  <span className="font-semibold text-blue-600">{formatCurrency(application.total_amount_due)}</span>
                 </div>
               </div>
             </div>
@@ -853,13 +1059,64 @@ const MarketValidationInfo = () => {
         </div>
       </div>
 
+      {/* Document Preview Modal */}
+      {showDocumentPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded shadow max-w-4xl w-full">
+            <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-semibold">Document Preview</h3>
+              <button 
+                onClick={() => setShowDocumentPreview(null)} 
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="h-80 flex items-center justify-center bg-gray-100 rounded">
+                {previewUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                  <img 
+                    src={previewUrl} 
+                    alt="Document" 
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <i className="fas fa-file-pdf text-4xl text-red-500 mb-2"></i>
+                    <p className="text-gray-600 mb-3">PDF document preview not available</p>
+                    <a 
+                      href={previewUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Download PDF
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-3 border-t border-gray-200 flex justify-end">
+              <a 
+                href={previewUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Open in New Tab
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Schedule Interview Modal */}
       {showInterviewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Schedule Interview</h3>
+          <div className="bg-white rounded shadow max-w-md w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Schedule Interview</h3>
                 <button 
                   onClick={() => setShowInterviewModal(false)} 
                   className="text-gray-400 hover:text-gray-600"
@@ -868,7 +1125,7 @@ const MarketValidationInfo = () => {
                   ✕
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Interviewer Name *
@@ -877,9 +1134,8 @@ const MarketValidationInfo = () => {
                     type="text" 
                     value={interviewer}
                     onChange={(e) => setInterviewer(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Enter your name"
-                    disabled={actionLoading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter interviewer name"
                     required
                   />
                 </div>
@@ -892,8 +1148,7 @@ const MarketValidationInfo = () => {
                     type="datetime-local" 
                     value={interviewDate}
                     onChange={(e) => setInterviewDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    disabled={actionLoading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -905,13 +1160,12 @@ const MarketValidationInfo = () => {
                   <textarea 
                     value={interviewNotes}
                     onChange={(e) => setInterviewNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-24"
-                    placeholder="Enter any notes..."
-                    disabled={actionLoading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-20"
+                    placeholder="Enter any notes for the interview..."
                   />
                 </div>
                 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-2 pt-3">
                   <button 
                     onClick={handleScheduleInterview} 
                     disabled={actionLoading || !interviewer.trim() || !interviewDate}
@@ -933,13 +1187,79 @@ const MarketValidationInfo = () => {
         </div>
       )}
 
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded shadow max-w-md w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Record Payment</h3>
+                <button 
+                  onClick={() => setShowPaymentModal(false)} 
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={actionLoading}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div className="bg-green-50 p-3 rounded border border-green-100">
+                  <p className="font-semibold text-green-800">Payment Amount</p>
+                  <p className="text-2xl font-bold text-green-700">{formatCurrency(application.total_amount_due)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Payment Reference Number *
+                  </label>
+                  <input 
+                    type="text" 
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter payment reference number"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Payment Notes (Optional)
+                  </label>
+                  <textarea 
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-20"
+                    placeholder="Enter any payment notes..."
+                  />
+                </div>
+                <div className="flex gap-2 pt-3">
+                  <button 
+                    onClick={handleMarkAsPaid} 
+                    disabled={actionLoading || !paymentReference.trim()}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Processing...' : 'Mark as Paid'}
+                  </button>
+                  <button 
+                    onClick={() => setShowPaymentModal(false)} 
+                    disabled={actionLoading}
+                    className="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Correction Modal */}
       {showCorrectionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Mark as Needs Correction</h3>
+          <div className="bg-white rounded shadow max-w-md w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Mark as Needs Correction</h3>
                 <button 
                   onClick={() => setShowCorrectionModal(false)} 
                   className="text-gray-400 hover:text-gray-600"
@@ -948,7 +1268,7 @@ const MarketValidationInfo = () => {
                   ✕
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Correction Notes *
@@ -956,13 +1276,12 @@ const MarketValidationInfo = () => {
                   <textarea 
                     value={correctionNotes}
                     onChange={(e) => setCorrectionNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-32"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-28"
                     placeholder="Explain what needs to be corrected..."
-                    disabled={actionLoading}
                     required
                   />
                 </div>
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-2 pt-3">
                   <button 
                     onClick={handleNeedCorrection} 
                     disabled={actionLoading || !correctionNotes.trim()}
@@ -987,10 +1306,10 @@ const MarketValidationInfo = () => {
       {/* Approve Modal */}
       {showApproveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Approve Application</h3>
+          <div className="bg-white rounded shadow max-w-md w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Approve Application</h3>
                 <button 
                   onClick={() => setShowApproveModal(false)} 
                   className="text-gray-400 hover:text-gray-600"
@@ -999,18 +1318,31 @@ const MarketValidationInfo = () => {
                   ✕
                 </button>
               </div>
-              <div className="space-y-4">
-                <div className="bg-green-50 p-4 rounded-md">
-                  <p className="font-semibold">Application Summary:</p>
-                  <p className="mt-1">• Applicant: {application.first_name} {application.last_name}</p>
-                  <p>• Stall: {application.stall_name}</p>
-                  <p>• Amount Paid: {formatCurrency(application.total_amount_due)}</p>
+              <div className="space-y-3">
+                <div className="bg-emerald-50 p-3 rounded border border-emerald-100">
+                  <p className="font-semibold text-emerald-800">Ready for Approval</p>
+                  <div className="mt-1 space-y-1 text-sm">
+                    <p>• Applicant: {application.first_name} {application.last_name}</p>
+                    <p>• Stall: {application.stall_name}</p>
+                    <p>• Payment: {formatCurrency(application.total_amount_due)} (Paid)</p>
+                  </div>
                 </div>
-                <div className="flex gap-3 pt-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Approval Notes (Optional)
+                  </label>
+                  <textarea 
+                    value={approvalNotes}
+                    onChange={(e) => setApprovalNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-20"
+                    placeholder="Enter any approval notes..."
+                  />
+                </div>
+                <div className="flex gap-2 pt-3">
                   <button 
                     onClick={handleApprove} 
                     disabled={actionLoading}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded disabled:opacity-50"
                   >
                     {actionLoading ? 'Processing...' : 'Approve Application'}
                   </button>
@@ -1031,10 +1363,10 @@ const MarketValidationInfo = () => {
       {/* Reject Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Reject Application</h3>
+          <div className="bg-white rounded shadow max-w-md w-full">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold">Reject Application</h3>
                 <button 
                   onClick={() => setShowRejectModal(false)} 
                   className="text-gray-400 hover:text-gray-600"
@@ -1043,7 +1375,7 @@ const MarketValidationInfo = () => {
                   ✕
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Rejection Reason *
@@ -1051,13 +1383,12 @@ const MarketValidationInfo = () => {
                   <textarea 
                     value={rejectionNotes}
                     onChange={(e) => setRejectionNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-32"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-28"
                     placeholder="Explain why this application is being rejected..."
-                    disabled={actionLoading}
                     required
                   />
                 </div>
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-2 pt-3">
                   <button 
                     onClick={handleReject} 
                     disabled={actionLoading || !rejectionNotes.trim()}

@@ -1,86 +1,60 @@
 <?php
-// revenue2/citizen_dashboard/market/market_portal_services/rental_application_form.php
+// revenue2/citizen_dashboard/market/market_application/edit_correction.php
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../../index.php');
+    header('Location: ../../../../index.php');
     exit();
 }
 
-// Check if stall_id and map_id are provided
-if (!isset($_GET['map_id']) || !isset($_GET['stall_id'])) {
-    header('Location: market_portal_services.php');
-    exit();
-}
-
-$map_id = intval($_GET['map_id']);
-$stall_id = intval($_GET['stall_id']);
 $user_id = $_SESSION['user_id'];
 
 // Include database connections
-include_once '../../../db/Market/market_db.php'; // Market database
-include_once '../../../Login/config/database.php'; // Users database
+include_once '../../../db/Market/market_db.php';
 
-// Get users database connection
-$usersDb = new Database();
-$pdo_users = $usersDb->getConnection();
-
-if (!$pdo_users) {
-    die("Users database connection failed");
-}
-
-// Fetch user data
-$user_stmt = $pdo_users->prepare("SELECT * FROM users WHERE id = ?");
-$user_stmt->execute([$user_id]);
-$user = $user_stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$user) {
-    echo "User not found!";
+// Check if ID is provided
+if (!isset($_GET['id'])) {
+    header('Location: need_correction.php');
     exit();
 }
 
-// Market database connection is already available as $pdo from market_db.php
-if (!isset($pdo)) {
-    die("Market database connection failed");
+$application_id = intval($_GET['id']);
+
+// Fetch application data
+try {
+    $stmt = $pdo->prepare("
+        SELECT 
+            rr.*,
+            ro.*,
+            s.name as stall_name,
+            sr.class_name,
+            sr.price as class_price,
+            m.name as market_name
+        FROM rental_registration rr
+        JOIN renter_owner ro ON rr.id = ro.registration_id
+        LEFT JOIN stalls s ON rr.stall_id = s.id
+        LEFT JOIN stall_rights sr ON s.class_id = sr.class_id
+        LEFT JOIN maps m ON rr.map_id = m.id
+        WHERE rr.id = ? 
+          AND ro.user_id = ? 
+          AND rr.application_status = 'need_correction'
+    ");
+    $stmt->execute([$application_id, $user_id]);
+    $application = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$application) {
+        header('Location: need_correction.php');
+        exit();
+    }
+} catch(PDOException $e) {
+    die("Database error: " . $e->getMessage());
 }
 
-// Fetch stall details
-$stmt = $pdo->prepare("
-    SELECT s.*, sr.class_name, sr.price as class_price
-    FROM stalls s
-    LEFT JOIN stall_rights sr ON s.class_id = sr.class_id
-    WHERE s.id = ? AND s.map_id = ?
-");
-$stmt->execute([$stall_id, $map_id]);
-$stall = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$stall) {
-    echo "Stall not found!";
-    exit();
-}
-
-// Check if stall is available
-if ($stall['status'] !== 'available') {
-    echo "This stall is not available for rent!";
-    exit();
-}
-
-// Prepare auto-fill data from users database
-$autofill_data = [
-    'first_name' => $user['first_name'] ?? '',
-    'last_name' => $user['last_name'] ?? '',
-    'middle_name' => $user['middle_name'] ?? '',
-    'suffix' => $user['suffix'] ?? '',
-    'email' => $user['email'] ?? '',
-    'phone' => $user['mobile'] ?? '',
-    'house_number' => $user['house_number'] ?? '',
-    'street' => $user['street'] ?? '',
-    'barangay' => $user['barangay'] ?? '',
-    'city' => $user['city'] ?? 'Quezon City',
-    'province' => $user['province'] ?? 'Metro Manila',
-    'zip_code' => $user['zip_code'] ?? '',
-    'birthdate' => $user['birthdate'] ?? ''
+// Store current document paths before handling submission
+$current_documents = [
+    'barangay_clearance' => $application['barangay_clearance'] ?? '',
+    'id_photo_2x2' => $application['id_photo_2x2'] ?? '',
+    'valid_id' => $application['valid_id'] ?? ''
 ];
 
 // Handle form submission
@@ -94,220 +68,148 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $message_type = 'error';
     } else {
         try {
-            // Generate stall rights number
-            $stall_rights_no = 'STALL-' . date('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-            
-            // Calculate financial amounts
-            $stall_rights_amount = $stall['class_price'];
-            $monthly_rent = $stall['price'];
-            $security_bond = $monthly_rent * 2;
-            $total_amount_due = $stall_rights_amount + $security_bond;
-            
-            // Start transaction
             $pdo->beginTransaction();
             
-            // 1. Insert into rental_registration (23 columns total)
-            // Columns that will be NULL: interview_date, interviewer, interview_notes, 
-            // payment_date, reference_number, remarks, correction_notes
-            $registration_stmt = $pdo->prepare("
-                INSERT INTO rental_registration (
-                    user_id, stall_id, map_id, stall_name, stall_class,
-                    stall_rights_amount, monthly_rent, security_bond, total_amount_due,
-                    barangay_clearance, id_photo_2x2, valid_id,
-                    application_status, stall_rights_no
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            // Update renter_owner information
+            $owner_stmt = $pdo->prepare("
+                UPDATE renter_owner 
+                SET first_name = ?, last_name = ?, middle_name = ?, suffix = ?,
+                    email = ?, mobile = ?, telephone = ?, 
+                    house_number = ?, street = ?, barangay = ?,
+                    city = ?, province = ?, zip_code = ?,
+                    birth_date = ?, gender = ?,
+                    emergency_name = ?, emergency_contact = ?,
+                    updated_at = CURRENT_TIMESTAMP()
+                WHERE registration_id = ?
             ");
             
-            // 2. Handle file uploads
-            $uploaded_files = [];
-            $base_path = '../../../documents/market/';
+            $owner_stmt->execute([
+                $_POST['first_name'],
+                $_POST['last_name'],
+                !empty($_POST['middle_name']) ? $_POST['middle_name'] : null,
+                !empty($_POST['suffix']) ? $_POST['suffix'] : null,
+                $_POST['email'],
+                $_POST['mobile'],
+                !empty($_POST['telephone']) ? $_POST['telephone'] : null,
+                $_POST['house_number'],
+                $_POST['street'],
+                $_POST['barangay'],
+                $_POST['city'],
+                $_POST['province'],
+                $_POST['zip_code'],
+                $_POST['birthdate'],
+                $_POST['gender'],
+                $_POST['emergency_name'] ?? null,
+                $_POST['emergency_contact'] ?? null,
+                $application_id
+            ]);
             
-            $year = date('Y');
-            $month = date('m');
-            $year_folder = $base_path . $year . '/';
-            $month_folder = $year_folder . $month . '/';
+            // Update rental_registration status to resubmitted
+            $reg_stmt = $pdo->prepare("
+                UPDATE rental_registration 
+                SET application_status = 'resubmitted', 
+                    correction_notes = NULL, 
+                    updated_at = CURRENT_TIMESTAMP()
+                WHERE id = ?
+            ");
             
-            if (!file_exists($year_folder)) {
-                mkdir($year_folder, 0777, true);
-            }
-            if (!file_exists($month_folder)) {
-                mkdir($month_folder, 0777, true);
-            }
+            $reg_stmt->execute([$application_id]);
             
-            $registration_folder = $month_folder . $stall_rights_no . '/';
-            if (!file_exists($registration_folder)) {
-                mkdir($registration_folder, 0777, true);
-            }
-            
+            // Handle file uploads - ONLY UPDATE IF NEW FILE IS UPLOADED
             $document_types = [
                 'barangay_clearance' => 'Barangay Clearance',
-                'id_photo_2x2' => '2x2 ID Photo',
+                'id_photo_2x2' => '2x2 ID Photo', 
                 'valid_id' => 'Valid ID'
             ];
             
-            $upload_paths = [];
+            $reference_number = $application['stall_rights_no'];
+            $year = date('Y');
+            $month = date('m');
+            $upload_dir = "../../../documents/market/{$year}/{$month}/{$reference_number}/";
             
-            foreach ($document_types as $field_name => $document_type) {
-                if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] == UPLOAD_ERR_OK) {
+            // Create directory if it doesn't exist
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            foreach ($document_types as $field_name => $doc_name) {
+                // Check if a new file was uploaded for this document type
+                if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] == UPLOAD_ERR_OK && $_FILES[$field_name]['size'] > 0) {
                     $file = $_FILES[$field_name];
-                    
                     $allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
                     $file_type = mime_content_type($file['tmp_name']);
                     
                     if (!in_array($file_type, $allowed_types)) {
-                        throw new Exception("$document_type must be an image (JPG, JPEG, PNG)");
+                        throw new Exception("$doc_name must be an image (JPG, JPEG, PNG)");
                     }
                     
                     $max_size = 5 * 1024 * 1024;
                     if ($file['size'] > $max_size) {
-                        throw new Exception("$document_type is too large. Maximum size is 5MB");
+                        throw new Exception("$doc_name is too large. Maximum size is 5MB");
                     }
                     
-                    $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                    $clean_ref = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $stall_rights_no);
-                    $unique_filename = $field_name . '_' . $clean_ref . '_' . time() . '.' . $file_extension;
-                    $file_path = $registration_folder . $unique_filename;
-                    
-                    $relative_path = 'documents/market/' . $year . '/' . $month . '/' . $stall_rights_no . '/' . $unique_filename;
+                    $file_ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                    $clean_ref = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $reference_number);
+                    $new_filename = $field_name . '_' . $clean_ref . '_' . time() . '.' . $file_ext;
+                    $file_path = $upload_dir . $new_filename;
+                    $relative_path = "documents/market/{$year}/{$month}/{$reference_number}/{$new_filename}";
                     
                     if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                        $upload_paths[$field_name] = $relative_path;
-                        $uploaded_files[] = $document_type;
-                    } else {
-                        throw new Exception("Failed to upload $document_type");
+                        // Update the document path in rental_registration
+                        $doc_stmt = $pdo->prepare("
+                            UPDATE rental_registration 
+                            SET $field_name = ?, updated_at = CURRENT_TIMESTAMP()
+                            WHERE id = ?
+                        ");
+                        $doc_stmt->execute([$relative_path, $application_id]);
+                        
+                        // Update current_documents array with new path
+                        $current_documents[$field_name] = $relative_path;
                     }
-                } else {
-                    throw new Exception("$document_type is required");
                 }
+                // If no new file was uploaded, keep the existing document path
+                // No need to update the database for this field
             }
-            
-            // Execute rental registration insert (13 values for 13 columns specified)
-            $registration_stmt->execute([
-                $user_id,
-                $stall_id,
-                $map_id,
-                $stall['name'],
-                $stall['class_name'],
-                $stall_rights_amount,
-                $monthly_rent,
-                $security_bond,
-                $total_amount_due,
-                $upload_paths['barangay_clearance'],
-                $upload_paths['id_photo_2x2'],
-                $upload_paths['valid_id'],
-                $stall_rights_no
-            ]);
-            
-            $registration_id = $pdo->lastInsertId();
-            
-            // 3. Insert into renter_owner (22 columns total)
-            $owner_stmt = $pdo->prepare("
-                INSERT INTO renter_owner (
-                    registration_id, user_id,
-                    first_name, middle_name, last_name, suffix,
-                    email, mobile, telephone,
-                    house_number, street, barangay, city, province, zip_code,
-                    birth_date, gender,
-                    emergency_name, emergency_contact,
-                    renter_code, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-            ");
-            
-            $city = $_POST['city'] ?? 'Quezon City';
-            $province = $_POST['province'] ?? 'Metro Manila';
-            $renter_code = 'RENTER-' . date('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-            
-            // Execute renter_owner insert (21 values for 21 columns + 1 hardcoded)
-            $owner_stmt->execute([
-                $registration_id,
-                $user_id,
-                $_POST['first_name'],
-                !empty($_POST['middle_name']) ? $_POST['middle_name'] : null,
-                $_POST['last_name'],
-                !empty($_POST['suffix']) ? $_POST['suffix'] : null,
-                $_POST['email'],
-                $_POST['mobile'],
-                $_POST['telephone'] ?? null,
-                $_POST['house_number'] ?? null,
-                $_POST['street'] ?? null,
-                $_POST['barangay'] ?? null,
-                $city,
-                $province,
-                $_POST['zip_code'] ?? null,
-                $_POST['birthdate'],
-                $_POST['gender'] ?? null,
-                $_POST['emergency_name'] ?? null,
-                $_POST['emergency_contact'] ?? null,
-                $renter_code
-            ]);
-            
-            $renter_id = $pdo->lastInsertId();
-            
-            // 4. Insert into rent_stall (12 columns total) - CHANGED FROM 'active' TO 'pending'
-            $rent_stall_stmt = $pdo->prepare("
-                INSERT INTO rent_stall (
-                    renter_id, registration_id, stall_id, map_id,
-                    business_name, business_type, stall_rights_no,
-                    start_date, monthly_rent, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, 'pending')
-            ");
-            
-            $rent_stall_stmt->execute([
-                $renter_id,
-                $registration_id,
-                $stall_id,
-                $map_id,
-                $_POST['business_name'] ?? null,
-                $_POST['business_type'] ?? null,
-                $stall_rights_no,
-                $monthly_rent
-            ]);
-            
-            // 5. Update stall status to reserved
-            $update_stmt = $pdo->prepare("UPDATE stalls SET status = 'reserved' WHERE id = ?");
-            $update_stmt->execute([$stall_id]);
             
             $pdo->commit();
             
-            // Store reference number in session for tracking
-            $_SESSION['last_stall_rights_no'] = $stall_rights_no;
+            // Redirect to success page
+            header("Location: resubmitted.php?ref=" . urlencode($reference_number) . "&id=" . $application_id);
+            exit();
             
-            $message = "✅ Stall rental application submitted successfully!<br>
-                      <strong>Stall Rights Number:</strong> $stall_rights_no<br>
-                      <strong>Stall Name:</strong> {$stall['name']}<br>
-                      <strong>Monthly Rent:</strong> ₱" . number_format($monthly_rent, 2) . "<br>
-                      <strong>Total Amount Due:</strong> ₱" . number_format($total_amount_due, 2) . "<br>
-                      <strong>Documents Uploaded:</strong> " . implode(', ', $uploaded_files) . "<br><br>
-                      <span class='text-blue-700 font-medium'><i class='fas fa-info-circle mr-1'></i> Status: <strong>Pending Application Review</strong></span>";
-            $message_type = 'success';
-            
-            // Clear form data after successful submission
-            unset($_POST);
-            
-        } catch(PDOException $e) {
-            if (isset($pdo)) {
-                $pdo->rollBack();
-            }
-            $message = "❌ Database Error: " . $e->getMessage();
-            $message_type = 'error';
-            error_log("Database Error: " . $e->getMessage());
         } catch(Exception $e) {
-            if (isset($pdo)) {
-                $pdo->rollBack();
-            }
-            $message = "❌ " . $e->getMessage();
+            $pdo->rollBack();
+            $message = "❌ Error: " . $e->getMessage();
             $message_type = 'error';
         }
     }
 }
 
-// Generate CSRF token if not exists
+// Generate CSRF token
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Merge POST data with autofill for form display
-$form_data = array_merge($autofill_data, $_POST ?? []);
+// Prepare form data
+$form_data = [
+    'first_name' => $application['first_name'] ?? '',
+    'last_name' => $application['last_name'] ?? '',
+    'middle_name' => $application['middle_name'] ?? '',
+    'suffix' => $application['suffix'] ?? '',
+    'email' => $application['email'] ?? '',
+    'mobile' => $application['mobile'] ?? '',
+    'telephone' => $application['telephone'] ?? '',
+    'house_number' => $application['house_number'] ?? '',
+    'street' => $application['street'] ?? '',
+    'barangay' => $application['barangay'] ?? '',
+    'city' => $application['city'] ?? 'Quezon City',
+    'province' => $application['province'] ?? 'Metro Manila',
+    'zip_code' => $application['zip_code'] ?? '',
+    'birthdate' => $application['birth_date'] ?? '',
+    'gender' => $application['gender'] ?? '',
+    'emergency_name' => $application['emergency_name'] ?? '',
+    'emergency_contact' => $application['emergency_contact'] ?? ''
+];
 ?>
 
 <!DOCTYPE html>
@@ -315,25 +217,23 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Market Stall Rental Application</title>
+    <title>Edit Application Corrections - Market Services</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
-    <!-- Include Navbar -->
     <?php include '../../navbar.php'; ?>
     
-    <!-- Main Content -->
     <main class="container mx-auto px-6 py-8">
         <!-- Page Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <div class="flex items-center mb-4">
-                <a href="market_portal_services.php" class="text-blue-600 hover:text-blue-800 mr-4">
+                <a href="need_correction.php" class="text-blue-600 hover:text-blue-800 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Market Stall Rental Application</h1>
-                    <p class="text-gray-600">Apply for stall rental at <?php echo htmlspecialchars($stall['name']); ?></p>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Edit Application Corrections</h1>
+                    <p class="text-gray-600">Make corrections for stall rights #<?php echo htmlspecialchars($application['stall_rights_no']); ?></p>
                 </div>
             </div>
             
@@ -341,31 +241,38 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <h3 class="font-semibold text-blue-800 mb-3 flex items-center">
                     <i class="fas fa-store mr-2"></i>
-                    Selected Stall Details
+                    Stall Details
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                         <div class="text-xs text-gray-500">Stall Name</div>
-                        <div class="font-semibold"><?php echo htmlspecialchars($stall['name']); ?></div>
+                        <div class="font-semibold"><?php echo htmlspecialchars($application['stall_name']); ?></div>
                     </div>
                     <div>
                         <div class="text-xs text-gray-500">Stall Class</div>
-                        <div class="font-semibold"><?php echo htmlspecialchars($stall['class_name']); ?></div>
+                        <div class="font-semibold"><?php echo htmlspecialchars($application['class_name']); ?></div>
                     </div>
                     <div>
                         <div class="text-xs text-gray-500">Monthly Rent</div>
-                        <div class="font-semibold text-green-600">₱<?php echo number_format($stall['price'], 2); ?></div>
+                        <div class="font-semibold text-green-600">₱<?php echo number_format($application['monthly_rent'], 2); ?></div>
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500">Stall Rights Fee</div>
-                        <div class="font-semibold text-red-600">₱<?php echo number_format($stall['class_price'], 2); ?></div>
+                        <div class="text-xs text-gray-500">Stall Rights No.</div>
+                        <div class="font-semibold"><?php echo htmlspecialchars($application['stall_rights_no']); ?></div>
                     </div>
                 </div>
-                <div class="mt-3 text-sm text-blue-700">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Security bond: ₱<?php echo number_format($stall['price'] * 2, 2); ?> (2 months deposit)
-                </div>
             </div>
+            
+            <!-- Correction Notes -->
+            <?php if (!empty($application['correction_notes'])): ?>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                <h3 class="font-semibold text-red-800 mb-2 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Correction Notes from Admin
+                </h3>
+                <p class="text-red-700 text-sm"><?php echo htmlspecialchars($application['correction_notes']); ?></p>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Application Form -->
@@ -414,11 +321,11 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                             <select name="suffix"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="">Select Suffix</option>
-                                <option value="Jr." <?php echo ($form_data['suffix'] ?? '') == 'Jr.' ? 'selected' : ''; ?>>Jr.</option>
-                                <option value="Sr." <?php echo ($form_data['suffix'] ?? '') == 'Sr.' ? 'selected' : ''; ?>>Sr.</option>
-                                <option value="II" <?php echo ($form_data['suffix'] ?? '') == 'II' ? 'selected' : ''; ?>>II</option>
-                                <option value="III" <?php echo ($form_data['suffix'] ?? '') == 'III' ? 'selected' : ''; ?>>III</option>
-                                <option value="IV" <?php echo ($form_data['suffix'] ?? '') == 'IV' ? 'selected' : ''; ?>>IV</option>
+                                <option value="Jr." <?php echo $form_data['suffix'] == 'Jr.' ? 'selected' : ''; ?>>Jr.</option>
+                                <option value="Sr." <?php echo $form_data['suffix'] == 'Sr.' ? 'selected' : ''; ?>>Sr.</option>
+                                <option value="II" <?php echo $form_data['suffix'] == 'II' ? 'selected' : ''; ?>>II</option>
+                                <option value="III" <?php echo $form_data['suffix'] == 'III' ? 'selected' : ''; ?>>III</option>
+                                <option value="IV" <?php echo $form_data['suffix'] == 'IV' ? 'selected' : ''; ?>>IV</option>
                             </select>
                         </div>
                         <div>
@@ -432,9 +339,9 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                             <select name="gender"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="">Select Gender</option>
-                                <option value="male" <?php echo ($form_data['gender'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo ($form_data['gender'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="other" <?php echo ($form_data['gender'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
+                                <option value="male" <?php echo $form_data['gender'] == 'male' ? 'selected' : ''; ?>>Male</option>
+                                <option value="female" <?php echo $form_data['gender'] == 'female' ? 'selected' : ''; ?>>Female</option>
+                                <option value="other" <?php echo $form_data['gender'] == 'other' ? 'selected' : ''; ?>>Other</option>
                             </select>
                         </div>
                         <div>
@@ -446,14 +353,14 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number *</label>
                             <input type="text" name="mobile" required 
-                                value="<?php echo htmlspecialchars($form_data['phone']); ?>"
+                                value="<?php echo htmlspecialchars($form_data['mobile']); ?>"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="09171234567">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Telephone Number</label>
                             <input type="text" name="telephone"
-                                value="<?php echo htmlspecialchars($form_data['telephone'] ?? ''); ?>"
+                                value="<?php echo htmlspecialchars($form_data['telephone']); ?>"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                     </div>
@@ -503,35 +410,6 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                     </div>
                 </div>
 
-                <!-- Business Information Section -->
-                <div class="border-b border-gray-200 pb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-briefcase text-green-500 mr-2"></i>
-                        Business Information
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Business Name *</label>
-                            <input type="text" name="business_name" required
-                                value="<?php echo htmlspecialchars($form_data['business_name'] ?? ''); ?>"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                placeholder="Enter your business name">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
-                            <select name="business_type"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                <option value="">Select Business Type</option>
-                                <option value="food" <?php echo ($form_data['business_type'] ?? '') == 'food' ? 'selected' : ''; ?>>Food & Groceries</option>
-                                <option value="clothing" <?php echo ($form_data['business_type'] ?? '') == 'clothing' ? 'selected' : ''; ?>>Clothing & Apparel</option>
-                                <option value="electronics" <?php echo ($form_data['business_type'] ?? '') == 'electronics' ? 'selected' : ''; ?>>Electronics</option>
-                                <option value="services" <?php echo ($form_data['business_type'] ?? '') == 'services' ? 'selected' : ''; ?>>Services</option>
-                                <option value="others" <?php echo ($form_data['business_type'] ?? '') == 'others' ? 'selected' : ''; ?>>Others</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Emergency Contact Section -->
                 <div class="border-b border-gray-200 pb-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -542,13 +420,13 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name</label>
                             <input type="text" name="emergency_name"
-                                value="<?php echo htmlspecialchars($form_data['emergency_name'] ?? ''); ?>"
+                                value="<?php echo htmlspecialchars($form_data['emergency_name']); ?>"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Number</label>
                             <input type="text" name="emergency_contact"
-                                value="<?php echo htmlspecialchars($form_data['emergency_contact'] ?? ''); ?>"
+                                value="<?php echo htmlspecialchars($form_data['emergency_contact']); ?>"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                 placeholder="09171234567">
                         </div>
@@ -559,7 +437,7 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                 <div class="border-b border-gray-200 pb-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                         <i class="fas fa-file-upload text-purple-500 mr-2"></i>
-                        Required Documents Upload
+                        Update Documents (Optional)
                     </h3>
                     
                     <div class="space-y-6">
@@ -569,11 +447,12 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                                 Important Notes:
                             </h4>
                             <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
+                                <li>Only upload new documents if you need to replace existing ones</li>
+                                <li>If you don't upload a new file, the existing document will be kept</li>
                                 <li>All documents must be clear and readable images</li>
                                 <li>Accepted formats: JPG, JPEG, PNG only</li>
                                 <li>Maximum file size: 5MB per file</li>
                                 <li>Make sure documents are not expired</li>
-                                <li>Take clear photos or scans of documents</li>
                             </ul>
                         </div>
 
@@ -581,19 +460,56 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                             <!-- Barangay Clearance -->
                             <div class="space-y-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    <span class="text-red-500">*</span> Barangay Clearance
+                                    Barangay Clearance (Optional)
                                 </label>
+                                <?php if (!empty($current_documents['barangay_clearance'])): ?>
+                                <div class="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-xs text-green-700 font-medium">
+                                                <i class="fas fa-check-circle mr-1"></i>Document already uploaded
+                                            </div>
+                                            <div class="text-xs text-gray-600 truncate mt-1">
+                                                <?php 
+                                                $filename = basename($current_documents['barangay_clearance']);
+                                                echo htmlspecialchars(substr($filename, 0, 30)) . (strlen($filename) > 30 ? '...' : '');
+                                                ?>
+                                            </div>
+                                        </div>
+                                        <?php 
+                                        // Function to get viewable URL
+                                        function getDocumentUrl($path) {
+                                            if (empty($path)) return '';
+                                            // Remove any relative paths for security
+                                            $clean = str_replace(['../', './'], '', $path);
+                                            $clean = ltrim($clean, '/');
+                                            // Make sure it's within the documents directory
+                                            if (strpos($clean, 'documents/') === 0) {
+                                                return '/revenue2/' . $clean;
+                                            }
+                                            return '';
+                                        }
+                                        $view_url = getDocumentUrl($current_documents['barangay_clearance']);
+                                        ?>
+                                        <?php if ($view_url): ?>
+                                        <a href="<?php echo $view_url; ?>" target="_blank" 
+                                           class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded flex items-center transition-colors">
+                                            <i class="fas fa-eye mr-1"></i> View
+                                        </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                     <input type="file" 
                                            name="barangay_clearance" 
                                            accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
                                            class="hidden" 
                                            id="barangay_clearance"
                                            onchange="showFileName(this, 'barangay_filename')">
                                     <label for="barangay_clearance" class="cursor-pointer flex items-center">
                                         <div class="flex-1">
-                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-sm text-gray-600">Click to upload new file</div>
                                             <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                         </div>
                                         <div class="text-gray-400 text-sm">
@@ -608,19 +524,42 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                             <!-- 2x2 ID Photo -->
                             <div class="space-y-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    <span class="text-red-500">*</span> 2x2 ID Photo
+                                    2x2 ID Photo (Optional)
                                 </label>
+                                <?php if (!empty($current_documents['id_photo_2x2'])): ?>
+                                <div class="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-xs text-green-700 font-medium">
+                                                <i class="fas fa-check-circle mr-1"></i>Document already uploaded
+                                            </div>
+                                            <div class="text-xs text-gray-600 truncate mt-1">
+                                                <?php 
+                                                $filename = basename($current_documents['id_photo_2x2']);
+                                                echo htmlspecialchars(substr($filename, 0, 30)) . (strlen($filename) > 30 ? '...' : '');
+                                                ?>
+                                            </div>
+                                        </div>
+                                        <?php $view_url = getDocumentUrl($current_documents['id_photo_2x2']); ?>
+                                        <?php if ($view_url): ?>
+                                        <a href="<?php echo $view_url; ?>" target="_blank" 
+                                           class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded flex items-center transition-colors">
+                                            <i class="fas fa-eye mr-1"></i> View
+                                        </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                     <input type="file" 
                                            name="id_photo_2x2" 
                                            accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
                                            class="hidden" 
                                            id="id_photo_2x2"
                                            onchange="showFileName(this, 'idphoto_filename')">
                                     <label for="id_photo_2x2" class="cursor-pointer flex items-center">
                                         <div class="flex-1">
-                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-sm text-gray-600">Click to upload new file</div>
                                             <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                         </div>
                                         <div class="text-gray-400 text-sm">
@@ -635,19 +574,42 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                             <!-- Valid ID -->
                             <div class="space-y-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    <span class="text-red-500">*</span> Valid Government ID
+                                    Valid ID (Optional)
                                 </label>
+                                <?php if (!empty($current_documents['valid_id'])): ?>
+                                <div class="mb-2 p-2 bg-green-50 border border-green-200 rounded">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-xs text-green-700 font-medium">
+                                                <i class="fas fa-check-circle mr-1"></i>Document already uploaded
+                                            </div>
+                                            <div class="text-xs text-gray-600 truncate mt-1">
+                                                <?php 
+                                                $filename = basename($current_documents['valid_id']);
+                                                echo htmlspecialchars(substr($filename, 0, 30)) . (strlen($filename) > 30 ? '...' : '');
+                                                ?>
+                                            </div>
+                                        </div>
+                                        <?php $view_url = getDocumentUrl($current_documents['valid_id']); ?>
+                                        <?php if ($view_url): ?>
+                                        <a href="<?php echo $view_url; ?>" target="_blank" 
+                                           class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded flex items-center transition-colors">
+                                            <i class="fas fa-eye mr-1"></i> View
+                                        </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                                 <div class="border border-gray-300 rounded-lg p-3 hover:border-blue-500 transition-colors">
                                     <input type="file" 
                                            name="valid_id" 
                                            accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
                                            class="hidden" 
                                            id="valid_id"
                                            onchange="showFileName(this, 'validid_filename')">
                                     <label for="valid_id" class="cursor-pointer flex items-center">
                                         <div class="flex-1">
-                                            <div class="text-sm text-gray-600">Click to upload</div>
+                                            <div class="text-sm text-gray-600">Click to upload new file</div>
                                             <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
                                         </div>
                                         <div class="text-gray-400 text-sm">
@@ -662,46 +624,18 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                     </div>
                 </div>
 
-                <!-- Terms and Conditions -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-3">Terms and Conditions</h4>
-                    <div class="space-y-2 text-sm text-gray-600">
-                        <div class="flex items-start">
-                            <input type="checkbox" name="terms_agreed" id="terms_agreed" 
-                                   class="mt-1 mr-2" required>
-                            <label for="terms_agreed">
-                                I certify that all information provided is true and correct. I understand that false information may lead to application rejection.
-                            </label>
-                        </div>
-                        <div class="flex items-start">
-                            <input type="checkbox" name="interview_agreed" id="interview_agreed" 
-                                   class="mt-1 mr-2" required>
-                            <label for="interview_agreed">
-                                I agree to undergo an interview process with the market administrator.
-                            </label>
-                        </div>
-                        <div class="flex items-start">
-                            <input type="checkbox" name="payment_agreed" id="payment_agreed" 
-                                   class="mt-1 mr-2" required>
-                            <label for="payment_agreed">
-                                I understand that stall rights fee and security bond must be paid upon approval before contract signing.
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Submit Button -->
+                <!-- Submit Buttons -->
                 <div class="flex justify-between">
-                    <a href="apply_rental.php?map_id=<?php echo $map_id; ?>" 
+                    <a href="need_correction.php" 
                        class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center">
                         <i class="fas fa-arrow-left mr-2"></i>
-                        Back to Stall Selection
+                        Cancel
                     </a>
                     
                     <button type="submit" 
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 flex items-center">
+                        class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 flex items-center">
                         <i class="fas fa-paper-plane mr-2"></i>
-                        Submit Application
+                        Submit Corrections
                     </button>
                 </div>
             </form>
@@ -711,7 +645,7 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
         <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h4 class="font-semibold text-blue-800 mb-3 flex items-center">
                 <i class="fas fa-info-circle mr-2"></i>
-                Application Process Flow
+                After Submitting Corrections
             </h4>
             <div class="text-blue-700 text-sm space-y-3">
                 <div class="flex items-center">
@@ -719,7 +653,7 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                         <span class="text-blue-700 font-bold">1</span>
                     </div>
                     <div>
-                        <span class="font-medium">Pending</span> - Your application has been submitted and is awaiting review
+                        <span class="font-medium">Resubmitted</span> - Your corrected application will be reviewed again
                     </div>
                 </div>
                 <div class="flex items-center">
@@ -727,7 +661,7 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                         <span class="text-blue-700 font-bold">2</span>
                     </div>
                     <div>
-                        <span class="font-medium">Interviewed</span> - Interview completed with market administrator
+                        <span class="font-medium">Interview</span> - If corrections are accepted, you'll be scheduled for interview
                     </div>
                 </div>
                 <div class="flex items-center">
@@ -735,15 +669,7 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                         <span class="text-blue-700 font-bold">3</span>
                     </div>
                     <div>
-                        <span class="font-medium">Paying</span> - Stall rights fee payment required
-                    </div>
-                </div>
-                <div class="flex items-center">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 border border-blue-300 flex items-center justify-center mr-3">
-                        <span class="text-blue-700 font-bold">4</span>
-                    </div>
-                    <div>
-                        <span class="font-medium">Approved</span> - Contract signed and stall assigned
+                        <span class="font-medium">Payment</span> - After successful interview, proceed with payment
                     </div>
                 </div>
             </div>
@@ -816,17 +742,6 @@ $form_data = array_merge($autofill_data, $_POST ?? []);
                 e.preventDefault();
                 alert('You must be at least 18 years old to apply.');
                 birthDate.focus();
-            }
-            
-            // Check if all checkboxes are checked
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            for (let checkbox of checkboxes) {
-                if (!checkbox.checked) {
-                    e.preventDefault();
-                    alert('Please agree to all terms and conditions.');
-                    checkbox.focus();
-                    break;
-                }
             }
         });
 

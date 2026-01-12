@@ -17,7 +17,14 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
-$business_callback_url = 'http://localhost/revenue2/citizen_dashboard/business/api/business_payment_api.php';
+// Determine base URL based on whether we're on localhost or live domain
+$is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
+$base_url = $is_localhost 
+    ? 'http://localhost/revenue2' 
+    : 'https://revenuetreasury.goserveph.com';
+
+// Business payment callback URL - dynamically generated
+$business_callback_url = $base_url . '/citizen_dashboard/business/api/business_payment_api.php';
 
 // Get current penalty rate from config
 function getBusinessPenaltyRate($pdo) {
@@ -244,6 +251,19 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
     <?php include '../../../citizen_dashboard/navbar.php'; ?>
     
     <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Payment Success Message -->
+        <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
+                <div>
+                    <h3 class="font-bold text-green-800 mb-1">Payment Successful!</h3>
+                    <p class="text-green-700 text-sm">Your business tax payment has been processed. Your payment status will update shortly.</p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Back Button & Header -->
         <div class="mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -702,11 +722,25 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                     $purpose_text = 'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
+                                                    // FIXED: Create a form to open payment in new tab
                                                     echo '
-                                                    <button onclick="makePayment(' . $tax['id'] . ', ' . $totalAmount . ', \'' . $purpose_text . '\', ' . ($penaltyAmount > 0 ? 'true' : 'false') . ')" 
-                                                            class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
-                                                        <i class="fas fa-credit-card mr-2"></i> Pay Now
-                                                    </button>';
+                                                    <form id="paymentForm_' . $tax['id'] . '" 
+                                                          method="GET" 
+                                                          action="../../digital/index.php" 
+                                                          target="_blank" 
+                                                          onsubmit="openPaymentWindow(this); return false;">
+                                                        <input type="hidden" name="system" value="business">
+                                                        <input type="hidden" name="ref" value="' . $tax['id'] . '">
+                                                        <input type="hidden" name="amount" value="' . $totalAmount . '">
+                                                        <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                                        <input type="hidden" name="callback" value="' . $business_callback_url . '">
+                                                        <input type="hidden" name="return_url" value="' . $base_url . '/citizen_dashboard/business/business_tax_payment/business_tax_payment.php?payment_success=true">
+                                                        
+                                                        <button type="submit" 
+                                                                class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
+                                                            <i class="fas fa-credit-card mr-2"></i> Pay Now
+                                                        </button>
+                                                    </form>';
                                                 }
                                                 
                                                 echo '
@@ -879,6 +913,25 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
     </div>
 
 <script>
+// Function to open payment in new window
+function openPaymentWindow(form) {
+    // Open payment in new tab
+    const paymentUrl = form.action + '?' + new URLSearchParams(new FormData(form)).toString();
+    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
+    
+    // Check if payment window was closed
+    const checkWindowClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // When payment window is closed, refresh the page to check for updates
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }, 1000);
+}
+
+// Old makePayment function (keep for compatibility if needed elsewhere)
 function makePayment(taxId, amount, purpose, hasPenalty = false) {
     console.log('Initiating payment for Business Tax ID:', taxId, 'Amount:', amount);
     
@@ -889,19 +942,43 @@ function makePayment(taxId, amount, purpose, hasPenalty = false) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     btn.disabled = true;
     
-    // Build SIMPLIFIED payment parameters - NO complex system_data
+    // Build SIMPLIFIED payment parameters
     const params = new URLSearchParams();
     params.append('system', 'business');
-    params.append('ref', taxId.toString());  // quarterly_id
+    params.append('ref', taxId.toString());
     params.append('amount', amount.toString());
     params.append('purpose', purpose);
     params.append('callback', '<?php echo $business_callback_url; ?>');
-    // REMOVED: params.append('data', JSON.stringify({ quarterly_id: taxId, has_penalty: hasPenalty }));
+    params.append('return_url', '<?php echo $base_url; ?>/citizen_dashboard/business/business_tax_payment/business_tax_payment.php?payment_success=true');
     
-    // Redirect to universal payment page
-    setTimeout(() => {
-        window.location.href = '../../digital/index.php?' + params.toString();
-    }, 300);
+    // Open in new window
+    const paymentUrl = '../../digital/index.php?' + params.toString();
+    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
+    
+    // Check if payment window was closed
+    const checkWindowClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // Restore button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            // Refresh page
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }, 1000);
+}
+
+// View receipt function
+function viewReceipt(receiptNumber) {
+    alert('View receipt: ' + receiptNumber);
+    // Implement receipt viewing logic here
+}
+
+// Pay annual function (coming soon)
+function payAnnual(businessId, amount, purpose, hasDiscount, discountRate, permitId) {
+    alert('Annual payment feature coming soon!');
 }
 </script>
 </body>

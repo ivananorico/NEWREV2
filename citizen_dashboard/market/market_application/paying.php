@@ -8,20 +8,23 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_name = $_SESSION['user_name'] ?? 'Citizen';
 
 // Include database connection
 include_once '../../../db/Market/market_db.php';
 
-// Market payment callback URL
-$market_callback_url = 'http://localhost/revenue2/citizen_dashboard/market/api/stall_rights_pay_api.php';
+// Determine base URL based on whether we're on localhost or live domain
+$is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
+$base_url = $is_localhost 
+    ? 'http://localhost/revenue2' 
+    : 'https://revenuetreasury.goserveph.com';
 
-// Function to format currency
-function formatCurrency($amount) {
-    return '₱' . number_format($amount, 2);
-}
+// Market payment callback URL - dynamically generated
+$market_callback_url = $base_url . '/citizen_dashboard/market/api/stall_rights_pay_api.php';
 
-// Get applications with 'paying' status - FIXED QUERY
+// Debug output (remove in production)
+// echo "<!-- Callback URL: $market_callback_url -->";
+
+// Get applications with 'paying' status
 $applications = [];
 $total_applications = 0;
 
@@ -76,110 +79,106 @@ try {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Market Stall Payment | LGU System</title>
+<title>Payment Required | Market Rent Services</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
 .status-badge { 
-    display: inline-flex; 
-    align-items: center; 
-    padding: 0.4rem 0.8rem; 
-    border-radius: 6px; 
-    font-size: 0.8rem; 
-    font-weight: 500; 
+    padding: 0.25rem 0.75rem; 
+    border-radius: 9999px; 
+    font-size: 0.75rem; 
+    font-weight: 600; 
 }
-.status-paying { background-color: #8b5cf6; color: white; }
+.status-paying { 
+    background-color: #8b5cf6; 
+    color: white; 
+}
 .card {
     background: white;
-    border-radius: 0.625rem;
+    border-radius: 0.5rem;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-.glow-button {
-    transition: all 0.3s ease;
+.info-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
 }
-.glow-button:hover {
-    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
-    transform: translateY(-2px);
-}
-.pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-.payment-breakdown {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-left: 4px solid #8b5cf6;
+.info-value {
+    font-size: 0.875rem;
+    color: #111827;
+    font-weight: 500;
 }
 </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 min-h-screen">
 <?php include '../../navbar.php'; ?>
 
-<main class="max-w-6xl mx-auto px-4 py-8">
-
+<main class="max-w-6xl mx-auto px-4 py-6">
     <!-- Page Header -->
-    <div class="mb-8">
-        <div class="bg-white shadow-md rounded-xl p-6 border border-gray-200">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center">
-                    <a href="../market_services.php" class="text-purple-600 hover:text-purple-800 mr-4 text-lg"><i class="fas fa-arrow-left"></i></a>
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Market Stall Payment</h1>
-                        <p class="text-gray-600 mt-1">Pay stall rights and security bond to complete your application</p>
-                    </div>
+    <div class="mb-6">
+        <div class="bg-white rounded border border-gray-200 p-4">
+            <div class="flex items-center mb-3">
+                <a href="../market_services.php" class="text-purple-600 hover:text-purple-800 mr-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900">Payment Required</h1>
+                    <p class="text-gray-600 text-sm">Complete payment to finalize your application</p>
                 </div>
-                <?php if ($total_applications > 0): ?>
-                    <div class="text-right">
-                        <div class="text-sm text-gray-500">Payment Required</div>
-                        <div class="font-medium text-gray-900"><?php echo $total_applications; ?> application(s)</div>
-                    </div>
-                <?php endif; ?>
             </div>
 
             <?php if ($total_applications > 0): ?>
-                <div class="mt-4 flex items-center">
-                    <div class="mr-4">
-                        <div class="text-2xl font-bold text-gray-900">Ready to Pay</div>
-                        <div class="text-sm text-gray-500">Complete your stall application</div>
+                <div class="flex items-center mt-3">
+                    <div class="mr-3">
+                        <div class="text-xl font-bold text-gray-900"><?php echo $total_applications; ?></div>
+                        <div class="text-sm text-gray-500">Application<?php echo $total_applications > 1 ? 's' : ''; ?> requiring payment</div>
                     </div>
-                    <div class="h-8 w-px bg-gray-300"></div>
-                    <div class="ml-4">
-                        <div class="status-badge status-paying pulse"><i class="fas fa-credit-card mr-2"></i>Payment Required</div>
+                    <div class="h-6 w-px bg-gray-300"></div>
+                    <div class="ml-3">
+                        <div class="status-badge status-paying">
+                            <i class="fas fa-credit-card mr-1"></i>Payment Required
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
         </div>
     </div>
 
-    <!-- Messages -->
+    <!-- Error Message -->
     <?php if (isset($error_message)): ?>
-        <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+        <div class="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">
             <i class="fas fa-exclamation-circle mr-2"></i><?php echo $error_message; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Payment Success Message -->
+    <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
+                <div>
+                    <h3 class="font-bold text-green-800 mb-1">Payment Successful!</h3>
+                    <p class="text-green-700 text-sm">Your payment has been processed. Your application status will update shortly.</p>
+                </div>
+            </div>
         </div>
     <?php endif; ?>
 
     <?php if ($total_applications === 0): ?>
         <!-- Empty State -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center">
-            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-credit-card text-purple-600 text-2xl"></i>
+        <div class="bg-white rounded border border-gray-200 p-6 text-center">
+            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-credit-card text-purple-500 text-xl"></i>
             </div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-3">No Pending Payments</h3>
-            <p class="text-gray-600 mb-8 text-sm leading-relaxed">
-                You don't have any market stall applications requiring payment at the moment.
-            </p>
-            <div class="space-y-3">
-                <a href="../market_services.php" 
-                   class="inline-flex items-center px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                    <i class="fas fa-store mr-2"></i>Back to Market Services
-                </a>
-            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">No Pending Payments</h3>
+            <p class="text-gray-600 mb-4">You don't have any applications requiring payment at this time.</p>
+            <a href="../market_services.php" 
+               class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm">
+                <i class="fas fa-store mr-2"></i>Back to Market Services
+            </a>
         </div>
     <?php else: ?>
-        <div class="space-y-8">
+        <div class="space-y-4">
             <?php foreach ($applications as $app): ?>
                 <?php
                     // Prepare full name
@@ -191,6 +190,7 @@ try {
                     // Get payment breakdown
                     $stall_rights_amount = $app['stall_rights_amount'] ?? 0;
                     $security_bond = $app['security_bond'] ?? 0;
+                    $monthly_rent = $app['monthly_rent'] ?? 0;
                     $total_amount_due = $app['total_amount_due'] ?? ($stall_rights_amount + $security_bond);
                     
                     // Get the registration ID
@@ -200,195 +200,257 @@ try {
                     $payment_description = "Market Stall: {$app['stall_name']} - {$app['class_name']} Class";
                 ?>
 
-                <!-- Payment Card -->
-                <div class="card overflow-hidden">
+                <div class="card">
                     <!-- Header -->
-                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between">
-                            <div class="mb-4 md:mb-0">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mr-4">
-                                        <i class="fas fa-store text-white text-lg"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($app['business_name']); ?></h3>
-                                        <p class="text-gray-600">
-                                            <i class="fas fa-hashtag text-gray-400 mr-1 text-sm"></i>
-                                            Application #: <?php echo $app['stall_rights_no']; ?>
-                                        </p>
-                                    </div>
+                    <div class="p-4 border-b border-gray-100">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center mb-1">
+                                    <span class="text-lg font-bold text-gray-900 mr-3">
+                                        #<?php echo $app['stall_rights_no']; ?>
+                                    </span>
+                                    <span class="status-badge status-paying">
+                                        <i class="fas fa-credit-card mr-1"></i>Payment Required
+                                    </span>
+                                </div>
+                                <div class="text-gray-600 text-sm">
+                                    <i class="fas fa-store mr-1"></i>
+                                    <?php echo $app['stall_name']; ?> • <?php echo $app['class_name']; ?> Class
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm text-gray-500 font-medium">Total Amount Due</p>
-                                <p class="text-3xl font-bold text-purple-600"><?php echo formatCurrency($total_amount_due); ?></p>
+                                <div class="text-xs text-gray-500">Total Amount Due</div>
+                                <div class="text-lg font-bold text-purple-600">
+                                    ₱<?php echo number_format($total_amount_due, 2); ?>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Payment Details -->
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <!-- Left Column: Application Details -->
+                    <!-- Progress Bar -->
+                    <div class="px-4 py-3 bg-gray-50 border-y border-gray-100">
+                        <div class="mb-1">
+                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Application</span>
+                                <span>Interview</span>
+                                <span>Payment</span>
+                                <span>Approval</span>
+                            </div>
+                            <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full bg-purple-500" style="width: 75%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-4">
+                        <div class="space-y-4">
+                            <!-- Applicant Information Section -->
                             <div>
-                                <h4 class="font-semibold text-gray-800 mb-4 text-lg flex items-center">
-                                    <i class="fas fa-clipboard-list text-purple-600 mr-2"></i>
-                                    Application Details
-                                </h4>
-                                
-                                <div class="space-y-4">
-                                    <div>
-                                        <div class="text-sm text-gray-500 font-medium mb-1">Applicant Name</div>
-                                        <div class="text-gray-900 font-medium"><?php echo htmlspecialchars($full_name); ?></div>
-                                    </div>
-                                    
-                                    <div class="grid grid-cols-2 gap-4">
+                                <h3 class="font-semibold text-gray-800 mb-3 border-b pb-2">Applicant Information</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="space-y-3">
+                                        <!-- Personal Information -->
                                         <div>
-                                            <div class="text-sm text-gray-500 font-medium mb-1">Stall Name</div>
-                                            <div class="text-gray-900 font-medium"><?php echo $app['stall_name']; ?></div>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm text-gray-500 font-medium mb-1">Stall Class</div>
-                                            <div class="text-gray-900 font-medium"><?php echo $app['class_name']; ?> Class</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <div class="text-sm text-gray-500 font-medium mb-1">Renter Code</div>
-                                        <div class="text-gray-900 font-medium"><?php echo $app['renter_code']; ?></div>
-                                    </div>
-                                    
-                                    <div>
-                                        <div class="text-sm text-gray-500 font-medium mb-1">Business Type</div>
-                                        <div class="text-gray-900 font-medium"><?php echo ucfirst($app['business_type']); ?></div>
-                                    </div>
-                                    
-                                    <?php if (!empty($app['market_name'])): ?>
-                                    <div>
-                                        <div class="text-sm text-gray-500 font-medium mb-1">Market</div>
-                                        <div class="text-gray-900 font-medium"><?php echo $app['market_name']; ?></div>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <!-- Status Timeline -->
-                                <div class="mt-8 pt-8 border-t border-gray-200">
-                                    <h5 class="font-medium text-gray-700 mb-4">Application Progress</h5>
-                                    <div class="flex items-center space-x-4">
-                                        <div class="flex-1">
-                                            <div class="flex justify-between text-sm text-gray-600 mb-2">
-                                                <span>Application</span>
-                                                <span>Interview</span>
-                                                <span class="font-bold text-purple-600">Payment</span>
-                                                <span>Contract</span>
-                                            </div>
-                                            <div class="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                <div class="absolute h-full bg-purple-600" style="width: 75%"></div>
+                                            <h4 class="font-medium text-gray-700 mb-2 text-sm">Personal Information</h4>
+                                            <div class="space-y-2">
+                                                <div>
+                                                    <div class="info-label">Full Name</div>
+                                                    <div class="info-value"><?php echo htmlspecialchars($full_name); ?></div>
+                                                </div>
+                                                <div>
+                                                    <div class="info-label">Email Address</div>
+                                                    <div class="info-value"><?php echo htmlspecialchars($app['email']); ?></div>
+                                                </div>
+                                                <div>
+                                                    <div class="info-label">Mobile Number</div>
+                                                    <div class="info-value"><?php echo $app['mobile']; ?></div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="text-sm font-medium text-purple-600">Step 3 of 4</div>
+                                    </div>
+
+                                    <div class="space-y-3">
+                                        <!-- Application Information -->
+                                        <div>
+                                            <h4 class="font-medium text-gray-700 mb-2 text-sm">Application Details</h4>
+                                            <div class="space-y-2">
+                                                <div>
+                                                    <div class="info-label">Renter Code</div>
+                                                    <div class="info-value font-bold text-purple-600"><?php echo $app['renter_code']; ?></div>
+                                                </div>
+                                                <div>
+                                                    <div class="info-label">Stall Rights No.</div>
+                                                    <div class="info-value font-bold"><?php echo $app['stall_rights_no']; ?></div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Right Column: Payment Breakdown -->
-                            <div>
-                                <h4 class="font-semibold text-gray-800 mb-4 text-lg flex items-center">
-                                    <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
-                                    Payment Breakdown
-                                </h4>
-                                
-                                <div class="payment-breakdown p-6 rounded-xl">
-                                    <div class="space-y-4">
-                                        <!-- Stall Rights Fee -->
-                                        <div class="flex justify-between items-center">
-                                            <div>
-                                                <div class="font-medium text-gray-800">Stall Rights Fee</div>
-                                                <div class="text-sm text-gray-600">One-time fee for stall rights</div>
-                                            </div>
-                                            <div class="text-xl font-bold text-gray-900"><?php echo formatCurrency($stall_rights_amount); ?></div>
+                            <!-- Stall and Financial Information Section -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Stall Information -->
+                                <div>
+                                    <h3 class="font-semibold text-gray-800 mb-3 border-b pb-2">Stall Information</h3>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <div class="info-label">Stall Name</div>
+                                            <div class="info-value"><?php echo htmlspecialchars($app['stall_name']); ?></div>
                                         </div>
-                                        
-                                        <!-- Security Bond -->
-                                        <div class="flex justify-between items-center">
-                                            <div>
-                                                <div class="font-medium text-gray-800">Security Bond</div>
-                                                <div class="text-sm text-gray-600">Refundable security deposit</div>
-                                            </div>
-                                            <div class="text-xl font-bold text-gray-900"><?php echo formatCurrency($security_bond); ?></div>
+                                        <div>
+                                            <div class="info-label">Business Name</div>
+                                            <div class="info-value"><?php echo !empty($app['business_name']) ? htmlspecialchars($app['business_name']) : 'N/A'; ?></div>
                                         </div>
-                                        
-                                        <!-- Divider -->
-                                        <div class="border-t border-gray-300 pt-4 mt-2">
-                                            <div class="flex justify-between items-center">
-                                                <div>
-                                                    <div class="font-bold text-lg text-gray-800">Total Amount Due</div>
-                                                    <div class="text-sm text-gray-600">Pay now to complete application</div>
-                                                </div>
-                                                <div class="text-3xl font-bold text-purple-600"><?php echo formatCurrency($total_amount_due); ?></div>
-                                            </div>
+                                        <div>
+                                            <div class="info-label">Business Type</div>
+                                            <div class="info-value"><?php echo !empty($app['business_type']) ? htmlspecialchars($app['business_type']) : 'N/A'; ?></div>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Important Notes -->
-                                    <div class="mt-6 pt-6 border-t border-gray-300">
-                                        <h5 class="font-medium text-gray-700 mb-2 flex items-center">
-                                            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
-                                            Important Notes
-                                        </h5>
-                                        <ul class="text-sm text-gray-600 space-y-1">
-                                            <li class="flex items-start">
-                                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                                                <span>Stall rights fee is non-refundable</span>
-                                            </li>
-                                            <li class="flex items-start">
-                                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                                                <span>Security bond is refundable upon contract termination</span>
-                                            </li>
-                                            <li class="flex items-start">
-                                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                                                <span>Payment must be completed within 7 days</span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    
-                                    <!-- Payment Button -->
-                                    <div class="mt-8">
-                                        <form id="paymentForm<?php echo $registration_id; ?>" method="GET" action="../../digital/index.php">
-                                            <!-- UNIVERSAL PAYMENT PARAMETERS -->
-                                            <input type="hidden" name="system" value="market">
-                                            <input type="hidden" name="ref" value="<?php echo $registration_id; ?>">
-                                            <input type="hidden" name="amount" value="<?php echo $total_amount_due; ?>">
-                                            <input type="hidden" name="purpose" value="<?php echo htmlspecialchars($payment_description); ?>">
-                                            <input type="hidden" name="callback" value="<?php echo $market_callback_url; ?>">
-                                            
-                                            <button type="submit" 
-                                                    class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 rounded-lg font-bold text-lg glow-button flex items-center justify-center hover:from-purple-700 hover:to-indigo-700">
-                                                <i class="fas fa-credit-card mr-3 text-xl"></i>
-                                                Pay Now - <?php echo formatCurrency($total_amount_due); ?>
-                                            </button>
-                                        </form>
-                                        
-                                        <p class="text-center text-sm text-gray-500 mt-3">
-                                            <i class="fas fa-lock mr-1"></i>
-                                            Secure SSL encrypted payment
-                                        </p>
+                                        <div>
+                                            <div class="info-label">Stall Class</div>
+                                            <div class="info-value font-bold text-purple-600"><?php echo $app['class_name']; ?> Class</div>
+                                        </div>
+                                        <?php if (!empty($app['market_name'])): ?>
+                                        <div>
+                                            <div class="info-label">Market Location</div>
+                                            <div class="info-value"><?php echo htmlspecialchars($app['market_name']); ?></div>
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
+
+                                <!-- Financial Information -->
+                                <div>
+                                    <h3 class="font-semibold text-gray-800 mb-3 border-b pb-2">Payment Details</h3>
+                                    <div class="space-y-4">
+                                        <!-- One-time Payments -->
+                                        <div class="p-3 bg-purple-50 rounded border border-purple-100">
+                                            <h4 class="font-medium text-gray-800 mb-3">One-time Payments</h4>
+                                            <div class="space-y-3">
+                                                <?php if ($stall_rights_amount > 0): ?>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <div class="text-sm font-medium text-gray-800">Stall Rights Fee</div>
+                                                        <div class="text-xs text-gray-600">Non-refundable</div>
+                                                    </div>
+                                                    <div class="text-sm font-bold text-gray-900">
+                                                        ₱<?php echo number_format($stall_rights_amount, 2); ?>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($security_bond > 0): ?>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <div class="text-sm font-medium text-gray-800">Security Bond</div>
+                                                        <div class="text-xs text-gray-600">Refundable upon termination</div>
+                                                    </div>
+                                                    <div class="text-sm font-bold text-gray-900">
+                                                        ₱<?php echo number_format($security_bond, 2); ?>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
+                                                
+                                                <div class="pt-3 mt-3 border-t border-purple-200">
+                                                    <div class="flex justify-between items-center">
+                                                        <div>
+                                                            <div class="font-bold text-gray-900">Total Amount Due</div>
+                                                            <div class="text-xs text-gray-600">Pay now to complete application</div>
+                                                        </div>
+                                                        <div class="text-lg font-bold text-purple-600">
+                                                            ₱<?php echo number_format($total_amount_due, 2); ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Monthly Rent -->
+                                        <div class="p-3 bg-blue-50 rounded border border-blue-100">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <div class="info-label">Monthly Rent</div>
+                                                    <div class="text-lg font-bold text-blue-700">
+                                                        ₱<?php echo number_format($monthly_rent, 2); ?>
+                                                    </div>
+                                                    <div class="text-xs text-blue-600 mt-1">
+                                                        Payable monthly after stall approval
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Payment Instructions -->
+                                        <div class="p-3 bg-yellow-50 rounded border border-yellow-100">
+                                            <h4 class="font-medium text-gray-800 mb-2">Payment Instructions</h4>
+                                            <ul class="text-xs text-yellow-800 space-y-1">
+                                                <li class="flex items-start">
+                                                    <i class="fas fa-clock mt-1 mr-2"></i>
+                                                    <span>Payment must be completed within 7 days</span>
+                                                </li>
+                                                <li class="flex items-start">
+                                                    <i class="fas fa-check-circle mt-1 mr-2"></i>
+                                                    <span>Stall assignment after payment confirmation</span>
+                                                </li>
+                                                <li class="flex items-start">
+                                                    <i class="fas fa-file-contract mt-1 mr-2"></i>
+                                                    <span>Contract will be issued after payment</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Action Section -->
+                            <div class="pt-6 border-t border-gray-200">
+                                <form id="paymentForm<?php echo $registration_id; ?>" 
+                                      method="GET" 
+                                      action="../../digital/index.php" 
+                                      target="_blank" 
+                                      onsubmit="openPaymentWindow(this); return false;">
+                                    <!-- UNIVERSAL PAYMENT PARAMETERS -->
+                                    <input type="hidden" name="system" value="market">
+                                    <input type="hidden" name="ref" value="<?php echo $registration_id; ?>">
+                                    <input type="hidden" name="amount" value="<?php echo $total_amount_due; ?>">
+                                    <input type="hidden" name="purpose" value="<?php echo htmlspecialchars($payment_description); ?>">
+                                    <input type="hidden" name="callback" value="<?php echo $market_callback_url; ?>">
+                                    <input type="hidden" name="return_url" value="<?php echo $base_url; ?>/citizen_dashboard/market/market_application/paying.php?payment_success=true">
+                                    
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-purple-50 rounded-lg p-4">
+                                        <div class="mb-3 sm:mb-0">
+                                            <div class="font-medium text-purple-800 mb-1">Ready to Complete Payment?</div>
+                                            <div class="text-sm text-purple-700">
+                                                Click "Pay Now" to proceed with secure payment
+                                            </div>
+                                        </div>
+                                        <button type="submit" 
+                                                class="inline-flex items-center justify-center px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
+                                            <i class="fas fa-credit-card mr-2"></i>
+                                            Pay Now - ₱<?php echo number_format($total_amount_due, 2); ?>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="mt-3 text-center text-xs text-gray-500">
+                                        <i class="fas fa-lock mr-1"></i>
+                                        Secure SSL encrypted payment gateway
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
 
                     <!-- Footer -->
-                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between">
-                            <div>
-                                <div class="font-medium text-gray-900">What happens after payment?</div>
-                                <div class="text-sm text-gray-600">
-                                    After successful payment, your application will be approved and you'll receive your stall contract.
+                    <div class="p-3 bg-purple-50 border-t border-gray-100">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between">
+                            <div class="mb-2 sm:mb-0">
+                                <div class="font-medium text-purple-800">What happens after payment?</div>
+                                <div class="text-purple-700 text-sm">
+                                    Your application will be approved and you'll receive your stall contract via email.
                                 </div>
                             </div>
-                            <div class="text-sm text-purple-700 mt-2 md:mt-0">
+                            <div class="text-purple-700 text-xs">
                                 <i class="fas fa-clock mr-1"></i>
                                 Payment valid for 7 days
                             </div>
@@ -398,45 +460,88 @@ try {
             <?php endforeach; ?>
         </div>
 
+        <!-- Statistics -->
+        <div class="mt-6 bg-white rounded border border-gray-200 p-4">
+            <h3 class="font-semibold text-gray-800 mb-3 text-sm">Payment Status Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <div class="text-2xl font-bold text-purple-700"><?php echo $total_applications; ?></div>
+                    <div class="text-xs text-purple-600 font-medium">Payment Required</div>
+                </div>
+                <div class="text-center p-3 bg-green-50 rounded-lg border border-green-100">
+                    <div class="text-2xl font-bold text-green-700"><?php 
+                        // Get count of approved applications
+                        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM rental_registration rr JOIN renter_owner ro ON rr.id = ro.registration_id WHERE ro.user_id = ? AND rr.application_status = 'approved'");
+                        $stmt->execute([$user_id]);
+                        $approved_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+                        echo $approved_count;
+                    ?></div>
+                    <div class="text-xs text-green-600 font-medium">Approved</div>
+                </div>
+                <div class="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                    <div class="text-2xl font-bold text-yellow-700"><?php 
+                        // Get count of pending applications
+                        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM rental_registration rr JOIN renter_owner ro ON rr.id = ro.registration_id WHERE ro.user_id = ? AND rr.application_status = 'pending'");
+                        $stmt->execute([$user_id]);
+                        $pending_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+                        echo $pending_count;
+                    ?></div>
+                    <div class="text-xs text-yellow-600 font-medium">Pending</div>
+                </div>
+                <div class="text-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <div class="text-2xl font-bold text-blue-700"><?php 
+                        // Get count of interviewed applications
+                        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM rental_registration rr JOIN renter_owner ro ON rr.id = ro.registration_id WHERE ro.user_id = ? AND rr.application_status = 'interviewed'");
+                        $stmt->execute([$user_id]);
+                        $interviewed_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+                        echo $interviewed_count;
+                    ?></div>
+                    <div class="text-xs text-blue-600 font-medium">Interviewed</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Help Section -->
-        <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-question-circle text-purple-600 mr-2"></i>
-                Need Assistance?
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">Payment Questions</h4>
-                    <div class="space-y-3 text-gray-600">
-                        <p class="flex items-center">
-                            <i class="fas fa-phone mr-3 text-purple-500"></i>
-                            (02) 8123-4567 (Market Office)
-                        </p>
-                        <p class="flex items-center">
-                            <i class="fas fa-envelope mr-3 text-purple-500"></i>
-                            market-payments@goserveph.gov.ph
-                        </p>
-                        <p class="flex items-center">
-                            <i class="fas fa-clock mr-3 text-purple-500"></i>
-                            Mon-Fri: 8:00 AM - 5:00 PM
-                        </p>
+        <div class="mt-6 bg-white rounded border border-gray-200 p-4">
+            <h3 class="font-semibold text-gray-800 mb-3 text-sm">Need Help?</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <div>
+                        <div class="font-medium text-gray-700 text-sm">Contact Market Office</div>
+                        <div class="text-gray-600 text-sm">(02) 8123-4567</div>
+                    </div>
+                    <div>
+                        <div class="font-medium text-gray-700 text-sm">Email</div>
+                        <div class="text-gray-600 text-sm">market-payments@goserveph.gov.ph</div>
                     </div>
                 </div>
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">Frequently Asked Questions</h4>
-                    <div class="space-y-3 text-sm text-gray-600">
-                        <div class="border-l-2 border-purple-300 pl-3">
-                            <p class="font-medium text-gray-700">When will I get my stall?</p>
-                            <p class="text-gray-600">Within 3 business days after payment confirmation.</p>
-                        </div>
-                        <div class="border-l-2 border-purple-300 pl-3">
-                            <p class="font-medium text-gray-700">Is the security bond refundable?</p>
-                            <p class="text-gray-600">Yes, upon proper termination of your contract.</p>
-                        </div>
-                        <div class="border-l-2 border-purple-300 pl-3">
-                            <p class="font-medium text-gray-700">What payment methods are accepted?</p>
-                            <p class="text-gray-600">Online payment (credit/debit card, e-wallets).</p>
-                        </div>
+                <div class="space-y-2">
+                    <div>
+                        <div class="font-medium text-gray-700 text-sm">Office Hours</div>
+                        <div class="text-gray-600 text-sm">Mon-Fri: 8:00 AM - 5:00 PM</div>
+                    </div>
+                    <div>
+                        <div class="font-medium text-gray-700 text-sm">Location</div>
+                        <div class="text-gray-600 text-sm">Market Office, Public Market Building</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- FAQ Section -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2 text-sm">Frequently Asked Questions</h4>
+                <div class="space-y-3 text-sm text-gray-600">
+                    <div class="border-l-2 border-purple-300 pl-3">
+                        <p class="font-medium text-gray-700">When will I get my stall?</p>
+                        <p class="text-gray-600">Within 3 business days after payment confirmation.</p>
+                    </div>
+                    <div class="border-l-2 border-purple-300 pl-3">
+                        <p class="font-medium text-gray-700">Is the security bond refundable?</p>
+                        <p class="text-gray-600">Yes, upon proper termination of your contract.</p>
+                    </div>
+                    <div class="border-l-2 border-purple-300 pl-3">
+                        <p class="font-medium text-gray-700">What payment methods are accepted?</p>
+                        <p class="text-gray-600">Online payment (credit/debit card, e-wallets).</p>
                     </div>
                 </div>
             </div>
@@ -445,6 +550,24 @@ try {
 </main>
 
 <script>
+// Function to open payment in new window
+function openPaymentWindow(form) {
+    // Open payment in new tab
+    const paymentUrl = form.action + '?' + new URLSearchParams(new FormData(form)).toString();
+    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
+    
+    // Check if payment window was closed
+    const checkWindowClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // When payment window is closed, refresh the page to check for updates
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }, 1000);
+}
+
 // Auto-refresh page every 2 minutes to check for status updates
 setTimeout(() => {
     window.location.reload();

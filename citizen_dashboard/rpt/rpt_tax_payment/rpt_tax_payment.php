@@ -17,7 +17,14 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
-$rpt_callback_url = 'http://localhost/revenue2/citizen_dashboard/rpt/api/rpt_payment_api.php';
+// Determine base URL based on whether we're on localhost or live domain
+$is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
+$base_url = $is_localhost 
+    ? 'http://localhost/revenue2' 
+    : 'https://revenuetreasury.goserveph.com';
+
+// RPT payment callback URL - dynamically generated
+$rpt_callback_url = $base_url . '/citizen_dashboard/rpt/api/rpt_payment_api.php';
 
 function calculatePenalties($quarterly_taxes, $pdo) {
     $current_date = date('Y-m-d');
@@ -217,6 +224,19 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
     <?php include '../../navbar.php'; ?>
     
     <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Payment Success Message -->
+        <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
+                <div>
+                    <h3 class="font-bold text-green-800 mb-1">Payment Successful!</h3>
+                    <p class="text-green-700 text-sm">Your RPT tax payment has been processed. Your payment status will update shortly.</p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Back Button & Header -->
         <div class="mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -496,7 +516,7 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                             <div class="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div class="mb-4 lg:mb-0">
                                     <div class="flex items-center mb-2">
-                                        <span class="status-badge ' . ($eligibleForDiscount ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-md' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
+                                        <span class="status-badge ' . ($eligibleForDiscount ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-md' : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
                                             <i class="fas ' . ($eligibleForDiscount ? 'fa-gift' : 'fa-calendar-check') . ' mr-1.5"></i>
                                             ' . ($eligibleForDiscount ? 'DISCOUNT AVAILABLE' : 'ANNUAL PAYMENT') . '
                                         </span>
@@ -672,11 +692,25 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                                                     $purpose_text = 'RPT ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $property['reference_number'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
+                                                    // FIXED: Create a form to open payment in new tab
                                                     echo '
-                                                    <button onclick="makePayment(' . $tax['id'] . ', ' . $totalAmount . ', \'' . $purpose_text . '\')" 
-                                                            class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
-                                                        <i class="fas fa-credit-card mr-2"></i> Pay Now
-                                                    </button>';
+                                                    <form id="paymentForm_' . $tax['id'] . '" 
+                                                          method="GET" 
+                                                          action="../../digital/index.php" 
+                                                          target="_blank" 
+                                                          onsubmit="openPaymentWindow(this); return false;">
+                                                        <input type="hidden" name="system" value="rpt">
+                                                        <input type="hidden" name="ref" value="' . $tax['id'] . '">
+                                                        <input type="hidden" name="amount" value="' . $totalAmount . '">
+                                                        <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                                        <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
+                                                        <input type="hidden" name="return_url" value="' . $base_url . '/citizen_dashboard/rpt/rpt_tax_payment/rpt_tax_payment.php?payment_success=true">
+                                                        
+                                                        <button type="submit" 
+                                                                class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
+                                                            <i class="fas fa-credit-card mr-2"></i> Pay Now
+                                                        </button>
+                                                    </form>';
                                                 }
                                                 
                                                 echo '
@@ -849,6 +883,25 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
     </div>
 
 <script>
+// Function to open payment in new window
+function openPaymentWindow(form) {
+    // Open payment in new tab
+    const paymentUrl = form.action + '?' + new URLSearchParams(new FormData(form)).toString();
+    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
+    
+    // Check if payment window was closed
+    const checkWindowClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // When payment window is closed, refresh the page to check for updates
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }, 1000);
+}
+
+// Old makePayment function (keep for compatibility if needed elsewhere)
 function makePayment(taxId, amount, purpose) {
     console.log('Initiating payment for Tax ID:', taxId, 'Amount:', amount);
     
@@ -866,14 +919,25 @@ function makePayment(taxId, amount, purpose) {
     params.append('amount', amount.toString());
     params.append('purpose', purpose);
     params.append('callback', '<?php echo $rpt_callback_url; ?>');
+    params.append('return_url', '<?php echo $base_url; ?>/citizen_dashboard/rpt/rpt_tax_payment/rpt_tax_payment.php?payment_success=true');
     
-    // Remove the complex system_data parameter
-    // params.append('data', JSON.stringify({ quarterly_id: taxId }));
+    // Open in new window
+    const paymentUrl = '../../digital/index.php?' + params.toString();
+    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
     
-    // Redirect to payment page
-    setTimeout(() => {
-        window.location.href = '../../digital/index.php?' + params.toString();
-    }, 300);
+    // Check if payment window was closed
+    const checkWindowClosed = setInterval(() => {
+        if (paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // Restore button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            // Refresh page
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }, 1000);
 }
 
 function viewReceipt(receiptNumber) {

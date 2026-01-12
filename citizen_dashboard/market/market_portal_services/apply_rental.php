@@ -65,134 +65,149 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #f8fafc;
+        :root {
+            --primary: #4a90e2;
+            --secondary: #9aa5b1;
+            --accent: #4caf50;
+            --background: #fbfbfb;
         }
-
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: #333;
+        }
+        
         .main-container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
-
-        /* Map Container */
+        
+        /* Simple back button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        
+        .back-btn:hover {
+            border-color: var(--primary);
+            background: #f8f9fa;
+        }
+        
+        /* Map Container - Original size preserved */
         .market-map {
             width: 800px;
             height: 600px;
-            background-color: #f1f5f9;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
             margin: 0 auto;
             position: relative;
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
         }
-
-        /* Stall Markers */
+        
+        /* Stall Markers - Simple */
         .stall-marker {
             position: absolute;
             cursor: pointer;
-            border-radius: 4px;
-            border: 2px solid white;
+            border-radius: 2px;
+            border: 1px solid white;
             text-align: center;
             transition: all 0.2s;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-weight: 600;
+            font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
-
+        
         .stall-marker:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 0 3px #3b82f6;
-            z-index: 100;
+            border-color: var(--primary);
+            z-index: 10;
         }
-
+        
         .stall-content {
-            padding: 4px;
+            padding: 2px;
             width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
-
+        
         .stall-name {
-            font-size: 11px;
+            font-size: 10px;
             color: white;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
         }
-
+        
         .stall-price {
-            font-size: 9px;
+            font-size: 8px;
             background: rgba(255, 255, 255, 0.3);
-            padding: 1px 4px;
-            border-radius: 8px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            backdrop-filter: blur(2px);
         }
-
-        /* Status Colors */
+        
+        /* Status Colors - FIXED to match legend */
         .status-available {
-            background: #10b981;
+            background: #4caf50; /* Green for Available */
         }
-
+        
         .status-occupied {
-            background: #ef4444;
+            background: #f44336; /* Red for Occupied */
         }
-
+        
         .status-reserved {
-            background: #f97316;
+            background: #ff9800; /* Orange for Reserved */
         }
-
+        
         .status-maintenance {
-            background: #8b5cf6;
+            background: #9c27b0; /* Purple for Maintenance */
         }
-
+        
         .stall-marker.selected {
-            box-shadow: 0 0 0 3px #3b82f6;
-            border: 2px solid white;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
         }
-
-        /* Panel */
+        
+        /* Simple Panel */
         .simple-panel {
             background: white;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 16px;
         }
-
+        
         .panel-title {
-            color: #1e293b;
-            font-size: 1.1rem;
+            color: #2c3e50;
+            font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        /* Legend */
-        .legend-item {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            padding: 8px;
-            background: #f8fafc;
-            border-radius: 6px;
+            gap: 8px;
         }
-
-        .legend-color {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-            border: 1px solid #cbd5e1;
-        }
-
+        
         /* Modal */
         .modal-overlay {
             display: none;
@@ -206,64 +221,64 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             justify-content: center;
             align-items: center;
         }
-
+        
         .modal-content {
             background: white;
-            border-radius: 8px;
+            border-radius: 4px;
             padding: 20px;
             width: 90%;
-            max-width: 450px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-
+        
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e0e0e0;
         }
-
+        
         .modal-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
-            color: #1e293b;
+            color: #2c3e50;
         }
-
+        
         /* Stats */
-        .simple-stats {
+        .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
-
+        
         .stat-box {
-            background: #f1f5f9;
-            border-radius: 6px;
+            background: #f8f9fa;
+            border-radius: 4px;
             padding: 12px;
             text-align: center;
+            border: 1px solid #e0e0e0;
         }
-
+        
         .stat-number {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 4px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 2px;
         }
-
+        
         .stat-label {
             font-size: 0.75rem;
-            color: #64748b;
+            color: var(--secondary);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
-
+        
         /* Buttons */
-        .simple-btn {
-            padding: 10px 16px;
-            border-radius: 6px;
-            font-weight: 600;
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 500;
             font-size: 0.9rem;
             transition: all 0.2s;
             display: inline-flex;
@@ -271,162 +286,211 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             justify-content: center;
             gap: 6px;
             cursor: pointer;
-            border: none;
+            border: 1px solid transparent;
             text-decoration: none;
         }
-
-        .simple-btn-primary {
-            background: #3b82f6;
+        
+        .btn-primary {
+            background: var(--primary);
             color: white;
+            border-color: var(--primary);
         }
-
-        .simple-btn-primary:hover {
-            background: #2563eb;
+        
+        .btn-primary:hover {
+            background: #357ae8;
+            border-color: #357ae8;
         }
-
-        .simple-btn-success {
-            background: #10b981;
+        
+        .btn-success {
+            background: var(--accent);
             color: white;
+            border-color: var(--accent);
         }
-
-        .simple-btn-success:hover {
-            background: #059669;
+        
+        .btn-success:hover {
+            background: #43a047;
+            border-color: #43a047;
         }
-
-        .simple-btn-secondary {
-            background: #64748b;
+        
+        .btn-secondary {
+            background: var(--secondary);
             color: white;
+            border-color: var(--secondary);
         }
-
-        .simple-btn-secondary:hover {
-            background: #475569;
+        
+        .btn-secondary:hover {
+            background: #8a949f;
+            border-color: #8a949f;
         }
-
-        .simple-btn-outline {
+        
+        .btn-outline {
             background: white;
-            color: #3b82f6;
-            border: 2px solid #3b82f6;
+            color: var(--primary);
+            border-color: var(--primary);
         }
-
-        .simple-btn-outline:hover {
-            background: #eff6ff;
+        
+        .btn-outline:hover {
+            background: #f8f9fa;
         }
-
-        /* Status Badges */
+        
+        /* Status Tags - FIXED to match colors */
         .status-tag {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 500;
         }
-
-        .tag-available { background: #d1fae5; color: #065f46; }
-        .tag-occupied { background: #fee2e2; color: #991b1b; }
-        .tag-reserved { background: #ffedd5; color: #9a3412; }
-        .tag-maintenance { background: #f3e8ff; color: #5b21b6; }
-
-        /* Two Column Layout for Header */
-        .header-two-column {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .header-box {
+        
+        .tag-available { background: #e8f5e9; color: #2e7d32; }
+        .tag-occupied { background: #ffebee; color: #c62828; }
+        .tag-reserved { background: #fff3e0; color: #ef6c00; }
+        .tag-maintenance { background: #f3e5f5; color: #7b1fa2; }
+        
+        /* Info Cards */
+        .info-card {
             background: white;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 16px;
         }
-
-        .header-box-title {
-            font-size: 1.2rem;
+        
+        .info-title {
+            font-size: 1rem;
             font-weight: 600;
-            color: #1e293b;
             margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        /* Steps */
+        .steps-container {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 16px;
+        }
+        
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 500;
+            flex-shrink: 0;
         }
-
-        /* Dimension Display */
-        .dimension-display {
+        
+        .step-text {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.4;
+        }
+        
+        /* Contact Info */
+        .contact-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-top: 5px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
-
-        .dimension-item {
-            background: #f1f5f9;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+        
+        .contact-item:last-child {
+            border-bottom: none;
+        }
+        
+        .contact-icon {
+            color: var(--primary);
+            width: 16px;
+        }
+        
+        /* Legend Items - FIXED to match actual colors */
+        .legend-item {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            min-width: 70px;
+            gap: 10px;
+            padding: 6px 0;
         }
-
-        .dimension-label {
-            font-size: 0.7rem;
-            color: #64748b;
-            text-transform: uppercase;
-            margin-bottom: 2px;
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.1);
         }
-
-        .dimension-value {
-            font-weight: 600;
-            color: #1e293b;
+        
+        /* Color classes for legend */
+        .legend-available {
+            background: #4caf50; /* Same as .status-available */
         }
-
+        
+        .legend-occupied {
+            background: #f44336; /* Same as .status-occupied */
+        }
+        
+        .legend-reserved {
+            background: #ff9800; /* Same as .status-reserved */
+        }
+        
+        .legend-maintenance {
+            background: #9c27b0; /* Same as .status-maintenance */
+        }
+        
+        /* Responsive */
         @media (max-width: 1200px) {
+            .market-map {
+                width: 700px;
+                height: 525px;
+            }
+        }
+        
+        @media (max-width: 992px) {
             .market-map {
                 width: 100%;
                 height: 500px;
             }
         }
-
+        
         @media (max-width: 768px) {
             .main-container {
-                padding: 15px;
+                padding: 16px;
             }
             
             .market-map {
                 height: 400px;
             }
             
-            .simple-stats {
+            .stats-grid {
                 grid-template-columns: 1fr;
             }
             
             .modal-content {
                 width: 95%;
-                padding: 15px;
+                margin: 10px;
             }
-            
-            .header-two-column {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
-            .dimension-display {
-                flex-direction: column;
-                gap: 8px;
-            }
-            
-            .dimension-item {
-                width: 100%;
-                flex-direction: row;
-                justify-content: space-between;
+        }
+        
+        @media (max-width: 480px) {
+            .market-map {
+                height: 300px;
             }
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <!-- Navbar -->
     <?php include '../../navbar.php'; ?>
     
@@ -435,19 +499,17 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title" id="modalStallName">Stall Details</h3>
-                <button onclick="closeModal()" class="bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center">
-                    <i class="fas fa-times text-gray-600"></i>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="modalStallDetails">
-                <!-- Stall details will be populated here -->
-            </div>
+            <div id="modalStallDetails"></div>
             <div class="flex gap-2 mt-4">
-                <button onclick="closeModal()" class="simple-btn simple-btn-secondary flex-1">
+                <button onclick="closeModal()" class="btn btn-secondary flex-1">
                     <i class="fas fa-times"></i> Close
                 </button>
-                <button onclick="applyForStall()" id="modalApplyBtn" class="simple-btn simple-btn-success flex-1">
-                    <i class="fas fa-file-contract"></i> Apply Now
+                <button onclick="applyForStall()" id="modalApplyBtn" class="btn btn-success flex-1">
+                    <i class="fas fa-file-alt"></i> Apply
                 </button>
             </div>
         </div>
@@ -455,63 +517,53 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
     <!-- Main Content -->
     <div class="main-container">
-        <!-- Simple Breadcrumb -->
-        <div class="flex items-center text-sm text-gray-600 mb-6">
-            <a href="../../dashboard.php" class="text-blue-600 hover:text-blue-800">
-                <i class="fas fa-home"></i> Dashboard
-            </a>
-            <span class="mx-2">›</span>
-            <a href="market_portal_services.php" class="text-blue-600 hover:text-blue-800">Market Maps</a>
-            <span class="mx-2">›</span>
-            <span class="font-medium"><?php echo htmlspecialchars($map['name']); ?></span>
-        </div>
+        <!-- Back Button -->
+        <a href="market_portal_services.php" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Maps
+        </a>
 
-        <!-- Two Column Header -->
-        <div class="header-two-column">
-            <!-- Market Section -->
-            <div class="header-box">
-                <h2 class="header-box-title">
-                    <i class="fas fa-store text-blue-600"></i>
-                    <?php echo htmlspecialchars($map['name']); ?> Market
-                </h2>
-                <div class="text-gray-600 text-sm space-y-2">
-                    <p><span class="font-medium text-green-600">✓ Available stalls:</span> <?php echo $available_stalls; ?> out of <?php echo $total_stalls; ?></p>
-                    <p><span class="font-medium text-blue-600">ℹ️ Price range:</span> ₱<?php echo number_format($min_price, 2); ?> - ₱<?php echo number_format($max_price, 2); ?>/month</p>
-                    <p><span class="font-medium text-gray-600">📍 Typical stall size:</span> 20.00m × 20.00m × 20.00m</p>
+        <!-- Market Info -->
+        <div class="info-card">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-800"><?php echo htmlspecialchars($map['name']); ?> Market</h1>
+                    <p class="text-gray-600 text-sm">Welcome, <?php echo htmlspecialchars($user_name); ?></p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div class="text-gray-600 text-sm">Price Range</div>
+                    <div class="font-semibold text-primary">₱<?php echo number_format($min_price, 2); ?> - ₱<?php echo number_format($max_price, 2); ?></div>
                 </div>
             </div>
+        </div>
 
-            <!-- How to Rent -->
-            <div class="header-box">
-                <h2 class="header-box-title">
-                    <i class="fas fa-clipboard-list text-green-600"></i>
-                    How to Rent a Stall
-                </h2>
-                <div class="space-y-3">
-                    <div class="flex items-start gap-2">
-                        <div class="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</div>
-                        <span class="text-sm text-gray-600">Click on a green stall</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <div class="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</div>
-                        <span class="text-sm text-gray-600">Check the stall details</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <div class="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</div>
-                        <span class="text-sm text-gray-600">Click "Apply Now" to start</span>
-                    </div>
-                </div>
+        <!-- Instructions -->
+        <div class="steps-container">
+            <div class="info-title">How to Rent a Stall</div>
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div class="step-text">Click on an available stall (green color) on the map</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div class="step-text">Review stall details in the popup window</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div class="step-text">Click "Apply" to start the rental application</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Map Section -->
             <div class="lg:col-span-2">
-                <!-- Map Container -->
                 <div class="simple-panel">
-                    <h3 class="panel-title">
-                        <i class="fas fa-map"></i> Market Layout
-                    </h3>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="panel-title">
+                            <i class="fas fa-map"></i> Market Layout
+                        </h3>
+                        <span class="text-sm text-gray-500">Available: <?php echo $available_stalls; ?> of <?php echo $total_stalls; ?></span>
+                    </div>
+                    
                     <?php if ($image_path): ?>
                         <div class="market-map"
                              style="background-image: url('<?php echo htmlspecialchars($image_path); ?>')"
@@ -522,6 +574,9 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                                 $status = $stall['status'] ?? 'available';
                                 $price = $stall['price'] ?? $stall['class_price'] ?? 0;
                                 $is_available = ($status === 'available');
+                                
+                                // Debug: Check stall status
+                                // echo "<!-- Stall {$stall['name']}: Status = $status, Color = status-$status -->";
                             ?>
                             <div class="stall-marker status-<?php echo $status; ?>"
                                  style="left: <?php echo $stall['pos_x']; ?>px;
@@ -538,7 +593,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                                  data-stall-height="<?php echo $stall['height']; ?>"
                                  data-stall-available="<?php echo $is_available ? 'true' : 'false'; ?>"
                                  onclick="showStallModal(this)"
-                                 title="<?php echo htmlspecialchars($stall['name']); ?> - Click for details">
+                                 title="<?php echo htmlspecialchars($stall['name']); ?> - <?php echo ucfirst($status); ?>">
                                 <div class="stall-content">
                                     <div class="stall-name"><?php echo htmlspecialchars($stall['name']); ?></div>
                                     <div class="stall-price">₱<?php echo number_format($price, 2); ?></div>
@@ -547,109 +602,113 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                             <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <div class="text-center py-12 bg-gray-100 rounded-lg">
-                            <i class="fas fa-exclamation-triangle text-4xl text-gray-400 mb-4"></i>
+                        <div class="text-center py-12 border border-gray-300 rounded">
+                            <i class="fas fa-exclamation-circle text-3xl text-gray-400 mb-3"></i>
                             <p class="text-gray-500">Map image not available</p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Side Panel -->
-            <div>
+            <!-- Sidebar -->
+            <div class="space-y-4">
                 <!-- Statistics -->
-                <div class="simple-panel mb-6">
+                <div class="simple-panel">
                     <h3 class="panel-title">
-                        <i class="fas fa-chart-bar"></i> Stall Summary
+                        <i class="fas fa-chart-bar"></i> Statistics
                     </h3>
-                    <div class="simple-stats">
+                    <div class="stats-grid">
                         <div class="stat-box">
                             <div class="stat-number"><?php echo $total_stalls; ?></div>
                             <div class="stat-label">Total Stalls</div>
                         </div>
                         <div class="stat-box">
-                            <div class="stat-number" style="color: #10b981;"><?php echo $available_stalls; ?></div>
+                            <div class="stat-number" style="color: #4caf50;"><?php echo $available_stalls; ?></div>
                             <div class="stat-label">Available</div>
                         </div>
                         <div class="stat-box">
-                            <div class="stat-number" style="color: #ef4444;"><?php echo $occupied_stalls; ?></div>
+                            <div class="stat-number" style="color: #f44336;"><?php echo $occupied_stalls; ?></div>
                             <div class="stat-label">Occupied</div>
                         </div>
                         <div class="stat-box">
-                            <div class="stat-number" style="color: #8b5cf6;"><?php echo $maintenance_stalls; ?></div>
+                            <div class="stat-number" style="color: #9c27b0;"><?php echo $maintenance_stalls; ?></div>
                             <div class="stat-label">Maintenance</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Important Notes -->
-                <div class="simple-panel mb-6">
+                <!-- Color Legend - FIXED to match actual stall colors -->
+                <div class="simple-panel">
                     <h3 class="panel-title">
-                        <i class="fas fa-info-circle"></i> Important Notes
+                        <i class="fas fa-info-circle"></i> Status Legend
                     </h3>
-                    <div class="space-y-3">
-                        <div class="flex items-start gap-2">
-                            <div class="mt-1">
-                                <div class="w-4 h-4 rounded bg-green-500"></div>
-                            </div>
+                    <div class="space-y-1">
+                        <div class="legend-item">
+                            <div class="legend-color legend-available"></div>
                             <div>
-                                <p class="font-medium text-sm">Available (Green)</p>
-                                <p class="text-xs text-gray-500">Ready for rent</p>
+                                <span class="text-sm font-medium">Available</span>
+                                <div class="text-xs text-gray-500">Ready for rent</div>
                             </div>
                         </div>
-                        <div class="flex items-start gap-2">
-                            <div class="mt-1">
-                                <div class="w-4 h-4 rounded bg-red-500"></div>
-                            </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-occupied"></div>
                             <div>
-                                <p class="font-medium text-sm">Occupied (Red)</p>
-                                <p class="text-xs text-gray-500">Already rented</p>
+                                <span class="text-sm font-medium">Occupied</span>
+                                <div class="text-xs text-gray-500">Already rented</div>
                             </div>
                         </div>
-                        <div class="flex items-start gap-2">
-                            <div class="mt-1">
-                                <div class="w-4 h-4 rounded bg-orange-500"></div>
-                            </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-reserved"></div>
                             <div>
-                                <p class="font-medium text-sm">Reserved (Orange)</p>
-                                <p class="text-xs text-gray-500">Temporarily held</p>
+                                <span class="text-sm font-medium">Reserved</span>
+                                <div class="text-xs text-gray-500">Temporarily held</div>
                             </div>
                         </div>
-                        <div class="flex items-start gap-2">
-                            <div class="mt-1">
-                                <div class="w-4 h-4 rounded bg-purple-500"></div>
-                            </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-maintenance"></div>
                             <div>
-                                <p class="font-medium text-sm">Maintenance (Purple)</p>
-                                <p class="text-xs text-gray-500">Being repaired</p>
+                                <span class="text-sm font-medium">Maintenance</span>
+                                <div class="text-xs text-gray-500">Under repair</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
+                <!-- Contact Info -->
                 <div class="simple-panel">
                     <h3 class="panel-title">
-                        <i class="fas fa-cog"></i> Quick Actions
+                        <i class="fas fa-phone"></i> Contact Information
                     </h3>
-                    <div class="space-y-3">
-                        <a href="market_portal_services.php" class="simple-btn simple-btn-outline w-full">
-                            <i class="fas fa-arrow-left"></i> Back to Maps
-                        </a>
-                        <button onclick="refreshPage()" class="simple-btn w-full" style="background: #f1f5f9; color: #475569;">
-                            <i class="fas fa-sync-alt"></i> Refresh Map
-                        </button>
-                        <button onclick="showHelp()" class="simple-btn w-full" style="background: #fef3c7; color: #92400e;">
-                            <i class="fas fa-question-circle"></i> Need Help?
-                        </button>
+                    <div class="space-y-2">
+                        <div class="contact-item">
+                            <i class="fas fa-phone-alt contact-icon"></i>
+                            <div>
+                                <div class="text-sm font-medium">Market Office</div>
+                                <div class="text-sm text-gray-600">(02) 1234-5678</div>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <i class="fas fa-envelope contact-icon"></i>
+                            <div>
+                                <div class="text-sm font-medium">Email</div>
+                                <div class="text-sm text-gray-600">market@lgu.gov.ph</div>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <i class="fas fa-clock contact-icon"></i>
+                            <div>
+                                <div class="text-sm font-medium">Office Hours</div>
+                                <div class="text-sm text-gray-600">Mon-Fri: 8AM-5PM</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Simple Footer -->
-        <div class="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
-            <p>Need assistance? Contact Market Office: (02) 1234-5678 | Email: market@lgu.gov.ph</p>
+        <!-- Footer -->
+        <div class="mt-8 pt-4 border-t border-gray-300 text-center text-sm text-gray-500">
+            <p>Municipal Market Management System • For assistance, contact Market Office</p>
         </div>
     </div>
 
@@ -686,7 +745,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             // Update modal title
             document.getElementById('modalStallName').textContent = selectedStall.name;
             
-            // Update modal details
+            // Status tag - matching the CSS classes
             let statusTag = '';
             if (status === 'available') {
                 statusTag = '<span class="status-tag tag-available">Available</span>';
@@ -698,56 +757,54 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 statusTag = '<span class="status-tag tag-maintenance">Maintenance</span>';
             }
             
-            // Calculate floor area
+            // Calculate dimensions
             const floorArea = (parseFloat(selectedStall.length) * parseFloat(selectedStall.width)).toFixed(2);
             const volume = (parseFloat(selectedStall.length) * parseFloat(selectedStall.width) * parseFloat(selectedStall.height)).toFixed(2);
             
             document.getElementById('modalStallDetails').innerHTML = `
                 <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <div class="text-xs text-gray-500">Stall Name</div>
-                            <div class="font-semibold text-lg">${selectedStall.name}</div>
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-600">Stall Class</div>
+                        <div class="font-medium">${selectedStall.class}</div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-600">Status</div>
+                        <div>${statusTag}</div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-3">
+                        <div class="text-sm text-gray-600 mb-2">Monthly Rental</div>
+                        <div class="text-xl font-semibold text-primary">₱${selectedStall.price}</div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-3">
+                        <div class="text-sm text-gray-600 mb-2">Dimensions</div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="text-center p-2 border border-gray-200 rounded">
+                                <div class="text-xs text-gray-500">Length</div>
+                                <div class="font-medium">${selectedStall.length}m</div>
+                            </div>
+                            <div class="text-center p-2 border border-gray-200 rounded">
+                                <div class="text-xs text-gray-500">Width</div>
+                                <div class="font-medium">${selectedStall.width}m</div>
+                            </div>
+                            <div class="text-center p-2 border border-gray-200 rounded">
+                                <div class="text-xs text-gray-500">Height</div>
+                                <div class="font-medium">${selectedStall.height}m</div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Status</div>
-                            <div class="mt-1">${statusTag}</div>
+                        <div class="mt-2 text-sm text-gray-600">
+                            Floor Area: ${floorArea} m² • Volume: ${volume} m³
                         </div>
                     </div>
                     
-                    <div>
-                        <div class="text-xs text-gray-500 mb-2">Monthly Rental</div>
-                        <div class="font-bold text-blue-600 text-xl">₱${selectedStall.price}</div>
-                        <div class="text-xs text-gray-500 mt-1">Stall Class: ${selectedStall.class}</div>
+                    ${!isAvailable ? `
+                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm p-3 rounded">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        This stall is not available for rental (Status: ${selectedStall.status})
                     </div>
-                    
-                    <div>
-                        <div class="text-xs text-gray-500 mb-2">Stall Dimensions</div>
-                        <div class="dimension-display">
-                            <div class="dimension-item">
-                                <div class="dimension-label">Length</div>
-                                <div class="dimension-value">${selectedStall.length}m</div>
-                            </div>
-                            <div class="dimension-item">
-                                <div class="dimension-label">Width</div>
-                                <div class="dimension-value">${selectedStall.width}m</div>
-                            </div>
-                            <div class="dimension-item">
-                                <div class="dimension-label">Height</div>
-                                <div class="dimension-value">${selectedStall.height}m</div>
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-3">
-                            <div class="flex justify-between">
-                                <span>Floor Area:</span>
-                                <span class="font-medium">${floorArea} m²</span>
-                            </div>
-                            <div class="flex justify-between mt-1">
-                                <span>Total Volume:</span>
-                                <span class="font-medium">${volume} m³</span>
-                            </div>
-                        </div>
-                    </div>
+                    ` : ''}
                 </div>
             `;
             
@@ -755,15 +812,15 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             const applyBtn = document.getElementById('modalApplyBtn');
             if (isAvailable && status === 'available') {
                 applyBtn.disabled = false;
-                applyBtn.innerHTML = '<i class="fas fa-file-contract"></i> Apply Now';
-                applyBtn.className = 'simple-btn simple-btn-success flex-1';
+                applyBtn.innerHTML = '<i class="fas fa-file-alt"></i> Apply for Rental';
+                applyBtn.className = 'btn btn-success flex-1';
             } else {
                 applyBtn.disabled = true;
                 let reason = status === 'occupied' ? 'Already Rented' :
                             status === 'reserved' ? 'Reserved' :
                             status === 'maintenance' ? 'Under Maintenance' : 'Not Available';
                 applyBtn.innerHTML = `<i class="fas fa-ban"></i> ${reason}`;
-                applyBtn.className = 'simple-btn simple-btn-secondary flex-1';
+                applyBtn.className = 'btn btn-secondary flex-1';
             }
             
             // Show modal
@@ -779,40 +836,26 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         function applyForStall() {
-            if (!selectedStall) {
-                alert('Please select a stall first.');
-                return;
-            }
+            if (!selectedStall) return;
             
             if (selectedStall.isAvailable && selectedStall.status === 'available') {
                 window.location.href = `rental_application_form.php?map_id=<?php echo $map_id; ?>&stall_id=${selectedStall.id}`;
             } else {
-                let message = 'This stall is not available for rental.';
-                if (selectedStall.status === 'occupied') message = 'This stall is already rented.';
-                else if (selectedStall.status === 'reserved') message = 'This stall is reserved.';
-                else if (selectedStall.status === 'maintenance') message = 'This stall is under maintenance.';
-                alert(message);
+                alert('This stall is not available for rental.');
             }
         }
 
-        function refreshPage() {
-            window.location.reload();
-        }
-
-        function showHelp() {
-            alert('For assistance:\n\nMarket Office: (02) 1234-5679\nHours: Mon-Fri, 8AM-5PM\nEmail: market@lgu.gov.ph\n\nStall dimensions show length × width × height in meters.');
-        }
-
-        // Close modal when clicking outside or pressing Escape
+        // Close modal when clicking outside
         modal.addEventListener('click', function(e) {
             if (e.target === modal) closeModal();
         });
         
+        // Close on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
         });
 
-        // Handle image loading errors
+        // Handle image errors
         document.addEventListener('DOMContentLoaded', function() {
             const marketMap = document.getElementById('marketMap');
             if (marketMap) {
@@ -824,7 +867,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                         marketMap.style.backgroundImage = 'none';
                         marketMap.innerHTML += `
                             <div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100">
-                                <i class="fas fa-exclamation-triangle text-3xl text-gray-400 mb-2"></i>
+                                <i class="fas fa-exclamation-triangle text-2xl text-gray-400 mb-2"></i>
                                 <p class="text-gray-500">Map could not be loaded</p>
                             </div>
                         `;
