@@ -1,4 +1,5 @@
 <?php
+/** revenue2/Login/models/OTP.php */
 class OTP {
     private $conn;
     private $table_name = "user_otp";

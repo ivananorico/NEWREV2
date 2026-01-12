@@ -1,4 +1,5 @@
 <?php
+/** revenue2/Login/config/database.php */
 class Database {
     private $host;
     private $port;
@@ -33,7 +34,7 @@ class Database {
                 'port' => 3306,  // Production usually uses default port
                 'dbname' => 'reve_users',
                 'user' => 'reve_users',
-                'pass' => '8JioyEPxDfe44hEc'
+                'pass' => 'sr7ExFuyk@h-9#bh'
             ];
         } else {
             // LOCALHOST SETTINGS (XAMPP)

@@ -1,4 +1,5 @@
 <?php
+/** revenue2/Login/api/auth.php */
 session_start();
 
 // Enable ALL error reporting for debugging
