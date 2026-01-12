@@ -1,5 +1,5 @@
 <?php
-// market_services.php - FIXED VERSION
+// market_services.php - UPDATED VERSION (with interviewed status)
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -13,10 +13,11 @@ $user_id = $_SESSION['user_id'];
 // Include database connection
 include_once '../../db/Market/market_db.php';
 
-// Status counters
+// Status counters - UPDATED: Added 'interviewed' status
 $status_counts = [
     'pending' => 0,
-    'interviewed' => 0,
+    'interview_scheduled' => 0,
+    'interviewed' => 0, // ADDED: Interview completed, waiting for next step
     'paying' => 0,
     'paid' => 0,
     'need_correction' => 0,
@@ -40,8 +41,11 @@ try {
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($results as $row) {
-        $status_counts[$row['application_status']] = $row['count'];
-        $total_applications += $row['count'];
+        $status = $row['application_status'];
+        if (isset($status_counts[$status])) {
+            $status_counts[$status] = $row['count'];
+            $total_applications += $row['count'];
+        }
     }
 
     // Get latest application for notification
@@ -61,17 +65,18 @@ try {
     error_log("Market services error: " . $e->getMessage());
 }
 
-// Determine which page to use for "View All" based on priority
+// Determine which page to use for "View All" based on priority - UPDATED
 $view_all_page = 'pending.php'; // Default
 $priority_order = [
     'need_correction' => 1,
     'paying' => 2,
-    'pending' => 3,
-    'interviewed' => 4,
-    'resubmitted' => 5,
-    'approved' => 6,
-    'paid' => 7,
-    'rejected' => 8
+    'interviewed' => 3, // ADDED: Interview completed priority
+    'interview_scheduled' => 4,
+    'pending' => 5,
+    'resubmitted' => 6,
+    'approved' => 7,
+    'paid' => 8,
+    'rejected' => 9
 ];
 
 foreach ($priority_order as $status => $priority) {
@@ -225,6 +230,47 @@ foreach ($priority_order as $status => $priority) {
     </div>
     <?php endif; ?>
 
+    <?php if ($status_counts['interviewed'] > 0 && $status_counts['need_correction'] == 0 && $status_counts['paying'] == 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-teal-500 p-6 mb-6 bg-teal-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-user-check text-teal-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-teal-800 mb-2 text-lg">Interview Completed</h3>
+                <p class="text-teal-700 mb-3">
+                    You have <strong><?php echo $status_counts['interviewed']; ?></strong> application(s) with completed interviews.
+                    <span class="block text-sm mt-1 text-teal-600">
+                        <i class="fas fa-info-circle"></i> Wait for payment instructions or next steps
+                    </span>
+                </p>
+                <a href="market_application/interviewed.php"
+                   class="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300 flex items-center w-fit">
+                    <i class="fas fa-clipboard-check mr-2"></i>
+                    View Interview Details
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($status_counts['interview_scheduled'] > 0 && $status_counts['need_correction'] == 0 && $status_counts['paying'] == 0 && $status_counts['interviewed'] == 0): ?>
+    <div class="notification-slide lgu-card border-l-4 border-blue-500 p-6 mb-6 bg-blue-50">
+        <div class="flex items-start gap-4">
+            <i class="fas fa-calendar-check text-blue-500 text-2xl mt-1"></i>
+            <div class="flex-1">
+                <h3 class="font-semibold text-blue-800 mb-2 text-lg">Interview Scheduled</h3>
+                <p class="text-blue-700 mb-3">
+                    You have <strong><?php echo $status_counts['interview_scheduled']; ?></strong> application(s) with scheduled interviews.
+                </p>
+                <a href="market_application/interview_scheduled.php"
+                   class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300 flex items-center w-fit">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    View Interview Details
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- MAIN SERVICES GRID -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         
@@ -292,11 +338,13 @@ foreach ($priority_order as $status => $priority) {
                 <?php if ($total_applications > 0): ?>
                 <div class="space-y-3 mt-4">
                     <?php
+                    // UPDATED: Added 'interviewed' status
                     $status_labels = [
                         'need_correction' => ['Needs Correction', 'text-red-600', 'fas fa-exclamation-triangle'],
                         'paying' => ['Payment Required', 'text-purple-600', 'fas fa-money-bill-wave'],
+                        'interviewed' => ['Interview Completed', 'text-teal-600', 'fas fa-user-check'], // ADDED
+                        'interview_scheduled' => ['Interview Scheduled', 'text-blue-600', 'fas fa-calendar-check'],
                         'pending' => ['Pending Interview', 'text-yellow-600', 'fas fa-clock'],
-                        'interviewed' => ['Interview Completed', 'text-yellow-600', 'fas fa-user-check'],
                         'paid' => ['Payment Completed', 'text-indigo-600', 'fas fa-check-circle'],
                         'resubmitted' => ['Resubmitted', 'text-orange-600', 'fas fa-redo'],
                         'approved' => ['Approved', 'text-green-600', 'fas fa-thumbs-up'],
@@ -306,12 +354,14 @@ foreach ($priority_order as $status => $priority) {
                     foreach ($status_labels as $key => $label_info):
                         if ($status_counts[$key] > 0):
                             $is_urgent = ($key == 'need_correction') ? 'border-l-4 border-red-500 bg-red-50' : '';
+                            $is_interviewed = ($key == 'interviewed') ? 'border-l-4 border-teal-500 bg-teal-50' : '';
+                            $is_interview_scheduled = ($key == 'interview_scheduled') ? 'border-l-4 border-blue-500 bg-blue-50' : '';
                     ?>
                     <a href="market_application/<?php echo $key; ?>.php"
-                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors <?php echo $is_urgent; ?>">
+                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors <?php echo $is_urgent; ?> <?php echo $is_interviewed; ?> <?php echo $is_interview_scheduled; ?>">
                         <div class="flex items-center">
                             <i class="<?php echo $label_info[2]; ?> <?php echo $label_info[1]; ?> mr-3"></i>
-                            <span class="text-gray-700 <?php echo $key == 'need_correction' ? 'font-semibold' : ''; ?>">
+                            <span class="text-gray-700 <?php echo ($key == 'need_correction' || $key == 'interviewed' || $key == 'interview_scheduled') ? 'font-semibold' : ''; ?>">
                                 <?php echo $label_info[0]; ?>
                             </span>
                         </div>
@@ -342,6 +392,14 @@ foreach ($priority_order as $status => $priority) {
                         <?php if ($status_counts['need_correction'] > 0): ?>
                         <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">
                             <?php echo $status_counts['need_correction']; ?> need attention
+                        </span>
+                        <?php elseif ($status_counts['interviewed'] > 0): ?>
+                        <span class="ml-2 bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                            <?php echo $status_counts['interviewed']; ?> interview completed
+                        </span>
+                        <?php elseif ($status_counts['interview_scheduled'] > 0): ?>
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                            <?php echo $status_counts['interview_scheduled']; ?> interviews scheduled
                         </span>
                         <?php endif; ?>
                     </a>
@@ -407,6 +465,11 @@ foreach ($priority_order as $status => $priority) {
                 <div class="text-3xl font-bold text-red-600"><?php echo $status_counts['need_correction']; ?></div>
                 <div class="text-sm text-red-800 font-medium">Need Correction</div>
             </div>
+            <?php elseif ($status_counts['interviewed'] > 0): ?>
+            <div class="text-center p-4 bg-teal-50 rounded-lg">
+                <div class="text-3xl font-bold text-teal-600"><?php echo $status_counts['interviewed']; ?></div>
+                <div class="text-sm text-teal-800 font-medium">Interview Completed</div>
+            </div>
             <?php else: ?>
             <div class="text-center p-4 bg-green-50 rounded-lg">
                 <div class="text-3xl font-bold text-green-600"><?php echo $status_counts['approved']; ?></div>
@@ -419,9 +482,14 @@ foreach ($priority_order as $status => $priority) {
                 <div class="text-3xl font-bold text-purple-600"><?php echo $status_counts['paying']; ?></div>
                 <div class="text-sm text-purple-800 font-medium">Payment Required</div>
             </div>
+            <?php elseif ($status_counts['interview_scheduled'] > 0): ?>
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <div class="text-3xl font-bold text-blue-600"><?php echo $status_counts['interview_scheduled']; ?></div>
+                <div class="text-sm text-blue-800 font-medium">Interview Scheduled</div>
+            </div>
             <?php else: ?>
             <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                <div class="text-3xl font-bold text-yellow-600"><?php echo $status_counts['pending'] + $status_counts['interviewed']; ?></div>
+                <div class="text-3xl font-bold text-yellow-600"><?php echo $status_counts['pending']; ?></div>
                 <div class="text-sm text-yellow-800 font-medium">In Progress</div>
             </div>
             <?php endif; ?>
@@ -440,6 +508,14 @@ foreach ($priority_order as $status => $priority) {
                 <?php if ($status_counts['need_correction'] > 0): ?>
                 <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">
                     Action Required
+                </span>
+                <?php elseif ($status_counts['interviewed'] > 0): ?>
+                <span class="ml-2 bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                    Interview Completed
+                </span>
+                <?php elseif ($status_counts['interview_scheduled'] > 0): ?>
+                <span class="ml-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                    Interview Scheduled
                 </span>
                 <?php endif; ?>
             </a>
@@ -465,7 +541,11 @@ foreach ($priority_order as $status => $priority) {
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                        <span>Attend interview with market administrator</span>
+                        <span><strong>Interview Scheduled:</strong> Attend interview with market administrator</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span><strong>Interview Completed:</strong> Wait for evaluation and next steps</span>
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
@@ -559,6 +639,8 @@ foreach ($priority_order as $status => $priority) {
 console.log('Market Services Loaded');
 console.log('View All Page: <?php echo $view_all_page; ?>');
 console.log('Need Correction Count: <?php echo $status_counts['need_correction']; ?>');
+console.log('Interviewed Count: <?php echo $status_counts['interviewed']; ?>');
+console.log('Interview Scheduled Count: <?php echo $status_counts['interview_scheduled']; ?>');
 console.log('Paying Count: <?php echo $status_counts['paying']; ?>');
 
 // Track clicks for debugging

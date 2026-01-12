@@ -14,10 +14,6 @@ $reference_id = $payment_data['reference_id'];
 $amount = $payment_data['amount'];
 $purpose = $payment_data['purpose'];
 $callback_url = $payment_data['callback_url'];
-$system_data = $payment_data['system_data'];
-
-// Extract quarterly_id from system_data
-$quarterly_id = $system_data['quarterly_id'] ?? $reference_id;
 
 $phone = $_SESSION['phone'];
 $generated_otp = $_SESSION['generated_otp'];
@@ -68,16 +64,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $paid_at = date('Y-m-d H:i:s');
                 
                 // =====================================================
-                // AUTOMATED CALLBACK SYSTEM - UNIVERSAL
+                // SIMPLIFIED UNIVERSAL CALLBACK SYSTEM
                 // =====================================================
                 $callback_success = false;
                 $callback_response = '';
                 
                 // Send callback to ANY system that provided a callback URL
                 if (!empty($callback_url)) {
-                    // Prepare callback data - UNIVERSAL for all systems
+                    // Prepare SIMPLE callback data - UNIVERSAL for ALL systems
                     $callback_data = [
-                        // COMMON FIELDS for ALL systems
                         'reference_id' => $reference_id,
                         'amount' => $amount,
                         'purpose' => $purpose,
@@ -90,37 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'phone' => $phone
                     ];
                     
-                    // Add system-specific data
-                    if ($client_system === 'rpt') {
-                        // For RPT system
-                        if (strpos($reference_id, 'ANNUAL-') === 0) {
-                            // Annual payment for RPT
-                            $callback_data['type'] = 'annual';
-                            $callback_data['quarterly_ids'] = $system_data['quarterly_ids'] ?? [];
-                            $callback_data['discount_applied'] = $system_data['discount_applied'] ?? false;
-                            $callback_data['discount_percent'] = $system_data['discount_percent'] ?? 0;
-                            $callback_data['discount_amount'] = $system_data['discount_amount'] ?? 0;
-                        } else {
-                            // Quarterly payment for RPT
-                            $callback_data['type'] = 'quarterly';
-                            $callback_data['quarterly_id'] = $quarterly_id;
-                        }
-                    } else if ($client_system === 'business') {
-                        // For Business Permit system
-                        $callback_data['business_id'] = $system_data['business_id'] ?? $reference_id;
-                        $callback_data['permit_type'] = $system_data['permit_type'] ?? '';
-                    } else if ($client_system === 'health') {
-                        // For Health Services system
-                        $callback_data['service_id'] = $system_data['service_id'] ?? $reference_id;
-                        $callback_data['patient_id'] = $system_data['patient_id'] ?? '';
-                    } else if ($client_system === 'assets') {
-                        // For Public Assets system
-                        $callback_data['asset_id'] = $system_data['asset_id'] ?? $reference_id;
-                        $callback_data['asset_type'] = $system_data['asset_type'] ?? '';
-                    }
-                    // Add more systems as needed...
-                    
-                    error_log("=== SENDING UNIVERSAL CALLBACK TO: $callback_url ===");
+                    error_log("=== SENDING SIMPLIFIED CALLBACK TO: $callback_url ===");
                     error_log("Client System: " . $client_system);
                     error_log("Reference ID: " . $reference_id);
                     error_log("Callback Data: " . print_r($callback_data, true));
@@ -198,8 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'client_system' => $client_system,
                     'callback_url' => $callback_url,
                     'callback_success' => $callback_success,
-                    'callback_response' => $callback_response,
-                    'quarterly_id' => $quarterly_id
+                    'callback_response' => $callback_response
                 ];
                 
                 // Clear session
@@ -274,15 +238,11 @@ $seconds = $remaining_time % 60;
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                         <span class="text-gray-600">System:</span>
-                        <span class="font-bold"><?php echo strtoupper($client_system); ?></span>
+                        <span class="font-bold text-blue-600"><?php echo strtoupper($client_system); ?></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Reference:</span>
                         <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Quarterly ID:</span>
-                        <span class="font-medium text-blue-600"><?php echo $quarterly_id; ?></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Amount:</span>

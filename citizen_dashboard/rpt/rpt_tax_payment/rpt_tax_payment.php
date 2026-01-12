@@ -859,14 +859,16 @@ function makePayment(taxId, amount, purpose) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     btn.disabled = true;
     
-    // Build payment parameters
+    // Build SIMPLIFIED payment parameters
     const params = new URLSearchParams();
     params.append('system', 'rpt');
     params.append('ref', taxId.toString());
     params.append('amount', amount.toString());
     params.append('purpose', purpose);
     params.append('callback', '<?php echo $rpt_callback_url; ?>');
-    params.append('data', JSON.stringify({ quarterly_id: taxId }));
+    
+    // Remove the complex system_data parameter
+    // params.append('data', JSON.stringify({ quarterly_id: taxId }));
     
     // Redirect to payment page
     setTimeout(() => {

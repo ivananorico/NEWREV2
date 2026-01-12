@@ -14,7 +14,6 @@ $reference_id = $payment_data['reference_id'];
 $amount = $payment_data['amount'];
 $purpose = $payment_data['purpose'];
 $callback_url = $payment_data['callback_url'];
-$system_data = $payment_data['system_data'];
 
 // Initialize variables
 $error = '';
@@ -85,6 +84,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-6">
                 <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Details</h2>
                 <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">System:</span>
+                        <span class="font-bold text-blue-600"><?php echo strtoupper(htmlspecialchars($client_system)); ?></span>
+                    </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Reference:</span>
                         <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>

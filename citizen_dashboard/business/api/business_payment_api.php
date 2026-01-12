@@ -19,66 +19,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-// Log the incoming request
-error_log("=== BUSINESS PAYMENT API CALLED ===");
-error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
-
 // Get POST data
 $input = file_get_contents('php://input');
-error_log("Raw Input: " . $input);
-
 $data = json_decode($input, true);
 
 // If JSON input is empty, try form data
 if (empty($data)) {
     $data = $_POST;
-    error_log("Using POST data");
 }
 
-// Debug: Log all received data
-error_log("Received Data: " . print_r($data, true));
-
-// Extract data - UNIVERSAL FIELDS (from gcash_otp.php)
-$reference_id = $data['reference_id'] ?? $data['client_reference'] ?? null; // This should be the quarterly_id
+// Extract UNIVERSAL data
+$reference_id = $data['reference_id'] ?? null;  // This is the quarterly_id
 $receipt_number = $data['receipt_number'] ?? null;
 $paid_at = $data['paid_at'] ?? date('Y-m-d H:i:s');
 $amount = $data['amount'] ?? null;
-$payment_id = $data['payment_id'] ?? null;
+$purpose = $data['purpose'] ?? null;
 $client_system = $data['client_system'] ?? null;
+$payment_id = $data['payment_id'] ?? null;
 
-// For business system, quarterly_id is usually in reference_id
-$quarterly_id = $data['quarterly_id'] ?? $reference_id;
-
-// Extract from system_data if present
-$system_data = $data['system_data'] ?? [];
-if (is_string($system_data)) {
-    $system_data = json_decode($system_data, true) ?? [];
-}
-
-// Check for quarterly_id in system_data
-if (!$quarterly_id && isset($system_data['quarterly_id'])) {
-    $quarterly_id = $system_data['quarterly_id'];
-}
-
-// Log extracted data
-error_log("Extracted Data: quarterly_id=$quarterly_id, receipt=$receipt_number, reference=$reference_id, system=$client_system");
+// Log for debugging
+error_log("=== BUSINESS PAYMENT API CALLED ===");
+error_log("Client System: $client_system");
+error_log("Reference ID: $reference_id");
+error_log("Receipt: $receipt_number");
+error_log("Payment ID: $payment_id");
 
 // Validate required fields
-if (!$quarterly_id || !$receipt_number) {
+if (!$reference_id || !$receipt_number) {
     http_response_code(400);
     echo json_encode([
         'status' => 'error', 
-        'message' => 'Missing required fields: quarterly_id and receipt_number are required',
-        'received_data' => $data,
-        'extracted_quarterly_id' => $quarterly_id,
-        'extracted_receipt' => $receipt_number
+        'message' => 'Missing required fields: reference_id and receipt_number are required',
+        'received_data' => $data
     ]);
     exit();
 }
 
+// Verify this is for business system
+if ($client_system !== 'business') {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'This API is for business system only. Received: ' . $client_system
+    ]);
+    exit();
+}
+
+// For business system, quarterly_id = reference_id
+$quarterly_id = $reference_id;
+
 // Include the business database connection
 $business_db_path = __DIR__ . '/../../../db/Business/business_db.php';
-error_log("Looking for database file at: " . $business_db_path);
 
 if (!file_exists($business_db_path)) {
     error_log("Database file NOT found at: " . $business_db_path);
@@ -120,9 +111,6 @@ try {
     
     // Test the connection
     $business_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $business_pdo->query('SELECT 1')->fetch();
-    
-    error_log("Business database connection successful");
     
     // First, check if the quarterly tax exists
     $check_query = "
@@ -130,7 +118,6 @@ try {
             bqt.id, 
             bqt.payment_status, 
             bqt.receipt_number,
-            bqt.total_quarterly_tax,
             bqt.penalty_amount,
             bqt.business_permit_id,
             bp.business_permit_id as permit_number,
@@ -145,11 +132,11 @@ try {
     $quarterly_tax = $check_stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$quarterly_tax) {
-        error_log("Quarterly tax NOT found with ID: $quarterly_id");
+        error_log("Business quarterly tax NOT found with ID: $quarterly_id");
         throw new Exception("Business quarterly tax with ID $quarterly_id not found in database");
     }
     
-    error_log("Found business quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}, Business={$quarterly_tax['business_name']}");
+    error_log("Found business quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}");
     
     // Check if already paid
     if ($quarterly_tax['payment_status'] == 'paid') {
@@ -157,6 +144,7 @@ try {
         echo json_encode([
             'status' => 'warning',
             'message' => 'This quarterly business tax is already marked as paid',
+            'reference_id' => $reference_id,
             'quarterly_id' => $quarterly_id,
             'current_status' => 'paid',
             'current_receipt' => $quarterly_tax['receipt_number']
@@ -169,8 +157,7 @@ try {
         UPDATE business_quarterly_taxes 
         SET payment_status = 'paid',
             payment_date = :paid_at,
-            receipt_number = :receipt_number,
-            penalty_amount = :penalty_amount
+            receipt_number = :receipt_number
         WHERE id = :quarterly_id
     ";
     
@@ -178,7 +165,6 @@ try {
     $stmt->execute([
         ':paid_at' => $paid_at,
         ':receipt_number' => $receipt_number,
-        ':penalty_amount' => $quarterly_tax['penalty_amount'] ?? 0,
         ':quarterly_id' => $quarterly_id
     ]);
     
@@ -188,43 +174,8 @@ try {
         throw new Exception("No rows updated. Business quarterly tax ID $quarterly_id may not exist or is already updated.");
     }
     
-    // Log payment in business_penalty_log if there was penalty
-    $penalty_amount = $quarterly_tax['penalty_amount'] ?? 0;
-    if ($penalty_amount > 0) {
-        try {
-            $penalty_log_query = "
-                INSERT INTO business_penalty_log 
-                (calculated_date, updated_records, total_penalty, penalty_percent_used, created_at)
-                VALUES 
-                (CURDATE(), 1, :total_penalty, :penalty_percent, NOW())
-            ";
-            
-            $penalty_stmt = $business_pdo->prepare($penalty_log_query);
-            $penalty_stmt->execute([
-                ':total_penalty' => $penalty_amount,
-                ':penalty_percent' => 1.00 // Default business penalty rate
-            ]);
-            
-            error_log("Business penalty logged for tax ID: $quarterly_id, Amount: $penalty_amount");
-        } catch (Exception $e) {
-            error_log("Failed to log business penalty: " . $e->getMessage());
-            // Continue even if penalty logging fails
-        }
-    }
-    
     // Verify the update
-    $verify_query = "
-        SELECT 
-            id, 
-            payment_status, 
-            receipt_number,
-            payment_date,
-            penalty_amount
-        FROM business_quarterly_taxes 
-        WHERE id = :quarterly_id
-    ";
-    
-    $verify_stmt = $business_pdo->prepare($verify_query);
+    $verify_stmt = $business_pdo->prepare("SELECT id, payment_status, receipt_number FROM business_quarterly_taxes WHERE id = :quarterly_id");
     $verify_stmt->execute([':quarterly_id' => $quarterly_id]);
     $updated_record = $verify_stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -236,38 +187,32 @@ try {
         throw new Exception("Update verification failed. Status is still: " . $updated_record['payment_status']);
     }
     
-    error_log("Successfully updated business quarterly tax $quarterly_id. New status: paid, Receipt: $receipt_number");
+    error_log("Successfully updated business tax $reference_id. New status: paid, Receipt: $receipt_number");
     
     // Return success response
-    $response = [
+    echo json_encode([
         'status' => 'success',
         'message' => 'Payment updated successfully in Business database',
         'rows_updated' => $rows_updated,
+        'reference_id' => $reference_id,
         'quarterly_id' => $quarterly_id,
         'business_permit_id' => $quarterly_tax['permit_number'],
         'business_name' => $quarterly_tax['business_name'],
         'receipt_number' => $receipt_number,
         'payment_date' => $paid_at,
         'payment_id' => $payment_id,
-        'amount' => $amount,
-        'new_status' => $updated_record['payment_status'],
-        'penalty_paid' => $penalty_amount
-    ];
-    
-    echo json_encode($response);
+        'new_status' => $updated_record['payment_status']
+    ]);
     
 } catch (PDOException $e) {
     // Database error
     error_log("Business PDO Exception: " . $e->getMessage());
-    error_log("SQL State: " . $e->getCode());
     
     http_response_code(500);
     echo json_encode([
         'status' => 'error', 
         'message' => 'Business database error: ' . $e->getMessage(),
-        'error_code' => $e->getCode(),
-        'quarterly_id' => $quarterly_id,
-        'trace' => $e->getTraceAsString()
+        'reference_id' => $reference_id
     ]);
 } catch (Exception $e) {
     // General error
@@ -277,15 +222,7 @@ try {
     echo json_encode([
         'status' => 'error', 
         'message' => 'Business API error: ' . $e->getMessage(),
-        'quarterly_id' => $quarterly_id
+        'reference_id' => $reference_id
     ]);
 }
-
-// Log the response
-error_log("=== BUSINESS API RESPONSE SENT ===");
-error_log(json_encode([
-    'status' => 'success',
-    'quarterly_id' => $quarterly_id ?? 'unknown',
-    'timestamp' => date('Y-m-d H:i:s')
-]));
 ?>

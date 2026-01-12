@@ -15,15 +15,18 @@ const MarketValidationInfo = () => {
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showInterviewCompleteModal, setShowInterviewCompleteModal] = useState(false); // NEW
   
   // Form states
   const [interviewer, setInterviewer] = useState("");
+  const [interviewDate, setInterviewDate] = useState("");
   const [interviewNotes, setInterviewNotes] = useState("");
   const [rejectionNotes, setRejectionNotes] = useState("");
   const [correctionNotes, setCorrectionNotes] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [approvalNotes, setApprovalNotes] = useState("");
+  const [interviewResultNotes, setInterviewResultNotes] = useState(""); // NEW
   
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -115,8 +118,8 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Handle Set Interview
-  const handleSetInterview = async () => {
+  // Handle Schedule Interview
+  const handleScheduleInterview = async () => {
     if (!interviewer.trim()) {
       alert("⚠️ Please enter interviewer name");
       return;
@@ -126,16 +129,35 @@ const MarketValidationInfo = () => {
       await callApi("set_interview.php", {
         application_id: parseInt(application.id),
         interviewer: interviewer,
+        interview_date: interviewDate || new Date().toISOString().slice(0, 16).replace('T', ' '),
         interview_notes: interviewNotes || ""
       });
       
-      alert("✅ Application marked as interviewed!");
+      alert("✅ Interview scheduled!");
       setShowInterviewModal(false);
       setInterviewer("");
+      setInterviewDate("");
       setInterviewNotes("");
       fetchData();
     } catch (error) {
-      alert("❌ Failed to set interview: " + error.message);
+      alert("❌ Failed to schedule interview: " + error.message);
+    }
+  };
+
+  // Handle Mark Interview as Completed (Simple - just update status)
+  const handleInterviewCompleted = async () => {
+    try {
+      await callApi("mark_interview_completed.php", { // NEW endpoint
+        application_id: parseInt(application.id)
+      });
+      
+      alert("✅ Interview marked as completed!");
+      setShowInterviewCompleteModal(false);
+      setInterviewer("");
+      setInterviewResultNotes("");
+      fetchData();
+    } catch (error) {
+      alert("❌ Failed to mark interview as completed: " + error.message);
     }
   };
 
@@ -183,14 +205,14 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Handle Mark as Paying
+  // Handle Mark as Paying (from interviewed status)
   const handleMarkAsPaying = async () => {
     try {
-      await callApi("mark_as_paying.php", {
+      await callApi("proceed_to_payment.php", { // CHANGED endpoint name
         application_id: parseInt(application.id)
       });
       
-      alert("✅ Application marked as paying!");
+      alert("✅ Application marked as ready for payment!");
       fetchData();
     } catch (error) {
       alert("❌ Failed to update status: " + error.message);
@@ -268,17 +290,27 @@ const MarketValidationInfo = () => {
 
   // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString || dateString === '0000-00-00 00:00:00' || dateString === '0000-00-00') {
+      return 'N/A';
+    }
+    
     try {
-      return new Date(dateString).toLocaleDateString('en-PH', {
+      const date = new Date(dateString);
+      
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      
+      return date.toLocaleDateString('en-PH', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: true
       });
     } catch (e) {
-      return 'Invalid Date';
+      return 'Date Error';
     }
   };
 
@@ -287,12 +319,13 @@ const MarketValidationInfo = () => {
     const status = application?.application_status?.toLowerCase();
     switch (status) {
       case 'pending': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case 'interviewed': return 'bg-blue-50 border-blue-200 text-blue-800';
+      case 'interview_scheduled': return 'bg-blue-50 border-blue-200 text-blue-800';
+      case 'interviewed': return 'bg-green-50 border-green-200 text-green-800';
       case 'paying': return 'bg-purple-50 border-purple-200 text-purple-800';
       case 'paid': return 'bg-indigo-50 border-indigo-200 text-indigo-800';
       case 'need_correction': return 'bg-red-50 border-red-200 text-red-800';
       case 'resubmitted': return 'bg-orange-50 border-orange-200 text-orange-800';
-      case 'approved': return 'bg-green-50 border-green-200 text-green-800';
+      case 'approved': return 'bg-emerald-50 border-emerald-200 text-emerald-800';
       case 'rejected': return 'bg-gray-50 border-gray-200 text-gray-800';
       default: return 'bg-gray-50 border-gray-200 text-gray-800';
     }
@@ -303,6 +336,7 @@ const MarketValidationInfo = () => {
     const status = application?.application_status?.toLowerCase();
     switch (status) {
       case 'pending': return '⏳';
+      case 'interview_scheduled': return '📅';
       case 'interviewed': return '✅';
       case 'paying': return '💰';
       case 'paid': return '💳';
@@ -318,7 +352,8 @@ const MarketValidationInfo = () => {
   const getStatusText = () => {
     const status = application?.application_status?.toLowerCase();
     const statusMap = {
-      'pending': 'Pending Interview',
+      'pending': 'Pending',
+      'interview_scheduled': 'Interview Scheduled',
       'interviewed': 'Interview Completed',
       'paying': 'Payment Required',
       'paid': 'Payment Completed',
@@ -345,7 +380,7 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Render action buttons based on status
+  // Render action buttons based on status - UPDATED FOR interview_scheduled
   const renderActionButtons = () => {
     const status = application?.application_status?.toLowerCase();
     
@@ -356,9 +391,9 @@ const MarketValidationInfo = () => {
             <button
               onClick={() => setShowInterviewModal(true)}
               disabled={actionLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ✅ Set Interview
+              📅 Schedule Interview
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
@@ -372,12 +407,39 @@ const MarketValidationInfo = () => {
               disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ❌ Reject Application
+              ❌ Reject
             </button>
           </div>
         );
       
-      case 'interviewed':
+      case 'interview_scheduled': // NEW: Mark interview as completed
+        return (
+          <div className="space-y-4">
+            <button
+              onClick={handleInterviewCompleted}
+              disabled={actionLoading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+            >
+              ✅ Mark Interview Completed
+            </button>
+            <button
+              onClick={() => setShowCorrectionModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+            >
+              ⚠️ Needs Correction
+            </button>
+            <button
+              onClick={() => setShowRejectModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+            >
+              ❌ Reject
+            </button>
+          </div>
+        );
+      
+      case 'interviewed': // CHANGED: Show "Proceed to Payment" instead of "Mark as Paying"
         return (
           <div className="space-y-4">
             <button
@@ -385,7 +447,7 @@ const MarketValidationInfo = () => {
               disabled={actionLoading}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              💰 Mark as Paying
+              💰 Proceed to Payment
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
@@ -399,40 +461,52 @@ const MarketValidationInfo = () => {
               disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ❌ Reject Application
+              ❌ Reject
             </button>
           </div>
         );
       
-      case 'paying':
+      case 'paying': // CHANGED: Don't show "Mark as Paid" button - citizen will update to paid
         return (
-          <div className="space-y-4">
+          <div className="text-center py-4">
+            <p className="text-gray-600 mb-4">Waiting for citizen to pay stall rights and security bond</p>
+            <div className="bg-yellow-50 p-4 rounded-md mb-4">
+              <p className="font-semibold">Total Amount Due:</p>
+              <p className="text-xl font-bold text-blue-700">{formatCurrency(application.total_amount_due)}</p>
+            </div>
             <button
-              onClick={() => setShowPaymentModal(true)}
+              onClick={() => setShowCorrectionModal(true)}
               disabled={actionLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-3 rounded-lg disabled:opacity-50 mb-3"
             >
-              💳 Mark as Paid
+              ⚠️ Needs Correction
             </button>
             <button
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ❌ Reject Application
+              ❌ Reject
             </button>
           </div>
         );
       
-      case 'paid':
+      case 'paid': // Show "Approve" button when citizen has paid
         return (
           <div className="space-y-4">
             <button
               onClick={() => setShowApproveModal(true)}
               disabled={actionLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
               🎉 Approve Application
+            </button>
+            <button
+              onClick={() => setShowRejectModal(true)}
+              disabled={actionLoading}
+              className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+            >
+              ❌ Reject
             </button>
           </div>
         );
@@ -452,7 +526,7 @@ const MarketValidationInfo = () => {
               disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ❌ Reject Application
+              ❌ Reject
             </button>
           </div>
         );
@@ -463,9 +537,9 @@ const MarketValidationInfo = () => {
             <button
               onClick={() => setShowInterviewModal(true)}
               disabled={actionLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ✅ Set Interview (Again)
+              📅 Schedule Interview (Again)
             </button>
             <button
               onClick={() => setShowCorrectionModal(true)}
@@ -479,7 +553,7 @@ const MarketValidationInfo = () => {
               disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg disabled:opacity-50"
             >
-              ❌ Reject Application
+              ❌ Reject
             </button>
           </div>
         );
@@ -487,7 +561,7 @@ const MarketValidationInfo = () => {
       default:
         return (
           <div className="text-center py-4">
-            <p className="text-gray-600">No actions available for this status</p>
+            <p className="text-gray-600">No actions available</p>
           </div>
         );
     }
@@ -500,7 +574,6 @@ const MarketValidationInfo = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading application data...</p>
-          <p className="text-sm text-gray-500">ID: {id}</p>
         </div>
       </div>
     );
@@ -547,7 +620,7 @@ const MarketValidationInfo = () => {
           <div>
             <button 
               onClick={() => navigate(-1)} 
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2 flex items-center"
+              className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
             >
               ← Back to Applications
             </button>
@@ -578,13 +651,14 @@ const MarketValidationInfo = () => {
             <div>
               <h3 className="font-bold text-lg">Application Status: {statusText.toUpperCase()}</h3>
               <p className="mt-1">
-                {status === 'pending' && "This application is waiting for interview. Please review below."}
-                {status === 'interviewed' && "Interview has been completed. Next step: payment."}
-                {status === 'paying' && "Waiting for payment. Please record payment when received."}
-                {status === 'paid' && "Payment has been received. Ready for final approval."}
-                {status === 'need_correction' && "Application needs correction. Waiting for resubmission."}
-                {status === 'resubmitted' && "Application has been resubmitted. Ready for review."}
-                {status === 'approved' && "Application has been approved. Process completed."}
+                {status === 'pending' && "This application is waiting for interview."}
+                {status === 'interview_scheduled' && `Interview is scheduled for ${formatDate(application.interview_date)}.`}
+                {status === 'interviewed' && "Interview completed. Ready for payment."}
+                {status === 'paying' && "Waiting for citizen to pay stall rights and security bond."}
+                {status === 'paid' && "Payment completed. Ready for final approval."}
+                {status === 'need_correction' && "Application needs correction."}
+                {status === 'resubmitted' && "Application has been resubmitted."}
+                {status === 'approved' && "Application has been approved."}
                 {status === 'rejected' && "Application has been rejected."}
               </p>
             </div>
@@ -673,20 +747,12 @@ const MarketValidationInfo = () => {
                 </div>
               </div>
               {application.payment_date && (
-                <>
-                  <div className="border-t border-gray-300 pt-3 mt-3">
-                    <div className="flex justify-between">
-                      <span className="font-semibold">Payment Date:</span>
-                      <span>{formatDate(application.payment_date)}</span>
-                    </div>
-                    {application.reference_number && (
-                      <div className="flex justify-between mt-2">
-                        <span className="font-semibold">Reference No:</span>
-                        <span className="font-mono">{application.reference_number}</span>
-                      </div>
-                    )}
+                <div className="border-t border-gray-300 pt-3 mt-3">
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Payment Date:</span>
+                    <span>{formatDate(application.payment_date)}</span>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -753,66 +819,6 @@ const MarketValidationInfo = () => {
               )}
             </div>
           </div>
-
-          {/* Status History */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-bold mb-4">Status History</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Application Submitted:</span>
-                <span>{formatDate(application.created_at)}</span>
-              </div>
-              {application.interview_date && (
-                <div className="flex justify-between">
-                  <span>Interview Date:</span>
-                  <span>{formatDate(application.interview_date)}</span>
-                </div>
-              )}
-              {application.interviewer && (
-                <div className="flex justify-between">
-                  <span>Interviewed By:</span>
-                  <span>{application.interviewer}</span>
-                </div>
-              )}
-              {application.payment_date && (
-                <div className="flex justify-between">
-                  <span>Payment Date:</span>
-                  <span>{formatDate(application.payment_date)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span>Last Updated:</span>
-                <span>{formatDate(application.updated_at)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Notes Section */}
-          {(application.interview_notes || application.correction_notes || application.remarks) && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-bold mb-4">Notes & Remarks</h2>
-              <div className="space-y-4">
-                {application.interview_notes && (
-                  <div>
-                    <h3 className="font-semibold text-blue-600 mb-1">Interview Notes:</h3>
-                    <p className="text-gray-700 bg-blue-50 p-3 rounded">{application.interview_notes}</p>
-                  </div>
-                )}
-                {application.correction_notes && (
-                  <div>
-                    <h3 className="font-semibold text-yellow-600 mb-1">Correction Notes:</h3>
-                    <p className="text-gray-700 bg-yellow-50 p-3 rounded">{application.correction_notes}</p>
-                  </div>
-                )}
-                {application.remarks && (
-                  <div>
-                    <h3 className="font-semibold text-red-600 mb-1">Remarks:</h3>
-                    <p className="text-gray-700 bg-red-50 p-3 rounded">{application.remarks}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Action Panel */}
@@ -843,25 +849,17 @@ const MarketValidationInfo = () => {
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="font-semibold mb-2">Emergency Contact</h3>
-              <div className="space-y-1 text-sm">
-                <p><span className="text-gray-600">Name:</span> {application.emergency_name || 'N/A'}</p>
-                <p><span className="text-gray-600">Contact:</span> {application.emergency_contact || 'N/A'}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Interview Modal */}
+      {/* Schedule Interview Modal */}
       {showInterviewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Set Interview</h3>
+                <h3 className="text-lg font-semibold">Schedule Interview</h3>
                 <button 
                   onClick={() => setShowInterviewModal(false)} 
                   className="text-gray-400 hover:text-gray-600"
@@ -885,6 +883,21 @@ const MarketValidationInfo = () => {
                     required
                   />
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Interview Date & Time *
+                  </label>
+                  <input 
+                    type="datetime-local" 
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    disabled={actionLoading}
+                    required
+                  />
+                </div>
+                
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Interview Notes (Optional)
@@ -897,13 +910,14 @@ const MarketValidationInfo = () => {
                     disabled={actionLoading}
                   />
                 </div>
+                
                 <div className="flex gap-3 pt-4">
                   <button 
-                    onClick={handleSetInterview} 
-                    disabled={actionLoading || !interviewer.trim()}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
+                    onClick={handleScheduleInterview} 
+                    disabled={actionLoading || !interviewer.trim() || !interviewDate}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
                   >
-                    {actionLoading ? 'Processing...' : 'Mark as Interviewed'}
+                    {actionLoading ? 'Processing...' : 'Schedule Interview'}
                   </button>
                   <button 
                     onClick={() => setShowInterviewModal(false)} 
@@ -970,73 +984,6 @@ const MarketValidationInfo = () => {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Record Payment</h3>
-                <button 
-                  onClick={() => setShowPaymentModal(false)} 
-                  className="text-gray-400 hover:text-gray-600"
-                  disabled={actionLoading}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Reference Number *
-                  </label>
-                  <input 
-                    type="text" 
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Enter payment reference number"
-                    disabled={actionLoading}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Payment Notes (Optional)
-                  </label>
-                  <textarea 
-                    value={paymentNotes}
-                    onChange={(e) => setPaymentNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-24"
-                    placeholder="Enter any payment notes..."
-                    disabled={actionLoading}
-                  />
-                </div>
-                <div className="bg-yellow-50 p-4 rounded-md">
-                  <p className="font-semibold">Total Amount: {formatCurrency(application.total_amount_due)}</p>
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    onClick={handleMarkAsPaid} 
-                    disabled={actionLoading || !paymentReference.trim()}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
-                  >
-                    {actionLoading ? 'Processing...' : 'Record Payment'}
-                  </button>
-                  <button 
-                    onClick={() => setShowPaymentModal(false)} 
-                    disabled={actionLoading}
-                    className="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Approve Modal */}
       {showApproveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1053,18 +1000,6 @@ const MarketValidationInfo = () => {
                 </button>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Approval Notes (Optional)
-                  </label>
-                  <textarea 
-                    value={approvalNotes}
-                    onChange={(e) => setApprovalNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-32"
-                    placeholder="Enter any approval notes..."
-                    disabled={actionLoading}
-                  />
-                </div>
                 <div className="bg-green-50 p-4 rounded-md">
                   <p className="font-semibold">Application Summary:</p>
                   <p className="mt-1">• Applicant: {application.first_name} {application.last_name}</p>

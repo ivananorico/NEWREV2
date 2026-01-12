@@ -889,45 +889,20 @@ function makePayment(taxId, amount, purpose, hasPenalty = false) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
     btn.disabled = true;
     
-    // Build payment parameters
+    // Build SIMPLIFIED payment parameters - NO complex system_data
     const params = new URLSearchParams();
     params.append('system', 'business');
-    params.append('ref', taxId.toString());
+    params.append('ref', taxId.toString());  // quarterly_id
     params.append('amount', amount.toString());
     params.append('purpose', purpose);
     params.append('callback', '<?php echo $business_callback_url; ?>');
-    params.append('data', JSON.stringify({ 
-        quarterly_id: taxId,
-        has_penalty: hasPenalty
-    }));
+    // REMOVED: params.append('data', JSON.stringify({ quarterly_id: taxId, has_penalty: hasPenalty }));
     
-    // Redirect to payment page
+    // Redirect to universal payment page
     setTimeout(() => {
         window.location.href = '../../digital/index.php?' + params.toString();
     }, 300);
 }
-
-function payAnnual(businessId, totalAmount, purpose, hasDiscount = false, discountPercent = 0, businessPermitId = '') {
-    // Annual payment function (currently disabled)
-    alert('Annual payment feature is coming soon!');
-    return;
-}
-
-function viewReceipt(receiptNumber) {
-    if (!receiptNumber) {
-        alert('No receipt number available for this payment.');
-        return;
-    }
-    
-    alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
-}
-
-// Auto-refresh page every 5 minutes to update penalties
-setTimeout(() => {
-    if (document.querySelector('.pulse')) {
-        window.location.reload();
-    }
-}, 300000);
 </script>
 </body>
 </html>

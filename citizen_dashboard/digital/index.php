@@ -6,12 +6,12 @@ session_start();
 session_regenerate_id(true);
 
 // Get parameters from ANY system via GET
-$client_system = $_GET['system'] ?? 'rpt';
+$client_system = $_GET['system'] ?? 'unknown';
 $reference_id = $_GET['ref'] ?? '';
 $amount = $_GET['amount'] ?? 0;
 $purpose = $_GET['purpose'] ?? '';
 $callback_url = $_GET['callback'] ?? '';
-$system_data = $_GET['data'] ?? '{}';
+$system_name = $_GET['system_name'] ?? ucfirst($client_system); // Optional display name
 
 // Log for debugging
 error_log("=== Digital Payment Received ===");
@@ -34,26 +34,29 @@ if (empty($reference_id) || $amount <= 0) {
     ");
 }
 
-// Store in session for the payment flow
+// Store in session for the payment flow - SIMPLE DATA ONLY
 $_SESSION['payment_data'] = [
     'client_system' => $client_system,
     'reference_id' => $reference_id,
     'amount' => $amount,
     'purpose' => $purpose,
-    'callback_url' => $callback_url,
-    'system_data' => json_decode($system_data, true) ?: []
+    'callback_url' => $callback_url
 ];
 
-// Map system names to display names
-$system_names = [
-    'rpt' => 'Real Property Tax',
-    'business' => 'Business Permits',
-    'health' => 'Health Services',
-    'assets' => 'Public Assets',
-    'others' => 'Other Services'
-];
+// Generate a dynamic badge color based on system name
+function getBadgeColor($system) {
+    $colors = [
+        'rpt' => 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800',
+        'business' => 'bg-gradient-to-r from-green-100 to-green-200 text-green-800',
+        'health' => 'bg-gradient-to-r from-red-100 to-red-200 text-red-800',
+        'assets' => 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800',
+    ];
+    
+    return $colors[$system] ?? 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800';
+}
 
-$display_system = $system_names[$client_system] ?? 'Unknown System';
+$display_system = $system_name ?: ucfirst($client_system);
+$badge_class = getBadgeColor($client_system);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,21 +67,6 @@ $display_system = $system_names[$client_system] ?? 'Unknown System';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .system-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        .badge-rpt { background: #dbeafe; color: #1e40af; }
-        .badge-business { background: #f0f9ff; color: #0369a1; }
-        .badge-health { background: #f0fdf4; color: #15803d; }
-        .badge-assets { background: #fef3c7; color: #92400e; }
-        .badge-others { background: #f3f4f6; color: #374151; }
-        
         .payment-card {
             transition: all 0.3s ease;
             border: 2px solid transparent;
@@ -104,8 +92,8 @@ $display_system = $system_names[$client_system] ?? 'Unknown System';
             <div class="bg-white rounded-xl shadow p-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between">
                     <div class="mb-4 md:mb-0">
-                        <span class="system-badge badge-<?php echo $client_system; ?>">
-                            <i class="fas fa-building mr-2"></i><?php echo $display_system; ?>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold <?php echo $badge_class; ?>">
+                            <i class="fas fa-building mr-2"></i><?php echo htmlspecialchars($display_system); ?>
                         </span>
                         <h1 class="text-2xl font-bold text-gray-800 mt-2">Digital Payment</h1>
                         <p class="text-gray-600">Reference: <?php echo htmlspecialchars($reference_id); ?></p>
@@ -181,7 +169,7 @@ $display_system = $system_names[$client_system] ?? 'Unknown System';
                 <div>
                     <h3 class="text-lg font-bold text-blue-800 mb-2">Universal Payment System</h3>
                     <ul class="text-sm text-blue-700 space-y-2">
-                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Works for all LGU services</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Works for any LGU service</li>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Secure OTP verification</li>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Automatic system notifications</li>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Instant digital receipts</li>

@@ -28,23 +28,42 @@ if (empty($data)) {
     $data = $_POST;
 }
 
-// Extract data
-$quarterly_id = $data['quarterly_id'] ?? null;
+// Extract data - UPDATED FOR UNIVERSAL SYSTEM
+// The universal system sends 'reference_id' not 'quarterly_id'
+$reference_id = $data['reference_id'] ?? null;
+$receipt_number = $data['receipt_number'] ?? null;
 $amount = $data['amount'] ?? null;
 $purpose = $data['purpose'] ?? null;
-$receipt_number = $data['receipt_number'] ?? null;
 $paid_at = $data['paid_at'] ?? date('Y-m-d H:i:s');
+$client_system = $data['client_system'] ?? null;
+$payment_id = $data['payment_id'] ?? null;
+$phone = $data['phone'] ?? null;
 
-// Log for debugging
-error_log("RPT API received: quarterly_id=$quarterly_id, receipt=$receipt_number");
+// Log for debugging - UPDATED
+error_log("RPT API received callback from Universal System:");
+error_log("Reference ID: $reference_id");
+error_log("Receipt: $receipt_number");
+error_log("Client System: $client_system");
+error_log("Payment ID: $payment_id");
+error_log("Full data: " . print_r($data, true));
 
-// Validate required fields
-if (!$quarterly_id || !$receipt_number) {
+// Validate required fields - UPDATED
+if (!$reference_id || !$receipt_number) {
     http_response_code(400);
     echo json_encode([
         'status' => 'error', 
-        'message' => 'Missing required fields: quarterly_id and receipt_number are required',
+        'message' => 'Missing required fields: reference_id and receipt_number are required',
         'received_data' => $data
+    ]);
+    exit();
+}
+
+// Check if this is actually for RPT system
+if ($client_system !== 'rpt') {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'This API is only for RPT system. Received callback for: ' . $client_system
     ]);
     exit();
 }
@@ -103,14 +122,57 @@ try {
     
     error_log("Database connection successful");
     
-    // First, check if the quarterly tax exists
+    // First, check if the quarterly tax exists using reference_id
+    // In RPT system, reference_id IS the quarterly_id
+    $quarterly_id = $reference_id;
+    
     $check_query = "SELECT id, payment_status, receipt_number FROM quarterly_taxes WHERE id = :quarterly_id";
     $check_stmt = $rpt_pdo->prepare($check_query);
     $check_stmt->execute([':quarterly_id' => $quarterly_id]);
     $quarterly_tax = $check_stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$quarterly_tax) {
-        throw new Exception("Quarterly tax with ID $quarterly_id not found in database");
+        error_log("Quarterly tax with ID $quarterly_id not found. Checking if it's an annual payment...");
+        
+        // Check if it's an annual payment (starts with ANNUAL-)
+        if (strpos($reference_id, 'ANNUAL-') === 0) {
+            // Handle annual payment
+            $check_annual_query = "SELECT id FROM annual_payments WHERE reference_number = :reference_id";
+            $check_annual_stmt = $rpt_pdo->prepare($check_annual_query);
+            $check_annual_stmt->execute([':reference_id' => $reference_id]);
+            $annual_payment = $check_annual_stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($annual_payment) {
+                // Update annual payment
+                $update_annual_query = "
+                    UPDATE annual_payments 
+                    SET payment_status = 'paid',
+                        payment_date = :paid_at,
+                        receipt_number = :receipt_number,
+                        transaction_id = :payment_id
+                    WHERE reference_number = :reference_id
+                ";
+                
+                $annual_stmt = $rpt_pdo->prepare($update_annual_query);
+                $annual_stmt->execute([
+                    ':paid_at' => $paid_at,
+                    ':receipt_number' => $receipt_number,
+                    ':payment_id' => $payment_id,
+                    ':reference_id' => $reference_id
+                ]);
+                
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Annual payment updated successfully',
+                    'reference_id' => $reference_id,
+                    'receipt_number' => $receipt_number,
+                    'type' => 'annual'
+                ]);
+                exit();
+            }
+        }
+        
+        throw new Exception("Payment reference not found: $reference_id");
     }
     
     error_log("Found quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}");
@@ -120,7 +182,8 @@ try {
         error_log("Quarterly tax $quarterly_id is already paid");
         echo json_encode([
             'status' => 'warning',
-            'message' => 'This quarterly tax is already marked as paid',
+            'message' => 'This tax is already marked as paid',
+            'reference_id' => $reference_id,
             'quarterly_id' => $quarterly_id,
             'current_status' => 'paid',
             'current_receipt' => $quarterly_tax['receipt_number']
@@ -147,7 +210,7 @@ try {
     $rows_updated = $stmt->rowCount();
     
     if ($rows_updated === 0) {
-        throw new Exception("No rows updated. Quarterly tax ID $quarterly_id may not exist or is already updated.");
+        throw new Exception("No rows updated. Reference ID $reference_id may not exist or is already updated.");
     }
     
     // Verify the update
@@ -163,13 +226,14 @@ try {
         throw new Exception("Update verification failed. Status is still: " . $updated_record['payment_status']);
     }
     
-    error_log("Successfully updated quarterly tax $quarterly_id. New status: paid, Receipt: $receipt_number");
+    error_log("Successfully updated tax $reference_id. New status: paid, Receipt: $receipt_number");
     
     // Return success response
     echo json_encode([
         'status' => 'success',
         'message' => 'Payment updated successfully in RPT database',
         'rows_updated' => $rows_updated,
+        'reference_id' => $reference_id,
         'quarterly_id' => $quarterly_id,
         'receipt_number' => $receipt_number,
         'payment_date' => $paid_at,
@@ -186,7 +250,7 @@ try {
         'status' => 'error', 
         'message' => 'Database error: ' . $e->getMessage(),
         'error_code' => $e->getCode(),
-        'quarterly_id' => $quarterly_id
+        'reference_id' => $reference_id
     ]);
 } catch (Exception $e) {
     // General error
@@ -196,7 +260,7 @@ try {
     echo json_encode([
         'status' => 'error', 
         'message' => 'API error: ' . $e->getMessage(),
-        'quarterly_id' => $quarterly_id
+        'reference_id' => $reference_id
     ]);
 }
 ?>
