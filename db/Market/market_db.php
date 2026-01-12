@@ -8,9 +8,8 @@
 
 function getDatabaseConfig() {
     // Check if we're on production (your domain) or localhost
-    // Replace 'yourdomain.com' with your actual domain name
-    $isProduction = $_SERVER['HTTP_HOST'] === 'yourdomain.com' || 
-                   $_SERVER['HTTP_HOST'] === 'www.yourdomain.com';
+    // UPDATED: Changed to your actual domain
+    $isProduction = $_SERVER['HTTP_HOST'] === 'revenuetreasury.goserveph.com';
     
     if ($isProduction) {
         // PRODUCTION SETTINGS (Domain)
