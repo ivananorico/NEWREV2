@@ -15,7 +15,7 @@ function getDatabaseConfig() {
         return [
             'host' => 'localhost',
             'port' => 3306,
-            'dbname' => 'market_rent',
+            'dbname' => 'reve_market_rent',
             'user' => 'reve_market_rent',
             'pass' => '8MtfM779bzt-eD!u'
         ];
