@@ -29,8 +29,9 @@ import DIGIPAY1 from './pages/DIGIPAY/DIGIPAY1/DIGIPAY1'
 import DIGIPAY2 from './pages/DIGIPAY/DIGIPAY2/DIGIPAY2'
 
 // TREASURY Pages
-import TREASURY1 from './pages/TREASURY/TREASURY1/TREASURY1'
-import TREASURY2 from './pages/TREASURY/TREASURY2/TREASURY2'
+import Allocation from './pages/TREASURY/Allocation/Allocation'
+import Revenue from './pages/TREASURY/Revenue/Revenue'
+import Collection from './pages/TREASURY/Collection/Collection'
 
 // MARKET Pages
 import MapCreator from './pages/MARKET/MapCreator/MapCreator'
@@ -90,8 +91,9 @@ function App() {
               <Route path="/business/businessstatusinfo/:id" element={<BusinessStatusInfo />} />
 
               {/* TREASURY */}
-              <Route path="/treasury/treasury1" element={<TREASURY1 />} />
-              <Route path="/treasury/treasury2" element={<TREASURY2 />} />
+              <Route path="/treasury/allocation" element={<Allocation />} />
+              <Route path="/treasury/revenue" element={<Revenue />} />
+              <Route path="/treasury/collection" element={<Collection />} />
 
               {/* DIGIPAY */}
               <Route path="/digipay/digipay1" element={<DIGIPAY1 />} />

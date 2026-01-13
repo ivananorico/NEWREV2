@@ -9,12 +9,16 @@ if (!isset($_SESSION['receipt_data'])) {
 
 $receipt = $_SESSION['receipt_data'];
 
-// Get the return URL from session or use default
+// Add fallback for callback_success if not set
+if (!isset($receipt['callback_success'])) {
+    $receipt['callback_success'] = false;
+}
+
+// Get the return URL
 $return_url = '';
 if (isset($_SESSION['payment_data']['return_url']) && !empty($_SESSION['payment_data']['return_url'])) {
     $return_url = $_SESSION['payment_data']['return_url'];
 } else {
-    // Default redirect URLs
     $redirect_urls = [
         'market' => '../../market/market_application/paying.php?payment_success=true',
         'rpt' => '../../services/rpt/rpt_tax_payment.php',
@@ -27,20 +31,13 @@ if (isset($_SESSION['payment_data']['return_url']) && !empty($_SESSION['payment_
     $return_url = $redirect_urls[$receipt['client_system']] ?? '../../market/market_application/paying.php?payment_success=true';
 }
 
-// Clear only payment-related session data, keep user session intact
+// Clear only payment-related session data
 unset($_SESSION['payment_data']);
 unset($_SESSION['receipt_data']);
 unset($_SESSION['phone']);
 unset($_SESSION['generated_otp']);
 unset($_SESSION['otp_expires']);
 unset($_SESSION['otp_attempts']);
-
-// IMPORTANT: DO NOT destroy the session or regenerate ID
-// session_regenerate_id(true); // REMOVE THIS LINE
-// $_SESSION = array(); // REMOVE THIS LINE
-// session_destroy(); // REMOVE THIS LINE
-
-// Show success page with auto-redirect
 ?>
 <!DOCTYPE html>
 <html lang="en">

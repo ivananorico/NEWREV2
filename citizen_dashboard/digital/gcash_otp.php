@@ -1,9 +1,10 @@
 <?php
 // revenue2/citizen_dashboard/digital/gcash_otp.php
 session_start();
+require_once '../../db/Digital/digital_db.php';
 
 // Check if we have required session data
-if (!isset($_SESSION['payment_data']) || !isset($_SESSION['phone']) || !isset($_SESSION['generated_otp'])) {
+if (!isset($_SESSION['payment_data']) || !isset($_SESSION['phone'])) {
     header('Location: gcash.php');
     exit();
 }
@@ -16,22 +17,80 @@ $purpose = $payment_data['purpose'];
 $callback_url = $payment_data['callback_url'];
 
 $phone = $_SESSION['phone'];
-$generated_otp = $_SESSION['generated_otp'];
-$otp_expires = $_SESSION['otp_expires'] ?? 0;
+$pending_payment_id = $_SESSION['pending_payment_id'] ?? '';
 $otp_attempts = $_SESSION['otp_attempts'] ?? 0;
 
-// Check if OTP expired
+// Get Digital DB connection
+$pdo = getDigitalDB();
+if (!$pdo) {
+    die("Database connection failed. Please try again.");
+}
+
+// =====================================================
+// GET OTP FROM DATABASE
+// =====================================================
+$generated_otp = '';
+$otp_expires = $_SESSION['otp_expires'] ?? 0;
+
+if ($pending_payment_id) {
+    try {
+        $query = "SELECT otp_code, created_at FROM payment_transactions WHERE payment_id = :payment_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([':payment_id' => $pending_payment_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && isset($result['otp_code'])) {
+            $generated_otp = $result['otp_code'];
+            // Calculate expiration based on created_at
+            $created_at = strtotime($result['created_at']);
+            if (!$otp_expires) {
+                $otp_expires = $created_at + (5 * 60);
+                $_SESSION['otp_expires'] = $otp_expires;
+            }
+            $_SESSION['generated_otp'] = $generated_otp;
+        } else {
+            header('Location: gcash.php');
+            exit();
+        }
+    } catch (PDOException $e) {
+        header('Location: gcash.php');
+        exit();
+    }
+} else {
+    header('Location: gcash.php');
+    exit();
+}
+
+// Check if OTP already expired
 if (time() > $otp_expires) {
+    try {
+        $update_query = "
+            UPDATE payment_transactions 
+            SET payment_status = 'failed',
+                callback_response = :response
+            WHERE payment_id = :payment_id AND payment_status = 'pending'
+        ";
+        
+        $stmt = $pdo->prepare($update_query);
+        $stmt->execute([
+            ':payment_id' => $pending_payment_id,
+            ':response' => 'OTP expired at ' . date('Y-m-d H:i:s')
+        ]);
+    } catch (PDOException $e) {
+        // Silent fail
+    }
+    
     unset($_SESSION['generated_otp']);
     $_SESSION['otp_error'] = 'OTP has expired. Please request a new one.';
     header('Location: gcash.php');
     exit();
 }
 
-// Initialize variables
+// =====================================================
+// HANDLE FORM SUBMISSION
+// =====================================================
 $error = '';
 
-// Check if form was submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $entered_otp = $_POST['otp'] ?? '';
     $action = $_POST['action'] ?? '';
@@ -43,10 +102,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['otp_attempts'] = $otp_attempts + 1;
             $attempts_left = 3 - ($otp_attempts + 1);
             
+            // Record failed attempt in database
+            try {
+                $update_query = "
+                    UPDATE payment_transactions 
+                    SET callback_response = CONCAT(COALESCE(callback_response, ''), ' | Failed OTP attempt #" . ($otp_attempts + 1) . " at " . date('Y-m-d H:i:s') . "')
+                    WHERE payment_id = :payment_id
+                ";
+                
+                $stmt = $pdo->prepare($update_query);
+                $stmt->execute([':payment_id' => $pending_payment_id]);
+            } catch (PDOException $e) {
+                // Silent fail
+            }
+            
             if ($attempts_left > 0) {
                 $error = "Incorrect OTP. {$attempts_left} attempt(s) remaining.";
             } else {
-                unset($_SESSION['generated_otp']);
+                // Maximum attempts exceeded - MARK AS FAILED
+                try {
+                    $update_query = "
+                        UPDATE payment_transactions 
+                        SET payment_status = 'failed',
+                            callback_response = CONCAT(COALESCE(callback_response, ''), ' | Payment failed - Maximum OTP attempts exceeded')
+                        WHERE payment_id = :payment_id
+                    ";
+                    
+                    $stmt = $pdo->prepare($update_query);
+                    $stmt->execute([':payment_id' => $pending_payment_id]);
+                } catch (PDOException $e) {
+                    // Silent fail
+                }
+                
+                // Clear session
+                session_destroy();
+                $_SESSION = array();
                 $_SESSION['otp_error'] = 'Maximum OTP attempts exceeded. Please start over.';
                 header('Location: gcash.php');
                 exit();
@@ -54,107 +144,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // OTP is correct - Process payment
             try {
-                // Connect to digital database
-                $pdo = new PDO('mysql:host=localhost;port=3307;dbname=digital;charset=utf8mb4', 'root', '');
-                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                
-                // Generate IDs
-                $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $receipt_number = 'RCPT-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $paid_at = date('Y-m-d H:i:s');
                 
                 // =====================================================
-                // SIMPLIFIED UNIVERSAL CALLBACK SYSTEM
+                // SEND CALLBACK TO ORIGINAL SYSTEM
                 // =====================================================
-                $callback_success = false;
                 $callback_response = '';
+                $http_code = 0;
                 
-                // Send callback to ANY system that provided a callback URL
                 if (!empty($callback_url)) {
-                    // Prepare SIMPLE callback data - UNIVERSAL for ALL systems
                     $callback_data = [
                         'reference_id' => $reference_id,
                         'amount' => $amount,
                         'purpose' => $purpose,
                         'receipt_number' => $receipt_number,
                         'paid_at' => $paid_at,
-                        'payment_id' => $payment_id,
+                        'payment_id' => $pending_payment_id,
                         'client_system' => $client_system,
                         'payment_status' => 'paid',
                         'payment_method' => 'gcash',
                         'phone' => $phone
                     ];
                     
-                    error_log("=== SENDING SIMPLIFIED CALLBACK TO: $callback_url ===");
-                    error_log("Client System: " . $client_system);
-                    error_log("Reference ID: " . $reference_id);
-                    error_log("Callback Data: " . print_r($callback_data, true));
-                    
                     $ch = curl_init($callback_url);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Content-Type: application/json',
-                        'Accept: application/json'
-                    ]);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
                     curl_setopt($ch, CURLOPT_POST, true);
                     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($callback_data));
                     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
                     
                     $callback_response = curl_exec($ch);
                     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    $curl_error = curl_error($ch);
-                    
                     curl_close($ch);
-                    
-                    $callback_success = ($http_code === 200);
-                    
-                    error_log("Callback Response HTTP: $http_code");
-                    error_log("Callback Response: $callback_response");
-                    
-                    if ($curl_error) {
-                        error_log("cURL Error: $curl_error");
-                    }
                 }
                 
                 // =====================================================
-                // SAVE TO DIGITAL DATABASE
+                // STORE IN TREASURY DATABASE
                 // =====================================================
-                $insert_query = "
-                    INSERT INTO payment_transactions 
-                    (payment_id, client_system, client_reference, purpose, amount, phone, 
-                     payment_method, payment_status, otp_code, otp_verified, receipt_number, 
-                     created_at, paid_at, callback_url, callback_sent, callback_response)
-                    VALUES 
-                    (:payment_id, :client_system, :client_reference, :purpose, :amount, :phone,
-                     :payment_method, :payment_status, :otp_code, :otp_verified, :receipt_number,
-                     :created_at, :paid_at, :callback_url, :callback_sent, :callback_response)
+                $treasury_stored = false;
+                $treasury_error = '';
+                $treasury_id = null;
+                
+                try {
+                    // Determine revenue source
+                    $revenue_source = 'Market Fees';
+                    if ($client_system === 'rpt') {
+                        $revenue_source = 'Real Property Tax';
+                    } elseif ($client_system === 'business') {
+                        $revenue_source = 'Business Tax';
+                    } elseif ($client_system === 'fees') {
+                        $revenue_source = 'Fees & Charges';
+                    }
+                    
+                    // Prepare treasury data
+                    $treasury_data = [
+                        'or_number' => $receipt_number,
+                        'payment_date' => $paid_at,
+                        'amount' => $amount,
+                        'revenue_source' => $revenue_source,
+                        'reference_id' => $reference_id,
+                        'payment_method' => 'gcash',
+                        'transaction_data' => json_encode([
+                            'client_system' => $client_system,
+                            'purpose' => $purpose,
+                            'phone' => $phone,
+                            'callback_response' => $callback_response,
+                            'original_data' => $payment_data
+                        ])
+                    ];
+                    
+                    // Send to Treasury API
+                    $treasury_api = "http://localhost/revenue2/api/treasury/store_collection.php";
+                    
+                    $ch = curl_init($treasury_api);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($treasury_data));
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    
+                    $treasury_response = curl_exec($ch);
+                    $treasury_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    $treasury_result = json_decode($treasury_response, true);
+                    
+                    if ($treasury_http_code === 200 && $treasury_result['success']) {
+                        $treasury_stored = true;
+                        $treasury_id = $treasury_result['collection_id'];
+                    } else {
+                        $treasury_error = $treasury_result['error'] ?? 'Unknown Treasury error';
+                    }
+                    
+                } catch (Exception $e) {
+                    $treasury_error = $e->getMessage();
+                }
+                
+                // =====================================================
+                // UPDATE PAYMENT TO PAID IN DIGITAL DATABASE
+                // =====================================================
+                $update_query = "
+                    UPDATE payment_transactions 
+                    SET payment_status = 'paid',
+                        otp_verified = 1,
+                        receipt_number = :receipt_number,
+                        paid_at = :paid_at,
+                        callback_sent = :callback_sent,
+                        callback_response = CONCAT(COALESCE(callback_response, ''), 
+                            ' | Payment successful at " . date('Y-m-d H:i:s') . "',
+                            ' | Treasury stored: " . ($treasury_stored ? 'YES (ID: ' . $treasury_id . ')' : 'NO') . "',
+                            ' | Treasury error: " . ($treasury_error ?: 'none') . "',
+                            ' | Callback HTTP: " . $http_code . "')
+                    WHERE payment_id = :payment_id
                 ";
                 
-                $stmt = $pdo->prepare($insert_query);
+                $stmt = $pdo->prepare($update_query);
                 $stmt->execute([
-                    ':payment_id' => $payment_id,
-                    ':client_system' => $client_system,
-                    ':client_reference' => $reference_id,
-                    ':purpose' => $purpose,
-                    ':amount' => $amount,
-                    ':phone' => $phone,
-                    ':payment_method' => 'gcash',
-                    ':payment_status' => 'paid',
-                    ':otp_code' => $generated_otp,
-                    ':otp_verified' => 1,
+                    ':payment_id' => $pending_payment_id,
                     ':receipt_number' => $receipt_number,
-                    ':created_at' => $paid_at,
                     ':paid_at' => $paid_at,
-                    ':callback_url' => $callback_url,
-                    ':callback_sent' => !empty($callback_url) ? 1 : 0,
-                    ':callback_response' => $callback_response
+                    ':callback_sent' => !empty($callback_url) ? 1 : 0
                 ]);
                 
                 // Store receipt data
                 $_SESSION['receipt_data'] = [
-                    'payment_id' => $payment_id,
+                    'payment_id' => $pending_payment_id,
                     'receipt_number' => $receipt_number,
                     'amount' => $amount,
                     'purpose' => $purpose,
@@ -162,8 +277,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'paid_at' => $paid_at,
                     'client_system' => $client_system,
                     'callback_url' => $callback_url,
-                    'callback_success' => $callback_success,
-                    'callback_response' => $callback_response
+                    'callback_response' => $callback_response,
+                    'treasury_stored' => $treasury_stored,
+                    'treasury_id' => $treasury_id,
+                    'treasury_error' => $treasury_error
                 ];
                 
                 // Clear session
@@ -172,6 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unset($_SESSION['otp_attempts']);
                 unset($_SESSION['phone']);
                 unset($_SESSION['payment_data']);
+                unset($_SESSION['pending_payment_id']);
                 
                 // Redirect to success
                 header('Location: success_gcash.php');
@@ -179,7 +297,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             } catch (PDOException $e) {
                 $error = 'Payment processing error. Please try again.';
-                error_log("Payment Error: " . $e->getMessage());
+                
+                // Mark as failed in database
+                try {
+                    $update_query = "
+                        UPDATE payment_transactions 
+                        SET payment_status = 'failed',
+                            callback_response = CONCAT(COALESCE(callback_response, ''), ' | Payment processing error: ', :error)
+                        WHERE payment_id = :payment_id
+                    ";
+                    
+                    $stmt = $pdo->prepare($update_query);
+                    $stmt->execute([
+                        ':payment_id' => $pending_payment_id,
+                        ':error' => $e->getMessage()
+                    ]);
+                } catch (PDOException $update_error) {
+                    // Silent fail
+                }
             }
         }
     } elseif ($action === 'resend_otp') {
@@ -190,9 +325,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['otp_attempts'] = 0;
         $generated_otp = $new_otp;
         $otp_expires = $_SESSION['otp_expires'];
+        
+        // Update OTP in database
+        try {
+            $update_query = "
+                UPDATE payment_transactions 
+                SET otp_code = :otp_code,
+                    callback_response = CONCAT(COALESCE(callback_response, ''), ' | OTP resent at " . date('Y-m-d H:i:s') . "')
+                WHERE payment_id = :payment_id
+            ";
+            
+            $stmt = $pdo->prepare($update_query);
+            $stmt->execute([
+                ':payment_id' => $pending_payment_id,
+                ':otp_code' => $new_otp
+            ]);
+        } catch (PDOException $e) {
+            // Silent fail
+        }
+    } elseif ($action === 'cancel') {
+        // User explicitly cancelled - MARK AS FAILED
+        try {
+            $update_query = "
+                UPDATE payment_transactions 
+                SET payment_status = 'failed',
+                    callback_response = CONCAT(COALESCE(callback_response, ''), ' | User cancelled payment at " . date('Y-m-d H:i:s') . "')
+                WHERE payment_id = :payment_id
+            ";
+            
+            $stmt = $pdo->prepare($update_query);
+            $stmt->execute([':payment_id' => $pending_payment_id]);
+        } catch (PDOException $e) {
+            // Silent fail
+        }
+        
+        // Clear session
+        session_destroy();
+        $_SESSION = array();
+        header('Location: index.php');
+        exit();
     }
 }
 
+// =====================================================
+// DISPLAY PAGE
+// =====================================================
 // Calculate remaining time
 $remaining_time = max(0, $otp_expires - time());
 $minutes = floor($remaining_time / 60);
@@ -214,7 +391,8 @@ $seconds = $remaining_time % 60;
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-md mx-auto p-4">
         <!-- Back Button -->
-        <a href="gcash.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
+        <a href="gcash.php" 
+           class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
             <i class="fas fa-arrow-left mr-2"></i> Back
         </a>
 
@@ -275,7 +453,7 @@ $seconds = $remaining_time % 60;
             </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" id="otpForm">
                 <input type="hidden" name="action" value="verify_otp">
                 
                 <!-- OTP Input -->
@@ -289,6 +467,7 @@ $seconds = $remaining_time % 60;
                            placeholder="000000" 
                            maxlength="6"
                            pattern="[0-9]{6}"
+                           required
                            class="otp-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
                 </div>
 
@@ -302,6 +481,11 @@ $seconds = $remaining_time % 60;
                     <button type="submit" name="action" value="resend_otp"
                             class="w-full border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg">
                         <i class="fas fa-redo mr-2"></i> Resend OTP
+                    </button>
+                    
+                    <button type="submit" name="action" value="cancel"
+                            class="w-full border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg">
+                        <i class="fas fa-times mr-2"></i> Cancel Payment
                     </button>
                 </div>
             </form>
@@ -317,7 +501,9 @@ $seconds = $remaining_time % 60;
             if (totalSeconds <= 0) {
                 otpTimer.textContent = "00:00";
                 otpTimer.classList.add('text-red-600');
-                setTimeout(() => window.location.href = 'gcash.php?expired=1', 1000);
+                setTimeout(() => {
+                    window.location.href = 'gcash.php?expired=1';
+                }, 1000);
                 return;
             }
             const min = Math.floor(totalSeconds / 60);

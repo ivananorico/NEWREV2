@@ -1,6 +1,7 @@
 <?php
 // revenue2/citizen_dashboard/digital/gcash.php
 session_start();
+require_once '../../db/Digital/digital_db.php';
 
 // Check if payment data exists
 if (!isset($_SESSION['payment_data'])) {
@@ -14,6 +15,12 @@ $reference_id = $payment_data['reference_id'];
 $amount = $payment_data['amount'];
 $purpose = $payment_data['purpose'];
 $callback_url = $payment_data['callback_url'];
+
+// Get Digital DB connection
+$pdo = getDigitalDB();
+if (!$pdo) {
+    die("Database connection failed. Please try again.");
+}
 
 // Initialize variables
 $error = '';
@@ -29,18 +36,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $clean_phone = preg_replace('/\D/', '', $phone);
         
         if (strlen($clean_phone) === 11 && strpos($clean_phone, '09') === 0) {
-            // Store phone in session
-            $_SESSION['phone'] = $clean_phone;
-            
-            // Generate OTP
-            $generated_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-            $_SESSION['generated_otp'] = $generated_otp;
-            $_SESSION['otp_expires'] = time() + (5 * 60);
-            $_SESSION['otp_attempts'] = 0;
-            
-            // Redirect to OTP page
-            header('Location: gcash_otp.php');
-            exit();
+            try {
+                // Generate payment ID and OTP
+                $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
+                $generated_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                $created_at = date('Y-m-d H:i:s');
+                
+                // =====================================================
+                // CREATE PENDING TRANSACTION WITH OTP IN DATABASE
+                // =====================================================
+                $insert_query = "
+                    INSERT INTO payment_transactions 
+                    (payment_id, client_system, client_reference, purpose, amount, phone, 
+                     payment_method, payment_status, otp_code, otp_verified, receipt_number, 
+                     created_at, callback_url, callback_sent)
+                    VALUES 
+                    (:payment_id, :client_system, :client_reference, :purpose, :amount, :phone,
+                     :payment_method, :payment_status, :otp_code, :otp_verified, :receipt_number,
+                     :created_at, :callback_url, :callback_sent)
+                ";
+                
+                $stmt = $pdo->prepare($insert_query);
+                $stmt->execute([
+                    ':payment_id' => $payment_id,
+                    ':client_system' => $client_system,
+                    ':client_reference' => $reference_id,
+                    ':purpose' => $purpose,
+                    ':amount' => $amount,
+                    ':phone' => $clean_phone,
+                    ':payment_method' => 'gcash',
+                    ':payment_status' => 'pending',
+                    ':otp_code' => $generated_otp, // STORE OTP IN DATABASE
+                    ':otp_verified' => 0,
+                    ':receipt_number' => NULL,
+                    ':created_at' => $created_at,
+                    ':callback_url' => $callback_url,
+                    ':callback_sent' => 0
+                ]);
+                
+                // Store in session
+                $_SESSION['phone'] = $clean_phone;
+                $_SESSION['generated_otp'] = $generated_otp;
+                $_SESSION['otp_expires'] = time() + (5 * 60);
+                $_SESSION['otp_attempts'] = 0;
+                $_SESSION['pending_payment_id'] = $payment_id;
+                
+                // Redirect to OTP page
+                header('Location: gcash_otp.php');
+                exit();
+                
+            } catch (PDOException $e) {
+                $error = 'System error. Please try again.';
+                error_log("GCash Pending Transaction Error: " . $e->getMessage());
+            }
         } else {
             $error = 'Please enter a valid 11-digit mobile number starting with 09';
         }
@@ -104,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <?php if ($error): ?>
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div class="mb-6 p-4 bg-red-50 border border-red_200 rounded-xl">
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
                     <p class="text-red-700"><?php echo $error; ?></p>
