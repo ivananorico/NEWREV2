@@ -2,6 +2,49 @@
 // revenue2/citizen_dashboard/digital/gcash.php
 session_start();
 
+// DEBUG: Show paths to find the correct file location
+echo '<div style="background: #f0f0f0; padding: 10px; border: 1px solid #ccc; margin: 10px;">';
+echo '<h3>DEBUG - File Path Information</h3>';
+echo '<pre>';
+
+$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
+$tryPath = $baseDir . '/db/Digital/digital_db.php';
+
+echo "Current file: " . __FILE__ . "\n";
+echo "Base directory (2 levels up): " . $baseDir . "\n";
+echo "Trying to load: " . $tryPath . "\n";
+echo "File exists? " . (file_exists($tryPath) ? 'YES' : 'NO') . "\n";
+echo "Document root: " . $_SERVER['DOCUMENT_ROOT'] . "\n";
+
+// Check if db directory exists
+$dbDir = $baseDir . '/db/';
+echo "db directory exists? " . (is_dir($dbDir) ? 'YES' : 'NO') . "\n";
+if (is_dir($dbDir)) {
+    echo "Contents of db directory:\n";
+    $files = scandir($dbDir);
+    foreach ($files as $file) {
+        if ($file != '.' && $file != '..') {
+            echo " - $file\n";
+        }
+    }
+}
+
+// Check if Digital directory exists
+$digitalDir = $baseDir . '/db/Digital/';
+echo "Digital directory exists? " . (is_dir($digitalDir) ? 'YES' : 'NO') . "\n";
+if (is_dir($digitalDir)) {
+    echo "Contents of Digital directory:\n";
+    $files = scandir($digitalDir);
+    foreach ($files as $file) {
+        if ($file != '.' && $file != '..') {
+            echo " - $file\n";
+        }
+    }
+}
+
+echo '</pre>';
+echo '</div>';
+
 // FIXED: Use absolute path that works on both localhost and server
 $baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
 require_once $baseDir . '/db/Digital/digital_db.php';
