@@ -1,7 +1,13 @@
 <?php
 // revenue2/citizen_dashboard/digital/gcash_otp.php
 session_start();
-require_once '../../db/Digital/digital_db.php';
+
+// FIXED: Use absolute path that works on both localhost and server
+$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
+require_once $baseDir . '/db/Digital/digital_db.php';
+
+// Alternative: If above doesn't work, try this instead:
+// require_once $_SERVER['DOCUMENT_ROOT'] . '/db/Digital/digital_db.php';
 
 // Check if we have required session data
 if (!isset($_SESSION['payment_data']) || !isset($_SESSION['phone'])) {
