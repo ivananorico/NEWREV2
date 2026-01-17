@@ -416,7 +416,6 @@ try {
                                     <input type="hidden" name="amount" value="<?php echo $total_amount_due; ?>">
                                     <input type="hidden" name="purpose" value="<?php echo htmlspecialchars($payment_description); ?>">
                                     <input type="hidden" name="callback" value="<?php echo $market_callback_url; ?>">
-                                    <input type="hidden" name="return_url" value="<?php echo $base_url; ?>/citizen_dashboard/market/market_application/paying.php?payment_success=true">
                                     
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-purple-50 rounded-lg p-4">
                                         <div class="mb-3 sm:mb-0">
