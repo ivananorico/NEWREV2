@@ -39,6 +39,9 @@ import MarketOutput from './pages/MARKET/MapCreator/MarketOutput'
 import ViewAllMaps from './pages/MARKET/MapCreator/ViewAllMaps'
 import MapEditor from './pages/MARKET/MapCreator/MapEditor'
 import MarketConfig from './pages/MARKET/MapCreator/MarketConfig'
+import MarketStatus from './pages/MARKET/MarketStatus/MarketStatus'
+import MarketStatusInfo from './pages/MARKET/MarketStatus/MarketStatusInfo'
+import MarketDashboard from './pages/MARKET/MarketDashboard/MarketDashboard'
 
 import MarketValidation from './pages/MARKET/MarketValidation/MarketValidation'
 import MarketValidationInfo from './pages/MARKET/MarketValidation/MarketValidationInfo' // ADD THIS IMPORT
@@ -100,6 +103,7 @@ function App() {
               <Route path="/digipay/digipay2" element={<DIGIPAY2 />} />
 
               {/* MARKET */}
+              <Route path="/market/marketdashboard" element={<MarketDashboard />} />
               <Route path="/market/mapcreator" element={<MapCreator />} />
               <Route path="/market/marketoutput/view/:id" element={<MarketOutput />} />
               <Route path="/market/viewallmaps" element={<ViewAllMaps />} />
@@ -107,7 +111,9 @@ function App() {
               <Route path="/Market/Config" element={<MarketConfig />} />
 
               <Route path="/market/marketvalidation" element={<MarketValidation />} />
-              <Route path="/market/marketvalidationinfo/:id" element={<MarketValidationInfo />} /> {/* ADD THIS ROUTE */}
+              <Route path="/market/marketvalidationinfo/:id" element={<MarketValidationInfo />} />
+              <Route path="/market/marketstatus" element={<MarketStatus />} />
+              <Route path="/market/marketstatusinfo/:id" element={<MarketStatusInfo />} />
 
               {/* Settings */}
               <Route path="/settings/general" element={<GeneralSettings />} />

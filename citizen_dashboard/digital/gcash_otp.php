@@ -200,8 +200,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif ($client_system === 'business') {
                         $revenue_source = 'Business Tax';
                     } elseif ($client_system === 'fees') {
-                        $revenue_source = 'Fees & Charges';
-                    }
+                        $revenue_source = 'Fees or Permits';
+                    }else {
+        $revenue_source = 'Unknown System / General Payment';
+    }
                     
                     // Prepare treasury data
                     $treasury_data = [

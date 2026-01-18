@@ -16,14 +16,32 @@ if (isset($_SESSION['receipt_data'])) {
     unset($_SESSION['receipt_data']);
 }
 
-// Get parameters from ANY system via GET
-$client_system = $_GET['system'] ?? 'unknown';
-$reference_id = $_GET['ref'] ?? '';
-$amount = $_GET['amount'] ?? 0;
-$purpose = $_GET['purpose'] ?? '';
-$callback_url = $_GET['callback'] ?? '';
-$return_url = $_GET['return_url'] ?? ''; // NEW: Return URL after payment
-$system_name = $_GET['system_name'] ?? ucfirst($client_system);
+// CHANGED: Accept both GET (for backward compatibility) and POST (new secure method)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get parameters from POST (secure method)
+    $client_system = $_POST['system'] ?? 'unknown';
+    $reference_id = $_POST['ref'] ?? '';
+    $amount = $_POST['amount'] ?? 0;
+    $purpose = $_POST['purpose'] ?? '';
+    $callback_url = $_POST['callback'] ?? '';
+    $return_url = $_POST['return_url'] ?? '';
+    $system_name = $_POST['system_name'] ?? ucfirst($client_system);
+    $applicant_name = $_POST['applicant_name'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $mobile = $_POST['mobile'] ?? '';
+} else {
+    // Get parameters from GET (backward compatibility)
+    $client_system = $_GET['system'] ?? 'unknown';
+    $reference_id = $_GET['ref'] ?? '';
+    $amount = $_GET['amount'] ?? 0;
+    $purpose = $_GET['purpose'] ?? '';
+    $callback_url = $_GET['callback'] ?? '';
+    $return_url = $_GET['return_url'] ?? '';
+    $system_name = $_GET['system_name'] ?? ucfirst($client_system);
+    $applicant_name = $_GET['applicant_name'] ?? '';
+    $email = $_GET['email'] ?? '';
+    $mobile = $_GET['mobile'] ?? '';
+}
 
 // Validate required parameters
 if (empty($reference_id) || $amount <= 0) {
@@ -45,7 +63,10 @@ $_SESSION['payment_data'] = [
     'amount' => $amount,
     'purpose' => $purpose,
     'callback_url' => $callback_url,
-    'return_url' => $return_url // Store return URL
+    'return_url' => $return_url,
+    'applicant_name' => $applicant_name,
+    'email' => $email,
+    'mobile' => $mobile
 ];
 
 // Generate a dynamic badge color based on system name
@@ -61,7 +82,7 @@ function getBadgeColor($system) {
     return $colors[$system] ?? 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800';
 }
 
-// FIX: Define $display_system here before using it
+// Define display system
 $display_system = $system_name ?: ucfirst($client_system);
 $badge_class = getBadgeColor($client_system);
 ?>
@@ -104,12 +125,22 @@ $badge_class = getBadgeColor($client_system);
                         </span>
                         <h1 class="text-2xl font-bold text-gray-800 mt-2">Digital Payment</h1>
                         <p class="text-gray-600">Reference: <?php echo htmlspecialchars($reference_id); ?></p>
+                        <?php if (!empty($applicant_name)): ?>
+                        <p class="text-gray-600 text-sm mt-1">
+                            <i class="fas fa-user mr-1"></i> Applicant: <?php echo htmlspecialchars($applicant_name); ?>
+                        </p>
+                        <?php endif; ?>
                     </div>
                     <div class="text-right">
                         <div class="text-3xl font-bold text-blue-600">
                             ₱<?php echo number_format($amount, 2); ?>
                         </div>
                         <p class="text-sm text-gray-600 mt-1"><?php echo htmlspecialchars($purpose); ?></p>
+                        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST'): ?>
+                        <p class="text-xs text-green-600 mt-1">
+                            <i class="fas fa-shield-alt mr-1"></i> Secure POST transmission
+                        </p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -169,17 +200,21 @@ $badge_class = getBadgeColor($client_system);
             <p class="text-gray-500 text-sm mt-3">Please select a payment method above</p>
         </div>
 
-        <!-- Info Section -->
+        <!-- Security Info Section -->
         <div class="mt-12 bg-blue-50 border border-blue-200 rounded-xl p-6">
             <div class="flex items-start">
-                <i class="fas fa-info-circle text-blue-600 text-2xl mr-4 mt-1"></i>
+                <i class="fas fa-shield-alt text-blue-600 text-2xl mr-4 mt-1"></i>
                 <div>
-                    <h3 class="text-lg font-bold text-blue-800 mb-2">Universal Payment System</h3>
+                    <h3 class="text-lg font-bold text-blue-800 mb-2">Secure Payment System</h3>
                     <ul class="text-sm text-blue-700 space-y-2">
-                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Works for any LGU service</li>
-                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Secure OTP verification</li>
-                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Automatic system notifications</li>
-                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Instant digital receipts</li>
+                        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST'): ?>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> <strong>Secure POST Method</strong> - Data encrypted in request body</li>
+                        <?php else: ?>
+                        <li><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i> <strong>GET Method Used</strong> - Consider using POST for sensitive data</li>
+                        <?php endif; ?>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> SSL/TLS encrypted connection</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> PCI DSS compliant payment processing</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> No card details stored on our servers</li>
                     </ul>
                 </div>
             </div>

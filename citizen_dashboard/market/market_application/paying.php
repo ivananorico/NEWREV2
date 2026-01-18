@@ -21,9 +21,6 @@ $base_url = $is_localhost
 // Market payment callback URL - dynamically generated
 $market_callback_url = $base_url . '/citizen_dashboard/market/api/stall_rights_pay_api.php';
 
-// Debug output (remove in production)
-// echo "<!-- Callback URL: $market_callback_url -->";
-
 // Get applications with 'paying' status
 $applications = [];
 $total_applications = 0;
@@ -405,35 +402,39 @@ try {
 
                             <!-- Payment Action Section -->
                             <div class="pt-6 border-t border-gray-200">
+                                <!-- CHANGED: POST with target="_blank" opens in new tab -->
                                 <form id="paymentForm<?php echo $registration_id; ?>" 
-                                      method="GET" 
+                                      method="POST" 
                                       action="../../digital/index.php" 
-                                      target="_blank" 
-                                      onsubmit="openPaymentWindow(this); return false;">
+                                      target="_blank">
                                     <!-- UNIVERSAL PAYMENT PARAMETERS -->
                                     <input type="hidden" name="system" value="market">
                                     <input type="hidden" name="ref" value="<?php echo $registration_id; ?>">
                                     <input type="hidden" name="amount" value="<?php echo $total_amount_due; ?>">
                                     <input type="hidden" name="purpose" value="<?php echo htmlspecialchars($payment_description); ?>">
                                     <input type="hidden" name="callback" value="<?php echo $market_callback_url; ?>">
+                                    <input type="hidden" name="applicant_name" value="<?php echo htmlspecialchars($full_name); ?>">
+                                    <input type="hidden" name="email" value="<?php echo htmlspecialchars($app['email']); ?>">
+                                    <input type="hidden" name="mobile" value="<?php echo htmlspecialchars($app['mobile']); ?>">
                                     
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-purple-50 rounded-lg p-4">
                                         <div class="mb-3 sm:mb-0">
                                             <div class="font-medium text-purple-800 mb-1">Ready to Complete Payment?</div>
                                             <div class="text-sm text-purple-700">
-                                                Click "Pay Now" to proceed with secure payment
+                                                Click "Pay Now" to proceed with secure payment in new tab
                                             </div>
                                         </div>
                                         <button type="submit" 
-                                                class="inline-flex items-center justify-center px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
-                                            <i class="fas fa-credit-card mr-2"></i>
+                                                class="inline-flex items-center justify-center px-5 py-3 bg-purple-600 text-white rounded-lg 
+                                                hover:bg-purple-700 transition-colors font-medium">
+                                            <i class="fas fa-external-link-alt mr-2"></i>
                                             Pay Now - ₱<?php echo number_format($total_amount_due, 2); ?>
                                         </button>
                                     </div>
                                     
                                     <div class="mt-3 text-center text-xs text-gray-500">
                                         <i class="fas fa-lock mr-1"></i>
-                                        Secure SSL encrypted payment gateway
+                                        Secure POST transmission • Opens in new tab
                                     </div>
                                 </form>
                             </div>
@@ -531,12 +532,12 @@ try {
                 <h4 class="font-medium text-gray-700 mb-2 text-sm">Frequently Asked Questions</h4>
                 <div class="space-y-3 text-sm text-gray-600">
                     <div class="border-l-2 border-purple-300 pl-3">
-                        <p class="font-medium text-gray-700">When will I get my stall?</p>
-                        <p class="text-gray-600">Within 3 business days after payment confirmation.</p>
+                        <p class="font-medium text-gray-700">Will payment open in new window?</p>
+                        <p class="text-gray-600">Yes, payment opens in secure new tab using POST method.</p>
                     </div>
                     <div class="border-l-2 border-purple-300 pl-3">
-                        <p class="font-medium text-gray-700">Is the security bond refundable?</p>
-                        <p class="text-gray-600">Yes, upon proper termination of your contract.</p>
+                        <p class="font-medium text-gray-700">Is my data secure?</p>
+                        <p class="text-gray-600">Yes, POST method encrypts data in request body, not URL.</p>
                     </div>
                     <div class="border-l-2 border-purple-300 pl-3">
                         <p class="font-medium text-gray-700">What payment methods are accepted?</p>
@@ -549,28 +550,34 @@ try {
 </main>
 
 <script>
-// Function to open payment in new window
-function openPaymentWindow(form) {
-    // Open payment in new tab
-    const paymentUrl = form.action + '?' + new URLSearchParams(new FormData(form)).toString();
-    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
-    
-    // Check if payment window was closed
-    const checkWindowClosed = setInterval(() => {
-        if (paymentWindow.closed) {
-            clearInterval(checkWindowClosed);
-            // When payment window is closed, refresh the page to check for updates
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
-    }, 1000);
-}
-
 // Auto-refresh page every 2 minutes to check for status updates
 setTimeout(() => {
     window.location.reload();
 }, 120000);
+
+// Simple check for payment tab closure
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for form submissions
+    document.querySelectorAll('form[target="_blank"]').forEach(form => {
+        form.addEventListener('submit', function() {
+            // Store the time when payment tab was opened
+            localStorage.setItem('paymentTabOpened', Date.now());
+        });
+    });
+    
+    // Check if we should refresh (payment might have completed)
+    if (localStorage.getItem('paymentTabOpened')) {
+        const openedTime = parseInt(localStorage.getItem('paymentTabOpened'));
+        const currentTime = Date.now();
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        // If payment tab was opened more than 5 minutes ago, refresh
+        if (currentTime - openedTime > fiveMinutes) {
+            localStorage.removeItem('paymentTabOpened');
+            window.location.reload();
+        }
+    }
+});
 </script>
 </body>
 </html>

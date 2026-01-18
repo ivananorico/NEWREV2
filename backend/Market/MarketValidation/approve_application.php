@@ -110,12 +110,26 @@ try {
     $start_date = date('Y-01-01'); // January 1 of current year
     $end_date = date('Y-12-31');   // December 31 of current year
     
+    // Calculate the total number of months in contract
+    $start = new DateTime($start_date);
+    $end = new DateTime($end_date);
+    $interval = $start->diff($end);
+    $total_months = ($interval->y * 12) + $interval->m;
+    
+    // Add one month if there are any days
+    if ($interval->d > 0 || $interval->m > 0 || $interval->y > 0) {
+        $total_months += 1;
+    }
+    
+    // Calculate monthly_totals (monthly rent × number of months)
+    $monthly_totals = $monthly_rent * $total_months;
+    
     $sql = "INSERT INTO rent_totals (
             rent_stall_id, renter_id, registration_id,
-            monthly_rent, start_date, end_date, status
+            monthly_rent, monthly_totals, start_date, end_date, status
         ) VALUES (
             :rent_stall_id, :renter_id, :reg_id,
-            :monthly_rent, :start_date, :end_date, 'active'
+            :monthly_rent, :monthly_totals, :start_date, :end_date, 'active'
         )";
     
     $stmt = $pdo->prepare($sql);
@@ -124,6 +138,7 @@ try {
         ':renter_id' => $renter_id,
         ':reg_id' => $app_id,
         ':monthly_rent' => $monthly_rent,
+        ':monthly_totals' => $monthly_totals,
         ':start_date' => $start_date,
         ':end_date' => $end_date
     ]);
@@ -209,10 +224,13 @@ try {
             'rent_stall_id' => $rent_stall_id,
             'rent_total_id' => $rent_total_id,
             'monthly_rent' => $monthly_rent,
+            'monthly_totals' => $monthly_totals,
+            'total_months' => $total_months,
             'annual_total' => $total_annual_amount,
             'contract_period' => [
                 'start_date' => $start_date,
-                'end_date' => $end_date
+                'end_date' => $end_date,
+                'months' => $total_months
             ],
             'billing_count' => 12,
             'billing_ids' => $billing_ids

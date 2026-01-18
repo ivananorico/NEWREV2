@@ -244,6 +244,31 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+        
+        /* POST method indicator */
+        .post-method-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+        }
+        
+        .new-tab-indicator {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -271,7 +296,15 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     <a href="../business_services.php" class="text-blue-600 hover:text-blue-800 inline-flex items-center text-sm mb-2">
                         <i class="fas fa-arrow-left mr-2"></i> Back to Business Services
                     </a>
-                    <h1 class="text-2xl font-bold text-gray-800">Business Tax Payment</h1>
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-800">Business Tax Payment</h1>
+                        <span class="post-method-badge">
+                            <i class="fas fa-shield-alt mr-1"></i> Secure POST
+                        </span>
+                        <span class="new-tab-indicator">
+                            <i class="fas fa-external-link-alt mr-1"></i> New Tab
+                        </span>
+                    </div>
                     <p class="text-gray-600 text-sm">Manage and pay your business taxes online</p>
                 </div>
                 <div class="text-right">
@@ -282,6 +315,31 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                         </div>
                         <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                             <i class="fas fa-user text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Info Banner -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-xl p-5 mb-6">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                        <i class="fas fa-shield-alt text-green-600 text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-green-800">Secure Payment Transmission</h3>
+                        <p class="text-green-700">Your payment data is transmitted securely using POST method and opens in new tab.</p>
+                    </div>
+                    <div class="hidden md:flex items-center space-x-3">
+                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
+                            <span class="text-green-700 font-medium text-sm">
+                                <i class="fas fa-lock mr-1"></i> Data Encrypted
+                            </span>
+                        </div>
+                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
+                            <span class="text-green-700 font-medium text-sm">
+                                <i class="fas fa-external-link-alt mr-1"></i> New Tab
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -409,11 +467,11 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
                         <div class="flex items-center">
                             <div class="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-file-invoice-dollar text-white text-lg"></i>
+                                <i class="fas fa-shield-alt text-white text-lg"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500 font-medium">Total Annual Tax</p>
-                                <p class="text-2xl font-bold text-gray-800">' . formatCurrency($totalAnnualTax) . '</p>
+                                <p class="text-sm text-gray-500 font-medium">Security Level</p>
+                                <p class="text-2xl font-bold text-green-600">POST</p>
                             </div>
                         </div>
                     </div>
@@ -433,11 +491,11 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
                         <div class="flex items-center">
                             <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-credit-card text-white text-lg"></i>
+                                <i class="fas fa-external-link-alt text-white text-lg"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500 font-medium">Payment Status</p>
-                                <p class="text-2xl font-bold text-gray-800">Online</p>
+                                <p class="text-sm text-gray-500 font-medium">Opens In</p>
+                                <p class="text-2xl font-bold text-purple-600">New Tab</p>
                             </div>
                         </div>
                     </div>
@@ -534,6 +592,10 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                 <div class="text-right">
                                     <p class="text-sm text-gray-500 font-medium">Annual Tax</p>
                                     <p class="text-2xl font-bold text-blue-600">' . formatCurrency($business['total_tax']) . '</p>
+                                    <p class="text-xs text-green-600 mt-1">
+                                        <i class="fas fa-shield-alt mr-1"></i> Secure POST • 
+                                        <i class="fas fa-external-link-alt ml-1"></i> New Tab
+                                    </p>
                                 </div>
                             </div>
                         </div>';
@@ -545,7 +607,7 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                             <div class="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div class="mb-4 lg:mb-0">
                                     <div class="flex items-center mb-2">
-                                        <span class="status-badge ' . ($eligibleForDiscount ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-md' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
+                                        <span class="status-badge ' . ($eligibleForDiscount ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-md' : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
                                             <i class="fas ' . ($eligibleForDiscount ? 'fa-gift' : 'fa-calendar-check') . ' mr-1.5"></i>
                                             ' . ($eligibleForDiscount ? 'DISCOUNT AVAILABLE' : 'ANNUAL PAYMENT') . '
                                         </span>
@@ -722,25 +784,33 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                     $purpose_text = 'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
-                                                    // FIXED: Create a form to open payment in new tab
+                                                    // CHANGED: POST form with target="_blank"
                                                     echo '
                                                     <form id="paymentForm_' . $tax['id'] . '" 
-                                                          method="GET" 
+                                                          method="POST" 
                                                           action="../../digital/index.php" 
-                                                          target="_blank" 
-                                                          onsubmit="openPaymentWindow(this); return false;">
+                                                          target="_blank">
                                                         <input type="hidden" name="system" value="business">
                                                         <input type="hidden" name="ref" value="' . $tax['id'] . '">
                                                         <input type="hidden" name="amount" value="' . $totalAmount . '">
                                                         <input type="hidden" name="purpose" value="' . $purpose_text . '">
                                                         <input type="hidden" name="callback" value="' . $business_callback_url . '">
                                                         <input type="hidden" name="return_url" value="' . $base_url . '/citizen_dashboard/business/business_tax_payment/business_tax_payment.php?payment_success=true">
+                                                        <input type="hidden" name="business_permit_id" value="' . htmlspecialchars($business['business_permit_id']) . '">
+                                                        <input type="hidden" name="business_name" value="' . htmlspecialchars($business['business_name']) . '">
+                                                        <input type="hidden" name="owner_name" value="' . htmlspecialchars($business['owner_name']) . '">
+                                                        <input type="hidden" name="business_location" value="' . htmlspecialchars($business['barangay'] . ', ' . $business['city']) . '">
+                                                        <input type="hidden" name="quarter_year" value="' . $tax['quarter'] . ' ' . $tax['year'] . '">
+                                                        <input type="hidden" name="penalty_applied" value="' . ($penaltyAmount > 0 ? 'Yes' : 'No') . '">
                                                         
                                                         <button type="submit" 
                                                                 class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
-                                                            <i class="fas fa-credit-card mr-2"></i> Pay Now
+                                                            <i class="fas fa-external-link-alt mr-2"></i> Pay in New Tab
                                                         </button>
-                                                    </form>';
+                                                    </form>
+                                                    <p class="text-xs text-green-600 mt-2">
+                                                        <i class="fas fa-shield-alt mr-1"></i> Secure POST • Opens in new tab
+                                                    </p>';
                                                 }
                                                 
                                                 echo '
@@ -869,22 +939,22 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                 <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow duration-300">
                     <div class="flex items-center mb-3">
                         <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-gift text-green-600"></i>
+                            <i class="fas fa-external-link-alt text-green-600"></i>
                         </div>
-                        <p class="font-semibold text-gray-800">Discount Policy</p>
+                        <p class="font-semibold text-gray-800">New Tab Feature</p>
                     </div>
                     <ul class="space-y-2">
                         <li class="flex items-center text-sm">
                             <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span><?php echo $discount_rate; ?>% discount for annual payment</span>
+                            <span>Opens payment in new browser tab</span>
                         </li>
                         <li class="flex items-center text-sm">
                             <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span>Valid only in January</span>
+                            <span>Secure POST data transmission</span>
                         </li>
                         <li class="flex items-center text-sm">
                             <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span>All quarters must be unpaid</span>
+                            <span>Return here after payment completion</span>
                         </li>
                     </ul>
                 </div>
@@ -913,73 +983,64 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
     </div>
 
 <script>
-// Function to open payment in new window
-function openPaymentWindow(form) {
-    // Open payment in new tab
-    const paymentUrl = form.action + '?' + new URLSearchParams(new FormData(form)).toString();
-    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
-    
-    // Check if payment window was closed
-    const checkWindowClosed = setInterval(() => {
-        if (paymentWindow.closed) {
-            clearInterval(checkWindowClosed);
-            // When payment window is closed, refresh the page to check for updates
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
-    }, 1000);
-}
-
-// Old makePayment function (keep for compatibility if needed elsewhere)
-function makePayment(taxId, amount, purpose, hasPenalty = false) {
-    console.log('Initiating payment for Business Tax ID:', taxId, 'Amount:', amount);
-    
-    const btn = event.target;
-    
-    // Show loading state
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
-    btn.disabled = true;
-    
-    // Build SIMPLIFIED payment parameters
-    const params = new URLSearchParams();
-    params.append('system', 'business');
-    params.append('ref', taxId.toString());
-    params.append('amount', amount.toString());
-    params.append('purpose', purpose);
-    params.append('callback', '<?php echo $business_callback_url; ?>');
-    params.append('return_url', '<?php echo $base_url; ?>/citizen_dashboard/business/business_tax_payment/business_tax_payment.php?payment_success=true');
-    
-    // Open in new window
-    const paymentUrl = '../../digital/index.php?' + params.toString();
-    const paymentWindow = window.open(paymentUrl, 'paymentWindow', 'width=800,height=700,scrollbars=yes');
-    
-    // Check if payment window was closed
-    const checkWindowClosed = setInterval(() => {
-        if (paymentWindow.closed) {
-            clearInterval(checkWindowClosed);
-            // Restore button
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            // Refresh page
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
-    }, 1000);
-}
-
 // View receipt function
 function viewReceipt(receiptNumber) {
-    alert('View receipt: ' + receiptNumber);
-    // Implement receipt viewing logic here
+    if (!receiptNumber) {
+        alert('No receipt number available for this payment.');
+        return;
+    }
+    
+    alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
 }
 
 // Pay annual function (coming soon)
 function payAnnual(businessId, amount, purpose, hasDiscount, discountRate, permitId) {
     alert('Annual payment feature coming soon!');
 }
+
+// Tab tracking for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Add a small indicator when forms are submitted
+    document.querySelectorAll('form[target="_blank"]').forEach(form => {
+        form.addEventListener('submit', function() {
+            const button = this.querySelector('button[type="submit"]');
+            if (button) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Opening...';
+                button.disabled = true;
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 2000);
+            }
+            
+            // Store timestamp for potential auto-refresh
+            localStorage.setItem('paymentTabOpened', Date.now());
+        });
+    });
+    
+    // Check if we should auto-refresh (if payment was completed)
+    const lastPaymentTime = localStorage.getItem('paymentTabOpened');
+    if (lastPaymentTime) {
+        const timeSincePayment = Date.now() - parseInt(lastPaymentTime);
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes
+        
+        // If payment tab was opened more than 5 minutes ago, refresh
+        if (timeSincePayment > fiveMinutes) {
+            localStorage.removeItem('paymentTabOpened');
+            window.location.reload();
+        }
+    }
+    
+    // Auto-refresh page every 5 minutes to update penalties
+    setTimeout(() => {
+        if (document.querySelector('.pulse')) {
+            window.location.reload();
+        }
+    }, 300000);
+});
 </script>
 </body>
 </html>

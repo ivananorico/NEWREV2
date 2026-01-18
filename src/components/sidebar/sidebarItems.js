@@ -54,8 +54,10 @@ const sidebarItems = [
     label: "Market Stall Rental and Billing",
     icon: LayoutDashboard,
     subItems: [
-      { id: "market1", label: "Market Stall Map Creator", path: "/MARKET/MapCreator" },
-      { id: "market2", label: "Market Validation", path: "/MARKET/MarketValidation" },
+      { id: "market1", label: "Market Dashboard", path: "/MARKET/MarketDashboard" },
+      { id: "market2", label: "Market Stall Map Creator", path: "/MARKET/MapCreator" },
+      { id: "market3", label: "Market Validation", path: "/MARKET/MarketValidation" },
+      { id: "market4", label: "Market Status", path: "/MARKET/MarketStatus" },
     ]
   },
   {
