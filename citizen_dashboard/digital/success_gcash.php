@@ -161,13 +161,9 @@ unset($_SESSION['otp_attempts']);
             </div>
             
             <div class="mt-8 pt-6 border-t">
-                <a href="<?php echo $return_url; ?>" 
-                   class="block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-xl font-medium text-center mb-3">
-                    <i class="fas fa-arrow-left mr-3"></i>Return to Application
-                </a>
                 <button onclick="window.close();" 
-                        class="block border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-xl font-medium text-center w-full">
-                    <i class="fas fa-times mr-3"></i>Close This Window
+                        class="block bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-xl font-medium text-center w-full">
+                    <i class="fas fa-times mr-3"></i>Close Window
                 </button>
             </div>
         </div>
@@ -181,35 +177,25 @@ unset($_SESSION['otp_attempts']);
         // Auto-redirect or close
         let seconds = 10;
         const countdown = document.getElementById('countdown');
-        const returnUrl = '<?php echo $return_url; ?>';
         
         const timer = setInterval(() => {
             seconds--;
             countdown.textContent = seconds;
             if (seconds <= 0) {
                 clearInterval(timer);
-                // Try to close the window, if not possible redirect
+                // Try to close the window
                 if (window.opener) {
                     window.close();
-                } else {
-                    window.location.href = returnUrl;
                 }
             }
         }, 1000);
         
-        // Close button functionality
+        // Close button functionality - refresh parent before closing
         document.querySelector('button[onclick="window.close();"]').addEventListener('click', function() {
             if (window.opener) {
-                // Refresh parent window
                 window.opener.location.reload();
             }
-        });
-        
-        // Redirect link also refreshes parent
-        document.querySelector('a[href="<?php echo $return_url; ?>"]').addEventListener('click', function(e) {
-            if (window.opener) {
-                window.opener.location.reload();
-            }
+            window.close();
         });
     </script>
 </body>

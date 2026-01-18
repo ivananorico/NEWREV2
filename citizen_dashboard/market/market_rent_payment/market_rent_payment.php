@@ -838,31 +838,32 @@ $is_january = $current_month == 1;
     </div>
 
     <script>
-        // Auto-close success message after 5 seconds
-        document.addEventListener('DOMContentLoaded', function() {
-            const successMessage = document.querySelector('[id*="payment_success"]');
-            if (successMessage) {
-                setTimeout(() => {
-                    successMessage.style.transition = 'opacity 0.5s';
-                    successMessage.style.opacity = '0';
-                    setTimeout(() => successMessage.remove(), 500);
-                }, 5000);
-            }
-            
-            // Add confirmation for payment buttons
-            const paymentButtons = document.querySelectorAll('form[target="_blank"] button[type="submit"]');
-            paymentButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    const form = this.closest('form');
-                    const amount = form.querySelector('input[name="amount"]').value;
-                    const purpose = form.querySelector('input[name="purpose"]').value;
-                    
-                    if (!confirm(`You will be redirected to a secure payment page.\n\nAmount: ₱${parseFloat(amount).toFixed(2)}\nPurpose: ${purpose}\n\nDo you want to continue?`)) {
-                        e.preventDefault();
-                    }
-                });
+    // Auto-close success message after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const successMessage = document.querySelector('[id*="payment_success"]');
+        if (successMessage) {
+            setTimeout(() => {
+                successMessage.style.transition = 'opacity 0.5s';
+                successMessage.style.opacity = '0';
+                setTimeout(() => successMessage.remove(), 500);
+            }, 5000);
+        }
+        
+        // Auto-submit payment forms when buttons are clicked
+        const paymentButtons = document.querySelectorAll('form[target="_blank"] button[type="submit"]');
+        paymentButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                // Prevent default browser handling
+                e.preventDefault();
+                
+                // Get the form
+                const form = this.closest('form');
+                
+                // Submit the form immediately
+                form.submit();
             });
         });
-    </script>
+    });
+</script>
 </body>
 </html>

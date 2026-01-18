@@ -97,6 +97,30 @@ $badge_class = getBadgeColor($client_system);
             border-color: #3b82f6;
             background-color: #f0f7ff;
         }
+        .coming-soon {
+            position: relative;
+            opacity: 0.7;
+        }
+        .coming-soon::after {
+            content: 'COMING SOON';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #6b7280;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .payment-card.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .payment-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -143,33 +167,48 @@ $badge_class = getBadgeColor($client_system);
                     <i class="fas fa-bolt mr-2"></i>
                     <span class="font-medium">Instant Payment</span>
                 </div>
+                <div class="mt-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i> AVAILABLE
+                    </span>
+                </div>
             </div>
 
             <!-- Maya -->
-            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" 
-                 onclick="selectPayment('maya')" id="maya-card">
-                <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center coming-soon disabled" 
+                 onclick="showComingSoon('Maya')" id="maya-card">
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 opacity-60">
                     <i class="fas fa-wallet text-purple-600 text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Maya</h3>
-                <p class="text-gray-600 mb-4">Pay using Maya wallet</p>
-                <div class="flex items-center justify-center text-purple-600">
+                <h3 class="text-xl font-bold text-gray-800 mb-2 opacity-60">Maya</h3>
+                <p class="text-gray-600 mb-4 opacity-60">Pay using Maya wallet</p>
+                <div class="flex items-center justify-center text-purple-600 opacity-60">
                     <i class="fas fa-shield-alt mr-2"></i>
                     <span class="font-medium">Secure</span>
+                </div>
+                <div class="mt-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
+                        <i class="fas fa-clock mr-1"></i> COMING SOON
+                    </span>
                 </div>
             </div>
 
             <!-- Credit/Debit Card -->
-            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center cursor-pointer" 
-                 onclick="selectPayment('card')" id="card-card">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div class="payment-card bg-white rounded-xl shadow-md p-6 text-center coming-soon disabled" 
+                 onclick="showComingSoon('Credit/Debit Card')" id="card-card">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 opacity-60">
                     <i class="fas fa-credit-card text-blue-600 text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Credit/Debit Card</h3>
-                <p class="text-gray-600 mb-4">Pay using your card</p>
-                <div class="flex items-center justify-center text-blue-600">
+                <h3 class="text-xl font-bold text-gray-800 mb-2 opacity-60">Credit/Debit Card</h3>
+                <p class="text-gray-600 mb-4 opacity-60">Pay using your card</p>
+                <div class="flex items-center justify-center text-blue-600 opacity-60">
                     <i class="fas fa-globe mr-2"></i>
                     <span class="font-medium">VISA/Mastercard</span>
+                </div>
+                <div class="mt-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
+                        <i class="fas fa-clock mr-1"></i> COMING SOON
+                    </span>
                 </div>
             </div>
         </div>
@@ -225,6 +264,10 @@ $badge_class = getBadgeColor($client_system);
             continueBtn.innerHTML = `<i class="fas fa-arrow-right mr-3"></i> Continue with ${method.charAt(0).toUpperCase() + method.slice(1)}`;
         }
 
+        function showComingSoon(methodName) {
+            alert(`${methodName} payment is coming soon! Currently, only GCash is available.`);
+        }
+
         function proceedToPayment() {
             if (!selectedMethod) {
                 alert('Please select a payment method first.');
@@ -249,6 +292,11 @@ $badge_class = getBadgeColor($client_system);
                 proceedToPayment();
             }
         });
+
+        // Auto-select GCash by default
+        window.onload = function() {
+            selectPayment('gcash');
+        };
     </script>
 </body>
 </html>
