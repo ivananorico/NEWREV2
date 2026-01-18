@@ -15,6 +15,11 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
+// Function to format date
+function formatDate($date, $format = 'F j, Y') {
+    return ($date && $date != '0000-00-00' && $date != '0000-00-00 00:00:00') ? date($format, strtotime($date)) : '-';
+}
+
 // Function to get document URL
 function getDocumentUrl(string $dbPath): string
 {
@@ -24,6 +29,45 @@ function getDocumentUrl(string $dbPath): string
         $clean = substr($clean, strlen('revenue2/'));
     }
     return '/revenue2/' . $clean;
+}
+
+// Function to check if rent clearance exists for a year
+function getMarketRentClearanceInfo($rent_stall_id, $rent_total_id, $year, $pdo) {
+    try {
+        $query = "
+            SELECT mrc.*,
+                   DATE_ADD(mrc.issue_date, INTERVAL 1 YEAR) as valid_until
+            FROM market_rent_clearances mrc
+            WHERE mrc.rent_stall_id = ? 
+            AND mrc.rent_total_id = ?
+            AND mrc.clearance_year = ?
+            ORDER BY mrc.issue_date DESC
+            LIMIT 1
+        ";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$rent_stall_id, $rent_total_id, $year]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch(PDOException $e) {
+        return null;
+    }
+}
+
+// Function to check if all months are paid for a year
+function isAllMonthsPaid($monthly_bills, $year) {
+    $year_bills = array_filter($monthly_bills, function($bill) use ($year) {
+        return $bill['billing_year'] == $year;
+    });
+    
+    if (empty($year_bills)) return false;
+    
+    foreach ($year_bills as $bill) {
+        if ($bill['payment_status'] != 'paid') {
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 // Fetch user's approved applications
@@ -40,6 +84,7 @@ try {
             rs.start_date,
             rs.status as stall_status,
             rs.end_date as stall_end_date,
+            rs.id as rent_stall_id,
             s.name as stall_name,
             s.class_id,
             sr.class_name,
@@ -48,6 +93,7 @@ try {
             rr.payment_date,
             rr.reference_number,
             rr.stall_rights_no,
+            rt.id as rent_total_id,
             rt.monthly_rent as contract_monthly_rent,
             rt.start_date as contract_start,
             rt.end_date as contract_end,
@@ -165,6 +211,42 @@ try {
             border-left: 5px solid #4a90e2;
             padding-left: 1rem;
             margin-bottom: 1.5rem;
+        }
+        
+        .clearance-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid #bae6fd;
+            border-left: 5px solid #0ea5e9;
+            transition: all 0.3s ease;
+        }
+        .clearance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.15);
+        }
+        
+        .valid-until-badge {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #075985 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
         }
         
         .modal {
@@ -318,19 +400,10 @@ try {
                     $pending_count = 0;
                     $overdue_count = 0;
                     $total_amount_due = 0;
+                    $billing_years = [];
                     
                     try {
-                        // First get rent_total_id
-                        $rent_total_stmt = $pdo->prepare("
-                            SELECT id FROM rent_totals 
-                            WHERE registration_id = ? 
-                            AND status = 'active' 
-                            LIMIT 1
-                        ");
-                        $rent_total_stmt->execute([$app['id']]);
-                        $rent_total = $rent_total_stmt->fetch(PDO::FETCH_ASSOC);
-                        
-                        if ($rent_total) {
+                        if (!empty($app['rent_total_id'])) {
                             $billing_stmt = $pdo->prepare("
                                 SELECT 
                                     mb.*,
@@ -339,7 +412,7 @@ try {
                                 WHERE mb.rent_total_id = ?
                                 ORDER BY mb.billing_year, mb.billing_month
                             ");
-                            $billing_stmt->execute([$rent_total['id']]);
+                            $billing_stmt->execute([$app['rent_total_id']]);
                             $monthly_bills = $billing_stmt->fetchAll(PDO::FETCH_ASSOC);
                             
                             foreach ($monthly_bills as $bill) {
@@ -349,10 +422,27 @@ try {
                                 if ($bill['payment_status'] == 'paid') $paid_count++;
                                 elseif ($bill['payment_status'] == 'overdue') $overdue_count++;
                                 else $pending_count++;
+                                
+                                // Collect unique years
+                                $year = $bill['billing_year'];
+                                if (!in_array($year, $billing_years)) {
+                                    $billing_years[] = $year;
+                                }
                             }
                         }
                     } catch(PDOException $e) {
                         // Continue without billing data
+                    }
+                    
+                    // Get rent clearances for each year
+                    $rent_clearances = [];
+                    if (!empty($app['rent_stall_id']) && !empty($app['rent_total_id'])) {
+                        foreach ($billing_years as $year) {
+                            $clearance = getMarketRentClearanceInfo($app['rent_stall_id'], $app['rent_total_id'], $year, $pdo);
+                            if ($clearance) {
+                                $rent_clearances[$year] = $clearance;
+                            }
+                        }
                     }
                     
                     // Stall status
@@ -425,6 +515,98 @@ try {
                             </div>
                         </div>
                     </div>
+
+                    <!-- RENT CLEARANCE SECTION - Show if any clearance exists -->
+                    <?php if (!empty($rent_clearances)): ?>
+                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <h3 class="font-semibold text-gray-900 mb-6 flex items-center">
+                            <i class="fas fa-file-certificate text-blue-600 mr-2 text-xl"></i> Available Rent Clearance Certificates
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <?php foreach ($rent_clearances as $year => $clearance): 
+                                $valid_until = $clearance['valid_until'] ?? date('Y-12-31', strtotime("+1 year"));
+                                $is_valid = strtotime($valid_until) >= time();
+                            ?>
+                                <div class="clearance-card p-5 rounded-lg">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex items-center">
+                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                <i class="fas fa-award text-blue-600"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-blue-800 mb-1">Certificate No.</div>
+                                                <div class="font-bold text-gray-900 font-mono text-sm"><?php echo $clearance['certificate_number']; ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="valid-until-badge">
+                                                <i class="fas fa-calendar-check mr-1"></i>
+                                                Valid: <?php echo formatDate($valid_until); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Rent Year:</span>
+                                            <span class="font-medium"><?php echo $year; ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Issued Date:</span>
+                                            <span class="font-medium"><?php echo formatDate($clearance['issue_date']); ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Status:</span>
+                                            <span class="font-medium <?php echo $is_valid ? 'text-green-600' : 'text-red-600'; ?>">
+                                                <?php echo $is_valid ? 'Active' : 'Expired'; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Link to market rent clearance certificate file -->
+                                    <a href="market_rent_clearance_certificate.php?rent_stall_id=<?php echo $app['rent_stall_id']; ?>&rent_total_id=<?php echo $app['rent_total_id']; ?>&year=<?php echo $year; ?>" 
+                                       target="_blank"
+                                       class="w-full download-btn inline-flex items-center justify-center">
+                                        <i class="fas fa-download mr-2"></i> Download Certificate
+                                    </a>
+                                    
+                                    <p class="text-xs text-gray-500 mt-2 text-center">
+                                        <i class="fas fa-external-link-alt mr-1"></i> Opens in new window
+                                    </p>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-info-circle text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900">What is a Market Rent Clearance Certificate?</h4>
+                                    <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Official proof that all market stall rent is paid for the year</span>
+                                        </li>
+                                        <li class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Required for stall renewal and business operations</span>
+                                        </li>
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Valid for one year from issue date</span>
+                                        </li>
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Accepted by market management and government agencies</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <!-- Applicant Info & Stall Info Sections -->
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -925,9 +1107,13 @@ try {
                             <div class="mb-4 md:mb-0">
                                 <div class="font-medium text-gray-900">Stall Rental Agreement</div>
                                 <div class="text-sm text-gray-600">
-                                    <?php if ($paid_count == count($monthly_bills)): ?>
+                                    <?php if (!empty($rent_clearances)): ?>
+                                        <span class="text-green-700 font-medium">
+                                            <i class="fas fa-file-certificate mr-1"></i> Rent clearance certificate(s) available for download
+                                        </span>
+                                    <?php elseif ($paid_count == count($monthly_bills) && !empty($monthly_bills)): ?>
                                         <span class="text-green-700">
-                                            <i class="fas fa-check-circle mr-1"></i> All rental payments are up to date
+                                            <i class="fas fa-check-circle mr-1"></i> All rent payments are up to date. Rent clearance will be generated automatically.
                                         </span>
                                     <?php elseif ($overdue_count > 0): ?>
                                         <span class="text-red-700 font-medium">

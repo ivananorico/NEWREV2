@@ -118,8 +118,8 @@ try {
             bqt.id, 
             bqt.payment_status, 
             bqt.receipt_number,
-            bqt.penalty_amount,
             bqt.business_permit_id,
+            bqt.year,
             bp.business_permit_id as permit_number,
             bp.business_name
         FROM business_quarterly_taxes bqt
@@ -136,7 +136,7 @@ try {
         throw new Exception("Business quarterly tax with ID $quarterly_id not found in database");
     }
     
-    error_log("Found business quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}");
+    error_log("Found business quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}, Year={$quarterly_tax['year']}");
     
     // Check if already paid
     if ($quarterly_tax['payment_status'] == 'paid') {
@@ -189,8 +189,119 @@ try {
     
     error_log("Successfully updated business tax $reference_id. New status: paid, Receipt: $receipt_number");
     
+    // =============== BUSINESS TAX CLEARANCE AUTOMATION ===============
+    $clearance_generated = false;
+    $certificate_number = null;
+    
+    try {
+        $business_permit_id = $quarterly_tax['business_permit_id'];
+        $year = $quarterly_tax['year'];
+        
+        error_log("Checking business tax clearance eligibility for permit ID: $business_permit_id, year: $year");
+        
+        // Check if all quarters for this year are now paid
+        $check_all_paid_query = "
+            SELECT 
+                COUNT(*) as total_quarters,
+                SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) as paid_quarters
+            FROM business_quarterly_taxes 
+            WHERE business_permit_id = :business_permit_id 
+            AND year = :year
+        ";
+        
+        $check_stmt = $business_pdo->prepare($check_all_paid_query);
+        $check_stmt->execute([
+            ':business_permit_id' => $business_permit_id,
+            ':year' => $year
+        ]);
+        $status = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        error_log("Business tax status for year $year: {$status['paid_quarters']}/{$status['total_quarters']} quarters paid");
+        
+        // If all 4 quarters are paid
+        if ($status['total_quarters'] == 4 && $status['paid_quarters'] == 4) {
+            error_log("ALL BUSINESS QUARTERS PAID! Generating tax clearance for year $year");
+            
+            // Check if clearance already exists
+            $check_clearance_query = "
+                SELECT id FROM business_tax_clearances 
+                WHERE business_permit_id = :business_permit_id 
+                AND clearance_year = :year
+            ";
+            $clearance_stmt = $business_pdo->prepare($check_clearance_query);
+            $clearance_stmt->execute([
+                ':business_permit_id' => $business_permit_id,
+                ':year' => $year
+            ]);
+            
+            if ($clearance_stmt->rowCount() == 0) {
+                // Generate certificate number
+                $certificate_number = 'BUS-CLR-' . date('Y') . '-' . str_pad($business_permit_id, 6, '0', STR_PAD_LEFT) . '-' . $year;
+                
+                // Insert into business_tax_clearances table
+                $insert_query = "
+                    INSERT INTO business_tax_clearances 
+                    (certificate_number, business_permit_id, clearance_year, issue_date, generated_by)
+                    VALUES (:cert_number, :business_permit_id, :year, CURDATE(), 1)
+                ";
+                
+                $insert_stmt = $business_pdo->prepare($insert_query);
+                $insert_stmt->execute([
+                    ':cert_number' => $certificate_number,
+                    ':business_permit_id' => $business_permit_id,
+                    ':year' => $year
+                ]);
+                
+                $clearance_id = $business_pdo->lastInsertId();
+                
+                error_log("Business tax clearance generated! ID: $clearance_id, Certificate: $certificate_number");
+                
+                // Get business info for notification
+                $business_query = "
+                    SELECT bp.business_name, bp.full_name, bp.personal_email, bp.business_permit_id
+                    FROM business_permits bp
+                    WHERE bp.id = :business_permit_id
+                ";
+                $business_stmt = $business_pdo->prepare($business_query);
+                $business_stmt->execute([':business_permit_id' => $business_permit_id]);
+                $business_info = $business_stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($business_info) {
+                    // Log notification
+                    $notification_query = "
+                        INSERT INTO notifications 
+                        (user_email, subject, message, sent_at) 
+                        VALUES (:email, :subject, :message, NOW())
+                    ";
+                    
+                    $notification_stmt = $business_pdo->prepare($notification_query);
+                    $notification_stmt->execute([
+                        ':email' => $business_info['personal_email'],
+                        ':subject' => 'Business Tax Clearance Certificate Generated - ' . $certificate_number,
+                        ':message' => "Dear " . $business_info['full_name'] . ",\n\nYour business tax clearance certificate has been generated for " . $business_info['business_name'] . " (Permit: " . $business_info['business_permit_id'] . ") for year " . $year . ".\n\nCertificate Number: " . $certificate_number . "\n\nYou can download it from your dashboard.\n\nThank you!"
+                    ]);
+                    
+                    error_log("Notification sent to: " . $business_info['personal_email']);
+                }
+                
+                $clearance_generated = true;
+            } else {
+                error_log("Business tax clearance already exists for this permit and year");
+                $clearance_generated = false;
+            }
+        } else {
+            error_log("Not all business quarters are paid yet. No clearance generated.");
+            $clearance_generated = false;
+        }
+    } catch (Exception $clearance_error) {
+        // Don't fail the whole payment if clearance generation fails
+        error_log("Business tax clearance generation error (non-critical): " . $clearance_error->getMessage());
+        $clearance_generated = false;
+    }
+    // =============== END BUSINESS TAX CLEARANCE AUTOMATION ===============
+    
     // Return success response
-    echo json_encode([
+    $response = [
         'status' => 'success',
         'message' => 'Payment updated successfully in Business database',
         'rows_updated' => $rows_updated,
@@ -202,7 +313,19 @@ try {
         'payment_date' => $paid_at,
         'payment_id' => $payment_id,
         'new_status' => $updated_record['payment_status']
-    ]);
+    ];
+    
+    // Add clearance info if generated
+    if ($clearance_generated) {
+        $response['business_tax_clearance'] = [
+            'generated' => true,
+            'certificate_number' => $certificate_number,
+            'year' => $year,
+            'message' => 'Tax clearance certificate has been generated for your business'
+        ];
+    }
+    
+    echo json_encode($response);
     
 } catch (PDOException $e) {
     // Database error

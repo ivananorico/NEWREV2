@@ -63,6 +63,32 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
+// Function to format date
+function formatDate($date, $format = 'F j, Y') {
+    return ($date && $date != '0000-00-00' && $date != '0000-00-00 00:00:00') ? date($format, strtotime($date)) : '-';
+}
+
+// Function to check if tax clearance exists for a year
+function getBusinessTaxClearanceInfo($business_permit_id, $year, $pdo) {
+    try {
+        $query = "
+            SELECT tc.*,
+                   DATE_ADD(tc.issue_date, INTERVAL 1 YEAR) as valid_until
+            FROM business_tax_clearances tc
+            WHERE tc.business_permit_id = ? 
+            AND tc.clearance_year = ?
+            ORDER BY tc.issue_date DESC
+            LIMIT 1
+        ";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$business_permit_id, $year]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch(PDOException $e) {
+        return null;
+    }
+}
+
 // Fetch all business permits for this user
 try {
     $sql = "SELECT * FROM business_permits WHERE user_id = ? ORDER BY created_at DESC";
@@ -75,6 +101,8 @@ try {
     
     // Fetch quarterly taxes for each permit
     $quarterly_taxes = [];
+    $tax_clearances = [];
+    
     foreach ($permits as &$permit) {
         $tax_sql = "SELECT * FROM business_quarterly_taxes 
                    WHERE business_permit_id = ? 
@@ -98,6 +126,17 @@ try {
             $permit['discount_percent'] = $discount_percent;
             $permit['discount_amount'] = $discount_amount;
             $permit['discounted_total'] = $discounted_total;
+        }
+        
+        // Get tax clearances for each year
+        if (!empty($permit_taxes)) {
+            $tax_years = array_unique(array_column($permit_taxes, 'year'));
+            foreach ($tax_years as $year) {
+                $clearance = getBusinessTaxClearanceInfo($permit['id'], $year, $pdo);
+                if ($clearance) {
+                    $tax_clearances[$permit['id']][$year] = $clearance;
+                }
+            }
         }
         
         $tax_stmt = null;
@@ -216,6 +255,42 @@ try {
             margin-bottom: 1rem;
         }
         
+        .clearance-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid #bae6fd;
+            border-left: 5px solid #0ea5e9;
+            transition: all 0.3s ease;
+        }
+        .clearance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.15);
+        }
+        
+        .valid-until-badge {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #075985 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+        
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
@@ -268,6 +343,7 @@ try {
             <?php foreach ($permits as $permit): 
                 $status_class = 'status-' . strtolower($permit['status']);
                 $permit_taxes = $quarterly_taxes[$permit['id']] ?? [];
+                $permit_clearances = $tax_clearances[$permit['id']] ?? [];
                 
                 // Count paid quarters
                 $paid_count = 0;
@@ -314,6 +390,99 @@ try {
                             </div>
                         </div>
                     </div>
+
+                    <!-- TAX CLEARANCE SECTION - Show if any clearance exists -->
+                    <?php if (!empty($permit_clearances)): ?>
+                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <h3 class="font-semibold text-gray-900 mb-6 flex items-center">
+                            <i class="fas fa-file-certificate text-blue-600 mr-2 text-xl"></i> Available Tax Clearance Certificates
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <?php foreach ($permit_clearances as $year => $clearance): 
+                                $valid_until = $clearance['valid_until'] ?? date('Y-12-31', strtotime("+1 year"));
+                                $is_valid = strtotime($valid_until) >= time();
+                            ?>
+                                <div class="clearance-card p-5 rounded-lg">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex items-center">
+                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                <i class="fas fa-award text-blue-600"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-blue-800 mb-1">Certificate No.</div>
+                                                <div class="font-bold text-gray-900 font-mono text-sm"><?php echo $clearance['certificate_number']; ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="valid-until-badge">
+                                                <i class="fas fa-calendar-check mr-1"></i>
+                                                Valid: <?php echo formatDate($valid_until); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Tax Year:</span>
+                                            <span class="font-medium"><?php echo $year; ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Issued Date:</span>
+                                            <span class="font-medium"><?php echo formatDate($clearance['issue_date']); ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Status:</span>
+                                            <span class="font-medium <?php echo $is_valid ? 'text-green-600' : 'text-red-600'; ?>">
+                                                <?php echo $is_valid ? 'Active' : 'Expired'; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Link to business tax clearance certificate file -->
+                                    <a href="business_tax_clearance_certificate.php?business_permit_id=<?php echo $permit['id']; ?>&year=<?php echo $year; ?>" 
+                                       target="_blank"
+                                       class="w-full download-btn inline-flex items-center justify-center">
+                                        <i class="fas fa-download mr-2"></i> Download Certificate
+                                    </a>
+                                    
+                                    <p class="text-xs text-gray-500 mt-2 text-center">
+                                        <i class="fas fa-external-link-alt mr-1"></i> Opens in new window
+                                    </p>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-info-circle text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900">What is a Business Tax Clearance Certificate?</h4>
+                                    <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Official proof that all business taxes are paid for the year</span>
+                                        </li>
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Required for business permit renewal</span>
+                                        </li>
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Valid for one year from issue date</span>
+                                        </li>
+                                        <li class="flex items-start">
+                                            <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+                                            <span>Accepted by banks and government agencies</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <!-- Quick Info -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

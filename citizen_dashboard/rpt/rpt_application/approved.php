@@ -16,6 +16,77 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
+// Function to format date
+function formatDate($date, $format = 'F j, Y') {
+    return ($date && $date != '0000-00-00' && $date != '0000-00-00 00:00:00') ? date($format, strtotime($date)) : '-';
+}
+
+// Function to build full address from owner details
+function buildFullAddress($owner) {
+    $address_parts = [];
+    
+    if (!empty($owner['house_number'])) {
+        $address_parts[] = $owner['house_number'];
+    }
+    
+    if (!empty($owner['street'])) {
+        $address_parts[] = $owner['street'];
+    }
+    
+    if (!empty($owner['owner_barangay'])) {
+        $address_parts[] = $owner['owner_barangay'];
+    }
+    
+    if (!empty($owner['owner_city'])) {
+        $address_parts[] = $owner['owner_city'];
+    }
+    
+    if (!empty($owner['owner_province'])) {
+        $address_parts[] = $owner['owner_province'];
+    }
+    
+    if (!empty($owner['owner_zip_code'])) {
+        $address_parts[] = $owner['owner_zip_code'];
+    }
+    
+    // If we have no specific parts, use the address field
+    if (empty($address_parts) && !empty($owner['address'])) {
+        return $owner['address'];
+    }
+    
+    return implode(', ', $address_parts);
+}
+
+// Function to check if tax clearance exists for a year
+function getTaxClearanceInfo($property_total_id, $year, $pdo) {
+    $query = "
+        SELECT tc.*,
+               DATE_ADD(tc.issue_date, INTERVAL 1 YEAR) as valid_until
+        FROM tax_clearances tc
+        WHERE tc.property_total_id = ? 
+        AND tc.clearance_year = ?
+        ORDER BY tc.issue_date DESC
+        LIMIT 1
+    ";
+    
+    $stmt = $pdo->prepare($query);
+    $stmt->execute([$property_total_id, $year]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// Function to check if all quarters are paid
+function isAllQuartersPaid($quarterly_taxes) {
+    if (empty($quarterly_taxes)) return false;
+    
+    foreach ($quarterly_taxes as $tax) {
+        if ($tax['payment_status'] != 'paid') {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 // Function to check if eligible for annual discount (Jan 1-31 only)
 function isEligibleForAnnualDiscount($quarterly_taxes) {
     $current_date = date('Y-m-d');
@@ -81,7 +152,14 @@ try {
             po.suffix,
             po.email,
             po.phone,
-            po.address as owner_address,
+            po.address,
+            po.house_number,
+            po.street,
+            po.barangay as owner_barangay,
+            po.district as owner_district,
+            po.city as owner_city,
+            po.province as owner_province,
+            po.zip_code as owner_zip_code,
             po.birthdate,
             po.sex,
             po.marital_status
@@ -135,16 +213,32 @@ try {
             padding: 1rem;
         }
         
-        .value-highlight {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #111827;
+        .clearance-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid #bae6fd;
+            border-left: 5px solid #0ea5e9;
+            transition: all 0.3s ease;
+        }
+        .clearance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.15);
         }
         
-        .value-label {
-            font-size: 0.875rem;
-            color: #6b7280;
-            margin-top: 0.25rem;
+        .clearance-badge {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .valid-until-badge {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
         
         .progress-container {
@@ -160,38 +254,26 @@ try {
             border-radius: 3px;
         }
         
-        .info-card-header { 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 1.25rem; 
-            padding-bottom: 0.75rem; 
-            border-bottom: 2px solid #f3f4f6; 
-        }
-        .icon-circle { 
-            width: 48px; 
-            height: 48px; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin-right: 1rem; 
-        }
-        .info-label { 
-            font-size: 0.875rem; 
-            color: #6b7280; 
-            font-weight: 500; 
-            margin-bottom: 0.25rem; 
-        }
-        .info-value { 
-            font-size: 1rem; 
-            color: #111827; 
-            font-weight: 500; 
-        }
-        
         .section-header {
             border-left: 5px solid #4a90e2;
             padding-left: 1rem;
             margin-bottom: 1.5rem;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #075985 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
         }
     </style>
 </head>
@@ -254,7 +336,11 @@ try {
         <div class="space-y-8">
             <?php foreach ($applications as $app): ?>
                 <?php
-                    $full_name = trim($app['first_name'] . ' ' . (!empty($app['middle_name']) ? $app['middle_name'] . ' ' : '') . $app['last_name'] . (!empty($app['suffix']) ? ' ' . $app['suffix'] : ''));
+                    $full_name = trim($app['first_name'] . ' ' . 
+                        (!empty($app['middle_name']) ? $app['middle_name'] . ' ' : '') . 
+                        $app['last_name'] . 
+                        (!empty($app['suffix']) ? ' ' . $app['suffix'] : ''));
+                    $owner_address = buildFullAddress($app);
                     
                     // Get land assessment data
                     $land_data = [];
@@ -297,16 +383,31 @@ try {
                     
                     // Get quarterly taxes
                     $quarterly_taxes = [];
+                    $tax_years = [];
                     if (!empty($total_tax_data)) {
                         try {
                             $quarterly_stmt = $pdo->prepare("
                                 SELECT * FROM quarterly_taxes 
                                 WHERE property_total_id = ?
-                                ORDER BY FIELD(quarter, 'Q1', 'Q2', 'Q3', 'Q4'), year
+                                ORDER BY year DESC, FIELD(quarter, 'Q1', 'Q2', 'Q3', 'Q4')
                             ");
                             $quarterly_stmt->execute([$total_tax_data['id']]);
                             $quarterly_taxes = $quarterly_stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            // Get unique years
+                            $tax_years = array_unique(array_column($quarterly_taxes, 'year'));
                         } catch(PDOException $e) {}
+                    }
+                    
+                    // Get tax clearances for each year
+                    $tax_clearances = [];
+                    if (!empty($total_tax_data)) {
+                        foreach ($tax_years as $year) {
+                            $clearance = getTaxClearanceInfo($total_tax_data['id'], $year, $pdo);
+                            if ($clearance) {
+                                $tax_clearances[$year] = $clearance;
+                            }
+                        }
                     }
                     
                     // Calculate totals
@@ -336,6 +437,15 @@ try {
                     $discount_percent = getDiscountPercentage($pdo);
                     $discount_amount = $eligible_for_discount ? ($total_annual_tax * ($discount_percent / 100)) : 0;
                     $discounted_total = $eligible_for_discount ? ($total_annual_tax - $discount_amount) : $grand_total;
+                    
+                    // Check if any year has all quarters paid
+                    $all_quarters_paid_by_year = [];
+                    foreach ($tax_years as $year) {
+                        $year_quarters = array_filter($quarterly_taxes, function($qt) use ($year) {
+                            return $qt['year'] == $year;
+                        });
+                        $all_quarters_paid_by_year[$year] = isAllQuartersPaid($year_quarters);
+                    }
                 ?>
 
                 <!-- Application Card -->
@@ -375,13 +485,77 @@ try {
                         </div>
                     </div>
 
+                    <!-- TAX CLEARANCE SECTION -->
+                    <?php if (!empty($tax_clearances)): ?>
+                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <h3 class="font-semibold text-gray-900 mb-6 flex items-center">
+                            <i class="fas fa-file-certificate text-blue-600 mr-2 text-xl"></i> Available Tax Clearance Certificates
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <?php foreach ($tax_clearances as $year => $clearance): 
+                                $valid_until = $clearance['valid_until'] ?? date('Y-12-31', strtotime("+1 year"));
+                                $is_valid = strtotime($valid_until) >= time();
+                            ?>
+                                <div class="clearance-card p-5 rounded-lg">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex items-center">
+                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                                <i class="fas fa-award text-blue-600"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-blue-800 mb-1">Certificate No.</div>
+                                                <div class="font-bold text-gray-900 font-mono text-sm"><?php echo $clearance['certificate_number']; ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="valid-until-badge">
+                                                <i class="fas fa-calendar-check mr-1"></i>
+                                                Valid: <?php echo formatDate($valid_until); ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Tax Year:</span>
+                                            <span class="font-medium"><?php echo $year; ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Issued Date:</span>
+                                            <span class="font-medium"><?php echo formatDate($clearance['issue_date']); ?></span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Status:</span>
+                                            <span class="font-medium <?php echo $is_valid ? 'text-green-600' : 'text-red-600'; ?>">
+                                                <?php echo $is_valid ? 'Active' : 'Expired'; ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- CHANGED: Link to separate certificate file -->
+                                    <a href="tax_clearance_certificate.php?property_total_id=<?php echo $total_tax_data['id']; ?>&year=<?php echo $year; ?>" 
+                                       target="_blank"
+                                       class="w-full download-btn inline-flex items-center justify-center">
+                                        <i class="fas fa-download mr-2"></i> Download Certificate
+                                    </a>
+                                    
+                                    <p class="text-xs text-gray-500 mt-2 text-center">
+                                        <i class="fas fa-external-link-alt mr-1"></i> Opens in new window
+                                    </p>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <!-- Property Info & Applicant Info Sections -->
                     <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <!-- Applicant Info -->
                         <div>
-                            <div class="info-card-header">
-                                <div class="icon-circle bg-blue-100 text-blue-600">
-                                    <i class="fas fa-user"></i>
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-user text-blue-600"></i>
                                 </div>
                                 <div>
                                     <h3 class="font-semibold text-gray-900">Applicant</h3>
@@ -390,41 +564,41 @@ try {
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <div class="info-label">Full Name</div>
-                                    <div class="info-value"><?php echo $full_name; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Full Name</div>
+                                    <div class="font-medium text-gray-900"><?php echo $full_name; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Birthdate</div>
-                                    <div class="info-value"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Birthdate</div>
+                                    <div class="font-medium text-gray-900"><?php echo isset($app['birthdate']) ? date('M j, Y', strtotime($app['birthdate'])) : '-'; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Contact</div>
-                                    <div class="info-value"><?php echo $app['phone']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Contact</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['phone']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Email</div>
-                                    <div class="info-value"><?php echo $app['email']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Email</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['email']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Sex</div>
-                                    <div class="info-value"><?php echo ucfirst($app['sex']); ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Sex</div>
+                                    <div class="font-medium text-gray-900"><?php echo ucfirst($app['sex'] ?? ''); ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Marital Status</div>
-                                    <div class="info-value"><?php echo ucfirst($app['marital_status']); ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Marital Status</div>
+                                    <div class="font-medium text-gray-900"><?php echo ucfirst($app['marital_status'] ?? ''); ?></div>
                                 </div>
                             </div>
                             <div class="mt-4">
-                                <div class="info-label">Address</div>
-                                <div class="info-value text-sm"><?php echo $app['owner_address']; ?></div>
+                                <div class="text-sm text-gray-600 mb-1">Address</div>
+                                <div class="font-medium text-gray-900 text-sm"><?php echo $owner_address; ?></div>
                             </div>
                         </div>
 
                         <!-- Property Info -->
                         <div>
-                            <div class="info-card-header">
-                                <div class="icon-circle bg-green-100 text-green-600">
-                                    <i class="fas fa-home"></i>
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-home text-green-600"></i>
                                 </div>
                                 <div>
                                     <h3 class="font-semibold text-gray-900">Property</h3>
@@ -433,32 +607,32 @@ try {
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <div class="info-label">Location</div>
-                                    <div class="info-value"><?php echo $app['lot_location']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Location</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['lot_location']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Barangay</div>
-                                    <div class="info-value">Brgy. <?php echo $app['barangay']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Barangay</div>
+                                    <div class="font-medium text-gray-900">Brgy. <?php echo $app['barangay']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">District</div>
-                                    <div class="info-value"><?php echo $app['district']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">District</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['district']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">City</div>
-                                    <div class="info-value"><?php echo $app['city']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">City</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['city']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Province</div>
-                                    <div class="info-value"><?php echo $app['province']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Province</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['province']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Zip Code</div>
-                                    <div class="info-value"><?php echo $app['zip_code']; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Zip Code</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['zip_code']; ?></div>
                                 </div>
                                 <div>
-                                    <div class="info-label">Building</div>
-                                    <div class="info-value"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div>
+                                    <div class="text-sm text-gray-600 mb-1">Building</div>
+                                    <div class="font-medium text-gray-900"><?php echo $app['has_building'] == 'yes' ? 'Has Building' : 'Vacant Land'; ?></div>
                                 </div>
                             </div>
                         </div>
@@ -526,11 +700,11 @@ try {
                                                 </div>
                                                 <div class="flex justify-between">
                                                     <span class="text-gray-600">Construction Type:</span>
-                                                    <span class="font-medium"><?php echo $building['material_type']; ?></span>
+                                                    <span class="font-medium"><?php echo $building['material_type'] ?? 'N/A'; ?></span>
                                                 </div>
                                                 <div class="flex justify-between">
                                                     <span class="text-gray-600">Floor Area:</span>
-                                                    <span class="font-medium"><?php echo $building['floor_area_sqm']; ?> sqm</span>
+                                                    <span class="font-medium"><?php echo $building['floor_area_sqm'] ?? '0'; ?> sqm</span>
                                                 </div>
                                                 <div class="flex justify-between">
                                                     <span class="text-gray-600">Annual Tax:</span>
@@ -581,33 +755,11 @@ try {
                             </div>
                         </div>
 
-                        <!-- Annual Discount Offer -->
-                        <?php if ($eligible_for_discount && $total_penalty == 0 && $paid_count == 0): ?>
-                            <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-gift text-green-600 text-xl mr-3"></i>
-                                        <div>
-                                            <div class="font-medium text-green-800">Annual Payment Discount Available</div>
-                                            <div class="text-sm text-green-600">Pay all 4 quarters in January and save <?php echo $discount_percent; ?>%</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-lg font-bold text-green-700"><?php echo formatCurrency($discounted_total); ?></div>
-                                        <div class="text-sm text-green-600">
-                                            Save: <?php echo formatCurrency($discount_amount); ?>
-                                            <span class="text-xs">(Until Jan 31)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Quarterly Taxes Table - Business Billing Style -->
+                        <!-- Quarterly Taxes Table -->
                         <?php if (!empty($quarterly_taxes)): ?>
                             <div class="mt-8">
                                 <h4 class="text-lg font-semibold text-gray-800 mb-4 section-header">
-                                    <i class="fas fa-calendar-alt mr-2"></i>Quarterly Tax Payments (<?php echo $quarterly_taxes[0]['year'] ?? date('Y'); ?>)
+                                    <i class="fas fa-calendar-alt mr-2"></i>Quarterly Tax Payments
                                 </h4>
                                 
                                 <!-- Quarterly Taxes Table -->
@@ -695,9 +847,9 @@ try {
                                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                             <i class="fas fa-exclamation-circle mr-1"></i> Overdue
                                                         </span>
-                                                    <?php elseif ($paid_count == 4): ?>
+                                                    <?php elseif ($paid_count == count($quarterly_taxes)): ?>
                                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                            <i class="fas fa-check-circle mr-1"></i> Paid
+                                                            <i class="fas fa-check-circle mr-1"></i> Fully Paid
                                                         </span>
                                                     <?php else: ?>
                                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -709,49 +861,6 @@ try {
                                         </tfoot>
                                     </table>
                                 </div>
-
-                                <!-- Payment Summary -->
-                                <div class="info-section">
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div>
-                                            <div class="text-sm text-gray-600">Total Annual Tax</div>
-                                            <div class="text-xl font-bold text-gray-900"><?php echo formatCurrency($total_annual_tax); ?></div>
-                                        </div>
-                                        
-                                        <div>
-                                            <div class="text-sm text-gray-600">Total Penalties</div>
-                                            <div class="text-xl font-bold <?php echo $total_penalty > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
-                                                <?php echo formatCurrency($total_penalty); ?>
-                                            </div>
-                                            <div class="text-xs text-gray-500">
-                                                <?php if ($total_penalty > 0): ?>
-                                                    2% monthly penalty applied
-                                                <?php else: ?>
-                                                    No penalties
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <div class="text-sm text-gray-600">Payment Status</div>
-                                            <div class="text-xl font-bold <?php echo $overdue_count > 0 ? 'text-red-600' : ($paid_count == 4 ? 'text-green-600' : 'text-yellow-600'); ?>">
-                                                <?php echo $overdue_count > 0 ? 'Overdue' : ($paid_count == 4 ? 'Paid' : 'Pending'); ?>
-                                            </div>
-                                            <div class="text-xs text-gray-500">
-                                                <?php echo $paid_count; ?> paid, 
-                                                <?php echo $pending_count; ?> pending, 
-                                                <?php echo $overdue_count; ?> overdue
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <div class="text-sm text-gray-600">Total Amount Due</div>
-                                            <div class="text-2xl font-bold text-blue-700">
-                                                <?php echo formatCurrency($grand_total); ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -762,9 +871,13 @@ try {
                             <div class="mb-4 md:mb-0">
                                 <div class="font-medium text-gray-900">Tax Assessment Details</div>
                                 <div class="text-sm text-gray-600">
-                                    <?php if ($paid_count == 4): ?>
+                                    <?php if (!empty($tax_clearances)): ?>
+                                        <span class="text-green-700 font-medium">
+                                            <i class="fas fa-file-certificate mr-1"></i> Tax clearance certificate(s) available for download
+                                        </span>
+                                    <?php elseif ($paid_count == count($quarterly_taxes) && !empty($quarterly_taxes)): ?>
                                         <span class="text-green-700">
-                                            <i class="fas fa-check-circle mr-1"></i> All taxes paid for the year
+                                            <i class="fas fa-check-circle mr-1"></i> All taxes paid! Tax clearance will be generated automatically.
                                         </span>
                                     <?php elseif ($overdue_count > 0): ?>
                                         <span class="text-red-700 font-medium">
@@ -792,6 +905,5 @@ try {
         </div>
     <?php endif; ?>
 </main>
-
 </body>
 </html>

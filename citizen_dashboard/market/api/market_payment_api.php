@@ -43,8 +43,6 @@ error_log("Client System: $client_system");
 error_log("Reference ID: $reference_id");
 error_log("Receipt: $receipt_number");
 error_log("Payment ID: $payment_id");
-error_log("Amount: $amount");
-error_log("Purpose: $purpose");
 
 // Validate required fields
 if (!$reference_id || !$receipt_number) {
@@ -127,6 +125,7 @@ try {
             mrb.billing_year,
             mrb.rent_total_id,
             rt.registration_id,
+            rs.id as rent_stall_id,
             rs.business_name,
             rs.stall_rights_no,
             s.name as stall_name,
@@ -152,7 +151,7 @@ try {
         throw new Exception("Market monthly rent billing with ID $monthly_billing_id not found in database");
     }
     
-    error_log("Found market monthly billing: ID={$monthly_billing['id']}, Status={$monthly_billing['payment_status']}, Stall={$monthly_billing['stall_name']}");
+    error_log("Found market monthly billing: ID={$monthly_billing['id']}, Status={$monthly_billing['payment_status']}, Year={$monthly_billing['billing_year']}");
     
     // Check if already paid
     if ($monthly_billing['payment_status'] == 'paid') {
@@ -163,9 +162,7 @@ try {
             'reference_id' => $reference_id,
             'monthly_billing_id' => $monthly_billing_id,
             'current_status' => 'paid',
-            'current_receipt' => $monthly_billing['receipt_number'],
-            'stall_name' => $monthly_billing['stall_name'],
-            'month_year' => date('F Y', mktime(0, 0, 0, $monthly_billing['billing_month'], 1, $monthly_billing['billing_year']))
+            'current_receipt' => $monthly_billing['receipt_number']
         ]);
         exit();
     }
@@ -226,6 +223,122 @@ try {
             ':business_name' => $monthly_billing['business_name']
         ]);
         
+        // =============== MARKET RENT CLEARANCE AUTOMATION ===============
+        $clearance_generated = false;
+        $certificate_number = null;
+        $year = $monthly_billing['billing_year'];
+        $rent_total_id = $monthly_billing['rent_total_id'];
+        $rent_stall_id = $monthly_billing['rent_stall_id'];
+        
+        try {
+            error_log("Checking market rent clearance eligibility for rent_total_id: $rent_total_id, year: $year");
+            
+            // Check if all months for this year are now paid
+            $check_all_paid_query = "
+                SELECT 
+                    COUNT(*) as total_months,
+                    SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) as paid_months
+                FROM monthly_rent_billing 
+                WHERE rent_total_id = :rent_total_id 
+                AND billing_year = :year
+            ";
+            
+            $check_stmt = $pdo->prepare($check_all_paid_query);
+            $check_stmt->execute([
+                ':rent_total_id' => $rent_total_id,
+                ':year' => $year
+            ]);
+            $status = $check_stmt->fetch(PDO::FETCH_ASSOC);
+            
+            error_log("Market rent status for year $year: {$status['paid_months']}/{$status['total_months']} months paid");
+            
+            // If all 12 months are paid
+            if ($status['total_months'] == 12 && $status['paid_months'] == 12) {
+                error_log("ALL MARKET RENT MONTHS PAID! Generating rent clearance for year $year");
+                
+                // First, create the clearance table if it doesn't exist
+                createMarketClearanceTable($pdo);
+                
+                // Check if clearance already exists
+                $check_clearance_query = "
+                    SELECT id FROM market_rent_clearances 
+                    WHERE rent_total_id = :rent_total_id 
+                    AND clearance_year = :year
+                ";
+                $clearance_stmt = $pdo->prepare($check_clearance_query);
+                $clearance_stmt->execute([
+                    ':rent_total_id' => $rent_total_id,
+                    ':year' => $year
+                ]);
+                
+                if ($clearance_stmt->rowCount() == 0) {
+                    // Generate certificate number
+                    $certificate_number = 'MRC-' . date('Y') . '-' . str_pad($rent_total_id, 6, '0', STR_PAD_LEFT) . '-' . $year;
+                    
+                    // Insert into market_rent_clearances table
+                    $insert_query = "
+                        INSERT INTO market_rent_clearances 
+                        (certificate_number, rent_stall_id, rent_total_id, clearance_year, issue_date, generated_by)
+                        VALUES (:cert_number, :rent_stall_id, :rent_total_id, :year, CURDATE(), 1)
+                    ";
+                    
+                    $insert_stmt = $pdo->prepare($insert_query);
+                    $insert_stmt->execute([
+                        ':cert_number' => $certificate_number,
+                        ':rent_stall_id' => $rent_stall_id,
+                        ':rent_total_id' => $rent_total_id,
+                        ':year' => $year
+                    ]);
+                    
+                    $clearance_id = $pdo->lastInsertId();
+                    
+                    error_log("Market rent clearance generated! ID: $clearance_id, Certificate: $certificate_number");
+                    
+                    // Get renter info for notification
+                    $renter_query = "
+                        SELECT ro.email, ro.first_name, ro.last_name, rs.business_name, rs.stall_rights_no
+                        FROM renter_owner ro
+                        INNER JOIN rent_stall rs ON ro.id = rs.renter_id
+                        WHERE rs.id = :rent_stall_id
+                    ";
+                    $renter_stmt = $pdo->prepare($renter_query);
+                    $renter_stmt->execute([':rent_stall_id' => $rent_stall_id]);
+                    $renter_info = $renter_stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($renter_info) {
+                        // Log notification
+                        $notification_query = "
+                            INSERT INTO notifications 
+                            (user_email, subject, message, sent_at) 
+                            VALUES (:email, :subject, :message, NOW())
+                        ";
+                        
+                        $notification_stmt = $pdo->prepare($notification_query);
+                        $notification_stmt->execute([
+                            ':email' => $renter_info['email'],
+                            ':subject' => 'Market Rent Clearance Certificate Generated - ' . $certificate_number,
+                            ':message' => "Dear " . $renter_info['first_name'] . " " . $renter_info['last_name'] . ",\n\nYour market rent clearance certificate has been generated for business " . $renter_info['business_name'] . " (Stall: " . $renter_info['stall_rights_no'] . ") for year " . $year . ".\n\nCertificate Number: " . $certificate_number . "\n\nYou can download it from your dashboard.\n\nThank you!"
+                        ]);
+                        
+                        error_log("Notification sent to: " . $renter_info['email']);
+                    }
+                    
+                    $clearance_generated = true;
+                } else {
+                    error_log("Market rent clearance already exists for this stall and year");
+                    $clearance_generated = false;
+                }
+            } else {
+                error_log("Not all market rent months are paid yet. No clearance generated.");
+                $clearance_generated = false;
+            }
+        } catch (Exception $clearance_error) {
+            // Don't fail the whole payment if clearance generation fails
+            error_log("Market rent clearance generation error (non-critical): " . $clearance_error->getMessage());
+            $clearance_generated = false;
+        }
+        // =============== END MARKET RENT CLEARANCE AUTOMATION ===============
+        
         // Commit transaction
         $pdo->commit();
         
@@ -259,7 +372,7 @@ try {
         error_log("Successfully updated market rent $reference_id. New status: paid, Receipt: $receipt_number, Month: $month_year");
         
         // Return success response
-        echo json_encode([
+        $response = [
             'status' => 'success',
             'message' => 'Market rent payment updated successfully',
             'rows_updated' => $rows_updated,
@@ -277,7 +390,19 @@ try {
             'payment_date' => $paid_at,
             'payment_id' => $payment_id,
             'new_status' => $updated_record['payment_status']
-        ]);
+        ];
+        
+        // Add clearance info if generated
+        if ($clearance_generated) {
+            $response['market_rent_clearance'] = [
+                'generated' => true,
+                'certificate_number' => $certificate_number,
+                'year' => $year,
+                'message' => 'Rent clearance certificate has been generated for your stall'
+            ];
+        }
+        
+        echo json_encode($response);
         
     } catch (Exception $e) {
         // Rollback transaction on error
@@ -293,8 +418,7 @@ try {
     echo json_encode([
         'status' => 'error', 
         'message' => 'Market database error: ' . $e->getMessage(),
-        'reference_id' => $reference_id,
-        'error_details' => $e->getMessage()
+        'reference_id' => $reference_id
     ]);
 } catch (Exception $e) {
     // General error
@@ -308,7 +432,32 @@ try {
     ]);
 }
 
-// Also create a payment log table if it doesn't exist
+// Function to create market clearance table if it doesn't exist
+function createMarketClearanceTable($pdo) {
+    try {
+        $sql = "CREATE TABLE IF NOT EXISTS market_rent_clearances (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            certificate_number VARCHAR(50) NOT NULL UNIQUE,
+            rent_stall_id INT NOT NULL,
+            rent_total_id INT NOT NULL,
+            clearance_year YEAR(4) NOT NULL,
+            issue_date DATE NOT NULL,
+            generated_by INT NOT NULL COMMENT 'user_id',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (rent_stall_id) REFERENCES rent_stall(id),
+            FOREIGN KEY (rent_total_id) REFERENCES rent_totals(id),
+            INDEX idx_clearance_year (clearance_year),
+            INDEX idx_issue_date (issue_date)
+        )";
+        
+        $pdo->exec($sql);
+        error_log("Market rent clearances table created or already exists");
+    } catch (PDOException $e) {
+        error_log("Error creating market_rent_clearances table: " . $e->getMessage());
+    }
+}
+
+// Function to create payment logs table if it doesn't exist
 function createPaymentLogsTable($pdo) {
     try {
         $sql = "CREATE TABLE IF NOT EXISTS market_payment_logs (
@@ -335,8 +484,9 @@ function createPaymentLogsTable($pdo) {
     }
 }
 
-// Call the function to ensure table exists
+// Call the functions to ensure tables exist
 if (isset($pdo) && $pdo) {
     createPaymentLogsTable($pdo);
+    createMarketClearanceTable($pdo);
 }
 ?>
