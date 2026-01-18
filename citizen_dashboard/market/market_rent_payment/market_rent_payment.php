@@ -22,7 +22,7 @@ $base_url = $is_localhost
     ? 'http://localhost/revenue2' 
     : 'https://revenuetreasury.goserveph.com';
 
-// Market payment callback URL - dynamically generated
+// Use your existing market_payment_api.php for callbacks
 $market_callback_url = $base_url . '/citizen_dashboard/market/api/market_payment_api.php';
 
 // Function to get current penalty rate from config
@@ -848,21 +848,6 @@ $is_january = $current_month == 1;
                 setTimeout(() => successMessage.remove(), 500);
             }, 5000);
         }
-        
-        // Auto-submit payment forms when buttons are clicked
-        const paymentButtons = document.querySelectorAll('form[target="_blank"] button[type="submit"]');
-        paymentButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                // Prevent default browser handling
-                e.preventDefault();
-                
-                // Get the form
-                const form = this.closest('form');
-                
-                // Submit the form immediately
-                form.submit();
-            });
-        });
     });
 </script>
 </body>

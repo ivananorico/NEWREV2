@@ -65,7 +65,7 @@ function getBadgeColor($system) {
         'business' => 'bg-gradient-to-r from-green-100 to-green-200 text-green-800',
         'health' => 'bg-gradient-to-r from-red-100 to-red-200 text-red-800',
         'assets' => 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800',
-        'market' => 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800',
+        'market_rent' => 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800',
         'general' => 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800',
     ];
     
@@ -73,7 +73,7 @@ function getBadgeColor($system) {
 }
 
 // Define display system
-$display_system = ucfirst($client_system);
+$display_system = ucfirst(str_replace('_', ' ', $client_system));
 $badge_class = getBadgeColor($client_system);
 ?>
 <!DOCTYPE html>
