@@ -748,7 +748,7 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                                                     $purpose_text = 'RPT ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $property['reference_number'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
-                                                    // CHANGED: POST form with target="_blank"
+                                                    // UPDATED: POST form with only essential parameters
                                                     echo '
                                                     <form id="paymentForm_' . $tax['id'] . '" 
                                                           method="POST" 
@@ -759,11 +759,6 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                                                         <input type="hidden" name="amount" value="' . $totalAmount . '">
                                                         <input type="hidden" name="purpose" value="' . $purpose_text . '">
                                                         <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
-                                                        <input type="hidden" name="return_url" value="' . $base_url . '/citizen_dashboard/rpt/rpt_tax_payment/rpt_tax_payment.php?payment_success=true">
-                                                        <input type="hidden" name="property_ref" value="' . htmlspecialchars($property['reference_number']) . '">
-                                                        <input type="hidden" name="owner_name" value="' . htmlspecialchars($fullName) . '">
-                                                        <input type="hidden" name="property_location" value="' . htmlspecialchars($property['lot_location'] . ', ' . $property['barangay']) . '">
-                                                        <input type="hidden" name="quarter_year" value="' . $tax['quarter'] . ' ' . $tax['year'] . '">
                                                         
                                                         <button type="submit" 
                                                                 class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
@@ -955,7 +950,6 @@ function viewReceipt(receiptNumber) {
     alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
 }
 
-// Remove the old openPaymentWindow function since we're using POST now
 // Tab tracking for better UX
 document.addEventListener('DOMContentLoaded', function() {
     // Add a small indicator when forms are submitted

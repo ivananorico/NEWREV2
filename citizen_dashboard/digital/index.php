@@ -3,55 +3,48 @@
 session_start();
 
 // Clear previous payment session data
-if (isset($_SESSION['payment_data'])) {
-    unset($_SESSION['payment_data']);
-}
-if (isset($_SESSION['phone'])) {
-    unset($_SESSION['phone']);
-}
-if (isset($_SESSION['generated_otp'])) {
-    unset($_SESSION['generated_otp']);
-}
-if (isset($_SESSION['receipt_data'])) {
-    unset($_SESSION['receipt_data']);
+unset($_SESSION['payment_data']);
+unset($_SESSION['phone']);
+unset($_SESSION['generated_otp']);
+unset($_SESSION['receipt_data']);
+
+// Accept only POST method for security
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    die("
+        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
+            <i class='fas fa-exclamation-triangle' style='font-size: 48px; color: #f59e0b;'></i>
+            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Invalid Access Method</h2>
+            <p style='color: #6b7280; margin-bottom: 20px;'>This page must be accessed via POST method for security.</p>
+            <a href='javascript:history.back()' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
+                <i class='fas fa-arrow-left'></i> Go Back
+            </a>
+        </div>
+    ");
 }
 
-// CHANGED: Accept both GET (for backward compatibility) and POST (new secure method)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Get parameters from POST (secure method)
-    $client_system = $_POST['system'] ?? 'unknown';
-    $reference_id = $_POST['ref'] ?? '';
-    $amount = $_POST['amount'] ?? 0;
-    $purpose = $_POST['purpose'] ?? '';
-    $callback_url = $_POST['callback'] ?? '';
-    $return_url = $_POST['return_url'] ?? '';
-    $system_name = $_POST['system_name'] ?? ucfirst($client_system);
-    $applicant_name = $_POST['applicant_name'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $mobile = $_POST['mobile'] ?? '';
-} else {
-    // Get parameters from GET (backward compatibility)
-    $client_system = $_GET['system'] ?? 'unknown';
-    $reference_id = $_GET['ref'] ?? '';
-    $amount = $_GET['amount'] ?? 0;
-    $purpose = $_GET['purpose'] ?? '';
-    $callback_url = $_GET['callback'] ?? '';
-    $return_url = $_GET['return_url'] ?? '';
-    $system_name = $_GET['system_name'] ?? ucfirst($client_system);
-    $applicant_name = $_GET['applicant_name'] ?? '';
-    $email = $_GET['email'] ?? '';
-    $mobile = $_GET['mobile'] ?? '';
-}
+// Get required parameters from POST
+$client_system = $_POST['system'] ?? 'general';
+$reference_id = $_POST['ref'] ?? '';
+$amount = $_POST['amount'] ?? 0;
+$purpose = $_POST['purpose'] ?? '';
+$callback_url = $_POST['callback'] ?? '';
 
 // Validate required parameters
-if (empty($reference_id) || $amount <= 0) {
+if (empty($reference_id) || $amount <= 0 || empty($purpose) || empty($callback_url)) {
     die("
-        <div style='padding: 20px; text-align: center;'>
-            <h2>Invalid Payment Request</h2>
-            <p>Missing required parameters.</p>
-            <p>Reference: " . htmlspecialchars($reference_id) . "</p>
-            <p>Amount: " . htmlspecialchars($amount) . "</p>
-            <p><a href='javascript:history.back()'>Go Back</a></p>
+        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
+            <i class='fas fa-exclamation-circle' style='font-size: 48px; color: #ef4444;'></i>
+            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Invalid Payment Request</h2>
+            <p style='color: #6b7280; margin-bottom: 15px;'>Missing required parameters:</p>
+            <div style='background: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: left;'>
+                <p><strong>Reference ID:</strong> " . (empty($reference_id) ? '<span style="color: #ef4444;">Missing</span>' : htmlspecialchars($reference_id)) . "</p>
+                <p><strong>Amount:</strong> " . ($amount <= 0 ? '<span style="color: #ef4444;">Invalid</span>' : '₱' . number_format($amount, 2)) . "</p>
+                <p><strong>Purpose:</strong> " . (empty($purpose) ? '<span style="color: #ef4444;">Missing</span>' : htmlspecialchars($purpose)) . "</p>
+                <p><strong>Callback URL:</strong> " . (empty($callback_url) ? '<span style="color: #ef4444;">Missing</span>' : htmlspecialchars($callback_url)) . "</p>
+            </div>
+            <a href='javascript:history.back()' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
+                <i class='fas fa-arrow-left'></i> Go Back
+            </a>
         </div>
     ");
 }
@@ -62,11 +55,7 @@ $_SESSION['payment_data'] = [
     'reference_id' => $reference_id,
     'amount' => $amount,
     'purpose' => $purpose,
-    'callback_url' => $callback_url,
-    'return_url' => $return_url,
-    'applicant_name' => $applicant_name,
-    'email' => $email,
-    'mobile' => $mobile
+    'callback_url' => $callback_url
 ];
 
 // Generate a dynamic badge color based on system name
@@ -77,13 +66,14 @@ function getBadgeColor($system) {
         'health' => 'bg-gradient-to-r from-red-100 to-red-200 text-red-800',
         'assets' => 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800',
         'market' => 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800',
+        'general' => 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800',
     ];
     
-    return $colors[$system] ?? 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800';
+    return $colors[strtolower($system)] ?? $colors['general'];
 }
 
 // Define display system
-$display_system = $system_name ?: ucfirst($client_system);
+$display_system = ucfirst($client_system);
 $badge_class = getBadgeColor($client_system);
 ?>
 <!DOCTYPE html>
@@ -125,22 +115,15 @@ $badge_class = getBadgeColor($client_system);
                         </span>
                         <h1 class="text-2xl font-bold text-gray-800 mt-2">Digital Payment</h1>
                         <p class="text-gray-600">Reference: <?php echo htmlspecialchars($reference_id); ?></p>
-                        <?php if (!empty($applicant_name)): ?>
-                        <p class="text-gray-600 text-sm mt-1">
-                            <i class="fas fa-user mr-1"></i> Applicant: <?php echo htmlspecialchars($applicant_name); ?>
+                        <p class="text-xs text-green-600 mt-1">
+                            <i class="fas fa-shield-alt mr-1"></i> Secure POST transmission
                         </p>
-                        <?php endif; ?>
                     </div>
                     <div class="text-right">
                         <div class="text-3xl font-bold text-blue-600">
                             ₱<?php echo number_format($amount, 2); ?>
                         </div>
                         <p class="text-sm text-gray-600 mt-1"><?php echo htmlspecialchars($purpose); ?></p>
-                        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST'): ?>
-                        <p class="text-xs text-green-600 mt-1">
-                            <i class="fas fa-shield-alt mr-1"></i> Secure POST transmission
-                        </p>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -207,14 +190,11 @@ $badge_class = getBadgeColor($client_system);
                 <div>
                     <h3 class="text-lg font-bold text-blue-800 mb-2">Secure Payment System</h3>
                     <ul class="text-sm text-blue-700 space-y-2">
-                        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST'): ?>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> <strong>Secure POST Method</strong> - Data encrypted in request body</li>
-                        <?php else: ?>
-                        <li><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i> <strong>GET Method Used</strong> - Consider using POST for sensitive data</li>
-                        <?php endif; ?>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> SSL/TLS encrypted connection</li>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> PCI DSS compliant payment processing</li>
                         <li><i class="fas fa-check-circle mr-2 text-green-500"></i> No card details stored on our servers</li>
+                        <li><i class="fas fa-check-circle mr-2 text-green-500"></i> Callback to <code class="text-xs bg-white px-1 rounded"><?php echo htmlspecialchars(parse_url($callback_url, PHP_URL_HOST) ?? $callback_url); ?></code> after payment</li>
                     </ul>
                 </div>
             </div>

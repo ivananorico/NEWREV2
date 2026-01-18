@@ -2,61 +2,15 @@
 // revenue2/citizen_dashboard/digital/gcash.php
 session_start();
 
-// DEBUG: Show paths to find the correct file location
-echo '<div style="background: #f0f0f0; padding: 10px; border: 1px solid #ccc; margin: 10px;">';
-echo '<h3>DEBUG - File Path Information</h3>';
-echo '<pre>';
-
-$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
-$tryPath = $baseDir . '/db/Digital/digital_db.php';
-
-echo "Current file: " . __FILE__ . "\n";
-echo "Base directory (2 levels up): " . $baseDir . "\n";
-echo "Trying to load: " . $tryPath . "\n";
-echo "File exists? " . (file_exists($tryPath) ? 'YES' : 'NO') . "\n";
-echo "Document root: " . $_SERVER['DOCUMENT_ROOT'] . "\n";
-
-// Check if db directory exists
-$dbDir = $baseDir . '/db/';
-echo "db directory exists? " . (is_dir($dbDir) ? 'YES' : 'NO') . "\n";
-if (is_dir($dbDir)) {
-    echo "Contents of db directory:\n";
-    $files = scandir($dbDir);
-    foreach ($files as $file) {
-        if ($file != '.' && $file != '..') {
-            echo " - $file\n";
-        }
-    }
-}
-
-// Check if Digital directory exists
-$digitalDir = $baseDir . '/db/Digital/';
-echo "Digital directory exists? " . (is_dir($digitalDir) ? 'YES' : 'NO') . "\n";
-if (is_dir($digitalDir)) {
-    echo "Contents of Digital directory:\n";
-    $files = scandir($digitalDir);
-    foreach ($files as $file) {
-        if ($file != '.' && $file != '..') {
-            echo " - $file\n";
-        }
-    }
-}
-
-echo '</pre>';
-echo '</div>';
-
-// FIXED: Use absolute path that works on both localhost and server
-$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
-require_once $baseDir . '/db/Digital/digital_db.php';
-
-// Alternative: If above doesn't work, try this instead:
-// require_once $_SERVER['DOCUMENT_ROOT'] . '/db/Digital/digital_db.php';
-
 // Check if payment data exists
 if (!isset($_SESSION['payment_data'])) {
     header('Location: index.php');
     exit();
 }
+
+// Use absolute path that works on both localhost and server
+$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
+require_once $baseDir . '/db/Digital/digital_db.php';
 
 $payment_data = $_SESSION['payment_data'];
 $client_system = $payment_data['client_system'];
@@ -68,7 +22,16 @@ $callback_url = $payment_data['callback_url'];
 // Get Digital DB connection
 $pdo = getDigitalDB();
 if (!$pdo) {
-    die("Database connection failed. Please try again.");
+    die("
+        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
+            <i class='fas fa-exclamation-triangle' style='font-size: 48px; color: #f59e0b;'></i>
+            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Database Connection Error</h2>
+            <p style='color: #6b7280; margin-bottom: 20px;'>Please try again in a few minutes.</p>
+            <a href='index.php' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
+                <i class='fas fa-arrow-left'></i> Go Back
+            </a>
+        </div>
+    ");
 }
 
 // Initialize variables
@@ -149,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GCash Payment</title>
+    <title>GCash Payment - LGU Digital Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -201,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <?php if ($error): ?>
-            <div class="mb-6 p-4 bg-red-50 border border-red_200 rounded-xl">
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
                     <p class="text-red-700"><?php echo $error; ?></p>
@@ -235,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <!-- Continue Button -->
                 <button type="submit" 
-                        class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg">
+                        class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg transition-all duration-300">
                     <i class="fas fa-arrow-right mr-2"></i> Continue to OTP Verification
                 </button>
             </form>
@@ -247,6 +210,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div>
                         <p class="text-sm text-blue-700">
                             <strong>For demo:</strong> Enter <span class="font-bold">09123456789</span> or any 11-digit number starting with 09
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Notice -->
+            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <div class="flex items-start">
+                    <i class="fas fa-shield-alt text-green-600 mr-3 mt-1"></i>
+                    <div>
+                        <p class="text-sm text-green-700">
+                            <strong>Secure Payment:</strong> Your phone number is only used for OTP verification and is not stored permanently.
                         </p>
                     </div>
                 </div>
@@ -267,6 +242,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 phoneInput.value = '09';
                 phoneInput.focus();
             }
+            
+            // Form submission handling
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+                submitBtn.disabled = true;
+                
+                // Auto-enable after 5 seconds in case of error
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 5000);
+            });
         });
     </script>
 </body>

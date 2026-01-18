@@ -784,7 +784,7 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                     $purpose_text = 'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
-                                                    // CHANGED: POST form with target="_blank"
+                                                    // UPDATED: Simplified POST form with only essential parameters
                                                     echo '
                                                     <form id="paymentForm_' . $tax['id'] . '" 
                                                           method="POST" 
@@ -795,13 +795,6 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                         <input type="hidden" name="amount" value="' . $totalAmount . '">
                                                         <input type="hidden" name="purpose" value="' . $purpose_text . '">
                                                         <input type="hidden" name="callback" value="' . $business_callback_url . '">
-                                                        <input type="hidden" name="return_url" value="' . $base_url . '/citizen_dashboard/business/business_tax_payment/business_tax_payment.php?payment_success=true">
-                                                        <input type="hidden" name="business_permit_id" value="' . htmlspecialchars($business['business_permit_id']) . '">
-                                                        <input type="hidden" name="business_name" value="' . htmlspecialchars($business['business_name']) . '">
-                                                        <input type="hidden" name="owner_name" value="' . htmlspecialchars($business['owner_name']) . '">
-                                                        <input type="hidden" name="business_location" value="' . htmlspecialchars($business['barangay'] . ', ' . $business['city']) . '">
-                                                        <input type="hidden" name="quarter_year" value="' . $tax['quarter'] . ' ' . $tax['year'] . '">
-                                                        <input type="hidden" name="penalty_applied" value="' . ($penaltyAmount > 0 ? 'Yes' : 'No') . '">
                                                         
                                                         <button type="submit" 
                                                                 class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">

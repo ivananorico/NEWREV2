@@ -105,6 +105,42 @@ try {
     color: #111827;
     font-weight: 500;
 }
+.glow-button {
+    transition: all 0.3s ease;
+}
+.glow-button:hover {
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+    transform: translateY(-2px);
+}
+.post-method-badge {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+.new-tab-indicator {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -426,7 +462,7 @@ try {
                                         </div>
                                         <button type="submit" 
                                                 class="inline-flex items-center justify-center px-5 py-3 bg-purple-600 text-white rounded-lg 
-                                                hover:bg-purple-700 transition-colors font-medium">
+                                                hover:bg-purple-700 transition-colors font-medium glow-button transform hover:scale-105">
                                             <i class="fas fa-external-link-alt mr-2"></i>
                                             Pay Now - ₱<?php echo number_format($total_amount_due, 2); ?>
                                         </button>
