@@ -1,5 +1,5 @@
 <?php
-// revenue2/citizen_dashboard/rpt/api/rpt_payment_api.php
+// revenue2/citizen_dashboard/rpt/api/rpt_payment_api.php - WITH TAX CLEARANCE
 
 // Enable full error reporting
 error_reporting(E_ALL);
@@ -28,7 +28,7 @@ if (empty($data)) {
     $data = $_POST;
 }
 
-// Extract data - UPDATED FOR UNIVERSAL SYSTEM
+// Extract data
 $reference_id = $data['reference_id'] ?? null;
 $receipt_number = $data['receipt_number'] ?? null;
 $amount = $data['amount'] ?? null;
@@ -38,15 +38,7 @@ $client_system = $data['client_system'] ?? null;
 $payment_id = $data['payment_id'] ?? null;
 $phone = $data['phone'] ?? null;
 
-// Log for debugging - UPDATED
-error_log("RPT API received callback from Universal System:");
-error_log("Reference ID: $reference_id");
-error_log("Receipt: $receipt_number");
-error_log("Client System: $client_system");
-error_log("Payment ID: $payment_id");
-error_log("Full data: " . print_r($data, true));
-
-// Validate required fields - UPDATED
+// Validate required fields
 if (!$reference_id || !$receipt_number) {
     http_response_code(400);
     echo json_encode([
@@ -69,11 +61,8 @@ if ($client_system !== 'rpt') {
 
 // Check if we can include the database file
 $rpt_db_path = __DIR__ . '/../../../db/RPT/rpt_db.php';
-error_log("Looking for database file at: " . $rpt_db_path);
 
 if (!file_exists($rpt_db_path)) {
-    error_log("Database file NOT found at: " . $rpt_db_path);
-    
     // Try alternative paths
     $alt_paths = [
         __DIR__ . '/../../../../db/RPT/rpt_db.php',
@@ -82,10 +71,8 @@ if (!file_exists($rpt_db_path)) {
     ];
     
     foreach ($alt_paths as $path) {
-        error_log("Checking alternative: " . $path);
         if (file_exists($path)) {
             $rpt_db_path = $path;
-            error_log("Found database file at: " . $path);
             break;
         }
     }
@@ -94,11 +81,7 @@ if (!file_exists($rpt_db_path)) {
         http_response_code(500);
         echo json_encode([
             'status' => 'error', 
-            'message' => 'Database configuration not found',
-            'searched_paths' => [
-                'primary' => __DIR__ . '/../../../db/RPT/rpt_db.php',
-                'alternatives' => $alt_paths
-            ]
+            'message' => 'Database configuration not found'
         ]);
         exit();
     }
@@ -112,138 +95,300 @@ try {
     $rpt_pdo = getDatabaseConnection();
     
     if (!$rpt_pdo) {
-        throw new Exception('Failed to connect to RPT database. getDatabaseConnection() returned false.');
+        throw new Exception('Failed to connect to RPT database.');
     }
     
     // Test the connection
     $rpt_pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $rpt_pdo->query('SELECT 1')->fetch();
     
-    error_log("Database connection successful");
+    // Start transaction for atomic operations
+    $rpt_pdo->beginTransaction();
     
-    // First, check if the quarterly tax exists using reference_id
-    $quarterly_id = $reference_id;
-    
-    $check_query = "SELECT id, payment_status, receipt_number FROM quarterly_taxes WHERE id = :quarterly_id";
-    $check_stmt = $rpt_pdo->prepare($check_query);
-    $check_stmt->execute([':quarterly_id' => $quarterly_id]);
-    $quarterly_tax = $check_stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$quarterly_tax) {
-        error_log("Quarterly tax with ID $quarterly_id not found. Checking if it's an annual payment...");
+    // Check if this is an annual payment (starts with ANNUAL-)
+    if (strpos($reference_id, 'ANNUAL-') === 0) {
+        // Extract annual reference number
+        $annual_ref = substr($reference_id, 7); // Remove "ANNUAL-" prefix
         
-        // Check if it's an annual payment (starts with ANNUAL-)
-        if (strpos($reference_id, 'ANNUAL-') === 0) {
-            // Handle annual payment
-            $check_annual_query = "SELECT id FROM annual_payments WHERE reference_number = :reference_id";
-            $check_annual_stmt = $rpt_pdo->prepare($check_annual_query);
-            $check_annual_stmt->execute([':reference_id' => $reference_id]);
-            $annual_payment = $check_annual_stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($annual_payment) {
-                // Update annual payment
-                $update_annual_query = "
-                    UPDATE annual_payments 
-                    SET payment_status = 'paid',
-                        payment_date = :paid_at,
-                        receipt_number = :receipt_number,
-                        transaction_id = :payment_id
-                    WHERE reference_number = :reference_id
-                ";
-                
-                $annual_stmt = $rpt_pdo->prepare($update_annual_query);
-                $annual_stmt->execute([
-                    ':paid_at' => $paid_at,
-                    ':receipt_number' => $receipt_number,
-                    ':payment_id' => $payment_id,
-                    ':reference_id' => $reference_id
-                ]);
-                
-                echo json_encode([
-                    'status' => 'success',
-                    'message' => 'Annual payment updated successfully',
-                    'reference_id' => $reference_id,
-                    'receipt_number' => $receipt_number,
-                    'type' => 'annual'
-                ]);
-                exit();
-            }
+        // Check if annual payment exists
+        $check_annual_query = "
+            SELECT ap.*, pt.id as property_total_id
+            FROM annual_payments ap
+            JOIN property_totals pt ON ap.property_total_id = pt.id
+            WHERE ap.reference_number = :annual_ref
+        ";
+        
+        $check_annual_stmt = $rpt_pdo->prepare($check_annual_query);
+        $check_annual_stmt->execute([':annual_ref' => $annual_ref]);
+        $annual_payment = $check_annual_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$annual_payment) {
+            throw new Exception("Annual payment not found: $annual_ref");
         }
         
-        throw new Exception("Payment reference not found: $reference_id");
-    }
-    
-    error_log("Found quarterly tax: ID={$quarterly_tax['id']}, Status={$quarterly_tax['payment_status']}");
-    
-    // Check if already paid
-    if ($quarterly_tax['payment_status'] == 'paid') {
-        error_log("Quarterly tax $quarterly_id is already paid");
-        echo json_encode([
-            'status' => 'warning',
-            'message' => 'This tax is already marked as paid',
-            'reference_id' => $reference_id,
-            'quarterly_id' => $quarterly_id,
-            'current_status' => 'paid',
-            'current_receipt' => $quarterly_tax['receipt_number']
-        ]);
-        exit();
-    }
-    
-    // Update quarterly_taxes
-    $update_query = "
-        UPDATE quarterly_taxes 
-        SET payment_status = 'paid',
-            payment_date = :paid_at,
-            receipt_number = :receipt_number
-        WHERE id = :quarterly_id
-    ";
-    
-    $stmt = $rpt_pdo->prepare($update_query);
-    $stmt->execute([
-        ':paid_at' => $paid_at,
-        ':receipt_number' => $receipt_number,
-        ':quarterly_id' => $quarterly_id
-    ]);
-    
-    $rows_updated = $stmt->rowCount();
-    
-    if ($rows_updated === 0) {
-        throw new Exception("No rows updated. Reference ID $reference_id may not exist or is already updated.");
-    }
-    
-    // Verify the update
-    $verify_stmt = $rpt_pdo->prepare("SELECT id, payment_status, receipt_number FROM quarterly_taxes WHERE id = :quarterly_id");
-    $verify_stmt->execute([':quarterly_id' => $quarterly_id]);
-    $updated_record = $verify_stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$updated_record) {
-        throw new Exception("Failed to verify update. Record not found after update.");
-    }
-    
-    if ($updated_record['payment_status'] !== 'paid') {
-        throw new Exception("Update verification failed. Status is still: " . $updated_record['payment_status']);
-    }
-    
-    error_log("Successfully updated tax $reference_id. New status: paid, Receipt: $receipt_number");
-    
-    // =============== TAX CLEARANCE AUTOMATION ===============
-    try {
-        // Get property info for this quarterly tax
-        $property_query = "
-            SELECT qt.property_total_id, qt.year 
-            FROM quarterly_taxes qt 
-            WHERE qt.id = :quarterly_id
-        ";
-        $property_stmt = $rpt_pdo->prepare($property_query);
-        $property_stmt->execute([':quarterly_id' => $quarterly_id]);
-        $property_info = $property_stmt->fetch(PDO::FETCH_ASSOC);
+        // Check if already paid
+        if ($annual_payment['payment_status'] == 'paid') {
+            echo json_encode([
+                'status' => 'warning',
+                'message' => 'This annual payment is already marked as paid',
+                'reference_id' => $reference_id,
+                'annual_ref' => $annual_ref,
+                'current_status' => 'paid'
+            ]);
+            exit();
+        }
         
-        if ($property_info) {
-            $property_total_id = $property_info['property_total_id'];
-            $year = $property_info['year'];
+        // Update annual_payments
+        $update_annual_query = "
+            UPDATE annual_payments 
+            SET payment_status = 'paid',
+                payment_date = :paid_at,
+                receipt_number = :receipt_number,
+                transaction_id = :payment_id
+            WHERE reference_number = :annual_ref
+        ";
+        
+        $annual_stmt = $rpt_pdo->prepare($update_annual_query);
+        $annual_stmt->execute([
+            ':paid_at' => $paid_at,
+            ':receipt_number' => $receipt_number,
+            ':payment_id' => $payment_id,
+            ':annual_ref' => $annual_ref
+        ]);
+        
+        $annual_rows_updated = $annual_stmt->rowCount();
+        
+        if ($annual_rows_updated === 0) {
+            throw new Exception("No rows updated in annual_payments.");
+        }
+        
+        // AUTOMATICALLY MARK ALL QUARTERLY TAXES AS PAID FOR THIS YEAR
+        $property_total_id = $annual_payment['property_total_id'];
+        $payment_year = $annual_payment['payment_year'];
+        $discount_percent = $annual_payment['discount_percent'];
+        
+        // Get all quarterly taxes for this property and year
+        $quarterly_tax_query = "
+            SELECT id, total_quarterly_tax 
+            FROM quarterly_taxes 
+            WHERE property_total_id = :property_total_id 
+            AND year = :payment_year
+        ";
+        
+        $quarterly_tax_stmt = $rpt_pdo->prepare($quarterly_tax_query);
+        $quarterly_tax_stmt->execute([
+            ':property_total_id' => $property_total_id,
+            ':payment_year' => $payment_year
+        ]);
+        $quarterly_taxes = $quarterly_tax_stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Update each quarterly tax with the SAME receipt and date
+        foreach ($quarterly_taxes as $quarterly) {
+            // Calculate discount for this quarter
+            $quarter_discount_amount = $discount_percent > 0 
+                ? ($quarterly['total_quarterly_tax'] * ($discount_percent / 100))
+                : 0;
             
-            error_log("Checking tax clearance eligibility for property_total_id: $property_total_id, year: $year");
+            $update_quarterly_query = "
+                UPDATE quarterly_taxes 
+                SET payment_status = 'paid',
+                    payment_date = :paid_at,
+                    receipt_number = :receipt_number,
+                    discount_applied = :discount_applied,
+                    discount_percent_used = :discount_percent,
+                    discount_amount = :discount_amount
+                WHERE id = :quarterly_id
+            ";
             
+            $update_quarterly_stmt = $rpt_pdo->prepare($update_quarterly_query);
+            $update_quarterly_stmt->execute([
+                ':paid_at' => $paid_at,
+                ':receipt_number' => $receipt_number,
+                ':discount_applied' => $discount_percent > 0 ? 1 : 0,
+                ':discount_percent' => $discount_percent,
+                ':discount_amount' => $quarter_discount_amount,
+                ':quarterly_id' => $quarterly['id']
+            ]);
+        }
+        
+        $quarterly_rows_updated = count($quarterly_taxes);
+        
+        // =============== TAX CLEARANCE AUTOMATION FOR ANNUAL PAYMENT ===============
+        $clearance_generated = false;
+        $certificate_number = null;
+        
+        try {
+            // Since we just marked all quarters as paid, generate tax clearance
+            error_log("ANNUAL PAYMENT: All quarters marked as paid. Generating tax clearance...");
+            
+            // Check if clearance already exists
+            $check_clearance_query = "
+                SELECT id FROM tax_clearances 
+                WHERE property_total_id = :property_total_id 
+                AND clearance_year = :year
+            ";
+            $clearance_stmt = $rpt_pdo->prepare($check_clearance_query);
+            $clearance_stmt->execute([
+                ':property_total_id' => $property_total_id,
+                ':year' => $payment_year
+            ]);
+            
+            if ($clearance_stmt->rowCount() == 0) {
+                // Generate certificate number
+                $certificate_number = 'RPT-CLR-' . date('Y') . '-' . str_pad($property_total_id, 6, '0', STR_PAD_LEFT) . '-' . $payment_year;
+                
+                // Insert into tax_clearances table
+                $insert_query = "
+                    INSERT INTO tax_clearances 
+                    (certificate_number, property_total_id, clearance_year, issue_date, generated_by)
+                    VALUES (:cert_number, :property_id, :year, CURDATE(), 1)
+                ";
+                
+                $insert_stmt = $rpt_pdo->prepare($insert_query);
+                $insert_stmt->execute([
+                    ':cert_number' => $certificate_number,
+                    ':property_id' => $property_total_id,
+                    ':year' => $payment_year
+                ]);
+                
+                $clearance_id = $rpt_pdo->lastInsertId();
+                $clearance_generated = true;
+                
+                error_log("Tax clearance generated! ID: $clearance_id, Certificate: $certificate_number");
+                
+                // Also update property_totals to show clearance is available
+                $update_property_query = "
+                    UPDATE property_totals 
+                    SET tax_clearance_available = 1,
+                        last_clearance_generated = CURDATE()
+                    WHERE id = :property_total_id
+                ";
+                $update_property_stmt = $rpt_pdo->prepare($update_property_query);
+                $update_property_stmt->execute([':property_total_id' => $property_total_id]);
+                
+                error_log("Property totals updated with tax clearance flag");
+            } else {
+                error_log("Tax clearance already exists for property_total_id: $property_total_id, year: $payment_year");
+            }
+        } catch (Exception $clearance_error) {
+            // Don't fail the whole payment if clearance generation fails
+            error_log("Tax clearance generation error (non-critical): " . $clearance_error->getMessage());
+            $clearance_generated = false;
+        }
+        // =============== END TAX CLEARANCE AUTOMATION ===============
+        
+        $rpt_pdo->commit();
+        
+        $response = [
+            'status' => 'success',
+            'message' => 'Annual payment processed successfully. All quarterly taxes marked as paid with same receipt.',
+            'reference_id' => $reference_id,
+            'annual_ref' => $annual_ref,
+            'annual_payment_updated' => true,
+            'quarterly_taxes_updated' => $quarterly_rows_updated,
+            'receipt_number' => $receipt_number,
+            'payment_date' => $paid_at,
+            'discount_applied' => $discount_percent,
+            'type' => 'annual'
+        ];
+        
+        // Add clearance info if generated
+        if ($clearance_generated) {
+            $response['tax_clearance'] = [
+                'generated' => true,
+                'certificate_number' => $certificate_number,
+                'year' => $payment_year
+            ];
+        }
+        
+        echo json_encode($response);
+        
+    } else {
+        // This is a quarterly payment
+        $quarterly_id = $reference_id;
+        
+        // Check if the quarterly tax exists
+        $check_query = "
+            SELECT id, payment_status, receipt_number, property_total_id, year 
+            FROM quarterly_taxes 
+            WHERE id = :quarterly_id
+        ";
+        
+        $check_stmt = $rpt_pdo->prepare($check_query);
+        $check_stmt->execute([':quarterly_id' => $quarterly_id]);
+        $quarterly_tax = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$quarterly_tax) {
+            throw new Exception("Quarterly tax not found: $quarterly_id");
+        }
+        
+        // Check if already paid
+        if ($quarterly_tax['payment_status'] == 'paid') {
+            echo json_encode([
+                'status' => 'warning',
+                'message' => 'This tax is already marked as paid',
+                'reference_id' => $reference_id,
+                'quarterly_id' => $quarterly_id,
+                'current_status' => 'paid'
+            ]);
+            exit();
+        }
+        
+        // Check if annual payment exists for this property and year
+        $check_annual_exists_query = "
+            SELECT id, reference_number, payment_status 
+            FROM annual_payments 
+            WHERE property_total_id = :property_total_id 
+            AND payment_year = :year
+            AND status = 'active'
+        ";
+        
+        $annual_exists_stmt = $rpt_pdo->prepare($check_annual_exists_query);
+        $annual_exists_stmt->execute([
+            ':property_total_id' => $quarterly_tax['property_total_id'],
+            ':year' => $quarterly_tax['year']
+        ]);
+        $existing_annual = $annual_exists_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing_annual && $existing_annual['payment_status'] == 'pending') {
+            // Mark annual payment as cancelled if it exists and is pending
+            $cancel_annual_query = "
+                UPDATE annual_payments 
+                SET payment_status = 'cancelled',
+                    status = 'inactive'
+                WHERE id = :annual_id
+            ";
+            
+            $cancel_annual_stmt = $rpt_pdo->prepare($cancel_annual_query);
+            $cancel_annual_stmt->execute([':annual_id' => $existing_annual['id']]);
+        }
+        
+        // Update quarterly_taxes
+        $update_query = "
+            UPDATE quarterly_taxes 
+            SET payment_status = 'paid',
+                payment_date = :paid_at,
+                receipt_number = :receipt_number
+            WHERE id = :quarterly_id
+        ";
+        
+        $stmt = $rpt_pdo->prepare($update_query);
+        $stmt->execute([
+            ':paid_at' => $paid_at,
+            ':receipt_number' => $receipt_number,
+            ':quarterly_id' => $quarterly_id
+        ]);
+        
+        $rows_updated = $stmt->rowCount();
+        
+        if ($rows_updated === 0) {
+            throw new Exception("No rows updated.");
+        }
+        
+        // =============== TAX CLEARANCE AUTOMATION FOR QUARTERLY PAYMENT ===============
+        $clearance_generated = false;
+        $certificate_number = null;
+        
+        try {
             // Check if all quarters for this year are now paid
             $check_all_paid_query = "
                 SELECT 
@@ -256,16 +401,16 @@ try {
             
             $check_stmt = $rpt_pdo->prepare($check_all_paid_query);
             $check_stmt->execute([
-                ':property_total_id' => $property_total_id,
-                ':year' => $year
+                ':property_total_id' => $quarterly_tax['property_total_id'],
+                ':year' => $quarterly_tax['year']
             ]);
             $status = $check_stmt->fetch(PDO::FETCH_ASSOC);
             
-            error_log("Tax status for year $year: {$status['paid_quarters']}/{$status['total_quarters']} quarters paid");
+            error_log("Quarterly payment: Checking tax status for year {$quarterly_tax['year']}: {$status['paid_quarters']}/{$status['total_quarters']} quarters paid");
             
             // If all 4 quarters are paid
             if ($status['total_quarters'] == 4 && $status['paid_quarters'] == 4) {
-                error_log("ALL QUARTERS PAID! Generating tax clearance for year $year");
+                error_log("ALL QUARTERS PAID! Generating tax clearance for year {$quarterly_tax['year']}");
                 
                 // Check if clearance already exists
                 $check_clearance_query = "
@@ -275,13 +420,13 @@ try {
                 ";
                 $clearance_stmt = $rpt_pdo->prepare($check_clearance_query);
                 $clearance_stmt->execute([
-                    ':property_total_id' => $property_total_id,
-                    ':year' => $year
+                    ':property_total_id' => $quarterly_tax['property_total_id'],
+                    ':year' => $quarterly_tax['year']
                 ]);
                 
                 if ($clearance_stmt->rowCount() == 0) {
                     // Generate certificate number
-                    $certificate_number = 'RPT-CLR-' . date('Y') . '-' . str_pad($property_total_id, 6, '0', STR_PAD_LEFT) . '-' . $year;
+                    $certificate_number = 'RPT-CLR-' . date('Y') . '-' . str_pad($quarterly_tax['property_total_id'], 6, '0', STR_PAD_LEFT) . '-' . $quarterly_tax['year'];
                     
                     // Insert into tax_clearances table
                     $insert_query = "
@@ -293,11 +438,12 @@ try {
                     $insert_stmt = $rpt_pdo->prepare($insert_query);
                     $insert_stmt->execute([
                         ':cert_number' => $certificate_number,
-                        ':property_id' => $property_total_id,
-                        ':year' => $year
+                        ':property_id' => $quarterly_tax['property_total_id'],
+                        ':year' => $quarterly_tax['year']
                     ]);
                     
                     $clearance_id = $rpt_pdo->lastInsertId();
+                    $clearance_generated = true;
                     
                     error_log("Tax clearance generated! ID: $clearance_id, Certificate: $certificate_number");
                     
@@ -309,85 +455,46 @@ try {
                         WHERE id = :property_total_id
                     ";
                     $update_property_stmt = $rpt_pdo->prepare($update_property_query);
-                    $update_property_stmt->execute([':property_total_id' => $property_total_id]);
-                    
-                    // Get user info for notification
-                    $user_query = "
-                        SELECT po.email, po.first_name, po.last_name, pr.reference_number
-                        FROM property_totals pt
-                        JOIN property_registrations pr ON pt.registration_id = pr.id
-                        JOIN property_owners po ON pr.owner_id = po.id
-                        WHERE pt.id = :property_total_id
-                    ";
-                    $user_stmt = $rpt_pdo->prepare($user_query);
-                    $user_stmt->execute([':property_total_id' => $property_total_id]);
-                    $user_info = $user_stmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($user_info) {
-                        // Log notification
-                        $notification_query = "
-                            INSERT INTO notifications 
-                            (user_email, subject, message, sent_at) 
-                            VALUES (:email, :subject, :message, NOW())
-                        ";
-                        
-                        $notification_stmt = $rpt_pdo->prepare($notification_query);
-                        $notification_stmt->execute([
-                            ':email' => $user_info['email'],
-                            ':subject' => 'Tax Clearance Certificate Generated - ' . $certificate_number,
-                            ':message' => "Dear " . $user_info['first_name'] . " " . $user_info['last_name'] . ",\n\nYour tax clearance certificate has been generated for property " . $user_info['reference_number'] . " for year " . $year . ".\n\nCertificate Number: " . $certificate_number . "\n\nYou can download it from your dashboard.\n\nThank you!"
-                        ]);
-                        
-                        error_log("Notification sent to: " . $user_info['email']);
-                    }
-                    
-                    $clearance_generated = true;
-                } else {
-                    error_log("Tax clearance already exists for this property and year");
-                    $clearance_generated = false;
+                    $update_property_stmt->execute([':property_total_id' => $quarterly_tax['property_total_id']]);
                 }
-            } else {
-                error_log("Not all quarters are paid yet. No clearance generated.");
-                $clearance_generated = false;
             }
-        } else {
-            error_log("Could not find property info for quarterly tax ID: $quarterly_id");
-            $clearance_generated = false;
+        } catch (Exception $clearance_error) {
+            // Don't fail the whole payment if clearance generation fails
+            error_log("Tax clearance generation error (non-critical): " . $clearance_error->getMessage());
         }
-    } catch (Exception $clearance_error) {
-        // Don't fail the whole payment if clearance generation fails
-        error_log("Tax clearance generation error (non-critical): " . $clearance_error->getMessage());
-        $clearance_generated = false;
-    }
-    // =============== END TAX CLEARANCE AUTOMATION ===============
-    
-    // Return success response
-    $response = [
-        'status' => 'success',
-        'message' => 'Payment updated successfully in RPT database',
-        'rows_updated' => $rows_updated,
-        'reference_id' => $reference_id,
-        'quarterly_id' => $quarterly_id,
-        'receipt_number' => $receipt_number,
-        'payment_date' => $paid_at,
-        'new_status' => $updated_record['payment_status']
-    ];
-    
-    // Add clearance info if generated
-    if ($clearance_generated ?? false) {
-        $response['tax_clearance'] = [
-            'generated' => true,
-            'certificate_number' => $certificate_number ?? null,
-            'year' => $year ?? null
+        // =============== END TAX CLEARANCE AUTOMATION ===============
+        
+        $rpt_pdo->commit();
+        
+        // Return success response
+        $response = [
+            'status' => 'success',
+            'message' => 'Payment updated successfully in RPT database',
+            'rows_updated' => $rows_updated,
+            'reference_id' => $reference_id,
+            'quarterly_id' => $quarterly_id,
+            'receipt_number' => $receipt_number,
+            'payment_date' => $paid_at,
+            'type' => 'quarterly',
+            'annual_cancelled' => isset($existing_annual) ? true : false
         ];
+        
+        // Add clearance info if generated
+        if ($clearance_generated) {
+            $response['tax_clearance'] = [
+                'generated' => true,
+                'certificate_number' => $certificate_number,
+                'year' => $quarterly_tax['year']
+            ];
+        }
+        
+        echo json_encode($response);
     }
-    
-    echo json_encode($response);
     
 } catch (PDOException $e) {
-    // Database error
-    error_log("PDO Exception: " . $e->getMessage());
-    error_log("SQL State: " . $e->getCode());
+    if (isset($rpt_pdo)) {
+        $rpt_pdo->rollBack();
+    }
     
     http_response_code(500);
     echo json_encode([
@@ -397,13 +504,14 @@ try {
         'reference_id' => $reference_id
     ]);
 } catch (Exception $e) {
-    // General error
-    error_log("General Exception: " . $e->getMessage());
+    if (isset($rpt_pdo)) {
+        $rpt_pdo->rollBack();
+    }
     
     http_response_code(500);
     echo json_encode([
         'status' => 'error', 
-        'message' => 'API error: ' . $e->getMessage(),
+        'message' => 'API error: ' . e->getMessage(),
         'reference_id' => $reference_id
     ]);
 }

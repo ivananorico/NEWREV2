@@ -1,6 +1,7 @@
 <?php
+// revenue2/backend/RPT/RPTValidationTable/approve_property.php
 // ================================================
-// PROPERTY APPROVAL API
+// PROPERTY APPROVAL API (with Quarterly & Annual Payment Generation)
 // ================================================
 
 // Enable CORS and JSON response
@@ -85,6 +86,36 @@ switch ($method) {
 // FUNCTIONS
 // ==========================
 
+// Function to generate unique reference number
+function generateReferenceNumber($prefix = 'APAY') {
+    $date = date('Ymd');
+    $random = mt_rand(1000, 9999);
+    return $prefix . '-' . $date . '-' . $random;
+}
+
+// Function to get active discount percentage
+function getActiveDiscountPercent($pdo) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT discount_percent 
+            FROM discount_configurations 
+            WHERE status = 'active' 
+            AND effective_date <= CURDATE() 
+            AND (expiration_date IS NULL OR expiration_date >= CURDATE())
+            ORDER BY effective_date DESC 
+            LIMIT 1
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? floatval($result['discount_percent']) : 0.00;
+    } catch (Exception $e) {
+        error_log("Error getting discount: " . $e->getMessage());
+        return 0.00;
+    }
+}
+
+// Main approval function
 function approveProperty($pdo) {
     // Get input data
     $input = file_get_contents('php://input');
@@ -107,11 +138,12 @@ function approveProperty($pdo) {
     }
 
     $registration_id = intval($data['registration_id']);
+    $current_year = date('Y');
 
     try {
         // Get property registration details with owner info
         $registration_stmt = $pdo->prepare("
-            SELECT pr.*, po.id as owner_id, po.status as owner_status 
+            SELECT pr.*, po.id as owner_id, po.user_id, po.status as owner_status 
             FROM property_registrations pr
             LEFT JOIN property_owners po ON pr.owner_id = po.id
             WHERE pr.id = ?
@@ -201,8 +233,8 @@ function approveProperty($pdo) {
                     // Insert only if doesn't exist
                     $quarterly_query = "
                         INSERT INTO quarterly_taxes 
-                        (property_total_id, quarter, year, due_date, total_quarterly_tax)
-                        VALUES (?, ?, ?, ?, ?)
+                        (property_total_id, quarter, year, due_date, total_quarterly_tax, payment_status)
+                        VALUES (?, ?, ?, ?, ?, 'pending')
                     ";
                     
                     $quarterly_stmt = $pdo->prepare($quarterly_query);
@@ -216,11 +248,57 @@ function approveProperty($pdo) {
                 }
             }
 
-            // 5. Update registration status to approved
+            // 5. GENERATE ANNUAL PAYMENT RECORD
+            $total_amount = $property_totals['total_annual_tax'];
+            
+            // Get active discount percentage
+            $discount_percent = getActiveDiscountPercent($pdo);
+            $discount_amount = $total_amount * ($discount_percent / 100);
+            $final_amount = $total_amount - $discount_amount;
+            
+            // Generate reference and receipt numbers
+            $reference_number = generateReferenceNumber();
+            $receipt_number = 'RCPT-' . date('YmdHis') . '-' . mt_rand(1000, 9999);
+            
+            // Check if annual payment already exists for this year
+            $check_annual_stmt = $pdo->prepare("
+                SELECT id FROM annual_payments 
+                WHERE property_total_id = ? AND payment_year = ? AND status = 'active'
+            ");
+            $check_annual_stmt->execute([$property_totals['id'], $current_year]);
+            
+            $annual_payment_id = null;
+            if (!$check_annual_stmt->fetch()) {
+                // Insert new annual payment record
+                $annual_query = "
+                    INSERT INTO annual_payments 
+                    (property_total_id, user_id, payment_year, reference_number, total_amount, 
+                     discount_percent, discount_amount, final_amount, payment_status, 
+                     receipt_number, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, 'active')
+                ";
+                
+                $annual_stmt = $pdo->prepare($annual_query);
+                $annual_stmt->execute([
+                    $property_totals['id'],
+                    $registration['user_id'] ?? null, // user_id from property_owners
+                    $current_year,
+                    $reference_number,
+                    $total_amount,
+                    $discount_percent,
+                    $discount_amount,
+                    $final_amount,
+                    $receipt_number
+                ]);
+                
+                $annual_payment_id = $pdo->lastInsertId();
+            }
+
+            // 6. Update registration status to approved
             $status_stmt = $pdo->prepare("UPDATE property_registrations SET status = 'approved' WHERE id = ?");
             $status_stmt->execute([$registration_id]);
 
-            // 6. Also update any inspection status to completed
+            // 7. Also update any inspection status to completed
             $inspection_stmt = $pdo->prepare("
                 UPDATE property_inspections 
                 SET status = 'completed' 
@@ -228,11 +306,11 @@ function approveProperty($pdo) {
             ");
             $inspection_stmt->execute([$registration_id]);
 
-            // 7. Update land_properties status to active (if not already)
+            // 8. Update land_properties status to active (if not already)
             $update_land_status = $pdo->prepare("UPDATE land_properties SET status = 'active' WHERE id = ?");
             $update_land_status->execute([$property_totals['land_id']]);
 
-            // 8. Update building_properties status to active (if exists)
+            // 9. Update building_properties status to active (if exists)
             if ($building_tdn) {
                 $update_building_status = $pdo->prepare("
                     UPDATE building_properties SET status = 'active' 
@@ -243,25 +321,42 @@ function approveProperty($pdo) {
 
             $pdo->commit();
 
+            // Prepare response data
+            $response_data = [
+                'owner_updated' => true,
+                'owner_id' => $registration['owner_id'],
+                'owner_new_status' => 'active',
+                'tdns' => [
+                    'land_tdn' => $land_tdn,
+                    'building_tdn' => $building_tdn
+                ],
+                'totals' => [
+                    'land_annual_tax' => $property_totals['land_annual_tax'],
+                    'building_annual_tax' => $property_totals['total_building_annual_tax'],
+                    'total_annual_tax' => $property_totals['total_annual_tax']
+                ],
+                'quarterly_tax' => $quarterly_tax,
+                'registration_status' => 'approved'
+            ];
+
+            // Add annual payment info if created
+            if ($annual_payment_id) {
+                $response_data['annual_payment'] = [
+                    'id' => $annual_payment_id,
+                    'reference_number' => $reference_number,
+                    'receipt_number' => $receipt_number,
+                    'total_amount' => $total_amount,
+                    'discount_percent' => $discount_percent,
+                    'discount_amount' => $discount_amount,
+                    'final_amount' => $final_amount,
+                    'payment_year' => $current_year
+                ];
+            }
+
             echo json_encode([
                 "success" => true,
-                "message" => "Property approved successfully",
-                "data" => [
-                    'owner_updated' => true,
-                    'owner_id' => $registration['owner_id'],
-                    'owner_new_status' => 'active',
-                    'tdns' => [
-                        'land_tdn' => $land_tdn,
-                        'building_tdn' => $building_tdn
-                    ],
-                    'totals' => [
-                        'land_annual_tax' => $property_totals['land_annual_tax'],
-                        'building_annual_tax' => $property_totals['total_building_annual_tax'],
-                        'total_annual_tax' => $property_totals['total_annual_tax']
-                    ],
-                    'quarterly_tax' => $quarterly_tax,
-                    'registration_status' => 'approved'
-                ]
+                "message" => "Property approved successfully. Quarterly taxes and annual payment record generated.",
+                "data" => $response_data
             ]);
 
         } catch (Exception $e) {

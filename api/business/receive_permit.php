@@ -13,6 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Include your PDO DB connection
 require_once '../../db/Business/business_db.php';
 
+// ===== FIX: Get the database connection =====
+$pdo = getDatabaseConnection(); // Call the function to get connection
+
+// Check if connection was successful
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Database connection failed. Please try again later.'
+    ]);
+    exit();
+}
+
 // Handle POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     calculateAndSaveBusinessTax();

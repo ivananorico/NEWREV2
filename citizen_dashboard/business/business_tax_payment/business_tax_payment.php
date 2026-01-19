@@ -48,10 +48,9 @@ function getBusinessPenaltyRate($pdo) {
 // Get current discount rate from config (for annual payments)
 function getBusinessAnnualDiscountRate($pdo) {
     $current_month = date('n');
-    $current_day = date('j');
     
     // Only eligible in January
-    if ($current_month != 1 || $current_day > 31) {
+    if ($current_month != 1) {
         return 0.00;
     }
     
@@ -59,7 +58,7 @@ function getBusinessAnnualDiscountRate($pdo) {
         $discount_stmt = $pdo->prepare("
             SELECT discount_percent 
             FROM business_discount_config 
-            WHERE expiration_date IS NULL OR expiration_date >= CURDATE()
+            WHERE (expiration_date IS NULL OR expiration_date >= CURDATE())
             ORDER BY effective_date DESC 
             LIMIT 1
         ");
@@ -138,6 +137,17 @@ function isEligibleForAnnualDiscount($quarterly_taxes, $pdo) {
         }
     }
     
+    return true;
+}
+
+// Check if can pay annual (no quarters already paid)
+function canPayAnnual($quarterly_taxes) {
+    // Check if any quarter is already paid
+    foreach ($quarterly_taxes as $quarter) {
+        if ($quarter['payment_status'] == 'paid') {
+            return false; // Cannot pay annual if any quarter is already paid
+        }
+    }
     return true;
 }
 
@@ -268,6 +278,12 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
             display: inline-flex;
             align-items: center;
             margin-left: 0.5rem;
+        }
+        
+        .disabled-button {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
+            cursor: not-allowed !important;
+            opacity: 0.7;
         }
     </style>
 </head>
@@ -559,7 +575,27 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     }
                     
                     $eligibleForDiscount = isEligibleForAnnualDiscount($quarterlyTaxes, $pdo);
+                    $canPayAnnual = canPayAnnual($quarterlyTaxes);
                     $annualPaymentInfo = calculateAnnualTotal($quarterlyTaxes, $eligibleForDiscount ? $discount_rate : 0);
+                    
+                    // Check if annual payment exists - BUSINESS VERSION
+                    $annual_payment_query = "
+                        SELECT 
+                            ap.*,
+                            ap.final_amount as total_to_pay
+                        FROM annual_payments ap
+                        WHERE ap.business_permit_id = :business_id 
+                        AND ap.payment_year = :current_year
+                        AND ap.status = 'active'
+                        LIMIT 1
+                    ";
+                    
+                    $annual_stmt = $pdo->prepare($annual_payment_query);
+                    $annual_stmt->execute([
+                        ':business_id' => $business['id'],
+                        ':current_year' => $current_year
+                    ]);
+                    $annualPayment = $annual_stmt->fetch(PDO::FETCH_ASSOC);
                     
                     echo '
                     <!-- Business Card -->
@@ -600,9 +636,13 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                             </div>
                         </div>';
                         
-                        if ($hasUnpaidQuarters) {
+                        if ($hasUnpaidQuarters && $annualPayment && $canPayAnnual) {
+                            $annual_status = $annualPayment['payment_status'];
+                            $annual_amount = $annualPayment['final_amount'];
+                            $annual_ref = $annualPayment['reference_number'];
+                            
                             echo '
-                        <!-- Annual Payment Option (Display Only) -->
+                        <!-- Annual Payment Option -->
                         <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
                             <div class="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div class="mb-4 lg:mb-0">
@@ -617,12 +657,19 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                         ' . ($eligibleForDiscount 
                                             ? 'Valid until January 31. Pay your annual tax in January and save money!' 
                                             : 'Convenient single payment for all quarters. Avoid multiple transactions.') . '
-                                    </p>
+                                    </p>';
+                                    if (!$canPayAnnual) {
+                                        echo '<p class="text-red-600 text-sm mt-2 font-medium">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                                            Cannot pay annual - some quarters are already paid
+                                        </p>';
+                                    }
+                                    echo '
                                 </div>
                                 
                                 <div class="lg:text-right">
                                     <div class="mb-3">
-                                        <p class="text-2xl font-bold text-gray-900">' . formatCurrency($annualPaymentInfo['total_with_discount']) . '</p>';
+                                        <p class="text-2xl font-bold text-gray-900">' . formatCurrency($annual_amount) . '</p>';
                                         if ($annualPaymentInfo['has_discount']) {
                                             echo '
                                         <p class="text-sm text-gray-600 flex items-center justify-center lg:justify-end">
@@ -633,10 +680,65 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                         </p>';
                                         }
                                         echo '
+                                    </div>';
+                                    
+                                    if ($annual_status == 'paid') {
+                                        echo '
+                                        <button onclick="viewReceipt(\'' . ($annualPayment['receipt_number'] ?? '') . '\')" 
+                                                class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold glow-button">
+                                            <i class="fas fa-receipt mr-3"></i> View Receipt
+                                        </button>';
+                                    } else {
+                                        // Create purpose string for annual payment
+                                        $purpose_text = 'BUSINESS ANNUAL ' . $current_year . ' - ' . $business['business_name'];
+                                        $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
+                                        
+                                        echo '
+                                        <form id="annualPaymentForm_' . $business['id'] . '" 
+                                              method="POST" 
+                                              action="../../digital/index.php" 
+                                              target="_blank">
+                                            <input type="hidden" name="system" value="business">
+                                            <input type="hidden" name="ref" value="ANNUAL-' . $annual_ref . '">
+                                            <input type="hidden" name="amount" value="' . $annual_amount . '">
+                                            <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                            <input type="hidden" name="callback" value="' . $business_callback_url . '">
+                                            <input type="hidden" name="business_permit_id" value="' . $business['id'] . '">
+                                            
+                                            <button type="submit" 
+                                                    class="' . ($canPayAnnual ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600' : 'disabled-button') . ' text-white px-6 py-3 rounded-lg font-semibold glow-button' . ($canPayAnnual ? '' : ' disabled-button') . '" ' . ($canPayAnnual ? '' : 'disabled') . '>
+                                                <i class="fas fa-external-link-alt mr-3"></i> Pay Annual in New Tab
+                                            </button>
+                                        </form>
+                                        <p class="text-xs text-green-600 mt-2">
+                                            <i class="fas fa-shield-alt mr-1"></i> Secure POST • Opens in new tab
+                                        </p>';
+                                    }
+                                    echo '
+                                </div>
+                            </div>
+                        </div>';
+                        } elseif ($hasUnpaidQuarters && !$canPayAnnual) {
+                            echo '
+                        <!-- Annual Payment Disabled (Quarters already paid) -->
+                        <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-100 to-gray-200">
+                            <div class="flex flex-col lg:flex-row lg:items-center justify-between">
+                                <div class="mb-4 lg:mb-0">
+                                    <div class="flex items-center mb-2">
+                                        <span class="status-badge bg-gradient-to-r from-gray-400 to-gray-500 text-white border-0 shadow-md mr-3">
+                                            <i class="fas fa-ban mr-1.5"></i>
+                                            ANNUAL PAYMENT DISABLED
+                                        </span>
+                                        <h4 class="font-bold text-gray-700 text-base">Cannot Pay Annual</h4>
                                     </div>
-                                    <button onclick="payAnnual(' . $business['id'] . ', ' . $annualPaymentInfo['total_with_discount'] . ', \'Annual Business Tax - ' . htmlspecialchars($business['business_name']) . '\', ' . ($eligibleForDiscount ? 'true' : 'false') . ', ' . $discount_rate . ', \'' . htmlspecialchars($business['business_permit_id']) . '\')" 
-                                            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold opacity-75 cursor-not-allowed" disabled>
-                                        <i class="fas fa-credit-card mr-3"></i> Coming Soon
+                                    <p class="text-gray-600 text-sm">
+                                        You cannot pay annual tax because some quarters have already been paid individually.
+                                    </p>
+                                </div>
+                                
+                                <div class="lg:text-right">
+                                    <button class="disabled-button text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed" disabled>
+                                        <i class="fas fa-ban mr-3"></i> Not Available
                                     </button>
                                 </div>
                             </div>
@@ -784,7 +886,7 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                     $purpose_text = 'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
-                                                    // UPDATED: Simplified POST form with only essential parameters
+                                                    // POST form for quarterly payment
                                                     echo '
                                                     <form id="paymentForm_' . $tax['id'] . '" 
                                                           method="POST" 
@@ -984,11 +1086,6 @@ function viewReceipt(receiptNumber) {
     }
     
     alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
-}
-
-// Pay annual function (coming soon)
-function payAnnual(businessId, amount, purpose, hasDiscount, discountRate, permitId) {
-    alert('Annual payment feature coming soon!');
 }
 
 // Tab tracking for better UX
