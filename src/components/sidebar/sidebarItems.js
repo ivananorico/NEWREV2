@@ -35,9 +35,7 @@ const sidebarItems = [
     label: "Treasury Dashboard & Report",
     icon: LayoutDashboard,
     subItems: [
-      { id: "Allocation", label: "Allocation", path: "/TREASURY/Allocation" },
       { id: "Revenue", label: "Revenue", path: "/TREASURY/Revenue" },
-      { id: "Collection", label: "Collection", path: "/TREASURY/Collection" },
     ]
   },
   {
