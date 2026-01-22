@@ -85,13 +85,16 @@ foreach ($priority_order as $status => $priority) {
         break; // Stop at first found status
     }
 }
-?>
 
+// Get the base URL for the background image
+$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+$bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Market Rent Services | LGU System</title>
+    <title>Market Rent Services | GoServePH</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -104,8 +107,58 @@ foreach ($priority_order as $status => $priority) {
         }
 
         body {
-            background-color: var(--background);
+            background: linear-gradient(135deg, rgba(240, 240, 240, 0.4) 0%, rgba(230, 230, 230, 0.4) 50%, rgba(220, 220, 220, 0.3) 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Background image with blur - same as login */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('<?php echo $bg_image_path; ?>') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -2;
+            filter: blur(1px);
+        }
+        
+        /* Animated background particles - same as login */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -1;
+        }
+        
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
+        }
+
+        /* Header box styles - same as other pages */
+        .header-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
         }
 
         .service-card {
@@ -113,6 +166,8 @@ foreach ($priority_order as $status => $priority) {
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid rgba(229, 231, 235, 0.8);
+            display: flex;
+            flex-direction: column;
         }
 
         .service-card:hover {
@@ -122,6 +177,10 @@ foreach ($priority_order as $status => $priority) {
         
         .service-arrow {
             transition: transform 0.3s ease;
+        }
+
+        .service-card:hover .service-arrow {
+            transform: translateX(8px);
         }
 
         .status-card {
@@ -203,6 +262,12 @@ foreach ($priority_order as $status => $priority) {
             margin-right: 12px;
             color: var(--accent);
         }
+
+        /* Added for card alignment */
+        .status-list-container {
+            flex-grow: 1;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 
@@ -211,14 +276,14 @@ foreach ($priority_order as $status => $priority) {
 
 <main class="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
 
-    <!-- Welcome Back Section -->
-    <div class="mb-10">
-        <div class="flex items-start space-x-4">
+    <!-- Welcome Section in Box -->
+    <div class="header-box mb-12">
+        <div class="flex items-center">
             <a href="../citizen_dashboard.php" 
-               class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mt-1">
-                <i class="fas fa-arrow-left text-lg"></i>
+               class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-6">
+                <i class="fas fa-arrow-left text-xl"></i>
             </a>
-            <div class="flex-1">
+            <div>
                 <h1 class="text-3xl font-bold text-gray-900 mb-3">
                     Market Rent Services
                 </h1>
@@ -316,12 +381,12 @@ foreach ($priority_order as $status => $priority) {
     </div>
     <?php endif; ?>
 
-    <!-- MAIN SERVICES GRID - UPDATED TO h-48 (SAME AS RPT) -->
+    <!-- MAIN SERVICES GRID - UPDATED TO MATCH RPT LAYOUT -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         
-        <!-- RENT STALL CARD - CHANGED FROM h-40 TO h-48 -->
+        <!-- RENT STALL CARD -->
         <a href="market_portal_services/market_portal_services.php"
-           class="service-card group bg-white block">
+           class="service-card group bg-white">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $rent_image = 'images/market-portal.png';
@@ -337,14 +402,14 @@ foreach ($priority_order as $status => $priority) {
                     <span class="text-xs font-semibold uppercase" style="color: var(--primary);">Rental</span>
                 </div>
             </div>
-            <div class="p-5">
+            <div class="p-5 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--primary);">
                         <i class="fas fa-store text-white"></i>
                     </div>
                     <h3 class="text-lg font-semibold text-gray-800">Rent a Market Stall</h3>
                 </div>
-                <p class="text-gray-600 text-sm mb-6 leading-relaxed">
+                <p class="text-gray-600 text-sm mb-6 leading-relaxed flex-grow">
                     Browse market maps and apply for stall rental with complete online application.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -354,7 +419,7 @@ foreach ($priority_order as $status => $priority) {
             </div>
         </a>
 
-        <!-- APPLICATION STATUS CARD - CHANGED FROM h-40 TO h-48 -->
+        <!-- APPLICATION STATUS CARD - FIXED TO MATCH RPT -->
         <div class="service-card bg-white">
             <div class="h-48 overflow-hidden relative">
                 <?php 
@@ -371,7 +436,7 @@ foreach ($priority_order as $status => $priority) {
                     <span class="text-xs font-semibold uppercase text-orange-600">Status</span>
                 </div>
             </div>
-            <div class="p-5">
+            <div class="p-5 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                         <i class="fas fa-chart-bar text-white"></i>
@@ -380,67 +445,47 @@ foreach ($priority_order as $status => $priority) {
                 </div>
                 <p class="text-gray-600 text-sm mb-4">Track your submitted applications.</p>
                 
-                <!-- Status list area -->
-                <div class="space-y-2 mb-4 max-h-60 overflow-y-auto pr-2">
+                <!-- Status list area - FIXED LIKE RPT -->
+                <div class="status-list-container">
                     <?php if ($total_applications > 0): ?>
-                        <?php
-                        $status_labels = [
-                            'need_correction' => ['Needs Correction', 'text-red-600', 'fas fa-exclamation-triangle'],
-                            'paying' => ['Payment Required', 'text-purple-600', 'fas fa-money-bill-wave'],
-                            'interviewed' => ['Interview Completed', 'text-teal-600', 'fas fa-user-check'],
-                            'interview_scheduled' => ['Interview Scheduled', 'text-blue-600', 'fas fa-calendar-check'],
-                            'pending' => ['Pending Review', 'text-yellow-600', 'fas fa-clock'],
-                            'paid' => ['Payment Completed', 'text-indigo-600', 'fas fa-check-circle'],
-                            'resubmitted' => ['Resubmitted', 'text-orange-600', 'fas fa-redo'],
-                            'approved' => ['Approved', 'text-green-600', 'fas fa-thumbs-up'],
-                            'rejected' => ['Rejected', 'text-gray-600', 'fas fa-times-circle']
-                        ];
-                        
-                        foreach ($status_labels as $key => $label_info):
-                            if ($status_counts[$key] > 0):
-                        ?>
-                        <a href="market_application/<?php echo $key; ?>.php"
-                           class="flex justify-between items-center status-item">
-                            <div class="flex items-center">
-                                <i class="<?php echo $label_info[2]; ?> <?php echo $label_info[1]; ?> mr-3 text-sm"></i>
-                                <span class="text-sm font-medium <?php echo $label_info[1]; ?>">
-                                    <?php echo $label_info[0]; ?>
-                                </span>
-                            </div>
-                            <div class="flex items-center">
-                                <span class="font-semibold text-xs mr-2 <?php echo $label_info[1]; ?>"><?php echo $status_counts[$key]; ?></span>
-                                <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-                            </div>
-                        </a>
-                        <?php endif; endforeach; ?>
-                    <?php else: ?>
-                    <!-- No applications yet -->
-                    <div class="flex justify-between items-center status-item">
-                        <div class="flex items-center">
-                            <i class="fas fa-inbox text-gray-400 mr-3 text-sm"></i>
-                            <span class="text-sm font-medium text-gray-500">No applications yet</span>
+                        <div class="space-y-2">
+                            <?php
+                            $status_labels = [
+                                'need_correction' => ['Needs Correction', 'text-red-600', 'fas fa-exclamation-triangle'],
+                                'paying' => ['Payment Required', 'text-purple-600', 'fas fa-money-bill-wave'],
+                                'interviewed' => ['Interview Completed', 'text-teal-600', 'fas fa-user-check'],
+                                'interview_scheduled' => ['Interview Scheduled', 'text-blue-600', 'fas fa-calendar-check'],
+                                'pending' => ['Pending Review', 'text-yellow-600', 'fas fa-clock'],
+                                'paid' => ['Payment Completed', 'text-indigo-600', 'fas fa-check-circle'],
+                                'resubmitted' => ['Resubmitted', 'text-orange-600', 'fas fa-redo'],
+                                'approved' => ['Approved', 'text-green-600', 'fas fa-thumbs-up'],
+                                'rejected' => ['Rejected', 'text-gray-600', 'fas fa-times-circle']
+                            ];
+                            
+                            foreach ($status_labels as $key => $label_info):
+                                if ($status_counts[$key] > 0):
+                            ?>
+                            <a href="market_application/<?php echo $key; ?>.php"
+                               class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                                <span class="text-gray-700 text-sm"><?php echo $label_info[0]; ?></span>
+                                <span class="font-semibold <?php echo $label_info[1]; ?> text-sm"><?php echo $status_counts[$key]; ?></span>
+                            </a>
+                            <?php endif; endforeach; ?>
                         </div>
-                        <div class="flex items-center">
-                            <span class="font-semibold text-xs text-gray-400 mr-2">0</span>
-                            <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
-                        </div>
-                    </div>
                     <?php endif; ?>
                 </div>
                 
-                <!-- "Check Status" link -->
-                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <!-- "Check Status" link - ALIGNED WITH OTHER CARDS -->
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <span class="font-medium text-orange-600">Check Status</span>
-                    <a href="market_application/<?php echo $view_all_page; ?>" class="flex items-center">
-                        <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
-                    </a>
+                    <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
                 </div>
             </div>
         </div>
 
-        <!-- RENT PAYMENT CARD - CHANGED FROM h-40 TO h-48 -->
+        <!-- RENT PAYMENT CARD -->
         <a href="market_rent_payment/market_rent_payment.php"
-           class="service-card group bg-white block">
+           class="service-card group bg-white">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $payment_image = 'images/market-payment.png';
@@ -456,14 +501,14 @@ foreach ($priority_order as $status => $priority) {
                     <span class="text-xs font-semibold uppercase" style="color: var(--accent);">Payment</span>
                 </div>
             </div>
-            <div class="p-5">
+            <div class="p-5 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--accent);">
                         <i class="fas fa-credit-card text-white"></i>
                     </div>
                     <h3 class="text-lg font-semibold text-gray-800">Market Rent Payment</h3>
                 </div>
-                <p class="text-gray-600 text-sm mb-6 leading-relaxed">
+                <p class="text-gray-600 text-sm mb-6 leading-relaxed flex-grow">
                     Pay monthly rental fees and download official receipts online.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -598,38 +643,60 @@ foreach ($priority_order as $status => $priority) {
 
 </main>
 
-<!-- SIMPLE FOOTER -->
-<footer class="bg-white border-t border-gray-200 mt-12">
-    <div class="container mx-auto px-6 py-8 max-w-7xl">
-        <div class="flex flex-col md:flex-row justify-between items-start gap-8">
+<!-- FOOTER - UPDATED TO MATCH GO SERVEPH STYLE -->
+<footer class="bg-white border-t border-gray-200 mt-16">
+    <div class="container mx-auto px-6 py-12 max-w-7xl">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
             <!-- Brand -->
-            <div class="flex-1">
-                <div class="mb-4">
-                    <span class="text-xl font-semibold" style="color: var(--primary);">
-                        LGU Market Services
-                    </span>
+            <div class="col-span-1">
+                <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
+                    <span style="color: #4a90e2;">Go</span>
+                    <span style="color: #4caf50;">Serve</span>
+                    <span style="color: #4a90e2;">PH</span>
                 </div>
-                <p class="text-gray-600 text-sm leading-relaxed">
-                    Official market stall rental and management system.
+                <p class="text-gray-600 leading-relaxed">
+                    The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
                 </p>
             </div>
             
+            <!-- Portal Links -->
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                <ul class="space-y-3 text-gray-600">
+                    <li><a href="../citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
+                </ul>
+            </div>
+
             <!-- Contact -->
-            <div class="flex-1">
-                <h4 class="font-medium text-gray-800 mb-3">Contact Information</h4>
-                <div class="space-y-2 text-sm text-gray-600">
-                    <div><i class="fas fa-phone text-gray-400 mr-2"></i> (02) 1234-5678</div>
-                    <div><i class="fas fa-envelope text-gray-400 mr-2"></i> market@lgu.gov.ph</div>
-                    <div><i class="fas fa-clock text-gray-400 mr-2"></i> Mon-Fri: 8AM - 5PM</div>
-                    <div><i class="fas fa-map-marker-alt text-gray-400 mr-2"></i> Public Market Building</div>
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                <ul class="space-y-3 text-gray-600">
+                    <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> market@goserveph.gov.ph</li>
+                    <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                </ul>
+            </div>
+
+            <!-- Social -->
+            <div>
+                <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                <div class="flex space-x-4 text-2xl">
+                    <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                        <i class="fab fa-facebook"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                        <i class="fab fa-twitter"></i>
+                    </a>
                 </div>
             </div>
         </div>
         
         <!-- Copyright -->
-        <div class="border-t border-gray-200 mt-6 pt-6">
-            <p class="text-xs text-gray-500 text-center">
-                &copy; <?php echo date('Y'); ?> Local Government Unit. All rights reserved.
+        <div class="border-t border-gray-200 mt-10 pt-8">
+            <p class="text-sm text-gray-500 text-center">
+                &copy; 2026 GoServePH Local Government Unit. Republic of the Philippines.
             </p>
         </div>
     </div>

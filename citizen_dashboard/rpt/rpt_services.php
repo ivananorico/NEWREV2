@@ -46,8 +46,11 @@ try {
 } catch (PDOException $e) {
     error_log($e->getMessage());
 }
-?>
 
+// Get the base URL for the background image
+$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+$bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,12 +68,54 @@ try {
         }
 
         body {
-            background-color: var(--background);
+            background: linear-gradient(135deg, rgba(240, 240, 240, 0.4) 0%, rgba(230, 230, 230, 0.4) 50%, rgba(220, 220, 220, 0.3) 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
             font-family: Inter, system-ui, sans-serif;
+        }
+
+        /* Background image with blur - ABSOLUTE PATH */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('<?php echo $bg_image_path; ?>') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -2;
+            filter: blur(1px);
+        }
+        
+        /* Animated background particles - same as login */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -1;
+        }
+        
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
         }
 
         .service-card {
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
         
         .service-card:hover {
@@ -86,17 +131,22 @@ try {
             transition: transform 0.3s ease;
         }
 
+        /* Header box styles - same as dashboard */
+        .header-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
+        }
+
         .lgu-card {
             background: #fff;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #e5e5e5;
             border-radius: 0.75rem;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             transition: all .25s ease;
-        }
-
-        .lgu-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 18px rgba(0,0,0,0.08);
         }
 
         .section-header {
@@ -112,6 +162,11 @@ try {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
         }
+
+        .status-list-container {
+            flex-grow: 1;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 
@@ -120,8 +175,8 @@ try {
 
 <main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
 
-    <!-- Welcome Back Section -->
-    <div class="mb-8">
+    <!-- Welcome Section in Box -->
+    <div class="header-box mb-12">
         <div class="flex items-center">
             <a href="../../citizen_dashboard/citizen_dashboard.php" 
                class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-6">
@@ -182,7 +237,7 @@ try {
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         
         <!-- REGISTRATION CARD -->
-        <a href="rpt_registration/rpt_registration.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+        <a href="rpt_registration/rpt_registration.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $reg_image = 'images/rpt-registration.png';
@@ -197,14 +252,14 @@ try {
                     <span class="text-xs font-semibold uppercase" style="color: #4a90e2;">Registration</span>
                 </div>
             </div>
-            <div class="p-6">
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4a90e2;">
                         <i class="fas fa-edit text-white"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-800">Property Registration</h3>
                 </div>
-                <p class="text-gray-600 leading-relaxed mb-6">
+                <p class="text-gray-600 leading-relaxed mb-6 flex-grow">
                     Register new properties or update existing records for assessment.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -230,7 +285,7 @@ try {
                     <span class="text-xs font-semibold uppercase text-orange-600">Status</span>
                 </div>
             </div>
-            <div class="p-6">
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                         <i class="fas fa-chart-line text-white"></i>
@@ -239,38 +294,38 @@ try {
                 </div>
                 <p class="text-gray-600 leading-relaxed mb-4">Track your submitted applications.</p>
                 
-                <?php if ($total_applications > 0): ?>
-                <div class="space-y-3 mt-4">
-                    <?php
-                    $labels = [
-                        'pending' => 'Pending Review',
-                        'for_inspection' => 'For Inspection',
-                        'needs_correction' => 'Needs Correction',
-                        'resubmitted' => 'Resubmitted',
-                        'assessed' => 'Assessed',
-                        'approved' => 'Approved',
-                        'rejected' => 'Rejected'
-                    ];
-                    foreach ($status_counts as $key => $count):
-                        if ($count > 0):
-                            $color_class = '';
-                            if ($key === 'approved') $color_class = 'text-green-600';
-                            elseif ($key === 'needs_correction') $color_class = 'text-red-600';
-                            elseif ($key === 'pending') $color_class = 'text-yellow-600';
-                            else $color_class = 'text-gray-600';
-                    ?>
-                    <a href="rpt_application/<?= $key ?>.php"
-                       class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <span class="text-gray-700"><?= $labels[$key] ?></span>
-                        <span class="font-semibold <?= $color_class ?>"><?= $count ?></span>
-                    </a>
-                    <?php endif; endforeach; ?>
+                <div class="status-list-container">
+                    <?php if ($total_applications > 0): ?>
+                    <div class="space-y-3">
+                        <?php
+                        $labels = [
+                            'pending' => 'Pending Review',
+                            'for_inspection' => 'For Inspection',
+                            'needs_correction' => 'Needs Correction',
+                            'resubmitted' => 'Resubmitted',
+                            'assessed' => 'Assessed',
+                            'approved' => 'Approved',
+                            'rejected' => 'Rejected'
+                        ];
+                        foreach ($status_counts as $key => $count):
+                            if ($count > 0):
+                                $color_class = '';
+                                if ($key === 'approved') $color_class = 'text-green-600';
+                                elseif ($key === 'needs_correction') $color_class = 'text-red-600';
+                                elseif ($key === 'pending') $color_class = 'text-yellow-600';
+                                else $color_class = 'text-gray-600';
+                        ?>
+                        <a href="rpt_application/<?= $key ?>.php"
+                           class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                            <span class="text-gray-700"><?= $labels[$key] ?></span>
+                            <span class="font-semibold <?= $color_class ?>"><?= $count ?></span>
+                        </a>
+                        <?php endif; endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                <?php else: ?>
-                    <p class="text-center text-gray-500 py-6 border-t border-gray-100 mt-4">No applications yet</p>
-                <?php endif; ?>
                 
-                <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <span class="font-semibold text-orange-600">View All</span>
                     <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
                 </div>
@@ -278,7 +333,7 @@ try {
         </div>
 
         <!-- PAYMENT CARD -->
-        <a href="rpt_tax_payment/rpt_tax_payment.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden block">
+        <a href="rpt_tax_payment/rpt_tax_payment.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $payment_image = 'images/rpt-payment.png';
@@ -293,14 +348,14 @@ try {
                     <span class="text-xs font-semibold uppercase" style="color: #4caf50;">Payment</span>
                 </div>
             </div>
-            <div class="p-6">
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4caf50;">
                         <i class="fas fa-credit-card text-white"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-800">Tax Payment</h3>
                 </div>
-                <p class="text-gray-600 leading-relaxed mb-6">
+                <p class="text-gray-600 leading-relaxed mb-6 flex-grow">
                     Pay approved real property taxes securely online with instant digital receipts.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -334,16 +389,13 @@ try {
 
 </main>
 
-<!-- FOOTER -->
 <footer class="bg-white border-t border-gray-200 mt-16">
     <div class="container mx-auto px-6 py-12 max-w-7xl">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
             <!-- Brand -->
             <div class="col-span-1">
-                <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
-                    <span style="color: #4a90e2;">Go</span>
-                    <span style="color: #4caf50;">Serve</span>
-                    <span style="color: #4a90e2;">PH</span>
+                <div class="flex items-center mb-4 text-2xl font-bold">
+                    <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
                 </div>
                 <p class="text-gray-600 leading-relaxed">
                     The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
@@ -354,7 +406,7 @@ try {
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
-                    <li><a href="../../citizen_dashboard/citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                 </ul>
@@ -365,7 +417,7 @@ try {
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
                 <ul class="space-y-3 text-gray-600">
                     <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
-                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> rpt@goserveph.gov.ph</li>
+                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> support@goserveph.gov.ph</li>
                     <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
                 </ul>
             </div>

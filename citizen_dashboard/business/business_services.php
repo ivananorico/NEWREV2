@@ -8,6 +8,10 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
+
+// Get the base URL for the background image
+$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+$bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,8 +30,48 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         }
 
         body {
-            background-color: var(--background);
+            background: linear-gradient(135deg, rgba(240, 240, 240, 0.4) 0%, rgba(230, 230, 230, 0.4) 50%, rgba(220, 220, 220, 0.3) 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
             font-family: Inter, system-ui, sans-serif;
+        }
+
+        /* Background image with blur - same as login */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('<?php echo $bg_image_path; ?>') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -2;
+            filter: blur(1px);
+        }
+        
+        /* Animated background particles - same as login */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -1;
+        }
+        
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
         }
 
         .service-card {
@@ -45,6 +89,16 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         
         .service-arrow {
             transition: transform 0.3s ease;
+        }
+
+        /* Header box styles - same as other pages */
+        .header-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
         }
 
         .lgu-card {
@@ -72,8 +126,8 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
 <main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
 
-    <!-- Welcome Back Section -->
-    <div class="mb-8">
+    <!-- Welcome Section in Box -->
+    <div class="header-box mb-12">
         <div class="flex items-center">
             <a href="../citizen_dashboard.php" 
                class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-6">
@@ -206,10 +260,8 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
             <!-- Brand -->
             <div class="col-span-1">
-                <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
-                    <span style="color: #4a90e2;">Go</span>
-                    <span style="color: #4caf50;">Serve</span>
-                    <span style="color: #4a90e2;">PH</span>
+                <div class="flex items-center mb-4 text-2xl font-bold">
+                    <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
                 </div>
                 <p class="text-gray-600 leading-relaxed">
                     The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
@@ -220,7 +272,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
-                    <li><a href="../citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
+                    <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                 </ul>
@@ -231,7 +283,7 @@ $user_name = $_SESSION['user_name'] ?? 'Citizen';
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
                 <ul class="space-y-3 text-gray-600">
                     <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
-                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> business@goserveph.gov.ph</li>
+                    <li><i class="fas fa-envelope mr-2 text-gray-400"></i> support@goserveph.gov.ph</li>
                     <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
                 </ul>
             </div>
