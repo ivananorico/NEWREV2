@@ -11,10 +11,16 @@ if (!isset($_SESSION['user_id'])) {
     // Get base URL dynamically
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
-    $base_url = $protocol . "://" . $host;
     
-    // Redirect to login page
-    $login_url = $base_url . '/revenue2/index.php';
+    // Check if we're on localhost or domain
+    if (strpos($host, 'localhost') !== false) {
+        // Localhost: index.php is inside /revenue2/
+        $login_url = $protocol . "://" . $host . "/revenue2/index.php";
+    } else {
+        // Domain: index.php is at root level
+        $login_url = $protocol . "://" . $host . "/index.php";
+    }
+    
     header('Location: ' . $login_url);
     exit();
 }
@@ -39,10 +45,16 @@ if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
     // Get base URL dynamically for redirect
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
-    $base_url = $protocol . "://" . $host;
     
-    // Redirect to login page
-    $login_url = $base_url . '/revenue2/index.php';
+    // Check if we're on localhost or domain
+    if (strpos($host, 'localhost') !== false) {
+        // Localhost: index.php is inside /revenue2/
+        $login_url = $protocol . "://" . $host . "/revenue2/index.php";
+    } else {
+        // Domain: index.php is at root level
+        $login_url = $protocol . "://" . $host . "/index.php";
+    }
+    
     header('Location: ' . $login_url);
     exit();
 }
@@ -50,27 +62,35 @@ if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 $user_email = $_SESSION['user_email'] ?? '';
 
-// Define dynamic paths that work for both localhost and domain
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-$host = $_SERVER['HTTP_HOST'];
-$base_url = $protocol . "://" . $host;
+// Function to build correct URLs based on environment
+function build_url($relative_path) {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    
+    if (strpos($host, 'localhost') !== false) {
+        // Localhost: Add /revenue2/ prefix
+        return $protocol . "://" . $host . "/revenue2" . $relative_path;
+    } else {
+        // Domain: Direct path (no /revenue2/)
+        return $protocol . "://" . $host . $relative_path;
+    }
+}
 
-$logo_path = $base_url . '/revenue2/citizen_dashboard/images/GSM_logo.png';
-$dashboard_path = $base_url . '/revenue2/citizen_dashboard/citizen_dashboard.php';
-$settings_path = $base_url . '/revenue2/citizen_dashboard/settings.php';
+// Build URLs for different resources
+$logo_path = build_url('/citizen_dashboard/images/GSM_logo.png');
+$dashboard_path = build_url('/citizen_dashboard/citizen_dashboard.php');
+$settings_path = build_url('/citizen_dashboard/settings.php');
 
-// JavaScript for logout confirmation with dynamic paths
+// JavaScript for logout confirmation
 $logout_js = "
 <script>
 function confirmLogout() {
     if (confirm('Are you sure you want to logout?')) {
-        // Use current path with logout parameter
-        var currentUrl = window.location.href;
-        // Remove existing query parameters if any
-        var baseUrl = currentUrl.split('?')[0];
-        // Check if baseUrl already has query parameters
-        var separator = baseUrl.indexOf('?') === -1 ? '?' : '&';
-        window.location.href = baseUrl + separator + 'logout=true';
+        // Get current path without query parameters
+        var currentUrl = window.location.href.split('?')[0];
+        // Add logout parameter
+        var separator = currentUrl.indexOf('?') === -1 ? '?' : '&';
+        window.location.href = currentUrl + separator + 'logout=true';
     }
 }
 </script>
@@ -182,7 +202,7 @@ function confirmLogout() {
                     <img src="<?php echo htmlspecialchars($logo_path); ?>" 
                          alt="GoServePH Logo" 
                          class="logo-img"
-                         onerror="console.error('Failed to load image:', this.src); this.onerror=null; this.src='<?php echo $base_url; ?>/revenue2/citizen_dashboard/images/GSM_logo.png';">
+                         onerror="this.style.display='none'; console.error('Logo not found:', this.src);">
                     
                     <div>
                         <h1 class="text-xl font-bold" style="word-spacing: -0.2em;">
