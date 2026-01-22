@@ -94,8 +94,6 @@ function App() {
               <Route path="/business/businessstatusinfo/:id" element={<BusinessStatusInfo />} />
 
               {/* TREASURY */}
-              <Route path="/treasury/allocation" element={<Allocation />} />
-              <Route path="/treasury/revenue" element={<Revenue />} />
               <Route path="/treasury/collection" element={<Collection />} />
 
               {/* DIGIPAY */}
