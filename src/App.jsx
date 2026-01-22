@@ -26,8 +26,7 @@ import BusinessStatusInfo from './pages/BUSINESS/BusinessStatus/BusinessStatusIn
 import BusinessTaxDashboard from './pages/BUSINESS/BusinessTaxDashboard/BusinessTaxDashboard'
 // DIGIPAY Pages
 import DigiDashboard from './pages/DIGITAL/DigiDashboard/DigiDashoard'
-import DIGIPAY2 from './pages/DIGITAL/DIGIPAY2/DIGIPAY2'
-import DIGIPAY3 from './pages/DIGITAL/DIGIPAY3/DIGIPAY3'
+
 
 // TREASURY Pages
 import Allocation from './pages/TREASURY/Allocation/Allocation'
@@ -101,8 +100,6 @@ function App() {
 
               {/* DIGIPAY */}
               <Route path="/digital/digidashboard" element={<DigiDashboard />} />
-              <Route path="/digital/digipay2" element={<DIGIPAY2 />} />
-              <Route path="/digital/digipay3" element={<DIGIPAY3 />} />
 
               {/* MARKET */}
               <Route path="/market/marketdashboard" element={<MarketDashboard />} />

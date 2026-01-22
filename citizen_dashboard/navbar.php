@@ -8,8 +8,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Only redirect if user_id is not set
 if (!isset($_SESSION['user_id'])) {
-    // Redirect to login page - FIXED PATH
-    $login_url = '/revenue2/index.php';
+    // Get base URL dynamically
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    $base_url = $protocol . "://" . $host;
+    
+    // Redirect to login page
+    $login_url = $base_url . '/revenue2/index.php';
     header('Location: ' . $login_url);
     exit();
 }
@@ -31,8 +36,13 @@ if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
     // Finally, destroy the session
     session_destroy();
     
-    // Redirect to login page - FIXED PATH
-    $login_url = '/revenue2/index.php';
+    // Get base URL dynamically for redirect
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    $base_url = $protocol . "://" . $host;
+    
+    // Redirect to login page
+    $login_url = $base_url . '/revenue2/index.php';
     header('Location: ' . $login_url);
     exit();
 }
@@ -40,21 +50,27 @@ if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 $user_email = $_SESSION['user_email'] ?? '';
 
-// Define absolute paths from root
-$base_url = '/revenue2';
-$logo_path = $base_url . '/citizen_dashboard/images/GSM_logo.png';
-$dashboard_path = $base_url . '/citizen_dashboard/citizen_dashboard.php';
-$settings_path = $base_url . '/citizen_dashboard/settings.php';
+// Define dynamic paths that work for both localhost and domain
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+$base_url = $protocol . "://" . $host;
 
-// JavaScript for logout confirmation
+$logo_path = $base_url . '/revenue2/citizen_dashboard/images/GSM_logo.png';
+$dashboard_path = $base_url . '/revenue2/citizen_dashboard/citizen_dashboard.php';
+$settings_path = $base_url . '/revenue2/citizen_dashboard/settings.php';
+
+// JavaScript for logout confirmation with dynamic paths
 $logout_js = "
 <script>
 function confirmLogout() {
     if (confirm('Are you sure you want to logout?')) {
-        // Get current path without query parameters
-        var currentPath = window.location.pathname;
-        // Add logout parameter
-        window.location.href = currentPath + '?logout=true';
+        // Use current path with logout parameter
+        var currentUrl = window.location.href;
+        // Remove existing query parameters if any
+        var baseUrl = currentUrl.split('?')[0];
+        // Check if baseUrl already has query parameters
+        var separator = baseUrl.indexOf('?') === -1 ? '?' : '&';
+        window.location.href = baseUrl + separator + 'logout=true';
     }
 }
 </script>
@@ -166,7 +182,7 @@ function confirmLogout() {
                     <img src="<?php echo htmlspecialchars($logo_path); ?>" 
                          alt="GoServePH Logo" 
                          class="logo-img"
-                         onerror="console.error('Failed to load image:', this.src); this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIyMCIgZmlsbD0iIzRDOTBGMiIvPjxwYXRoIGQ9Ik0xMiAyMEwyMCAyOEwyOCAyMCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=';">
+                         onerror="console.error('Failed to load image:', this.src); this.onerror=null; this.src='<?php echo $base_url; ?>/revenue2/citizen_dashboard/images/GSM_logo.png';">
                     
                     <div>
                         <h1 class="text-xl font-bold" style="word-spacing: -0.2em;">

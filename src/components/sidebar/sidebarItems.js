@@ -46,8 +46,7 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "digidashboard", label: "Digital Dashboard", path: "/DIGITAL/DigiDashboard" },
-      { id: "digipay2", label: "DIGIPAY2", path: "/DIGITAL/DIGIPAY2" },
-      { id: "digipay3", label: "DIGIPAY3", path: "/DIGITAL/DIGIPAY3" },
+
     ]
   },
   {
