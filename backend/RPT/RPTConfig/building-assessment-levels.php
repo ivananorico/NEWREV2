@@ -1,6 +1,6 @@
 <?php
 // ================================================
-// BUILDING ASSESSMENT LEVELS API
+// BUILDING ASSESSMENT LEVELS APIs
 // ================================================
 
 // Enable CORS and JSON response
