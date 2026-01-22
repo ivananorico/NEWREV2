@@ -1,4 +1,5 @@
 <?php
+//revenue2/backend/RPT/RPTValidationTable/get_registration_details.php
 // ================================================
 // GET REGISTRATION DETAILS API
 // ================================================
@@ -107,7 +108,7 @@ function getRegistrationDetails($pdo) {
                 po.email,
                 po.phone,
                 COALESCE(po.tin_number, '') as tin_number,
-                COALESCE(po.address, '') as owner_address,
+                po.address,
                 po.house_number,
                 po.street,
                 po.barangay as owner_barangay,
@@ -141,8 +142,8 @@ function getRegistrationDetails($pdo) {
             (!empty($registration['suffix']) ? ' '.$registration['suffix'] : '')
         );
 
-        // Construct owner address if empty
-        $ownerAddress = $registration['owner_address'];
+        // Construct owner address
+        $ownerAddress = $registration['address'];
         if (empty($ownerAddress)) {
             $ownerAddress = trim(
                 (!empty($registration['house_number']) ? $registration['house_number'].' ' : '') .
@@ -155,56 +156,113 @@ function getRegistrationDetails($pdo) {
             );
         }
 
-        // Fetch latest inspection for this registration
+        // Fetch LATEST inspection for this registration
         $inspectionQuery = "
-            SELECT assessor_name, scheduled_date, status
-            FROM property_inspections
-            WHERE registration_id = ?
-            ORDER BY scheduled_date DESC
+            SELECT 
+                id,
+                scheduled_date, 
+                assessor_name, 
+                status,
+                created_at,
+                updated_at
+            FROM property_inspections 
+            WHERE registration_id = ? 
+            ORDER BY created_at DESC, scheduled_date DESC
             LIMIT 1
         ";
+        
         $stmtInspect = $pdo->prepare($inspectionQuery);
         $stmtInspect->execute([$registrationId]);
         $inspection = $stmtInspect->fetch(PDO::FETCH_ASSOC);
 
-        $inspectorName = $inspection['assessor_name'] ?? '';
-        $inspectionDate = $inspection['scheduled_date'] ?? '';
-        $inspectionStatus = $inspection['status'] ?? '';
+        // Fetch ALL inspections for this registration (for debugging)
+        $allInspectionsQuery = "
+            SELECT id, scheduled_date, assessor_name, status, created_at
+            FROM property_inspections 
+            WHERE registration_id = ? 
+            ORDER BY created_at DESC
+        ";
+        $stmtAll = $pdo->prepare($allInspectionsQuery);
+        $stmtAll->execute([$registrationId]);
+        $allInspections = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
 
+        // Fetch documents for this registration
+        $documentsQuery = "
+            SELECT 
+                id,
+                document_type,
+                file_name,
+                file_path,
+                file_size,
+                file_type,
+                uploaded_by,
+                created_at
+            FROM property_documents 
+            WHERE registration_id = ? 
+            ORDER BY created_at DESC
+        ";
+        $stmtDocs = $pdo->prepare($documentsQuery);
+        $stmtDocs->execute([$registrationId]);
+        $documents = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+
+        // Prepare inspection data
+        $inspectionData = $inspection ?: [];
+        
         // Prepare response
         $responseData = [
             "id" => $registration['id'],
             "reference_number" => $registration['reference_number'],
-            "location_address" => $registration['lot_location'],
+            "lot_location" => $registration['lot_location'],
+            "location_address" => $registration['lot_location'], // For frontend compatibility
             "barangay" => $registration['barangay'],
             "municipality_city" => $registration['city'] ?? 'Quezon City',
+            "city" => $registration['city'] ?? 'Quezon City',
             "district" => $registration['district'],
             "province" => $registration['province'] ?? 'Metro Manila',
             "zip_code" => $registration['zip_code'],
             "property_type" => "Residential",
             "has_building" => $registration['has_building'],
             "status" => $registration['status'],
+            "correction_notes" => $registration['correction_notes'] ?? '',
             "remarks" => $registration['correction_notes'] ?? '',
-            "date_registered" => $registration['created_at'],
+            "created_at" => $registration['created_at'],
+            "date_registered" => $registration['created_at'], // For frontend compatibility
+            "updated_at" => $registration['updated_at'],
             "last_updated" => $registration['updated_at'],
+            
+            // Owner information
             "owner_name" => $ownerName,
-            "email_address" => $registration['email'],
-            "contact_number" => $registration['phone'],
-            "tin" => $registration['tin_number'],
-            "owner_address" => $ownerAddress,
             "first_name" => $registration['first_name'],
             "last_name" => $registration['last_name'],
             "middle_name" => $registration['middle_name'],
             "suffix" => $registration['suffix'],
+            "email" => $registration['email'],
+            "email_address" => $registration['email'], // For frontend compatibility
+            "phone" => $registration['phone'],
+            "contact_number" => $registration['phone'], // For frontend compatibility
+            "tin_number" => $registration['tin_number'],
+            "tin" => $registration['tin_number'], // For frontend compatibility
+            "address" => $ownerAddress,
+            "owner_address" => $ownerAddress, // For frontend compatibility
             "birthdate" => $registration['birthdate'],
             "sex" => $registration['sex'],
             "marital_status" => $registration['marital_status'],
             "owner_city" => $registration['owner_city'] ?? 'Quezon City',
             "owner_province" => $registration['owner_province'] ?? 'Metro Manila',
-            // Latest inspection
-            "inspector_name" => $inspectorName,
-            "inspection_date" => $inspectionDate,
-            "inspection_status" => $inspectionStatus
+            "owner_zip_code" => $registration['owner_zip_code'],
+            
+            // Latest inspection data
+            "inspection" => $inspectionData,
+            "inspection_date" => $inspectionData['scheduled_date'] ?? '',
+            "inspector_name" => $inspectionData['assessor_name'] ?? '',
+            "inspection_status" => $inspectionData['status'] ?? '',
+            
+            // Debug info (only in development)
+            "debug" => [
+                "all_inspections_count" => count($allInspections),
+                "all_inspections" => ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1') ? $allInspections : [],
+                "documents_count" => count($documents)
+            ]
         ];
 
         // Replace nulls with empty strings
@@ -212,13 +270,18 @@ function getRegistrationDetails($pdo) {
 
         echo json_encode([
             "success" => true,
-            "data" => $responseData
+            "data" => $responseData,
+            "documents" => $documents
         ]);
 
     } catch (PDOException $e) {
         http_response_code(500);
         error_log("Database error in getRegistrationDetails: " . $e->getMessage());
-        echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+        echo json_encode([
+            "error" => "Database error", 
+            "message" => $e->getMessage(),
+            "trace" => ($_SERVER['HTTP_HOST'] !== 'revenuetreasury.goserveph.com') ? $e->getTraceAsString() : null
+        ]);
     }
 }
 ?>
