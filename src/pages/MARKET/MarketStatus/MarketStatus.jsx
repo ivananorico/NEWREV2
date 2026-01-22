@@ -58,7 +58,7 @@ export default function MarketStatus() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, []); // Empty dependency array to load once on mount
 
   useEffect(() => {
     filterCitizens();
@@ -453,6 +453,7 @@ export default function MarketStatus() {
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
+                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
@@ -588,8 +589,8 @@ export default function MarketStatus() {
                               <span>{contractMonths} months</span>
                             </div>
                             <div className="text-xs text-gray-500 space-y-0.5">
-                              <div>From: {citizen.contract_start_formatted}</div>
-                              <div>To: {citizen.contract_end_formatted}</div>
+                              <div>From: {formatDate(citizen.contract_start)}</div>
+                              <div>To: {formatDate(citizen.contract_end)}</div>
                             </div>
                           </>
                         ) : (
@@ -602,7 +603,7 @@ export default function MarketStatus() {
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-center">
                         <button
-                          onClick={() => navigate(`/market/statusinfo/${citizen.id}`)}
+                          onClick={() => navigate(`/market/marketstatusinfo/${citizen.renter_code || citizen.id}`)}
                           className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs"
                         >
                           <Eye size={12} />

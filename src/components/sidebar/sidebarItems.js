@@ -45,8 +45,9 @@ const sidebarItems = [
     label: "Digital Payment Integration",
     icon: LayoutDashboard,
     subItems: [
-      { id: "digipay1", label: "DIGIPAY1", path: "/DIGIPAY/DIGIPAY1" },
-      { id: "digipay2", label: "DIGIPAY2", path: "/DIGIPAY/DIGIPAY2" },
+      { id: "digidashboard", label: "Digital Dashboard", path: "/DIGITAL/DigiDashboard" },
+      { id: "digipay2", label: "DIGIPAY2", path: "/DIGITAL/DIGIPAY2" },
+      { id: "digipay3", label: "DIGIPAY3", path: "/DIGITAL/DIGIPAY3" },
     ]
   },
   {
