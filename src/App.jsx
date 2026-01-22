@@ -29,9 +29,8 @@ import DigiDashboard from './pages/DIGITAL/DigiDashboard/DigiDashoard'
 
 
 // TREASURY Pages
-import Allocation from './pages/TREASURY/Allocation/Allocation'
 import Revenue from './pages/TREASURY/Revenue/Revenue'
-import Collection from './pages/TREASURY/Collection/Collection'
+
 
 // MARKET Pages
 import MapCreator from './pages/MARKET/MapCreator/MapCreator'
@@ -94,7 +93,7 @@ function App() {
               <Route path="/business/businessstatusinfo/:id" element={<BusinessStatusInfo />} />
 
               {/* TREASURY */}
-              <Route path="/treasury/collection" element={<Collection />} />
+              <Route path="/treasury/revenue" element={<Revenue />} />
 
               {/* DIGIPAY */}
               <Route path="/digital/digidashboard" element={<DigiDashboard />} />
