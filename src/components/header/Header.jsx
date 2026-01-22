@@ -36,7 +36,7 @@ function Header({ sidebarCollapsed, onToggleSidebar, breadcrumb = ['Dashboard'] 
                     </button>
                     <div>
                         <div className='hidden md:flex items-center space-x-1'>
-                            <h1 className='text-md font-bold dark:text-white'>PUBLIC ASSETS & FACILITIES MANAGEMENT</h1>
+                            <h1 className='text-md font-bold dark:text-white'>REVENUE COLLECTION & TREASURY SERVICES</h1>
                         </div>
                         <div>
                             <span className='text-xs text-slate-500 font-bold'>
