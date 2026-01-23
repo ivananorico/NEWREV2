@@ -2,20 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
-  Download,
+  Filter,
   Eye,
+  Download,
+  RefreshCw,
   CheckCircle,
   Building,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  AlertTriangle,
-  Home,
+  User,
   Calendar,
-  ShieldCheck,
-  Activity,
-  FileText,
-  Calculator
+  DollarSign,
+  Clock,
+  AlertCircle,
+  TrendingUp,
+  Wallet,
+  Percent,
+  Phone,
+  Mail
 } from "lucide-react";
 
 // API configuration
@@ -23,11 +25,90 @@ const API_BASE = window.location.hostname === "localhost"
     ? "http://localhost/revenue2/backend" 
     : "https://revenuetreasury.goserveph.com/backend";
 
+// Business Status Badge Component
+const BusinessStatusBadge = ({ status }) => {
+  const getStatusInfo = () => {
+    switch(status?.toLowerCase()) {
+      case 'active':
+        return {
+          text: "Active",
+          color: "bg-green-50 text-green-700 border border-green-200",
+          icon: <CheckCircle className="w-3 h-3 mr-1" />
+        };
+      case 'approved':
+        return {
+          text: "Approved",
+          color: "bg-blue-50 text-blue-700 border border-blue-200",
+          icon: <CheckCircle className="w-3 h-3 mr-1" />
+        };
+      case 'pending':
+        return {
+          text: "Pending",
+          color: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+          icon: <Clock className="w-3 h-3 mr-1" />
+        };
+      case 'expired':
+        return {
+          text: "Expired",
+          color: "bg-red-50 text-red-700 border border-red-200",
+          icon: <AlertCircle className="w-3 h-3 mr-1" />
+        };
+      default:
+        return {
+          text: status || "N/A",
+          color: "bg-gray-50 text-gray-700 border border-gray-200",
+          icon: null
+        };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+  
+  return (
+    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+      {statusInfo.icon}
+      {statusInfo.text}
+    </span>
+  );
+};
+
+// Tax Type Badge Component
+const TaxTypeBadge = ({ type }) => {
+  const getTypeInfo = () => {
+    switch(type?.toLowerCase()) {
+      case 'capital_investment':
+        return {
+          text: "Capital",
+          color: "bg-purple-50 text-purple-700 border border-purple-200"
+        };
+      case 'gross_sales':
+        return {
+          text: "Gross Sales",
+          color: "bg-indigo-50 text-indigo-700 border border-indigo-200"
+        };
+      default:
+        return {
+          text: type || "N/A",
+          color: "bg-gray-50 text-gray-700 border border-gray-200"
+        };
+    }
+  };
+
+  const typeInfo = getTypeInfo();
+  
+  return (
+    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${typeInfo.color}`}>
+      {typeInfo.text}
+    </span>
+  );
+};
+
 export default function BusinessStatus() {
   const [permits, setPermits] = useState([]);
   const [summary, setSummary] = useState({
     total_businesses: 0,
     total_revenue: 0,
+    total_collected: 0,
     pending_payments: 0,
     collection_rate: 0,
     fully_paid_count: 0,
@@ -37,7 +118,7 @@ export default function BusinessStatus() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [businessType, setBusinessType] = useState("all");
-  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,7 +127,7 @@ export default function BusinessStatus() {
 
   useEffect(() => {
     filterPermits();
-  }, [permits, searchTerm, businessType, paymentStatus]);
+  }, [permits, searchTerm, businessType, statusFilter]);
 
   const loadData = async () => {
     try {
@@ -79,11 +160,20 @@ export default function BusinessStatus() {
       
       if (data.status === "success") {
         const permitsData = data.permits || [];
+        console.log("Fetched permits data:", permitsData); // Debug log
+        
+        // Debug: Check first permit's fields
+        if (permitsData.length > 0) {
+          console.log("First permit fields:", Object.keys(permitsData[0]));
+          console.log("First permit data:", permitsData[0]);
+        }
+        
         setPermits(permitsData);
         
         // Calculate summary statistics
         const totalBusinesses = permitsData.length;
-        const totalRevenue = permitsData.reduce((sum, p) => sum + (parseFloat(p.total_paid_tax) || 0), 0);
+        const totalRevenue = permitsData.reduce((sum, p) => sum + (parseFloat(p.total_tax) || 0), 0);
+        const totalCollected = permitsData.reduce((sum, p) => sum + (parseFloat(p.total_paid_tax) || 0), 0);
         const pendingPayments = permitsData.reduce((sum, p) => sum + (parseFloat(p.total_pending_tax) || 0), 0);
         const fullyPaid = permitsData.filter(p => p.payment_status === 'fully_paid').length;
         const overdueCount = permitsData.filter(p => p.payment_status === 'overdue').length;
@@ -91,8 +181,9 @@ export default function BusinessStatus() {
         setSummary({
           total_businesses: totalBusinesses,
           total_revenue: totalRevenue,
+          total_collected: totalCollected,
           pending_payments: pendingPayments,
-          collection_rate: totalBusinesses > 0 ? Math.round((fullyPaid / totalBusinesses) * 100) : 0,
+          collection_rate: totalRevenue > 0 ? Math.round((totalCollected / totalRevenue) * 100) : 0,
           fully_paid_count: fullyPaid,
           overdue_count: overdueCount
         });
@@ -111,6 +202,7 @@ export default function BusinessStatus() {
       result = result.filter(permit =>
         (permit.business_name?.toLowerCase().includes(term)) ||
         (permit.owner_name?.toLowerCase().includes(term)) ||
+        (permit.full_name?.toLowerCase().includes(term)) ||
         (permit.business_permit_id?.toLowerCase().includes(term))
       );
     }
@@ -120,9 +212,9 @@ export default function BusinessStatus() {
       result = result.filter(permit => permit.business_type === businessType);
     }
 
-    // Payment status filter
-    if (paymentStatus !== "all") {
-      result = result.filter(permit => permit.payment_status === paymentStatus);
+    // Status filter
+    if (statusFilter !== "all") {
+      result = result.filter(permit => permit.status === statusFilter);
     }
 
     setFilteredPermits(result);
@@ -153,109 +245,36 @@ export default function BusinessStatus() {
     }
   };
 
-  const getBusinessStatusBadge = (status) => {
-    switch(status) {
-      case 'Active':
-        return {
-          text: "Active",
-          bgColor: "bg-green-50",
-          textColor: "text-green-700",
-          icon: Activity
-        };
-      case 'Approved':
-        return {
-          text: "Approved",
-          bgColor: "bg-blue-50",
-          textColor: "text-blue-700",
-          icon: ShieldCheck
-        };
-      case 'Renewed':
-        return {
-          text: "Renewed",
-          bgColor: "bg-purple-50",
-          textColor: "text-purple-700",
-          icon: FileText
-        };
-      case 'Pending':
-        return {
-          text: "Pending",
-          bgColor: "bg-yellow-50",
-          textColor: "text-yellow-700",
-          icon: Clock
-        };
-      case 'Expired':
-        return {
-          text: "Expired",
-          bgColor: "bg-red-50",
-          textColor: "text-red-700",
-          icon: AlertTriangle
-        };
-      default:
-        return {
-          text: status || "N/A",
-          bgColor: "bg-gray-50",
-          textColor: "text-gray-700",
-          icon: ShieldCheck
-        };
-    }
-  };
-
-  const getTaxCalculationType = (type) => {
-    switch(type?.toLowerCase()) {
-      case 'percentage':
-        return {
-          text: "Percentage",
-          bgColor: "bg-blue-50",
-          textColor: "text-blue-700",
-          icon: Calculator
-        };
-      case 'fixed':
-        return {
-          text: "Fixed Amount",
-          bgColor: "bg-green-50",
-          textColor: "text-green-700",
-          icon: Calculator
-        };
-      case 'graduated':
-        return {
-          text: "Graduated",
-          bgColor: "bg-purple-50",
-          textColor: "text-purple-700",
-          icon: Calculator
-        };
-      default:
-        return {
-          text: type || "N/A",
-          bgColor: "bg-gray-50",
-          textColor: "text-gray-700",
-          icon: Calculator
-        };
-    }
-  };
-
   const getBusinessTypes = () => {
     const types = [...new Set(permits.map(p => p.business_type).filter(Boolean))];
     return types.sort();
   };
 
+  const getStatusTypes = () => {
+    const types = [...new Set(permits.map(p => p.status).filter(Boolean))];
+    return types.sort();
+  };
+
   const exportToCSV = () => {
     const headers = [
-      "Business Name", "Owner", "Permit ID", "Business Type", "Status",
-      "Location", "Approved Date", "Annual Tax", "Tax Calculation Type"
+      "Permit ID", "Business Name", "Owner", "Contact", "Email", "Business Type", 
+      "Tax Type", "Status", "Annual Revenue", "Paid Amount", "Pending Amount"
     ];
     
     const csvData = [
       headers.join(","),
       ...filteredPermits.map(p => [
-        `"${p.business_name || ''}"`,
-        `"${p.owner_name || ''}"`,
         `"${p.business_permit_id || 'N/A'}"`,
+        `"${p.business_name || ''}"`,
+        `"${p.owner_name || p.full_name || ''}"`,
+        `"${p.contact_number || p.phone || p.personal_contact || 'N/A'}"`,
+        `"${p.owner_email || p.personal_email || 'N/A'}"`,
         `"${p.business_type || ''}"`,
+        `"${p.tax_calculation_type || 'N/A'}"`,
         `"${p.status || ''}"`,
-        `"${p.barangay || ''}, ${p.city || ''}"`,
-        `"${formatDate(p.approved_date)}"`,
         p.total_tax || 0,
-        `"${p.tax_calculation_type || 'N/A'}"`
+        p.total_paid_tax || 0,
+        p.total_pending_tax || 0
       ].join(","))
     ].join("\n");
 
@@ -263,316 +282,370 @@ export default function BusinessStatus() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `approved-businesses-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `business-permits-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading approved businesses...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading business permits...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Approved Business Dashboard</h1>
-            <p className="text-gray-600 mt-1">Monitor business permits and annual taxes</p>
-          </div>
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 text-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Building className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500">Total</p>
-              <p className="text-lg font-bold text-gray-800">{summary.total_businesses}</p>
-              <p className="text-xs text-gray-500">Approved Businesses</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-green-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500">Annual Tax</p>
-              <p className="text-lg font-bold text-gray-800">{formatCurrency(summary.total_revenue)}</p>
-              <p className="text-xs text-gray-500">Total Generated</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500">Rate</p>
-              <p className="text-lg font-bold text-gray-800">{summary.collection_rate}%</p>
-              <p className="text-xs text-gray-500">Payment Rate</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500">Balance</p>
-              <p className="text-lg font-bold text-gray-800">{formatCurrency(summary.pending_payments)}</p>
-              <p className="text-xs text-gray-500">Pending Payments</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4 border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search businesses, owners, permit ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <select
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              <option value="all">All Types</option>
-              {getBusinessTypes().map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-
-            <select
-              value={paymentStatus}
-              onChange={(e) => setPaymentStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              <option value="all">All Payments</option>
-              <option value="fully_paid">Paid</option>
-              <option value="pending">Unpaid</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-
-          <button
-            onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-          >
-            <Download size={16} />
-            Export
-          </button>
-        </div>
-      </div>
-
-      {/* Results Info */}
-      <div className="mb-3">
-        <p className="text-sm text-gray-600">
-          Showing <span className="font-semibold">{filteredPermits.length}</span> of{" "}
-          <span className="font-semibold">{permits.length}</span> businesses
-        </p>
-      </div>
-
-      {/* Business List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Business Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Annual Tax
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tax Calculation
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredPermits.map((permit) => {
-                const businessStatusBadge = getBusinessStatusBadge(permit.status);
-                const BusinessStatusIcon = businessStatusBadge.icon;
-                const taxCalculationBadge = getTaxCalculationType(permit.tax_calculation_type);
-                const TaxCalculationIcon = taxCalculationBadge.icon;
-                
-                return (
-                  <tr key={permit.id} className="hover:bg-gray-50">
-                    {/* Business Info */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <p className="font-semibold text-gray-900">{permit.business_name || "No Name"}</p>
-                        <p className="text-gray-600 text-xs">{permit.owner_name || "No Owner"}</p>
-                        <div className="flex items-center gap-2 pt-1">
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                            {permit.business_type || "N/A"}
-                          </span>
-                          <span className="text-xs text-blue-600 font-mono">{permit.business_permit_id || "N/A"}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Location */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-start gap-2">
-                          <Home className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-gray-900">{permit.barangay || "N/A"}</p>
-                            <p className="text-gray-500 text-xs">{permit.city || "N/A"}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center text-gray-400 text-xs pt-1">
-                          <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span>Approved: {formatDate(permit.approved_date)}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Business Status */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg ${businessStatusBadge.bgColor} ${businessStatusBadge.textColor}`}>
-                          <BusinessStatusIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm font-semibold whitespace-nowrap">{businessStatusBadge.text}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Annual Tax */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <div className="text-center">
-                          <p className="text-lg font-bold text-blue-700">
-                            {formatCurrency(permit.total_tax)}
-                          </p>
-                          <p className="text-gray-500 text-xs mt-1">Annual Tax</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Tax Calculation Type */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg ${taxCalculationBadge.bgColor} ${taxCalculationBadge.textColor}`}>
-                          <TaxCalculationIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm font-semibold whitespace-nowrap">{taxCalculationBadge.text}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <button
-                          onClick={() => navigate(`/business/businessstatusinfo/${permit.id}`)}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs"
-                        >
-                          <Eye size={12} />
-                          Details
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {filteredPermits.length === 0 && (
-            <div className="text-center py-8">
-              <Building className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No businesses found</p>
-              <p className="text-gray-400 text-sm mt-1">
-                {searchTerm || businessType !== 'all' || paymentStatus !== 'all'
-                  ? "Try adjusting your filters"
-                  : "No approved businesses available"}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer Summary */}
-      <div className="mt-4 p-3 bg-white rounded-lg shadow border border-gray-200">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div>
-            <p className="text-sm text-gray-600">
-              {new Date().toLocaleDateString('en-PH', { 
-                weekday: 'short',
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-              })}
-            </p>
-            <p className="text-gray-500 text-xs">
-              {summary.total_businesses} businesses • Total Annual Tax: {formatCurrency(summary.total_revenue)}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <p className="text-xs text-gray-500">Approved</p>
-              <p className="text-sm font-bold text-blue-600">{summary.total_businesses}</p>
+      <div className="border-b border-gray-200 bg-white px-4 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Business Tax Management</h1>
+              <p className="text-sm text-gray-600">Monitor business permits and tax collection</p>
             </div>
             
-            <div className="text-center">
-              <p className="text-xs text-gray-500">Average Tax</p>
-              <p className="text-sm font-bold text-green-600">
-                {summary.total_businesses > 0 
-                  ? formatCurrency(summary.total_revenue / summary.total_businesses) 
-                  : "₱0"}
+            <div className="flex gap-2">
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="px-3 py-2 bg-gray-900 text-white rounded-lg flex items-center gap-1"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Revenue Summary Boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {/* Total Annual Revenue */}
+          <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Annual Revenue</p>
+                <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(summary.total_revenue)}</p>
+              </div>
+              <div className="p-2 bg-blue-100 rounded">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              Total expected revenue from all businesses
+            </div>
+          </div>
+          
+          {/* Total Collected */}
+          <div className="bg-white border border-green-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Collected</p>
+                <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(summary.total_collected)}</p>
+              </div>
+              <div className="p-2 bg-green-100 rounded">
+                <Wallet className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              Actual payments received
+            </div>
+          </div>
+          
+          {/* Collection Rate */}
+          <div className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Collection Rate</p>
+                <p className="text-xl font-bold text-purple-700 mt-1">{summary.collection_rate}%</p>
+              </div>
+              <div className="p-2 bg-purple-100 rounded">
+                <Percent className="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              {formatCurrency(summary.pending_payments)} pending
+            </div>
+          </div>
+        </div>
+
+        {/* Business Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded">
+                <Building className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{summary.total_businesses}</p>
+                <p className="text-xs text-gray-600">Total Businesses</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{summary.fully_paid_count}</p>
+                <p className="text-xs text-gray-600">Fully Paid</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-100 rounded">
+                <Clock className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{summary.total_businesses - summary.fully_paid_count - summary.overdue_count}</p>
+                <p className="text-xs text-gray-600">Unpaid</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{summary.overdue_count}</p>
+                <p className="text-xs text-gray-600">Overdue</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+          <div className="flex flex-col lg:flex-row gap-3">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search business, owner, or permit ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Business Types</option>
+                  {getBusinessTypes().map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  {getStatusTypes().map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-3 text-sm text-gray-600">
+            Showing {filteredPermits.length} of {permits.length} businesses
+          </div>
+        </div>
+
+        {/* Business List Table */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    Permit ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                    Business Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                    Owner & Contact
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    Business Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    Tax Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredPermits.map((permit) => {
+                  // Get contact info - try multiple field names from backend
+                  const contactNumber = permit.contact_number || permit.phone || permit.personal_contact;
+                  const ownerEmail = permit.owner_email || permit.personal_email;
+                  const ownerName = permit.owner_name || permit.full_name;
+                  
+                  return (
+                    <tr key={permit.id} className="hover:bg-gray-50">
+                      {/* Permit ID */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="font-mono text-sm font-semibold text-blue-600">
+                          {permit.business_permit_id}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Issued: {formatDate(permit.issue_date)}
+                        </div>
+                      </td>
+                      
+                      {/* Business Name */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">
+                          {permit.business_name}
+                        </div>
+                        {permit.total_tax > 0 && (
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            Annual: {formatCurrency(permit.total_tax)}
+                          </div>
+                        )}
+                        {permit.total_paid_tax > 0 && (
+                          <div className="text-xs text-green-600 mt-0.5">
+                            Paid: {formatCurrency(permit.total_paid_tax)}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Owner & Contact */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">
+                          {ownerName}
+                        </div>
+                        
+                        {contactNumber ? (
+                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+                            <Phone className="w-3 h-3" />
+                            {contactNumber}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 mt-1">
+                            No contact number
+                          </div>
+                        )}
+                        
+                        {ownerEmail ? (
+                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-0.5">
+                            <Mail className="w-3 h-3" />
+                            {ownerEmail}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            No email
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Business Type */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          {permit.business_type || "N/A"}
+                        </span>
+                      </td>
+                      
+                      {/* Tax Type */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <TaxTypeBadge type={permit.tax_calculation_type} />
+                      </td>
+                      
+                      {/* Status */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <BusinessStatusBadge status={permit.status} />
+                        {permit.expiry_date && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Expires: {formatDate(permit.expiry_date)}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Actions - Only View button */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <button
+                          onClick={() => navigate(`/business/businessstatusinfo/${permit.id}`)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            
+            {filteredPermits.length === 0 && (
+              <div className="text-center py-8">
+                <Building className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500">No businesses found</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  {searchTerm || businessType !== 'all' || statusFilter !== 'all'
+                    ? "Try adjusting your filters"
+                    : "No approved businesses available"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Financial Summary Footer */}
+        <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-600">
+                Summary: <span className="font-semibold">{summary.total_businesses}</span> businesses
               </p>
+              <p className="text-xs text-gray-500">
+                Annual Revenue: {formatCurrency(summary.total_revenue)} • 
+                Collected: {formatCurrency(summary.total_collected)} • 
+                Pending: {formatCurrency(summary.pending_payments)}
+              </p>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              Collection Rate: <span className="font-semibold">{summary.collection_rate}%</span>
             </div>
           </div>
         </div>

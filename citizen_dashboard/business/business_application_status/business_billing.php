@@ -146,6 +146,10 @@ try {
     echo "Database error: " . $e->getMessage();
     exit();
 }
+
+// Get the base URL for the background image
+$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+$bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -166,8 +170,48 @@ try {
         }
 
         body {
-            background-color: var(--background);
+            background: linear-gradient(135deg, rgba(240, 240, 240, 0.4) 0%, rgba(230, 230, 230, 0.4) 50%, rgba(220, 220, 220, 0.3) 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
             font-family: Inter, system-ui, sans-serif;
+        }
+
+        /* Background image with blur */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('<?php echo $bg_image_path; ?>') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -2;
+            filter: blur(1px);
+        }
+        
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -1;
+        }
+        
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
         }
 
         .status-badge {
@@ -222,23 +266,6 @@ try {
             margin-bottom: 1.5rem;
         }
 
-        .tab-button {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            border: 2px solid transparent;
-        }
-
-        .tab-button.active {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        .tab-button:not(.active):hover {
-            background-color: #f1f5f9;
-        }
-
         .empty-state {
             padding: 4rem 2rem;
             text-align: center;
@@ -291,10 +318,40 @@ try {
             box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
         }
         
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        .header-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(74, 144, 226, 0.15);
+        }
+        
+        .table-row-hover:hover {
+            background-color: rgba(249, 250, 251, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        
+        .lgu-card {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: all .25s ease;
         }
     </style>
 </head>
@@ -302,19 +359,19 @@ try {
 <body class="flex flex-col min-h-screen">
 <?php include '../../../citizen_dashboard/navbar.php'; ?>
 
-<main class="container mx-auto px-4 py-8 flex-grow max-w-7xl">
-    <!-- Simplified Header - Only arrow for back -->
-    <div class="mb-8">
+<main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
+    <!-- Enhanced Header with box -->
+    <div class="header-box mb-12">
         <div class="flex items-center">
             <a href="../business_services.php" 
-               class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-4 p-2 rounded-lg hover:bg-gray-100">
-                <i class="fas fa-arrow-left text-lg"></i>
+               class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-6">
+                <i class="fas fa-arrow-left text-xl"></i>
             </a>
-            <div class="flex-1">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">
                     Business Billing & Application Status
                 </h1>
-                <p class="text-gray-600">
+                <p class="text-gray-600 text-lg">
                     View your business permit applications, status, and tax information
                 </p>
             </div>
@@ -339,7 +396,7 @@ try {
         </div>
     <?php else: ?>
         <!-- Applications List - All information displayed immediately -->
-        <div class="space-y-6">
+        <div class="space-y-8">
             <?php foreach ($permits as $permit): 
                 $status_class = 'status-' . strtolower($permit['status']);
                 $permit_taxes = $quarterly_taxes[$permit['id']] ?? [];
@@ -375,27 +432,29 @@ try {
                 $grand_total = ($permit['total_tax'] ?? 0) + $total_penalty;
             ?>
                 <div class="info-card p-6">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
-                        <div>
-                            <div class="flex items-center mb-2">
-                                <h3 class="text-xl font-bold text-gray-900 mr-3">
+                    <!-- Permit Header -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8">
+                        <div class="mb-4 md:mb-0">
+                            <div class="flex items-center mb-3">
+                                <h3 class="text-2xl font-bold text-gray-900 mr-4">
                                     <?php echo htmlspecialchars($permit['business_name']); ?>
                                 </h3>
                                 <span class="status-badge <?php echo $status_class; ?>">
                                     <?php echo $permit['status']; ?>
                                 </span>
                             </div>
-                            <div class="text-gray-600">
-                                Permit ID: <span class="font-mono font-semibold"><?php echo htmlspecialchars($permit['business_permit_id']); ?></span>
+                            <div class="text-gray-600 flex items-center">
+                                <i class="fas fa-id-card mr-2"></i>
+                                Permit ID: <span class="font-mono font-semibold ml-2"><?php echo htmlspecialchars($permit['business_permit_id']); ?></span>
                             </div>
                         </div>
                     </div>
 
                     <!-- TAX CLEARANCE SECTION - Show if any clearance exists -->
                     <?php if (!empty($permit_clearances)): ?>
-                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                        <h3 class="font-semibold text-gray-900 mb-6 flex items-center">
-                            <i class="fas fa-file-certificate text-blue-600 mr-2 text-xl"></i> Available Tax Clearance Certificates
+                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 mb-8">
+                        <h3 class="font-semibold text-gray-900 mb-6 flex items-center text-xl">
+                            <i class="fas fa-file-certificate text-blue-600 mr-3 text-2xl"></i> Available Tax Clearance Certificates
                         </h3>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -407,7 +466,7 @@ try {
                                     <div class="flex items-start justify-between mb-4">
                                         <div class="flex items-center">
                                             <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                                                <i class="fas fa-award text-blue-600"></i>
+                                                <i class="fas fa-award text-blue-600 text-xl"></i>
                                             </div>
                                             <div>
                                                 <div class="text-sm font-medium text-blue-800 mb-1">Certificate No.</div>
@@ -456,7 +515,7 @@ try {
                         <div class="mt-6 p-4 bg-white rounded-lg border border-blue-200">
                             <div class="flex items-center">
                                 <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                                    <i class="fas fa-info-circle text-blue-600"></i>
+                                    <i class="fas fa-info-circle text-blue-600 text-xl"></i>
                                 </div>
                                 <div>
                                     <h4 class="font-medium text-gray-900">What is a Business Tax Clearance Certificate?</h4>
@@ -484,64 +543,103 @@ try {
                     </div>
                     <?php endif; ?>
 
-                    <!-- Quick Info -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="text-sm text-gray-500 mb-1">Business Type</div>
-                            <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($permit['business_type']); ?></div>
-                        </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="text-sm text-gray-500 mb-1">Issue Date</div>
-                            <div class="font-semibold text-gray-800">
-                                <?php echo date('M d, Y', strtotime($permit['issue_date'])); ?>
+                    <!-- Quick Info Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="stat-card p-5">
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background-color: rgba(74, 144, 226, 0.1);">
+                                    <i class="fas fa-building text-[var(--primary)]"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Business Type</div>
+                                    <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($permit['business_type']); ?></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="text-sm text-gray-500 mb-1">Expiry Date</div>
-                            <div class="font-semibold text-gray-800">
-                                <?php echo $permit['expiry_date'] ? date('M d, Y', strtotime($permit['expiry_date'])) : 'N/A'; ?>
+                        <div class="stat-card p-5">
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background-color: rgba(16, 185, 129, 0.1);">
+                                    <i class="fas fa-calendar-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Issue Date</div>
+                                    <div class="font-semibold text-gray-800">
+                                        <?php echo date('M d, Y', strtotime($permit['issue_date'])); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card p-5">
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style="background-color: rgba(239, 68, 68, 0.1);">
+                                    <i class="fas fa-calendar-times text-red-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Expiry Date</div>
+                                    <div class="font-semibold text-gray-800">
+                                        <?php echo $permit['expiry_date'] ? date('M d, Y', strtotime($permit['expiry_date'])) : 'N/A'; ?>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- PERSONAL INFORMATION SECTION - ALWAYS SHOW -->
+                    <!-- PERSONAL INFORMATION SECTION -->
                     <div class="mb-8">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4 section-header">
-                            <i class="fas fa-user-circle mr-2"></i>Personal Information
+                        <h4 class="text-lg font-semibold text-gray-800 mb-6 section-header">
+                            <i class="fas fa-user-circle mr-3"></i>Personal Information
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h5 class="font-medium text-gray-700 mb-3">Applicant Details</h5>
-                                <div class="space-y-2">
-                                    <div><span class="text-gray-600">Full Name:</span> 
-                                        <span class="font-semibold"><?php echo htmlspecialchars($permit['full_name']); ?></span>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="lgu-card p-5">
+                                <h5 class="font-medium text-gray-700 mb-4 flex items-center">
+                                    <i class="fas fa-id-card mr-2"></i>Applicant Details
+                                </h5>
+                                <div class="space-y-3">
+                                    <div class="flex items-center"><i class="fas fa-user text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Full Name: </span>
+                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['full_name']); ?></span>
                                     </div>
-                                    <div><span class="text-gray-600">Date of Birth:</span> 
-                                        <span class="font-semibold"><?php echo date('M d, Y', strtotime($permit['date_of_birth'])); ?></span>
+                                    <div class="flex items-center"><i class="fas fa-birthday-cake text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Date of Birth: </span>
+                                        <span class="font-semibold ml-2"><?php echo date('M d, Y', strtotime($permit['date_of_birth'])); ?></span>
                                     </div>
-                                    <div><span class="text-gray-600">Sex:</span> 
-                                        <span class="font-semibold"><?php echo htmlspecialchars($permit['sex'] ?? 'N/A'); ?></span>
+                                    <div class="flex items-center"><i class="fas fa-venus-mars text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Sex: </span>
+                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['sex'] ?? 'N/A'); ?></span>
                                     </div>
-                                    <div><span class="text-gray-600">Marital Status:</span> 
-                                        <span class="font-semibold"><?php echo htmlspecialchars($permit['marital_status'] ?? 'N/A'); ?></span>
+                                    <div class="flex items-center"><i class="fas fa-ring text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Marital Status: </span>
+                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['marital_status'] ?? 'N/A'); ?></span>
                                     </div>
-                                    <div><span class="text-gray-600">Contact:</span> 
-                                        <span class="font-semibold"><?php echo htmlspecialchars($permit['personal_contact']); ?></span>
+                                    <div class="flex items-center"><i class="fas fa-phone text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Contact: </span>
+                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['personal_contact']); ?></span>
                                     </div>
-                                    <div><span class="text-gray-600">Email:</span> 
-                                        <span class="font-semibold"><?php echo htmlspecialchars($permit['personal_email']); ?></span>
+                                    <div class="flex items-center"><i class="fas fa-envelope text-gray-400 mr-3 w-5"></i>
+                                        <span class="text-gray-600">Email: </span>
+                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['personal_email']); ?></span>
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <h5 class="font-medium text-gray-700 mb-3">Business Address</h5>
-                                <div class="space-y-2">
-                                    <div class="font-semibold"><?php echo htmlspecialchars($permit['business_street'] ?? 'N/A'); ?></div>
-                                    <div><?php echo htmlspecialchars($permit['business_barangay']); ?>, 
-                                         <?php echo htmlspecialchars($permit['business_district']); ?></div>
-                                    <div><?php echo htmlspecialchars($permit['business_city']); ?>, 
-                                         <?php echo htmlspecialchars($permit['business_province']); ?></div>
-                                    <div>ZIP: <?php echo htmlspecialchars($permit['business_zipcode'] ?? 'N/A'); ?></div>
+                            <div class="lgu-card p-5">
+                                <h5 class="font-medium text-gray-700 mb-4 flex items-center">
+                                    <i class="fas fa-map-marker-alt mr-2"></i>Business Address
+                                </h5>
+                                <div class="space-y-3">
+                                    <div class="flex items-start"><i class="fas fa-road text-gray-400 mr-3 mt-1 w-5"></i>
+                                        <div class="font-semibold"><?php echo htmlspecialchars($permit['business_street'] ?? 'N/A'); ?></div>
+                                    </div>
+                                    <div class="flex items-start"><i class="fas fa-map-pin text-gray-400 mr-3 mt-1 w-5"></i>
+                                        <div><?php echo htmlspecialchars($permit['business_barangay']); ?>, 
+                                             <?php echo htmlspecialchars($permit['business_district']); ?></div>
+                                    </div>
+                                    <div class="flex items-start"><i class="fas fa-city text-gray-400 mr-3 mt-1 w-5"></i>
+                                        <div><?php echo htmlspecialchars($permit['business_city']); ?>, 
+                                             <?php echo htmlspecialchars($permit['business_province']); ?></div>
+                                    </div>
+                                    <div class="flex items-start"><i class="fas fa-mail-bulk text-gray-400 mr-3 mt-1 w-5"></i>
+                                        <div>ZIP: <?php echo htmlspecialchars($permit['business_zipcode'] ?? 'N/A'); ?></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -551,10 +649,10 @@ try {
                         <!-- Pending Application Message -->
                         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <div class="flex items-start">
-                                <i class="fas fa-clock text-yellow-500 mt-1 mr-3"></i>
+                                <i class="fas fa-clock text-yellow-500 text-xl mt-1 mr-3"></i>
                                 <div>
                                     <h5 class="font-semibold text-yellow-800 mb-1">Application Under Review</h5>
-                                    <p class="text-yellow-700 text-sm">
+                                    <p class="text-yellow-700">
                                         Your business permit application is currently being processed. 
                                         You will be notified once it's approved. Estimated processing time: 3-5 business days.
                                     </p>
@@ -562,24 +660,24 @@ try {
                             </div>
                         </div>
                     <?php else: ?>
-                        <!-- Annual Discount Banner - Made Smaller -->
+                        <!-- Annual Discount Banner -->
                         <?php if ($permit['eligible_for_annual_discount'] && $discount_percent > 0 && $total_penalty == 0 && $paid_count == 0): ?>
-                            <div class="discount-banner mb-4">
+                            <div class="discount-banner mb-6">
                                 <div class="flex flex-col md:flex-row md:items-center justify-between">
                                     <div class="flex items-center mb-2 md:mb-0">
-                                        <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
-                                            <i class="fas fa-gift text-white"></i>
+                                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fas fa-gift text-white text-lg"></i>
                                         </div>
                                         <div>
-                                            <h4 class="text-sm font-bold text-white mb-1">Annual Payment Discount Available</h4>
-                                            <p class="text-white text-opacity-90 text-xs">
+                                            <h4 class="text-lg font-bold text-white mb-1">Annual Payment Discount Available</h4>
+                                            <p class="text-white text-opacity-90">
                                                 Save <?php echo $permit['discount_percent']; ?>% on annual tax. Valid until Jan 31.
                                             </p>
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-lg font-bold text-white"><?php echo formatCurrency($permit['discounted_total'] ?? 0); ?></div>
-                                        <div class="text-xs text-white text-opacity-90">
+                                        <div class="text-2xl font-bold text-white"><?php echo formatCurrency($permit['discounted_total'] ?? 0); ?></div>
+                                        <div class="text-sm text-white text-opacity-90">
                                             Save: <?php echo formatCurrency($permit['discount_amount'] ?? 0); ?>
                                         </div>
                                     </div>
@@ -587,39 +685,40 @@ try {
                             </div>
                         <?php endif; ?>
 
-                        <!-- BUSINESS TAX INFORMATION SECTION - ALWAYS SHOW -->
-                        <div class="mt-6">
-                            <h4 class="text-lg font-semibold text-gray-800 mb-4 section-header">
-                                <i class="fas fa-file-invoice-dollar mr-2"></i>Tax Information
+                        <!-- BUSINESS TAX INFORMATION SECTION -->
+                        <div class="mt-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-6 section-header">
+                                <i class="fas fa-file-invoice-dollar mr-3"></i>Tax Information
                             </h4>
                             
                             <!-- Tax Summary -->
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <div class="bg-blue-50 p-4 rounded-lg">
-                                    <div class="text-sm text-blue-600 mb-1">Annual Tax</div>
-                                    <div class="text-2xl font-bold text-blue-900">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                <div class="stat-card p-5">
+                                    <div class="text-sm text-gray-500 mb-2">Annual Tax</div>
+                                    <div class="text-2xl font-bold text-blue-900 mb-2">
                                         <?php echo formatCurrency($permit['total_tax'] ?? 0); ?>
                                     </div>
                                     <?php if ($permit['eligible_for_annual_discount'] && $discount_percent > 0): ?>
-                                        <div class="text-xs text-green-600 mt-1">
+                                        <div class="text-xs text-green-600 mt-1 flex items-center">
+                                            <i class="fas fa-percentage mr-1"></i>
                                             <?php echo $permit['discount_percent']; ?>% discount available
                                         </div>
                                     <?php endif; ?>
                                 </div>
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <div class="text-sm text-green-600 mb-1">Tax Type</div>
-                                    <div class="font-semibold text-green-900 text-lg">
+                                <div class="stat-card p-5">
+                                    <div class="text-sm text-gray-500 mb-2">Tax Type</div>
+                                    <div class="font-semibold text-green-900 text-xl">
                                         <?php echo str_replace('_', ' ', ucfirst($permit['tax_calculation_type'] ?? 'capital_investment')); ?>
                                     </div>
                                 </div>
-                                <div class="bg-purple-50 p-4 rounded-lg">
-                                    <div class="text-sm text-purple-600 mb-1">Tax Rate</div>
+                                <div class="stat-card p-5">
+                                    <div class="text-sm text-gray-500 mb-2">Tax Rate</div>
                                     <div class="text-2xl font-bold text-purple-900">
                                         <?php echo number_format($permit['tax_rate'], 2); ?>%
                                     </div>
                                 </div>
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <div class="text-sm text-gray-600 mb-1">Taxable Amount</div>
+                                <div class="stat-card p-5">
+                                    <div class="text-sm text-gray-500 mb-2">Taxable Amount</div>
                                     <div class="text-xl font-bold text-gray-900">
                                         <?php echo formatCurrency($permit['taxable_amount'] ?? 0); ?>
                                     </div>
@@ -628,17 +727,17 @@ try {
 
                             <?php if (!empty($permit_taxes)): ?>
                                 <!-- Quarterly Taxes Table -->
-                                <div class="overflow-x-auto mb-6">
-                                    <h5 class="font-medium text-gray-700 mb-3">Quarterly Tax Payments</h5>
+                                <div class="overflow-x-auto mb-8">
+                                    <h5 class="font-medium text-gray-700 mb-4 text-lg">Quarterly Tax Payments</h5>
                                     <table class="min-w-full divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quarter</th>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Amount</th>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penalty</th>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quarter</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Amount</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penalty</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white divide-y divide-gray-200">
@@ -650,12 +749,12 @@ try {
                                                 $days_late = $tax['days_late'] ?? 0;
                                                 $dueDate = new DateTime($tax['due_date']);
                                             ?>
-                                                <tr>
-                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                <tr class="table-row-hover">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
                                                         <span class="font-semibold"><?php echo $tax['quarter']; ?></span>
                                                         <span class="text-gray-600"> <?php echo $tax['year']; ?></span>
                                                     </td>
-                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
                                                         <?php echo $dueDate->format('M d, Y'); ?>
                                                         <?php if ($days_late > 0): ?>
                                                             <div class="text-xs text-red-600 mt-1">
@@ -663,10 +762,10 @@ try {
                                                             </div>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
                                                         <?php echo formatCurrency($tax_amount); ?>
                                                     </td>
-                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
                                                         <?php if ($penalty_amount > 0): ?>
                                                             <span class="font-semibold text-red-600">
                                                                 <?php echo formatCurrency($penalty_amount); ?>
@@ -675,20 +774,20 @@ try {
                                                             <span class="text-gray-500"><?php echo formatCurrency(0); ?></span>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td class="px-4 py-3 whitespace-nowrap font-bold text-lg">
+                                                    <td class="px-6 py-4 whitespace-nowrap font-bold text-lg">
                                                         <?php echo formatCurrency($total_amount); ?>
                                                     </td>
-                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
                                                         <?php if ($status == 'paid'): ?>
-                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                                 <i class="fas fa-check mr-1"></i> Paid
                                                             </span>
                                                         <?php elseif ($status == 'overdue'): ?>
-                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                                 <i class="fas fa-exclamation-triangle mr-1"></i> Overdue
                                                             </span>
                                                         <?php else: ?>
-                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                                                 <i class="fas fa-clock mr-1"></i> Pending
                                                             </span>
                                                         <?php endif; ?>
@@ -698,41 +797,41 @@ try {
                                         </tbody>
                                         <tfoot class="bg-gray-50">
                                             <tr>
-                                                <td colspan="2" class="px-4 py-3 text-right font-bold text-gray-700">
+                                                <td colspan="2" class="px-6 py-4 text-right font-bold text-gray-700">
                                                     Totals:
                                                 </td>
-                                                <td class="px-4 py-3 font-bold text-gray-900">
+                                                <td class="px-6 py-4 font-bold text-gray-900">
                                                     <?php echo formatCurrency($quarter_totals['tax_amount']); ?>
                                                 </td>
-                                                <td class="px-4 py-3 font-bold <?php echo $quarter_totals['penalty'] > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
+                                                <td class="px-6 py-4 font-bold <?php echo $quarter_totals['penalty'] > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
                                                     <?php echo formatCurrency($quarter_totals['penalty']); ?>
                                                 </td>
-                                                <td class="px-4 py-3 font-bold text-xl text-blue-700">
+                                                <td class="px-6 py-4 font-bold text-xl text-blue-700">
                                                     <?php echo formatCurrency($quarter_totals['total']); ?>
                                                 </td>
-                                                <td class="px-4 py-3"></td>
+                                                <td class="px-6 py-4"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
                             <?php else: ?>
-                                <div class="bg-gray-50 rounded-lg p-6 text-center">
-                                    <i class="fas fa-file-invoice text-3xl text-gray-300 mb-3"></i>
+                                <div class="lgu-card rounded-lg p-8 text-center">
+                                    <i class="fas fa-file-invoice text-4xl text-gray-300 mb-3"></i>
                                     <p class="text-gray-600">No quarterly tax records found for this permit.</p>
                                 </div>
                             <?php endif; ?>
 
                             <!-- Payment Summary -->
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <div class="text-sm text-gray-600 mb-1">Total Annual Tax</div>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                <div class="stat-card p-5">
+                                    <div class="text-sm text-gray-500 mb-1">Total Annual Tax</div>
                                     <div class="text-xl font-bold text-gray-900">
                                         <?php echo formatCurrency($permit['total_tax'] ?? 0); ?>
                                     </div>
                                     <div class="text-xs text-gray-500">Total for the year</div>
                                 </div>
                                 
-                                <div class="bg-red-50 p-4 rounded-lg">
+                                <div class="stat-card p-5">
                                     <div class="text-sm text-red-600 mb-1">Total Penalties</div>
                                     <div class="text-xl font-bold <?php echo $total_penalty > 0 ? 'text-red-600' : 'text-gray-900'; ?>">
                                         <?php echo formatCurrency($total_penalty); ?>
@@ -742,7 +841,7 @@ try {
                                     </div>
                                 </div>
                                 
-                                <div class="bg-<?php echo $overdue_count > 0 ? 'red' : ($paid_count == 4 ? 'green' : 'blue'); ?>-50 p-4 rounded-lg">
+                                <div class="stat-card p-5">
                                     <div class="text-sm text-<?php echo $overdue_count > 0 ? 'red' : ($paid_count == 4 ? 'green' : 'blue'); ?>-600 mb-1">Payment Status</div>
                                     <div class="text-xl font-bold text-<?php echo $overdue_count > 0 ? 'red' : ($paid_count == 4 ? 'green' : 'blue'); ?>-900">
                                         <?php echo $overdue_count > 0 ? 'Overdue' : ($paid_count == 4 ? 'Fully Paid' : 'Partially Paid'); ?>
@@ -752,7 +851,7 @@ try {
                                     </div>
                                 </div>
                                 
-                                <div class="bg-blue-50 p-4 rounded-lg">
+                                <div class="stat-card p-5">
                                     <div class="text-sm text-blue-600 mb-1">Total Amount Due</div>
                                     <div class="text-2xl font-bold text-blue-900">
                                         <?php echo formatCurrency($grand_total); ?>
@@ -764,57 +863,6 @@ try {
                                     <?php endif; ?>
                                 </div>
                             </div>
-
-                            <!-- Additional Tax Info -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <h5 class="font-medium text-gray-700 mb-3">Regulatory Fees</h5>
-                                    <div class="space-y-2">
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Mayor's Permit Fee:</span>
-                                            <span class="font-semibold"><?php echo formatCurrency(499.98); ?></span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Sanitary Fee:</span>
-                                            <span class="font-semibold"><?php echo formatCurrency(500.00); ?></span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Registration Fee:</span>
-                                            <span class="font-semibold"><?php echo formatCurrency(300.00); ?></span>
-                                        </div>
-                                        <div class="border-t pt-2 mt-2">
-                                            <div class="flex justify-between font-bold text-gray-800">
-                                                <span>Total Regulatory Fees:</span>
-                                                <span><?php echo formatCurrency(1299.98); ?></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="bg-gray-50 p-4 rounded-lg">
-                                    <h5 class="font-medium text-gray-700 mb-3">Tax Calculation Details</h5>
-                                    <div class="space-y-2">
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Taxable Amount:</span>
-                                            <span class="font-semibold"><?php echo formatCurrency($permit['taxable_amount'] ?? 0); ?></span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Tax Rate Applied:</span>
-                                            <span class="font-semibold"><?php echo number_format($permit['tax_rate'], 2); ?>%</span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600">Annual Tax:</span>
-                                            <span class="font-semibold"><?php echo formatCurrency($permit['tax_amount'] ?? 0); ?></span>
-                                        </div>
-                                        <div class="border-t pt-2 mt-2">
-                                            <div class="flex justify-between font-bold text-gray-800">
-                                                <span>Total Annual Payment:</span>
-                                                <span><?php echo formatCurrency($permit['total_tax'] ?? 0); ?></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -823,16 +871,14 @@ try {
     <?php endif; ?>
 </main>
 
-<!-- Footer (Direct HTML instead of include) -->
+<!-- Consistent Footer -->
 <footer class="bg-white border-t border-gray-200 mt-16">
     <div class="container mx-auto px-6 py-12 max-w-7xl">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
             <!-- Brand -->
             <div class="col-span-1">
-                <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
-                    <span style="color: #4a90e2;">Go</span>
-                    <span style="color: #4caf50;">Serve</span>
-                    <span style="color: #4a90e2;">PH</span>
+                <div class="flex items-center mb-4 text-2xl font-bold">
+                    <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
                 </div>
                 <p class="text-gray-600 leading-relaxed">
                     The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
@@ -843,7 +889,7 @@ try {
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
-                    <li><a href="../../citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
+                    <li><a href="../../../citizen_dashboard/citizen_dashboard.php" class="hover:text-[#4a90e2] transition-colors">Dashboard</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
                     <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
                 </ul>
@@ -853,7 +899,7 @@ try {
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
                 <ul class="space-y-3 text-gray-600">
-                    <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                    <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 1234-5678</li>
                     <li><i class="fas fa-envelope mr-2 text-gray-400"></i> business@goserveph.gov.ph</li>
                     <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
                 </ul>

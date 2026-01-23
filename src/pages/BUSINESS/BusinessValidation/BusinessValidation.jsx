@@ -8,10 +8,8 @@ const BusinessValidation = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  // Set default filter to 'Pending'
   const [filterStatus, setFilterStatus] = useState('Pending');
 
-  // Determine environment
   const isLocalhost = window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1' ||
                       window.location.hostname === '';
@@ -19,7 +17,6 @@ const BusinessValidation = () => {
     ? "http://localhost/revenue2/backend/Business/BusinessValidation"
     : "/backend/Business/BusinessValidation";
 
-  // Fetch permits data
   const fetchPermits = async () => {
     try {
       setLoading(true);
@@ -56,7 +53,6 @@ const BusinessValidation = () => {
     fetchPermits();
   }, []);
 
-  // Filter permits - only show pending by default
   const filteredPermits = permits.filter(permit => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -64,27 +60,22 @@ const BusinessValidation = () => {
       (permit.owner_name || '').toLowerCase().includes(searchLower) ||
       (permit.business_permit_id || '').toLowerCase().includes(searchLower) ||
       (permit.business_type || '').toLowerCase().includes(searchLower) ||
-      (permit.barangay || '').toLowerCase().includes(searchLower) ||
-      (permit.city || '').toLowerCase().includes(searchLower);
+      (permit.barangay || '').toLowerCase().includes(searchLower);
     
-    // Only show pending permits by default
     const matchesStatus = filterStatus === 'all' || permit.status === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
 
-  // Pagination calculations
   const totalPages = Math.ceil(filteredPermits.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedPermits = filteredPermits.slice(startIndex, endIndex);
 
-  // Handle page change
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  // Get status color
   const getStatusColor = (status) => {
     switch (status) {
       case 'Active':
@@ -100,7 +91,6 @@ const BusinessValidation = () => {
     }
   };
 
-  // Format currency
   const formatCurrency = (amount) => {
     const num = parseFloat(amount) || 0;
     return new Intl.NumberFormat('en-PH', {
@@ -110,37 +100,40 @@ const BusinessValidation = () => {
     }).format(num);
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       return new Date(dateString).toLocaleDateString('en-PH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  };
-
-  // Format date with time
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-PH', {
-        year: 'numeric',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
       });
     } catch (e) {
       return 'Invalid Date';
     }
   };
 
-  // Calculate statistics - ONLY FOR PENDING
+  const getTaxTypeDisplay = (permit) => {
+    const taxType = permit.tax_calculation_type || 'capital_investment';
+    const amount = parseFloat(permit.taxable_amount) || 0;
+    
+    if (taxType === 'capital_investment') {
+      return {
+        label: 'Capital Investment',
+        amount: amount,
+        icon: '💼',
+        color: 'text-purple-600'
+      };
+    } else {
+      return {
+        label: 'Gross Sales',
+        amount: amount,
+        icon: '📈',
+        color: 'text-green-600'
+      };
+    }
+  };
+
   const stats = {
     pending: permits.filter(p => p.status === 'Pending').length,
     approved: permits.filter(p => p.status === 'Approved').length,
@@ -149,72 +142,14 @@ const BusinessValidation = () => {
     total: permits.length
   };
 
-  // Handle approval action
-  const handleApprove = async (permitId) => {
-    if (window.confirm('Are you sure you want to approve this business permit?')) {
-      try {
-        const response = await fetch(`${API_BASE}/approve_permit.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id: permitId })
-        });
-
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-          alert('Business permit approved successfully!');
-          fetchPermits(); // Refresh the list
-        } else {
-          alert('Failed to approve: ' + data.message);
-        }
-      } catch (err) {
-        console.error('Error approving permit:', err);
-        alert('Error approving business permit');
-      }
-    }
-  };
-
-  // Handle rejection action
-  const handleReject = async (permitId) => {
-    const reason = window.prompt('Please enter reason for rejection:');
-    if (reason) {
-      try {
-        const response = await fetch(`${API_BASE}/reject_permit.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            id: permitId,
-            reason: reason 
-          })
-        });
-
-        const data = await response.json();
-        
-        if (data.status === 'success') {
-          alert('Business permit rejected successfully!');
-          fetchPermits(); // Refresh the list
-        } else {
-          alert('Failed to reject: ' + data.message);
-        }
-      } catch (err) {
-        console.error('Error rejecting permit:', err);
-        alert('Error rejecting business permit');
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Pending Business Permit Applications</h1>
-            <p className="text-gray-600 mt-1">Review and validate new business applications</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Business Permit Applications</h1>
+            <p className="text-gray-600 mt-1">Review business permit applications</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -234,7 +169,7 @@ const BusinessValidation = () => {
                 setFilterStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
               <option value="Pending">Pending Review</option>
               <option value="all">All Applications</option>
@@ -245,12 +180,12 @@ const BusinessValidation = () => {
           </div>
         </div>
 
-        {/* Stats Grid - Focus on pending */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm border-l-4 border-l-yellow-500">
+          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <div className="text-sm text-gray-600">Pending Review</div>
             <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <div className="text-xs text-gray-500">Awaiting Validation</div>
+            <div className="text-xs text-gray-500">Awaiting Action</div>
           </div>
           
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -279,10 +214,9 @@ const BusinessValidation = () => {
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Search & Controls */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
           <div className="flex-1">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -292,18 +226,17 @@ const BusinessValidation = () => {
               </div>
               <input
                 type="text"
-                placeholder="Search pending applications by business name, owner, permit ID..."
+                placeholder="Search applications by business name, owner, permit ID..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
-
-          {/* Items per page */}
+          
           <div>
             <select
               value={itemsPerPage}
@@ -311,7 +244,7 @@ const BusinessValidation = () => {
                 setItemsPerPage(parseInt(e.target.value));
                 setCurrentPage(1);
               }}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
               <option value="10">10 per page</option>
               <option value="25">25 per page</option>
@@ -345,8 +278,13 @@ const BusinessValidation = () => {
       ) : (
         <>
           {/* Results Summary */}
-          <div className="mb-4 text-sm text-gray-600">
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredPermits.length)} of {filteredPermits.length} pending applications
+          <div className="mb-4 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1}-{Math.min(endIndex, filteredPermits.length)} of {filteredPermits.length} applications
+            </div>
+            <div className="text-sm text-gray-500">
+              Filter: {filterStatus === 'all' ? 'All Statuses' : filterStatus}
+            </div>
           </div>
 
           {/* Permits Table */}
@@ -357,148 +295,120 @@ const BusinessValidation = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Application Details
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Business Info
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Owner Details
+                        Owner
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tax Calculation
+                        Location
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status & Dates
+                        Tax Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedPermits.map((permit) => (
-                      <tr key={permit.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="font-mono text-blue-600 font-bold">{permit.business_permit_id}</div>
-                            <div className="text-sm text-gray-500">Application ID</div>
-                            <div className="mt-2 text-xs text-gray-500">
-                              Created: {formatDateTime(permit.created_at)}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="font-medium text-gray-900">{permit.business_name}</div>
-                            <div className="text-sm text-gray-500">{permit.business_type}</div>
-                            <div className="text-sm mt-1">
-                              <div className="text-gray-600">
-                                {permit.barangay}, {permit.city}
+                    {paginatedPermits.map((permit) => {
+                      const taxInfo = getTaxTypeDisplay(permit);
+                      return (
+                        <tr key={permit.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="font-medium text-gray-900">{permit.business_name}</div>
+                              <div className="text-sm text-gray-500">
+                                <span className="font-mono">{permit.business_permit_id}</span>
                               </div>
-                              {permit.street && (
-                                <div className="text-xs text-gray-500">{permit.street}</div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                {permit.business_type} • Created: {formatDate(permit.created_at)}
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="font-medium text-gray-900">{permit.owner_name}</div>
+                              <div className="text-sm text-gray-600">{permit.contact_number}</div>
+                              {permit.owner_email && (
+                                <div className="text-xs text-gray-500 truncate max-w-[180px]">
+                                  {permit.owner_email}
+                                </div>
                               )}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="font-medium text-gray-900">{permit.owner_name}</div>
-                            {permit.contact_number && (
-                              <div className="text-sm text-gray-600">{permit.contact_number}</div>
-                            )}
-                            {permit.owner_email && (
-                              <div className="text-sm text-gray-500">{permit.owner_email}</div>
-                            )}
-                            <div className="mt-1 text-xs text-gray-500">
-                              {permit.district} District
+                          </td>
+                          
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="text-sm text-gray-900">{permit.barangay}</div>
+                              <div className="text-xs text-gray-600">{permit.city}</div>
+                              <div className="text-xs text-gray-500">{permit.district} District</div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm">
-                              <span className="font-medium">Type:</span> {permit.tax_calculation_type}
+                          </td>
+                          
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{taxInfo.icon}</span>
+                                <span className={`text-sm font-medium ${taxInfo.color}`}>
+                                  {taxInfo.label}
+                                </span>
+                              </div>
+                              
+                              <div className="text-sm text-gray-900">
+                                Amount: {formatCurrency(taxInfo.amount)}
+                              </div>
+                              
+                              {permit.tax_rate > 0 && (
+                                <div className="text-xs text-gray-500">
+                                  Rate: {permit.tax_rate}%
+                                </div>
+                              )}
+                              
+                              {permit.total_tax > 0 && (
+                                <div className="text-xs text-green-600 font-medium">
+                                  Total: {formatCurrency(permit.total_tax)}
+                                </div>
+                              )}
                             </div>
-                            {permit.taxable_amount > 0 && (
-                              <div className="text-sm">
-                                <span className="font-medium">Amount:</span> {formatCurrency(permit.taxable_amount)}
+                          </td>
+                          
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
+                                {permit.status}
+                              </span>
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {permit.issue_date && (
+                                  <div>Issued: {formatDate(permit.issue_date)}</div>
+                                )}
+                                {permit.expiry_date && (
+                                  <div>Expires: {formatDate(permit.expiry_date)}</div>
+                                )}
                               </div>
-                            )}
-                            {permit.tax_rate > 0 && (
-                              <div className="text-sm">
-                                <span className="font-medium">Rate:</span> {permit.tax_rate}%
-                              </div>
-                            )}
-                            {permit.total_tax > 0 && (
-                              <div className="mt-1">
-                                <div className="font-bold text-blue-600">{formatCurrency(permit.total_tax)}</div>
-                                <div className="text-xs text-gray-500">Total Tax & Fees</div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
-                            {permit.status}
-                          </span>
-                          <div className="mt-2 text-xs">
-                            {permit.issue_date && (
-                              <div className="text-gray-600">
-                                <span className="font-medium">Issued:</span> {formatDate(permit.issue_date)}
-                              </div>
-                            )}
-                            {permit.expiry_date && (
-                              <div className="text-gray-600">
-                                <span className="font-medium">Expires:</span> {formatDate(permit.expiry_date)}
-                              </div>
-                            )}
-                            <div className="text-gray-500 mt-1">
-                              Last updated: {formatDateTime(permit.updated_at)}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-2">
+                          </td>
+                          
+                          <td className="px-6 py-4">
                             <Link
                               to={`/business/businessvalidationinfo/${permit.id}`}
-                              className="inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                              className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                                 <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                               </svg>
-                              Review Details
+                              View
                             </Link>
-                            
-                            {permit.status === 'Pending' && (
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  onClick={() => handleApprove(permit.id)}
-                                  className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                  Approve
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleReject(permit.id)}
-                                  className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                  Reject
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -509,7 +419,7 @@ const BusinessValidation = () => {
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
               </svg>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || filterStatus !== 'all' ? 'No matching applications found' : 'No pending applications'}
+                {searchTerm ? 'No matching applications found' : 'No pending applications'}
               </h3>
               <p className="text-gray-600 max-w-md mx-auto">
                 {searchTerm 
@@ -592,14 +502,9 @@ const BusinessValidation = () => {
         </>
       )}
 
-      {/* Footer Info */}
+      {/* Footer */}
       <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Business Permit Validation System • {new Date().toLocaleDateString('en-PH', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}</p>
+        <p>Business Permit Validation System • {new Date().toLocaleDateString('en-PH')}</p>
       </div>
     </div>
   );

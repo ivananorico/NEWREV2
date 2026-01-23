@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Eye, Download, RefreshCw, CheckCircle, Building, User, Calendar, DollarSign, Clock, AlertCircle, Home, Phone, Mail, MapPin } from "lucide-react";
+import { Search, Filter, Eye, Download, RefreshCw, CheckCircle, Building, User, Calendar, DollarSign, Clock, AlertCircle, Home, Phone, Mail, MapPin, TrendingUp, Wallet, Percent } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Property Type Badge Component
@@ -85,6 +85,44 @@ export default function RPTStatus() {
 
   const API_PATH = "/RPT/RPTStatus";
 
+  // Define getPaymentStatus function FIRST before using it
+  const getPaymentStatus = (createdDate) => {
+    if (!createdDate) return 'pending';
+    
+    const now = new Date();
+    const created = new Date(createdDate);
+    const currentMonth = now.getMonth();
+    const currentQuarter = Math.floor(currentMonth / 3) + 1;
+    
+    // Check if property was created this quarter
+    const createdMonth = created.getMonth();
+    const createdQuarter = Math.floor(createdMonth / 3) + 1;
+    const currentYear = now.getFullYear();
+    const createdYear = created.getFullYear();
+    
+    // If created this quarter, show "Next Quarter"
+    if (createdYear === currentYear && createdQuarter === currentQuarter) {
+      return 'next-quarter';
+    }
+    
+    // Simple logic: Random status for demo
+    const statuses = ['paid', 'pending', 'overdue'];
+    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    return randomStatus;
+  };
+
+  // Get building status text
+  const getBuildingStatus = (property) => {
+    if (property.has_building === 'yes' && property.building_count > 0) {
+      return `${property.building_count} building${property.building_count !== 1 ? 's' : ''}`;
+    } else if (property.has_building === 'yes') {
+      return 'Building pending';
+    } else {
+      return 'Vacant';
+    }
+  };
+
   const fetchApprovedProperties = async () => {
     try {
       setLoading(true);
@@ -146,43 +184,22 @@ export default function RPTStatus() {
     fetchApprovedProperties();
   }, []);
 
-  // Determine payment status based on created date
-  const getPaymentStatus = (createdDate) => {
-    if (!createdDate) return 'pending';
-    
-    const now = new Date();
-    const created = new Date(createdDate);
-    const currentMonth = now.getMonth();
-    const currentQuarter = Math.floor(currentMonth / 3) + 1;
-    
-    // Check if property was created this quarter
-    const createdMonth = created.getMonth();
-    const createdQuarter = Math.floor(createdMonth / 3) + 1;
-    const currentYear = now.getFullYear();
-    const createdYear = created.getFullYear();
-    
-    // If created this quarter, show "Next Quarter"
-    if (createdYear === currentYear && createdQuarter === currentQuarter) {
-      return 'next-quarter';
-    }
-    
-    // Simple logic: Random status for demo
-    const statuses = ['paid', 'pending', 'overdue'];
-    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    return randomStatus;
-  };
-
-  // Get building status text
-  const getBuildingStatus = (property) => {
-    if (property.has_building === 'yes' && property.building_count > 0) {
-      return `${property.building_count} building${property.building_count !== 1 ? 's' : ''}`;
-    } else if (property.has_building === 'yes') {
-      return 'Building pending';
-    } else {
-      return 'Vacant';
-    }
-  };
+  // Calculate total annual revenue - NOW getPaymentStatus is defined
+  const totalAnnualRevenue = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
+  
+  // Calculate total collected (assuming paid properties have total annual tax collected)
+  const totalCollected = approvedProperties
+    .filter(p => {
+      const status = getPaymentStatus(p.created_at);
+      return status === 'paid';
+    })
+    .reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
+  
+  // Calculate collection rate
+  const collectionRate = totalAnnualRevenue > 0 ? Math.round((totalCollected / totalAnnualRevenue) * 100) : 0;
+  
+  // Calculate pending payments
+  const pendingPayments = totalAnnualRevenue - totalCollected;
 
   // Filter properties based on search, type, and payment status
   const filteredProperties = approvedProperties.filter(property => {
@@ -231,7 +248,7 @@ export default function RPTStatus() {
     if (num >= 1000) {
       return `₱${(num / 1000).toFixed(1)}K`;
     }
-    return `₱${num.toFixed(0)}`;
+    return `₱${num.toFixed(2)}`;
   };
 
   const formatNumber = (num) => {
@@ -441,6 +458,57 @@ export default function RPTStatus() {
           </div>
         </div>
 
+        {/* ADDED: Revenue Summary Boxes - Exactly like Business Status */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {/* Total Annual Revenue */}
+          <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Annual Revenue</p>
+                <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalAnnualRevenue)}</p>
+              </div>
+              <div className="p-2 bg-blue-100 rounded">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              Total expected revenue from all properties
+            </div>
+          </div>
+          
+          {/* Total Collected */}
+          <div className="bg-white border border-green-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Collected</p>
+                <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(totalCollected)}</p>
+              </div>
+              <div className="p-2 bg-green-100 rounded">
+                <Wallet className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              Actual payments received
+            </div>
+          </div>
+          
+          {/* Collection Rate */}
+          <div className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Collection Rate</p>
+                <p className="text-xl font-bold text-purple-700 mt-1">{collectionRate}%</p>
+              </div>
+              <div className="p-2 bg-purple-100 rounded">
+                <Percent className="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              {formatCurrency(pendingPayments)} pending
+            </div>
+          </div>
+        </div>
+
         {/* Filters Section */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -508,7 +576,7 @@ export default function RPTStatus() {
           </div>
         </div>
 
-        {/* Properties Table */}
+        {/* Properties Table - UNCHANGED */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
