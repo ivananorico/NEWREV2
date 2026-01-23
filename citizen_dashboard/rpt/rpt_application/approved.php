@@ -397,10 +397,10 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 
         /* Assessment Section */
         .assessment-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border-radius: 10px;
-            border: 1px solid #bae6fd;
+            border: 1px solid #e5e7eb;
             padding: 1.5rem;
+            height: 100%;
         }
 
         /* Tax Status Badge */
@@ -531,6 +531,49 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         .step.active .step-label {
             color: #111827;
             font-weight: 600;
+        }
+
+        /* Assessment Grid Item */
+        .assessment-grid-item {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .assessment-grid-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        /* Perfectly aligned assessment sections */
+        .land-assessment-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #bae6fd;
+        }
+
+        .building-assessment-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+        }
+
+        .tax-summary-card {
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border: 1px solid #ddd6fe;
+        }
+
+        /* Perfectly aligned grid for assessment details */
+        .assessment-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .assessment-value-item {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            padding: 0.75rem;
         }
     </style>
 </head>
@@ -906,119 +949,250 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                             </div>
                         </div>
 
-                        <!-- Assessment Summary -->
+                        <!-- PERFECTLY ALIGNED ASSESSMENT SECTIONS -->
                         <div class="mt-8 pt-8 border-t border-gray-200">
                             <h3 class="font-medium text-gray-900 mb-6 flex items-center">
                                 <i class="fas fa-chart-bar text-blue-600 mr-2"></i>Assessment Summary
                             </h3>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                <!-- Land Assessment -->
-                                <div class="assessment-section">
-                                    <div class="flex items-center mb-4">
-                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                                            <i class="fas fa-map text-blue-600"></i>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm font-medium text-gray-900">Land Assessment</div>
-                                            <div class="text-xs text-gray-500">Property land details</div>
+                            <!-- Perfect Grid for Assessments -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                
+                                <!-- Land Assessment - Perfectly Aligned -->
+                                <div class="assessment-section land-assessment-card">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-semibold text-gray-900 flex items-center">
+                                            <i class="fas fa-map text-blue-600 mr-2"></i>Land Assessment
+                                        </h4>
+                                        <span class="text-xs font-medium text-blue-600">
+                                            <?php echo $land_data['tdn'] ?? 'TDN: N/A'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Property Details Grid -->
+                                    <div class="mb-6">
+                                        <div class="grid grid-cols-2 gap-3 mb-4">
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Property Type</div>
+                                                <div class="text-base font-bold text-gray-900"><?php echo $land_data['property_type'] ?? 'N/A'; ?></div>
+                                            </div>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Land Area</div>
+                                                <div class="text-base font-bold text-gray-900"><?php echo $land_data['land_area_sqm'] ?? '0'; ?> sqm</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="space-y-3">
-                                        <div>
-                                            <div class="text-xs text-gray-500 mb-1">TDN</div>
-                                            <div class="text-sm font-medium font-mono"><?php echo $land_data['tdn'] ?? 'N/A'; ?></div>
+
+                                    <!-- Valuation Details Grid -->
+                                    <div class="mb-6">
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Market Value</div>
+                                                <div class="text-base font-bold text-blue-600"><?php echo formatCurrency($land_data['land_market_value'] ?? 0); ?></div>
+                                            </div>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Assessed Value</div>
+                                                <div class="text-base font-bold text-green-600"><?php echo formatCurrency($land_data['land_assessed_value'] ?? 0); ?></div>
+                                            </div>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Assessment Level</div>
+                                                <div class="text-base font-bold text-purple-600"><?php echo $land_data['assessment_level'] ?? '0'; ?>%</div>
+                                            </div>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Total Assessment</div>
+                                                <div class="text-base font-bold text-gray-900"><?php echo formatCurrency($land_data['total_assessed_value'] ?? 0); ?></div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div class="text-xs text-gray-500 mb-1">Property Type</div>
-                                            <div class="text-sm font-medium"><?php echo $land_data['property_type'] ?? 'N/A'; ?></div>
-                                        </div>
-                                        <div>
-                                            <div class="text-xs text-gray-500 mb-1">Land Area</div>
-                                            <div class="text-sm font-medium"><?php echo $land_data['land_area_sqm'] ?? '0'; ?> sqm</div>
-                                        </div>
-                                        <div class="pt-3 border-t border-blue-200">
-                                            <div class="text-xs text-gray-500 mb-1">Annual Tax</div>
-                                            <div class="text-lg font-bold text-blue-700"><?php echo formatCurrency($total_land_tax); ?></div>
+                                    </div>
+
+                                    <!-- Tax Breakdown -->
+                                    <div class="border-t pt-4">
+                                        <div class="text-sm font-medium text-gray-700 mb-3">Tax Breakdown</div>
+                                        <div class="grid grid-cols-3 gap-3">
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500">Basic Tax</div>
+                                                <div class="text-sm font-bold text-gray-900"><?php echo formatCurrency($land_data['basic_tax_amount'] ?? 0); ?></div>
+                                            </div>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500">SEF Tax</div>
+                                                <div class="text-sm font-bold text-gray-900"><?php echo formatCurrency($land_data['sef_tax_amount'] ?? 0); ?></div>
+                                            </div>
+                                            <div class="bg-blue-100 p-3 rounded-lg border border-blue-200">
+                                                <div class="text-xs font-medium text-blue-600">Annual Land Tax</div>
+                                                <div class="text-base font-bold text-blue-600"><?php echo formatCurrency($total_land_tax); ?></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Building Assessment -->
-                                <div class="assessment-section">
-                                    <div class="flex items-center mb-4">
-                                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                                            <i class="fas fa-building text-green-600"></i>
-                                        </div>
+                                <!-- Building Assessment - Perfectly Aligned -->
+                                <div class="assessment-section building-assessment-card">
+                                    <div class="flex items-center justify-between mb-4">
                                         <div>
-                                            <div class="text-sm font-medium text-gray-900">Building Assessment</div>
-                                            <div class="text-xs text-gray-500"><?php echo $app['has_building'] == 'yes' ? 'Building details' : 'No building'; ?></div>
+                                            <h4 class="text-base font-semibold text-gray-900 flex items-center">
+                                                <i class="fas fa-building text-green-600 mr-2"></i>Building Assessment
+                                            </h4>
                                         </div>
-                                    </div>
-                                    <?php if (!empty($building_data) && $app['has_building'] == 'yes'): ?>
-                                        <?php foreach ($building_data as $index => $building): ?>
-                                            <div class="<?php echo $index > 0 ? 'mt-4 pt-4 border-t border-green-200' : ''; ?>">
-                                                <?php if ($index > 0): ?>
-                                                    <div class="text-xs font-medium text-gray-700 mb-2">Building <?php echo $index + 1; ?></div>
+                                        <?php if (!empty($building_data) && isset($building_data[0]['tdn'])): ?>
+                                            <div class="text-right">
+                                                <div class="text-xs font-medium text-green-600">
+                                                    <?php echo $building_data[0]['tdn']; ?>
+                                                </div>
+                                                <?php if (isset($building_data[0]['year_built'])): ?>
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        Built: <?php echo $building_data[0]['year_built']; ?>
+                                                    </div>
                                                 <?php endif; ?>
-                                                <div class="space-y-3">
-                                                    <div>
-                                                        <div class="text-xs text-gray-500 mb-1">TDN</div>
-                                                        <div class="text-sm font-medium font-mono"><?php echo $building['tdn'] ?? 'N/A'; ?></div>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-xs text-gray-500 mb-1">Construction Type</div>
-                                                        <div class="text-sm font-medium"><?php echo $building['material_type'] ?? 'N/A'; ?></div>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-xs text-gray-500 mb-1">Floor Area</div>
-                                                        <div class="text-sm font-medium"><?php echo $building['floor_area_sqm'] ?? '0'; ?> sqm</div>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-xs text-gray-500 mb-1">Annual Tax</div>
-                                                        <div class="text-sm font-medium text-green-700"><?php echo formatCurrency($building['annual_tax'] ?? 0); ?></div>
-                                                    </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="text-xs font-medium text-gray-500">
+                                                No Building
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <?php if (!empty($building_data) && $app['has_building'] == 'yes'): ?>
+                                        <!-- Property Details Grid -->
+                                        <div class="mb-6">
+                                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Construction Type</div>
+                                                    <div class="text-base font-bold text-gray-900"><?php echo $building_data[0]['material_type'] ?? 'N/A'; ?></div>
+                                                </div>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Floor Area</div>
+                                                    <div class="text-base font-bold text-gray-900"><?php echo $building_data[0]['floor_area_sqm'] ?? '0'; ?> sqm</div>
                                                 </div>
                                             </div>
-                                        <?php endforeach; ?>
+                                        </div>
+
+                                        <!-- Calculate building totals -->
+                                        <?php
+                                            $building_total_floor_area = 0;
+                                            $building_total_market_value = 0;
+                                            $building_total_assessed_value = 0;
+                                            $building_total_assessment_level = 0;
+                                            
+                                            foreach ($building_data as $building) {
+                                                $building_total_floor_area += $building['floor_area_sqm'] ?? 0;
+                                                $building_total_market_value += $building['building_market_value'] ?? 0;
+                                                $building_total_assessed_value += $building['building_assessed_value'] ?? 0;
+                                                $building_total_assessment_level += $building['assessment_level'] ?? 0;
+                                            }
+                                            
+                                            $avg_assessment_level = count($building_data) > 0 ? $building_total_assessment_level / count($building_data) : 0;
+                                        ?>
+
+                                        <!-- Valuation Details Grid -->
+                                        <div class="mb-6">
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Market Value</div>
+                                                    <div class="text-base font-bold text-blue-600"><?php echo formatCurrency($building_total_market_value); ?></div>
+                                                </div>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Assessed Value</div>
+                                                    <div class="text-base font-bold text-green-600"><?php echo formatCurrency($building_total_assessed_value); ?></div>
+                                                </div>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Avg. Assessment</div>
+                                                    <div class="text-base font-bold text-purple-600"><?php echo number_format($avg_assessment_level, 1); ?>%</div>
+                                                </div>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">Total Assessment</div>
+                                                    <div class="text-base font-bold text-gray-900"><?php echo formatCurrency($building_total_assessed_value); ?></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Tax Breakdown -->
+                                        <div class="border-t pt-4">
+                                            <div class="text-sm font-medium text-gray-700 mb-3">Tax Breakdown</div>
+                                            <div class="grid grid-cols-3 gap-3">
+                                                <?php
+                                                    $building_total_basic_tax = 0;
+                                                    $building_total_sef_tax = 0;
+                                                    
+                                                    foreach ($building_data as $building) {
+                                                        $building_total_basic_tax += $building['basic_tax_amount'] ?? 0;
+                                                        $building_total_sef_tax += $building['sef_tax_amount'] ?? 0;
+                                                    }
+                                                ?>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500">Total Basic Tax</div>
+                                                    <div class="text-sm font-bold text-gray-900"><?php echo formatCurrency($building_total_basic_tax); ?></div>
+                                                </div>
+                                                <div class="assessment-value-item">
+                                                    <div class="text-xs font-medium text-gray-500">Total SEF Tax</div>
+                                                    <div class="text-sm font-bold text-gray-900"><?php echo formatCurrency($building_total_sef_tax); ?></div>
+                                                </div>
+                                                <div class="bg-green-100 p-3 rounded-lg border border-green-200">
+                                                    <div class="text-xs font-medium text-green-600">Total Building Tax</div>
+                                                    <div class="text-base font-bold text-green-600"><?php echo formatCurrency($total_building_tax); ?></div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     <?php else: ?>
-                                        <div class="text-center py-4">
-                                            <div class="text-gray-500 italic">No building on this property</div>
+                                        <div class="text-center py-8">
+                                            <div class="text-gray-500 italic mb-4">
+                                                <i class="fas fa-building text-gray-300 text-4xl"></i>
+                                            </div>
+                                            <div class="text-sm text-gray-600">No building on this property</div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
 
-                                <!-- Total Tax Summary -->
-                                <div class="assessment-section bg-blue-50 border border-blue-200">
-                                    <div class="flex items-center mb-4">
-                                        <div class="w-10 h-10 bg-blue-200 rounded-lg flex items-center justify-center mr-3">
-                                            <i class="fas fa-file-invoice-dollar text-blue-700"></i>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm font-medium text-gray-900">Tax Summary</div>
-                                            <div class="text-xs text-blue-600">Annual tax breakdown</div>
-                                        </div>
+                                <!-- Tax Summary - Perfectly Aligned -->
+                                <div class="assessment-section tax-summary-card">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-semibold text-gray-900 flex items-center">
+                                            <i class="fas fa-file-invoice-dollar text-purple-600 mr-2"></i>Tax Summary
+                                        </h4>
+                                        <span class="text-xs font-medium text-purple-600">
+                                            Annual Tax
+                                        </span>
                                     </div>
+                                    
                                     <div class="space-y-4">
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-700">Land Tax:</span>
-                                            <span class="text-sm font-medium"><?php echo formatCurrency($total_land_tax); ?></span>
-                                        </div>
-                                        <?php if ($total_building_tax > 0): ?>
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-700">Building Tax:</span>
-                                            <span class="text-sm font-medium"><?php echo formatCurrency($total_building_tax); ?></span>
-                                        </div>
-                                        <?php endif; ?>
-                                        <div class="flex justify-between text-lg font-bold pt-4 border-t border-blue-200">
-                                            <span class="text-blue-800">Total Annual Tax:</span>
-                                            <span class="text-blue-700"><?php echo formatCurrency($total_annual_tax); ?></span>
-                                        </div>
-                                        <?php if (!empty($land_data['tdn'])): ?>
-                                            <div class="text-xs text-gray-500 text-center mt-3 pt-3 border-t border-blue-200">
-                                                TDN: <?php echo $land_data['tdn']; ?>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Land Tax</div>
+                                                <div class="text-base font-bold text-blue-600"><?php echo formatCurrency($total_land_tax); ?></div>
                                             </div>
-                                        <?php endif; ?>
+                                            <div class="assessment-value-item">
+                                                <div class="text-xs font-medium text-gray-500 mb-1">Building Tax</div>
+                                                <div class="text-base font-bold text-green-600"><?php echo formatCurrency($total_building_tax); ?></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mt-4">
+                                            <div class="text-sm font-medium text-gray-700 mb-2">Total Annual Tax</div>
+                                            <div class="text-2xl font-bold text-blue-700"><?php echo formatCurrency($total_annual_tax); ?></div>
+                                        </div>
+
+                                        <div class="mt-4 space-y-3">
+                                            <div class="flex justify-between items-center">
+                                                <div class="text-sm text-gray-600">Quarterly Installment:</div>
+                                                <div class="text-sm font-bold text-gray-900"><?php echo formatCurrency($total_annual_tax / 4); ?></div>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <div class="text-sm text-gray-600">Paid Quarters:</div>
+                                                <div class="text-sm font-bold <?php echo $paid_count == count($quarterly_taxes) ? 'text-green-600' : 'text-yellow-600'; ?>">
+                                                    <?php echo $paid_count; ?>/<?php echo count($quarterly_taxes); ?>
+                                                </div>
+                                            </div>
+                                            <?php if ($eligible_for_discount): ?>
+                                                <div class="bg-green-50 p-3 rounded-lg border border-green-200 mt-3">
+                                                    <div class="flex justify-between items-center">
+                                                        <div class="text-sm text-green-700">
+                                                            <i class="fas fa-gift mr-1"></i> Annual Discount:
+                                                        </div>
+                                                        <div class="text-sm font-bold text-green-700"><?php echo $discount_percent; ?>%</div>
+                                                    </div>
+                                                    <div class="text-xs text-green-600 mt-1">Available until January 31</div>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

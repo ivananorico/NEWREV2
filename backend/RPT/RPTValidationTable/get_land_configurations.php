@@ -1,4 +1,5 @@
 <?php
+//revenue2/backend/RPT/RPTValidationTable/get_land_configurations.php
 // ================================================
 // GET LAND CONFIGURATIONS API
 // ================================================

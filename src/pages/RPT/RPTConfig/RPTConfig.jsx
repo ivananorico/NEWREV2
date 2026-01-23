@@ -860,6 +860,7 @@ export default function RPTConfig() {
                       <th className="border p-2 text-left">Assessment Level</th>
                       <th className="border p-2 text-left">Assessed Value</th>
                       <th className="border p-2 text-left">Effective Date</th>
+                      <th className="border p-2 text-left">Expiration Date</th>
                       <th className="border p-2 text-left">Status</th>
                       <th className="border p-2 text-left">Actions</th>
                     </tr>
@@ -881,6 +882,7 @@ export default function RPTConfig() {
                           }
                         </td>
                         <td className="border p-2">{config.effective_date}</td>
+                        <td className="border p-2">{config.expiration_date || '-'}</td>
                         <td className="border p-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${config.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                             {config.status}
@@ -1058,6 +1060,7 @@ export default function RPTConfig() {
                       <th className="border p-2 text-left">Depreciation</th>
                       <th className="border p-2 text-left">Value Range</th>
                       <th className="border p-2 text-left">Effective Date</th>
+                      <th className="border p-2 text-left">Expiration Date</th>
                       <th className="border p-2 text-left">Status</th>
                       <th className="border p-2 text-left">Actions</th>
                     </tr>
@@ -1072,6 +1075,7 @@ export default function RPTConfig() {
                         <td className="border p-2">{config.depreciation_rate}%</td>
                         <td className="border p-2">₱{parseFloat(config.min_value || 0).toLocaleString()} - ₱{parseFloat(config.max_value || 0).toLocaleString()}</td>
                         <td className="border p-2">{config.effective_date}</td>
+                        <td className="border p-2">{config.expiration_date || '-'}</td>
                         <td className="border p-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${config.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                             {config.status}
@@ -1227,6 +1231,7 @@ export default function RPTConfig() {
                       <th className="border p-2 text-left">Value Range</th>
                       <th className="border p-2 text-left">Assessment Level</th>
                       <th className="border p-2 text-left">Effective Date</th>
+                      <th className="border p-2 text-left">Expiration Date</th>
                       <th className="border p-2 text-left">Status</th>
                       <th className="border p-2 text-left">Actions</th>
                     </tr>
@@ -1249,6 +1254,7 @@ export default function RPTConfig() {
                         </td>
                         <td className="border p-2">{config.level_percent}%</td>
                         <td className="border p-2">{config.effective_date}</td>
+                        <td className="border p-2">{config.expiration_date || '-'}</td>
                         <td className="border p-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${config.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                             {config.status}
@@ -1287,8 +1293,6 @@ export default function RPTConfig() {
               {editingType === 'tax' ? 'Edit Tax Configuration' : 'Add New Tax Configuration'}
             </h2>
             
-            
-
             <form onSubmit={handleTaxSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Tax Name *</label>

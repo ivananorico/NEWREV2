@@ -1,4 +1,5 @@
 <?php
+//revenue2/backend/RPT/RPTValidationTable/get_property_configurations.php
 // ================================================
 // PROPERTY CONFIGURATIONS API
 // ================================================

@@ -206,6 +206,11 @@ try {
     // Get building details if exists
     $buildings = [];
     $totalBuildingAnnualTax = 0;
+    $totalBuildingMarketValue = 0;
+    $totalBuildingAssessedValue = 0;
+    $totalFloorArea = 0;
+    $buildingDetails = [];
+    
     if ($property['has_building'] === 'yes' && isset($property['land_id'])) {
         $buildingQuery = "
             SELECT 
@@ -246,6 +251,21 @@ try {
             $b['sef_tax_amount'] = floatval($b['sef_tax_amount'] ?? 0);
             
             $totalBuildingAnnualTax += $b['building_annual_tax'];
+            $totalBuildingMarketValue += $b['building_market_value'];
+            $totalBuildingAssessedValue += $b['building_assessed_value'];
+            $totalFloorArea += $b['floor_area_sqm'];
+            
+            // Prepare detailed building info
+            $buildingDetails[] = [
+                'tdn' => $b['tdn'],
+                'construction_type' => $b['construction_type'],
+                'floor_area_sqm' => $b['floor_area_sqm'],
+                'year_built' => $b['year_built'],
+                'building_market_value' => $b['building_market_value'],
+                'building_assessed_value' => $b['building_assessed_value'],
+                'assessment_level' => $b['assessment_level'],
+                'building_annual_tax' => $b['building_annual_tax']
+            ];
         }
     }
 
@@ -314,19 +334,23 @@ try {
 
     $collectionRate = $totalAnnualTax > 0 ? ($totalPaid / $totalAnnualTax) * 100 : 0;
 
-    // Prepare response
+    // Prepare response with additional building totals
     $response = [
         "status" => "success",
         "data" => [
             "property" => $property,
             "buildings" => $buildings,
+            "building_details" => $buildingDetails,
             "quarterly_taxes" => $quarterlyTaxes,
             "totals" => [
                 "land_annual_tax" => $landAnnualTax,
                 "building_annual_tax" => $totalBuildingAnnualTax,
                 "total_annual_tax" => $totalAnnualTax,
                 "total_paid" => $totalPaid,
-                "collection_rate" => round($collectionRate, 2)
+                "collection_rate" => round($collectionRate, 2),
+                "building_market_value" => $totalBuildingMarketValue,
+                "building_assessed_value" => $totalBuildingAssessedValue,
+                "total_floor_area" => $totalFloorArea
             ]
         ]
     ];

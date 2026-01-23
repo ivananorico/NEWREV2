@@ -27,8 +27,10 @@ $status_counts = [
 ];
 
 $total_applications = 0;
+$has_active_property = false;
 
 try {
+    // Get all application status counts
     $stmt = $pdo->prepare("
         SELECT pr.status, COUNT(*) as count
         FROM property_registrations pr
@@ -43,6 +45,21 @@ try {
         $status_counts[$row['status']] = $row['count'];
         $total_applications += $row['count'];
     }
+    
+    // Check if user has any APPROVED property (active property)
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as count
+        FROM property_registrations pr
+        JOIN property_owners po ON pr.owner_id = po.id
+        WHERE po.user_id = ? AND pr.status = 'approved'
+    ");
+    $stmt->execute([$user_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result && $result['count'] > 0) {
+        $has_active_property = true;
+    }
+    
 } catch (PDOException $e) {
     error_log($e->getMessage());
 }
@@ -90,7 +107,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             filter: blur(1px);
         }
         
-        /* Animated background particles - same as login */
+        /* Animated background particles */
         body::before {
             content: '';
             position: fixed;
@@ -131,7 +148,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transition: transform 0.3s ease;
         }
 
-        /* Header box styles - same as dashboard */
         .header-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -237,7 +253,16 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         
         <!-- REGISTRATION CARD -->
-        <a href="rpt_registration/rpt_registration.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <?php if ($has_active_property): ?>
+        <!-- Registration card with alert on click -->
+        <a href="javascript:void(0)" 
+           onclick="alert('You already have a registered property.\\n\\nPlease go to Tax Payment to pay your property taxes.');"
+           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <?php else: ?>
+        <!-- Normal registration card -->
+        <a href="rpt_registration/rpt_registration.php" 
+           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <?php endif; ?>
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $reg_image = 'images/rpt-registration.png';
@@ -263,8 +288,13 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                     Register new properties or update existing records for assessment.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span class="font-semibold" style="color: #4a90e2;">Start Registration</span>
-                    <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
+                    <?php if ($has_active_property): ?>
+                        <span class="font-semibold text-gray-400">Already Registered</span>
+                        <i class="fas fa-arrow-right service-arrow text-gray-400"></i>
+                    <?php else: ?>
+                        <span class="font-semibold" style="color: #4a90e2;">Start Registration</span>
+                        <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
+                    <?php endif; ?>
                 </div>
             </div>
         </a>
@@ -444,5 +474,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         </div>
     </div>
 </footer>
+
 </body>
 </html>
