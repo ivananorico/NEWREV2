@@ -478,7 +478,7 @@ export default function RPTConfig() {
     setEditingType('penalty');
   };
 
-  // Delete and Expire Handlers
+  // Delete Handler
   const handleDelete = async (id, type) => {
     const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
     if (window.confirm(`Are you sure you want to delete this ${typeName} configuration?`)) {
@@ -518,51 +518,6 @@ export default function RPTConfig() {
       } catch (error) {
         console.error(`Error deleting ${type}:`, error);
         alert('Error deleting configuration: ' + error.message);
-      }
-    }
-  };
-
-  const handleExpire = async (id, type) => {
-    const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
-    if (window.confirm(`Are you sure you want to expire this ${typeName}?`)) {
-      try {
-        const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            status: 'expired',
-            expiration_date: new Date().toISOString().split('T')[0]
-          })
-        });
-        const result = await response.json();
-        if (response.ok || result.success) {
-          switch(type) {
-            case 'land-configurations':
-              fetchLandConfigurations();
-              break;
-            case 'property-configurations':
-              fetchPropertyConfigurations();
-              break;
-            case 'building-assessment-levels':
-              fetchBuildingAssessmentLevels();
-              break;
-            case 'tax-configurations':
-              fetchTaxConfigurations();
-              break;
-            case 'discount-configurations':
-              fetchDiscountConfigurations();
-              break;
-            case 'penalty-configurations':
-              fetchPenaltyConfigurations();
-              break;
-          }
-          alert(`${typeName} configuration expired successfully!`);
-        } else {
-          alert('Error: ' + result.error);
-        }
-      } catch (error) {
-        console.error(`Error expiring ${type}:`, error);
-        alert('Error expiring configuration');
       }
     }
   };
@@ -653,10 +608,6 @@ export default function RPTConfig() {
   const activeTaxConfigs = taxConfigurationsSafe.filter(config => config.status === 'active').length;
   const activeDiscountConfigs = discountConfigurationsSafe.filter(config => config.status === 'active').length;
   const activePenaltyConfigs = penaltyConfigurationsSafe.filter(config => config.status === 'active').length;
-
-  // Check if Basic Tax and SEF Tax already exist
-  const basicTaxExists = taxConfigurationsSafe.some(tax => tax.tax_name === 'Basic Tax' && tax.status === 'active');
-  const sefTaxExists = taxConfigurationsSafe.some(tax => tax.tax_name === 'SEF Tax' && tax.status === 'active');
 
   return (
     <div className='mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg'>
@@ -893,11 +844,6 @@ export default function RPTConfig() {
                             <button onClick={() => handleLandEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'land-configurations')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'land-configurations')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>
@@ -1086,11 +1032,6 @@ export default function RPTConfig() {
                             <button onClick={() => handlePropertyEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'property-configurations')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'property-configurations')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>
@@ -1265,11 +1206,6 @@ export default function RPTConfig() {
                             <button onClick={() => handleBuildingAssessmentEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'building-assessment-levels')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'building-assessment-levels')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>
@@ -1410,11 +1346,6 @@ export default function RPTConfig() {
                             <button onClick={() => handleTaxEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'tax-configurations')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'tax-configurations')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>
@@ -1536,11 +1467,6 @@ export default function RPTConfig() {
                             <button onClick={() => handleDiscountEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'discount-configurations')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'discount-configurations')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>
@@ -1657,11 +1583,6 @@ export default function RPTConfig() {
                             <button onClick={() => handlePenaltyEdit(config)} className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors" disabled={config.status === 'expired'}>
                               Edit
                             </button>
-                            {config.status === 'active' && (
-                              <button onClick={() => handleExpire(config.id, 'penalty-configurations')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors">
-                                Expire
-                              </button>
-                            )}
                             <button onClick={() => handleDelete(config.id, 'penalty-configurations')} className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors">
                               Delete
                             </button>

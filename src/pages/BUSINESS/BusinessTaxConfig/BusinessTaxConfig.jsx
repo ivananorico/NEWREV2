@@ -534,53 +534,6 @@ export default function BusinessTaxConfig() {
     }
   };
 
-  const handleExpire = async (id, type) => {
-    const typeName = type === 'business' ? 'business tax' : 
-                    type === 'capital' ? 'capital investment tax' :
-                    type === 'regulatory' ? 'regulatory configuration' :
-                    type === 'penalty' ? 'penalty configuration' : 'discount configuration';
-    
-    const today = new Date().toISOString().split('T')[0];
-    
-    if (window.confirm(`Are you sure you want to expire this ${typeName}?`)) {
-      try {
-        setSubmitting(true);
-        const endpoint = `${type}-configurations.php`;
-        await makeApiCall(endpoint, 'PATCH', { 
-          id,
-          expiration_date: today
-        });
-        
-        // Refresh data
-        switch (type) {
-          case 'business':
-            await fetchBusinessConfigs();
-            break;
-          case 'capital':
-            await fetchCapitalConfigs();
-            break;
-          case 'regulatory':
-            await fetchRegulatoryConfigs();
-            break;
-          case 'penalty':
-            await fetchPenaltyConfigs();
-            break;
-          case 'discount':
-            await fetchDiscountConfigs();
-            break;
-        }
-        
-        setSuccessMessage(`${typeName} expired successfully!`);
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (error) {
-        console.error(`Error expiring ${type}:`, error);
-        alert('Error expiring configuration: ' + error.message);
-      } finally {
-        setSubmitting(false);
-      }
-    }
-  };
-
   // Form Resets
   const resetBusinessForm = () => {
     setBusinessForm({
@@ -1020,15 +973,6 @@ export default function BusinessTaxConfig() {
                               >
                                 Edit
                               </button>
-                              {!isExpired && (
-                                <button
-                                  onClick={() => handleExpire(config.id, 'business')}
-                                  className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors"
-                                  disabled={submitting}
-                                >
-                                  Expire
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleDelete(config.id, 'business')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
@@ -1248,15 +1192,6 @@ export default function BusinessTaxConfig() {
                               >
                                 Edit
                               </button>
-                              {!isExpired && (
-                                <button
-                                  onClick={() => handleExpire(config.id, 'capital')}
-                                  className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors"
-                                  disabled={submitting}
-                                >
-                                  Expire
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleDelete(config.id, 'capital')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
@@ -1434,15 +1369,6 @@ export default function BusinessTaxConfig() {
                               >
                                 Edit
                               </button>
-                              {!isExpired && (
-                                <button
-                                  onClick={() => handleExpire(config.id, 'regulatory')}
-                                  className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors"
-                                  disabled={submitting}
-                                >
-                                  Expire
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleDelete(config.id, 'regulatory')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
@@ -1605,15 +1531,6 @@ export default function BusinessTaxConfig() {
                               >
                                 Edit
                               </button>
-                              {!isExpired && (
-                                <button
-                                  onClick={() => handleExpire(config.id, 'penalty')}
-                                  className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors"
-                                  disabled={submitting}
-                                >
-                                  Expire
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleDelete(config.id, 'penalty')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
@@ -1776,15 +1693,6 @@ export default function BusinessTaxConfig() {
                               >
                                 Edit
                               </button>
-                              {!isExpired && (
-                                <button
-                                  onClick={() => handleExpire(config.id, 'discount')}
-                                  className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition-colors"
-                                  disabled={submitting}
-                                >
-                                  Expire
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleDelete(config.id, 'discount')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
