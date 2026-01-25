@@ -26,7 +26,7 @@ try {
     // Check current status and get application details
     $stmt = $pdo->prepare("
         SELECT rr.id, rr.application_status, rr.stall_id, rr.map_id, 
-               rr.monthly_rent, rr.stall_rights_no,
+               rr.monthly_rent, rr.stall_rights_no, rr.reference_number,
                ro.id as renter_id,
                rs.business_name
         FROM rental_registration rr
@@ -63,6 +63,7 @@ try {
     $monthly_rent = $existing['monthly_rent'];
     $business_name = $existing['business_name'] ?? 'Not Specified';
     $stall_rights_no = $existing['stall_rights_no'];
+    $payment_reference = $existing['reference_number'] ?? null;
     
     // 2. Check if rent_stall already exists
     $stmt = $pdo->prepare("SELECT id FROM rent_stall WHERE registration_id = ?");
@@ -194,7 +195,70 @@ try {
         $total_annual_amount += $monthly_rent;
     }
     
-    // 5. Update stall status to 'occupied'
+    // 5. CREATE ANNUAL PAYMENT RECORD
+    // Generate annual reference number
+    $annual_reference = 'ANNUAL-' . date('Ymd-His') . '-' . $app_id;
+    
+    // Check if discount should be applied (for January applications)
+    $current_month = date('n');
+    $current_day = date('d');
+    
+    $discount_percent = 0;
+    $discount_amount = 0;
+    
+    // Apply discount only for January applications (1-31)
+    if ($current_month == 1 && $current_day <= 31) {
+        // Get discount percentage from config
+        $stmt = $pdo->prepare("
+            SELECT discount_percent 
+            FROM market_discount_config 
+            WHERE effective_date <= CURDATE() 
+                AND (expiration_date IS NULL OR expiration_date >= CURDATE())
+            ORDER BY effective_date DESC 
+            LIMIT 1
+        ");
+        $stmt->execute();
+        $discount_config = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($discount_config) {
+            $discount_percent = floatval($discount_config['discount_percent']);
+            $discount_amount = ($total_annual_amount * $discount_percent) / 100;
+        }
+    }
+    
+    // Calculate final amount after discount
+    $final_annual_amount = $total_annual_amount - $discount_amount;
+    
+    // Insert into market_annual_payments
+    $sql = "INSERT INTO market_annual_payments (
+            reference_number, property_total_id, registration_id, payment_year,
+            base_amount, discount_percent, discount_amount, final_amount,
+            payment_status, payment_date, receipt_number, transaction_id,
+            status
+        ) VALUES (
+            :reference, :property_total_id, :registration_id, :payment_year,
+            :base_amount, :discount_percent, :discount_amount, :final_amount,
+            'paid', CURDATE(), :receipt_number, :transaction_id,
+            'active'
+        )";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':reference' => $annual_reference,
+        ':property_total_id' => $rent_total_id,
+        ':registration_id' => $app_id,
+        ':payment_year' => $current_year,
+        ':base_amount' => $total_annual_amount,
+        ':discount_percent' => $discount_percent,
+        ':discount_amount' => $discount_amount,
+        ':final_amount' => $final_annual_amount,
+        ':receipt_number' => $payment_reference, // Use the original payment reference
+        ':transaction_id' => $annual_reference // Use annual reference as transaction ID
+    ]);
+    
+    $annual_payment_id = $pdo->lastInsertId();
+    
+    // 6. Update stall status to 'occupied'
     $sql = "UPDATE stalls SET 
             status = 'occupied',
             updated_at = NOW()
@@ -203,7 +267,7 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$existing['stall_id']]);
     
-    // 6. Update renter_owner status to 'active'
+    // 7. Update renter_owner status to 'active'
     $sql = "UPDATE renter_owner SET 
             status = 'active',
             updated_at = NOW()
@@ -223,14 +287,22 @@ try {
             'new_status' => 'approved',
             'rent_stall_id' => $rent_stall_id,
             'rent_total_id' => $rent_total_id,
+            'annual_payment_id' => $annual_payment_id,
+            'annual_reference' => $annual_reference,
             'monthly_rent' => $monthly_rent,
             'monthly_totals' => $monthly_totals,
             'total_months' => $total_months,
-            'annual_total' => $total_annual_amount,
+            'annual_total' => [
+                'base_amount' => $total_annual_amount,
+                'discount_percent' => $discount_percent,
+                'discount_amount' => $discount_amount,
+                'final_amount' => $final_annual_amount
+            ],
             'contract_period' => [
                 'start_date' => $start_date,
                 'end_date' => $end_date,
-                'months' => $total_months
+                'months' => $total_months,
+                'year' => $current_year
             ],
             'billing_count' => 12,
             'billing_ids' => $billing_ids

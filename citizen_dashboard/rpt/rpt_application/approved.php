@@ -381,18 +381,20 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transition: all .25s ease;
         }
 
-        /* Clearance Card */
-        .clearance-card {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-            border: 1px solid #a7f3d0;
-            border-radius: 8px;
-            padding: 1.25rem;
-            transition: all 0.3s ease;
+        /* Compact Clearance Card */
+        .clearance-card-compact {
+            background: #fff;
+            border: 1px solid #d1fae5;
+            border-radius: 6px;
+            padding: 0.75rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid #10b981;
         }
         
-        .clearance-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+        .clearance-card-compact:hover {
+            background: #f0fdf4;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
         }
 
         /* Assessment Section */
@@ -432,6 +434,28 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
             color: white;
+        }
+
+        /* Compact Download Button */
+        .download-btn-compact {
+            background: #10b981;
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .download-btn-compact:hover {
+            background: #059669;
+            transform: translateY(-1px);
         }
 
         /* Animation for cards */
@@ -795,66 +819,65 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                         </div>
                     </div>
 
-                    <!-- TAX CLEARANCE SECTION -->
+                    <!-- COMPACT TAX CLEARANCE SECTION -->
                     <?php if (!empty($tax_clearances)): ?>
-                    <div class="p-6 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
-                        <h3 class="font-medium text-gray-900 mb-4 flex items-center">
-                            <i class="fas fa-file-certificate text-green-600 mr-2"></i>Available Tax Clearance Certificates
+                    <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50/30">
+                        <h3 class="font-medium text-gray-900 mb-3 flex items-center text-sm">
+                            <i class="fas fa-file-certificate text-green-600 mr-2 text-sm"></i>Available Tax Clearance Certificates
                         </h3>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             <?php foreach ($tax_clearances as $year => $clearance): 
                                 $valid_until = $clearance['valid_until'] ?? date('Y-12-31', strtotime("+1 year"));
                                 $is_valid = strtotime($valid_until) >= time();
                             ?>
-                                <div class="clearance-card">
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="flex items-center">
-                                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                                                <i class="fas fa-award text-green-600"></i>
+                                <div class="clearance-card-compact">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-award text-green-600 text-xs"></i>
                                             </div>
                                             <div>
-                                                <div class="text-sm font-medium text-gray-900 mb-1">Certificate No.</div>
-                                                <div class="font-mono text-sm"><?php echo $clearance['certificate_number']; ?></div>
+                                                <div class="text-xs font-medium text-gray-900"><?php echo $year; ?> Clearance</div>
+                                                <div class="text-[10px] text-gray-500 font-mono"><?php echo substr($clearance['certificate_number'], -8); ?></div>
                                             </div>
                                         </div>
-                                        <div class="text-right">
+                                        <div>
                                             <?php if ($is_valid): ?>
-                                                <span class="tax-status-badge bg-green-100 text-green-800">
-                                                    <i class="fas fa-check-circle mr-1"></i>Active
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    <i class="fas fa-check mr-1 text-[10px]"></i>Active
                                                 </span>
                                             <?php else: ?>
-                                                <span class="tax-status-badge bg-red-100 text-red-800">
-                                                    <i class="fas fa-exclamation-circle mr-1"></i>Expired
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                                    <i class="fas fa-exclamation mr-1 text-[10px]"></i>Expired
                                                 </span>
                                             <?php endif; ?>
                                         </div>
                                     </div>
                                     
-                                    <div class="space-y-2 mb-4">
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600">Tax Year:</span>
-                                            <span class="font-medium"><?php echo $year; ?></span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600">Issued Date:</span>
-                                            <span class="font-medium"><?php echo formatDate($clearance['issue_date']); ?></span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600">Valid Until:</span>
-                                            <span class="font-medium"><?php echo formatDate($valid_until); ?></span>
+                                    <div class="flex items-center justify-between text-xs text-gray-600 mb-3">
+                                        <div class="space-y-1">
+                                            <div class="flex items-center">
+                                                <i class="fas fa-calendar-alt mr-1 text-[10px] text-gray-400"></i>
+                                                <span>Issued: <?php echo date('M j, Y', strtotime($clearance['issue_date'])); ?></span>
+                                            </div>
+                                            <div class="flex items-center">
+                                                <i class="fas fa-calendar-check mr-1 text-[10px] text-gray-400"></i>
+                                                <span>Valid: <?php echo date('M j, Y', strtotime($valid_until)); ?></span>
+                                            </div>
                                         </div>
                                     </div>
                                     
-                                    <a href="tax_clearance_certificate.php?property_total_id=<?php echo $total_tax_data['id']; ?>&year=<?php echo $year; ?>" 
-                                       target="_blank"
-                                       class="w-full download-btn inline-flex items-center justify-center">
-                                        <i class="fas fa-download mr-2"></i> Download Certificate
-                                    </a>
-                                    
-                                    <p class="text-xs text-gray-500 mt-2 text-center">
-                                        <i class="fas fa-external-link-alt mr-1"></i> Opens in new window
-                                    </p>
+                                    <div class="flex items-center justify-between">
+                                        <a href="tax_clearance_certificate.php?property_total_id=<?php echo $total_tax_data['id']; ?>&year=<?php echo $year; ?>" 
+                                           target="_blank"
+                                           class="download-btn-compact">
+                                            <i class="fas fa-download mr-1 text-[10px]"></i> Download
+                                        </a>
+                                        <span class="text-[10px] text-gray-500">
+                                            <i class="fas fa-external-link-alt mr-1"></i> New window
+                                        </span>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>

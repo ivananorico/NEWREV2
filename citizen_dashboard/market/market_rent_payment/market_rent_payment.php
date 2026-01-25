@@ -8,7 +8,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_name = $_SESSION['user_name'] ?? 'Market Renter';
 
 include_once '../../../db/Market/market_db.php';
 
@@ -57,7 +56,11 @@ function getMarketDiscountRate($pdo) {
         $discount_stmt->execute();
         $discount_config = $discount_stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $discount_config['discount_percent'] ?? 10.00;
+        if ($discount_config) {
+            return (float)$discount_config['discount_percent'];
+        }
+        
+        return 10.00;
     } catch(PDOException $e) {
         return 10.00;
     }
@@ -68,14 +71,14 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
-// Get config values for display
+// Get config values from DATABASE
 $penalty_rate = getMarketPenaltyRate($pdo);
 $discount_rate = getMarketDiscountRate($pdo);
 
 $current_year = date('Y');
+$is_january = date('n') == 1;
 $current_month = date('n');
 $current_month_name = date('F');
-$is_january = $current_month == 1;
 ?>
 
 <!DOCTYPE html>
@@ -83,252 +86,306 @@ $is_january = $current_month == 1;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Market Rent Payment - LGU Market Services</title>
+    <title>Market Rent Payment - LGU System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .status-badge { 
-            display: inline-flex; 
-            align-items: center; 
-            padding: 0.4rem 0.8rem; 
-            border-radius: 6px; 
-            font-size: 0.8rem; 
-            font-weight: 500; 
+        /* Clean, Simple Styles - Same as RPT */
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            position: relative;
+            min-height: 100vh;
         }
-        .status-paid { background-color: #d1fae5; color: #065f46; }
-        .status-overdue { background-color: #fee2e2; color: #991b1b; }
-        .status-pending { background-color: #fef3c7; color: #92400e; }
-        .status-active { background-color: #dcfce7; color: #166534; }
-        .status-inactive { background-color: #f3f4f6; color: #374151; }
+
+        /* Animated background particles - same as login page */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -2;
+        }
+
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
+        }
+
+        /* Background image with subtle opacity - same as login page */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/revenue2/Login/images/gsmbg.png') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -1;
+            filter: blur(1px);
+        }
         
-        .card {
+        .simple-card {
             background: white;
-            border-radius: 0.625rem;
             border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        
-        .payment-summary-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-left: 4px solid #4a90e2;
-        }
-        
-        .glow-button {
-            transition: all 0.3s ease;
-        }
-        .glow-button:hover {
-            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
-        .month-badge {
-            width: 40px;
-            height: 40px;
             border-radius: 8px;
-            display: flex;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .status-badge {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin: 0 auto;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
         
-        .month-paid {
-            background-color: #dcfce7;
-            color: #166534;
-            border: 2px solid #86efac;
+        .status-paid {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
         }
         
-        .month-overdue {
+        .status-overdue {
             background-color: #fee2e2;
             color: #991b1b;
-            border: 2px solid #fca5a5;
+            border: 1px solid #ef4444;
         }
         
-        .month-pending {
+        .status-pending {
             background-color: #fef3c7;
             color: #92400e;
-            border: 2px solid #fde68a;
+            border: 1px solid #f59e0b;
         }
         
-        /* POST method indicator */
-        .post-method-badge {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        /* Header box */
+        .header-box {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .info-box {
+            background: #f8fafc;
+            border-left: 3px solid #3b82f6;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+        }
+        
+        .tax-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .tax-table th {
+            background: #f9fafb;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .tax-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .tax-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .btn-success:hover {
+            background-color: #059669;
+        }
+        
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            border-color: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        
+        .btn-disabled {
+            background-color: #9ca3af;
+            color: white;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .section-title {
+            color: #1f2937;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .payment-option {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-option.recommended {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .discount-badge {
+            background-color: #10b981;
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            margin-left: 0.5rem;
         }
         
-        .new-tab-indicator {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            padding: 0.2rem 0.6rem;
-            border-radius: 9999px;
-            font-size: 0.6rem;
-            font-weight: 600;
+        /* Footer styles */
+        .footer-bg {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .responsive-grid {
+            display: grid;
+            gap: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            .responsive-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Paid indicator style */
+        .paid-indicator {
             display: inline-flex;
             align-items: center;
-            margin-left: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            border-radius: 6px;
+            font-weight: 500;
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Include Navbar -->
+<body>
     <?php include '../../navbar.php'; ?>
     
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Page Header with Simple Title Only -->
+        <div class="header-box mb-6">
+            <div class="flex items-center mb-4">
+                <a href="../market_services.php" class="text-blue-600 hover:text-blue-800 mr-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900">Market Rent Payment</h1>
+                    <p class="text-gray-600 mt-1">Online payment portal for your market stall rentals</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Payment Success Message -->
         <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
-        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
             <div class="flex items-center">
-                <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
-                <div>
-                    <h3 class="font-bold text-green-800 mb-1">Payment Successful!</h3>
-                    <p class="text-green-700 text-sm">Your market rent payment has been processed. Your payment status will update shortly.</p>
-                </div>
+                <i class="fas fa-check-circle mr-2"></i>
+                <span class="font-medium">Payment Successful!</span>
             </div>
+            <p class="mt-1 text-sm">Your market rent payment has been processed successfully.</p>
         </div>
         <?php endif; ?>
 
-        <!-- Back Button & Header -->
-        <div class="mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <a href="../market_services.php" class="text-blue-600 hover:text-blue-800 inline-flex items-center text-sm mb-2">
-                        <i class="fas fa-arrow-left mr-2"></i> Back to Market Services
-                    </a>
-                    <div class="flex items-center">
-                        <h1 class="text-2xl font-bold text-gray-800">Market Rent Payment</h1>
-                        <span class="post-method-badge">
-                            <i class="fas fa-shield-alt mr-1"></i> Secure POST
-                        </span>
-                        <span class="new-tab-indicator">
-                            <i class="fas fa-external-link-alt mr-1"></i> New Tab
-                        </span>
-                    </div>
-                    <p class="text-gray-600 text-sm">Manage and pay your market stall rentals online</p>
+        <!-- Simplified Important Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <!-- Only keep the penalty info box -->
+            <div class="info-box" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <h3 class="font-medium text-gray-800">Important Notice</h3>
                 </div>
-                <div class="text-right">
-                    <div class="flex items-center justify-end space-x-4">
-                        <div class="text-right">
-                            <p class="text-sm text-gray-500">Welcome, <?php echo htmlspecialchars($user_name); ?></p>
-                            <p class="text-sm text-gray-500">Current Month: <?php echo $current_month_name . ' ' . $current_year; ?></p>
-                        </div>
-                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user text-blue-600"></i>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-gray-700">
+                    <strong><?php echo $penalty_rate; ?>% monthly penalty</strong> applies to late payments after due date.
+                    <br>
+                    <strong><?php echo $discount_rate; ?>% discount</strong> available for payments made in January.
+                </p>
             </div>
             
-            <!-- Security Info Banner -->
-            <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-xl p-5 mb-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
-                        <i class="fas fa-shield-alt text-green-600 text-xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-lg font-bold text-green-800">Secure Payment Transmission</h3>
-                        <p class="text-green-700">Your payment data is transmitted securely using POST method and opens in new tab.</p>
-                    </div>
-                    <div class="hidden md:flex items-center space-x-3">
-                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
-                            <span class="text-green-700 font-medium text-sm">
-                                <i class="fas fa-lock mr-1"></i> Data Encrypted
-                            </span>
-                        </div>
-                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
-                            <span class="text-green-700 font-medium text-sm">
-                                <i class="fas fa-external-link-alt mr-1"></i> New Tab
-                            </span>
-                        </div>
-                    </div>
+            <!-- Add a new box for payment security -->
+            <div class="info-box">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
+                    <h3 class="font-medium text-gray-800">Secure Payment</h3>
                 </div>
-            </div>
-            
-            <!-- Info Banner -->
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 mb-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between">
-                    <div class="mb-4 md:mb-0">
-                        <div class="flex items-center mb-2">
-                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
-                                <i class="fas fa-info-circle text-blue-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-blue-800">Rent Payment Information</h3>
-                                <p class="text-blue-700">Important dates and reminders</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div class="flex items-center bg-white px-3 py-2 rounded-lg">
-                            <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>
-                            <span class="font-medium">Due Date:</span>
-                            <span class="ml-2 text-gray-700">15th of each month</span>
-                        </div>
-                        <div class="flex items-center bg-white px-3 py-2 rounded-lg">
-                            <i class="fas fa-percent text-red-500 mr-2"></i>
-                            <span class="font-medium">Late Payment:</span>
-                            <span class="ml-2 text-gray-700"><?php echo $penalty_rate; ?>% monthly penalty applies</span>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-gray-700">All transactions are secured with SSL encryption. Your payment information is protected.</p>
             </div>
         </div>
 
-        <?php if ($is_january && $discount_rate > 0): ?>
-        <!-- January Discount Banner -->
-        <div class="bg-gradient-to-r from-emerald-400 to-green-500 rounded-xl p-5 mb-6 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="bg-white p-3 rounded-xl mr-4">
-                        <i class="fas fa-gift text-emerald-600 text-2xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-white mb-1">January Discount Available!</h3>
-                        <p class="text-emerald-100">Get <span class="font-bold text-yellow-300"><?php echo $discount_rate; ?>% discount</span> when paying rent on or before January 15.</p>
-                    </div>
-                </div>
-                <div class="hidden md:block">
-                    <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                        <p class="text-white text-sm">Valid until January 15</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Active Stalls Section -->
+        <!-- Market Stalls Section -->
         <?php
         try {
             $query = "
                 SELECT 
                     rs.*,
                     ro.renter_code,
-                    ro.first_name,
-                    ro.last_name,
-                    ro.mobile,
-                    ro.email,
                     s.name as stall_name,
                     sr.class_name,
                     sr.price as class_price,
                     m.name as market_name,
                     rt.monthly_rent,
-                    rt.start_date as contract_start,
-                    rt.end_date as contract_end
+                    rt.id as rent_total_id
                 FROM rent_stall rs
                 JOIN renter_owner ro ON rs.renter_id = ro.id
                 JOIN stalls s ON rs.stall_id = s.id
@@ -347,442 +404,351 @@ $is_january = $current_month == 1;
 
             if (empty($stalls)) {
                 echo '
-                <div class="card p-10 text-center max-w-lg mx-auto">
-                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i class="fas fa-store text-gray-400 text-2xl"></i>
+                <div class="simple-card p-8 text-center">
+                    <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-store text-gray-500 text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-3">No Active Stalls</h3>
-                    <p class="text-gray-600 mb-8 text-sm leading-relaxed">You don\'t have any active market stalls yet. Apply for a stall to start paying rent online.</p>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">No Market Stalls Found</h3>
+                    <p class="text-gray-600 mb-6">You don\'t have any active market stalls yet.</p>
                     <div class="space-y-3">
-                        <a href="market_portal_services/market_portal_services.php" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium inline-flex items-center justify-center w-full glow-button">
-                            <i class="fas fa-plus-circle mr-3"></i> Apply for a Stall
+                        <a href="../market_portal_services/market_portal_services.php" class="btn btn-primary w-full">
+                            <i class="fas fa-plus-circle mr-2"></i> Apply for a Stall
                         </a>
-                        <a href="market_application/pending.php" class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium inline-flex items-center justify-center w-full">
-                            <i class="fas fa-question-circle mr-3"></i> Check Application Status
+                        <a href="../market_services.php" class="btn btn-secondary w-full">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to Services
                         </a>
                     </div>
                 </div>';
             } else {
-                // Stats Summary
-                $totalStalls = count($stalls);
-                
-                echo '
-                <!-- Summary Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-store text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Active Stalls</p>
-                                <p class="text-2xl font-bold text-gray-800">' . $totalStalls . '</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-shield-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Security Level</p>
-                                <p class="text-2xl font-bold text-green-600">POST</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-yellow-500 to-orange-500 p-3 rounded-xl mr-4">
-                                <i class="fas fa-calendar-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Current Month</p>
-                                <p class="text-2xl font-bold text-gray-800">' . $current_month_name . '</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-external-link-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Opens In</p>
-                                <p class="text-2xl font-bold text-purple-600">New Tab</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>';
-                
-                echo '<div class="space-y-8">';
+                echo '<div class="space-y-6">';
                 
                 foreach ($stalls as $stall) {
                     // Get monthly rent billing
                     $billingQuery = "
                         SELECT 
-                            mrb.*
+                            mrb.*,
+                            DATE_FORMAT(mrb.due_date, '%M %d, %Y') as formatted_due_date
                         FROM monthly_rent_billing mrb
-                        JOIN rent_totals rt ON mrb.rent_total_id = rt.id
-                        WHERE rt.registration_id = :registration_id
+                        WHERE mrb.rent_total_id = :rent_total_id
                         ORDER BY mrb.billing_year, mrb.billing_month
                     ";
                     
                     $billingStmt = $pdo->prepare($billingQuery);
-                    $billingStmt->bindParam(':registration_id', $stall['registration_id'], PDO::PARAM_INT);
+                    $billingStmt->bindParam(':rent_total_id', $stall['rent_total_id'], PDO::PARAM_INT);
                     $billingStmt->execute();
                     $monthly_bills = $billingStmt->fetchAll(PDO::FETCH_ASSOC);
                     
                     // Calculate statistics
                     $paidMonths = 0;
-                    $pendingMonths = 0;
                     $overdueMonths = 0;
-                    $totalPaidAmount = 0;
+                    $pendingMonths = 0;
                     $totalPenalty = 0;
-                    $totalDue = 0;
-                    $hasCurrentMonth = false;
-                    $currentMonthBill = null;
-                    
-                    $month_names = [
-                        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
-                        5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
-                        9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
-                    ];
+                    $totalRent = 0;
                     
                     foreach ($monthly_bills as $bill) {
-                        $totalDue += $bill['total_amount_due'];
-                        
-                        if ($bill['billing_month'] == $current_month && $bill['billing_year'] == $current_year) {
-                            $hasCurrentMonth = true;
-                            $currentMonthBill = $bill;
-                        }
+                        $totalRent += $bill['base_rent'] ?? 0;
+                        $totalPenalty += ($bill['penalty_amount'] ?? 0);
                         
                         if ($bill['payment_status'] == 'paid') {
                             $paidMonths++;
-                            $totalPaidAmount += $bill['total_amount_due'];
                         } elseif ($bill['payment_status'] == 'overdue') {
                             $overdueMonths++;
-                            $totalPenalty += $bill['penalty_amount'];
                         } else {
                             $pendingMonths++;
-                            $totalPenalty += $bill['penalty_amount'];
                         }
                     }
                     
+                    // Check annual payment
+                    $annual_payment_query = "
+                        SELECT 
+                            ap.*,
+                            ap.final_amount as total_to_pay
+                        FROM market_annual_payments ap
+                        WHERE ap.registration_id = :registration_id 
+                        AND ap.payment_year = :current_year
+                        AND ap.status = 'active'
+                        LIMIT 1
+                    ";
+                    
+                    $annual_stmt = $pdo->prepare($annual_payment_query);
+                    $annual_stmt->execute([
+                        ':registration_id' => $stall['registration_id'],
+                        ':current_year' => $current_year
+                    ]);
+                    $annualPayment = $annual_stmt->fetch(PDO::FETCH_ASSOC);
+                    
                     echo '
                     <!-- Stall Card -->
-                    <div class="card overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                    <div class="simple-card">
                         <!-- Stall Header -->
-                        <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div class="mb-4 md:mb-0">
-                                    <div class="flex items-center">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
-                                            <i class="fas fa-store text-white text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-xl font-bold text-gray-800">' . htmlspecialchars($stall['stall_name']) . '</h3>
-                                            <div class="flex items-center gap-3 mt-2">
-                                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                                    ' . htmlspecialchars($stall['class_name']) . ' Class
-                                                </span>
-                                                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                                    ' . htmlspecialchars($stall['business_type'] ?? 'Retail') . '
-                                                </span>
-                                            </div>
-                                        </div>
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-semibold text-gray-900">' . htmlspecialchars($stall['business_name']) . '</span>
                                     </div>
-                                    <div class="flex flex-wrap gap-3 mt-3">
-                                        <p class="text-gray-600 text-sm flex items-center">
-                                            <i class="fas fa-id-card text-gray-400 mr-1 text-sm"></i>
-                                            <span class="font-medium mr-1">Renter Code:</span> ' . htmlspecialchars($stall['renter_code']) . '
-                                        </p>
-                                        <p class="text-gray-600 text-sm flex items-center">
-                                            <i class="fas fa-map-marker-alt text-gray-400 mr-1 text-sm"></i>
-                                            ' . htmlspecialchars($stall['market_name']) . '
-                                        </p>
-                                        <p class="text-gray-600 text-sm flex items-center">
-                                            <i class="fas fa-calendar text-gray-400 mr-1 text-sm"></i>
-                                            Contract: ' . date('M Y', strtotime($stall['contract_start'])) . ' - ' . date('M Y', strtotime($stall['contract_end'])) . '
-                                        </p>
+                                    <div class="text-gray-600 text-sm">
+                                        <i class="fas fa-map-marker-alt mr-1"></i>
+                                        ' . htmlspecialchars($stall['market_name']) . ' • ' . htmlspecialchars($stall['stall_name']) . '
+                                    </div>
+                                    <div class="text-gray-600 text-sm mt-1">
+                                        <i class="fas fa-id-card mr-1"></i>
+                                        Renter Code: ' . htmlspecialchars($stall['renter_code']) . ' • ' . htmlspecialchars($stall['class_name']) . ' Class
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-sm text-gray-500 font-medium">Monthly Rent</p>
-                                    <p class="text-2xl font-bold text-blue-600">' . formatCurrency($stall['monthly_rent']) . '</p>
-                                    <p class="text-xs text-green-600 mt-1">
-                                        <i class="fas fa-shield-alt mr-1"></i> Secure POST • 
-                                        <i class="fas fa-external-link-alt ml-1"></i> New Tab
-                                    </p>
+                                <div>
+                                    <div class="text-sm text-gray-600 mb-1">Monthly Rent:</div>
+                                    <div class="text-xl font-bold text-blue-700">' . formatCurrency($stall['monthly_rent']) . '</div>
                                 </div>
                             </div>
                         </div>';
                         
-                        // Current Month Payment
-                        if ($hasCurrentMonth && $currentMonthBill && $currentMonthBill['payment_status'] != 'paid') {
-                            $isOverdue = $currentMonthBill['payment_status'] == 'overdue';
-                            $days_late = $currentMonthBill['days_late'] ?? 0;
-                            
+                        // Annual Payment Option
+                        if ($annualPayment) {
+                            $showDiscount = ($is_january && $discount_rate > 0);
                             echo '
-                        <!-- Current Month Payment -->
-                        <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-' . ($isOverdue ? 'red' : 'blue') . '-50 to-' . ($isOverdue ? 'orange' : 'indigo') . '-50">
+                        <div class="p-6 border-b border-gray-100 ' . ($showDiscount ? 'bg-green-50' : '') . '">
                             <div class="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div class="mb-4 lg:mb-0">
                                     <div class="flex items-center mb-2">
-                                        <span class="status-badge ' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-red-600 text-white border-0 shadow-md pulse' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
-                                            <i class="fas ' . ($isOverdue ? 'fa-exclamation-triangle' : 'fa-calendar-check') . ' mr-1.5"></i>
-                                            ' . ($isOverdue ? 'OVERDUE PAYMENT' : 'CURRENT MONTH') . '
-                                        </span>
-                                        <h4 class="font-bold text-gray-800 text-base">' . $current_month_name . ' ' . $current_year . ' Rent</h4>
-                                    </div>
-                                    <p class="text-gray-600 text-sm">
-                                        ' . ($isOverdue 
-                                            ? 'Payment is ' . $days_late . ' days late. Penalty has been applied.' 
-                                            : ($is_january ? 'January discount available if paid before 15th!' : 'Pay on or before 15th to avoid penalty')) . '
-                                    </p>';
-                                    if ($days_late > 0) {
+                                        <h4 class="font-medium text-gray-900">
+                                            <i class="fas fa-calendar-check text-green-600 mr-2"></i>
+                                            Annual Payment
+                                        </h4>';
+                                        if ($showDiscount) {
+                                            echo '
+                                        <span class="discount-badge ml-3">
+                                            <i class="fas fa-gift mr-1"></i>Save ' . number_format($discount_rate, 2) . '%
+                                        </span>';
+                                        }
                                         echo '
-                                    <div class="mt-2 text-sm text-red-600 font-medium">
-                                        <i class="fas fa-clock mr-1"></i>' . $days_late . ' days overdue • Penalty: ' . formatCurrency($currentMonthBill['penalty_amount'] ?? 0) . '
-                                    </div>';
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        Pay all 12 months in one payment' . ($showDiscount ? ' with discount' : '') . '
+                                    </p>';
+                                    if ($showDiscount) {
+                                        echo '<p class="text-xs text-green-600 mt-1">
+                                            <i class="fas fa-calendar-alt mr-1"></i> Valid in January
+                                        </p>';
                                     }
                                     echo '
                                 </div>
                                 
                                 <div class="lg:text-right">
                                     <div class="mb-3">
-                                        <p class="text-2xl font-bold text-gray-900">' . formatCurrency($currentMonthBill['total_amount_due']) . '</p>';
-                                        if ($currentMonthBill['discount_amount'] > 0) {
+                                        <div class="text-xl font-bold text-gray-900">' . formatCurrency($annualPayment['final_amount']) . '</div>';
+                                        if ($annualPayment['discount_amount'] > 0) {
+                                            $total_before_discount = $annualPayment['base_amount'] + $annualPayment['penalty_amount'];
                                             echo '
-                                        <p class="text-sm text-gray-600 flex items-center justify-center lg:justify-end">
-                                            <span class="line-through mr-3">' . formatCurrency($currentMonthBill['base_rent']) . '</span>
-                                            <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
-                                                <i class="fas fa-piggy-bank mr-1"></i>Save ' . formatCurrency($currentMonthBill['discount_amount']) . '
+                                        <div class="text-sm text-gray-600 mt-1">
+                                            <span class="line-through">' . formatCurrency($total_before_discount) . '</span>
+                                            <span class="text-green-700 font-medium ml-2">
+                                                <i class="fas fa-piggy-bank mr-1"></i>Save ' . formatCurrency($annualPayment['discount_amount']) . '
                                             </span>
-                                        </p>';
-                                        } elseif ($is_january && !$isOverdue) {
-                                            echo '
-                                        <p class="text-sm text-green-600 flex items-center justify-center lg:justify-end">
-                                            <i class="fas fa-gift mr-1"></i> ' . $discount_rate . '% discount if paid before Jan 15
-                                        </p>';
+                                        </div>';
                                         }
                                         echo '
-                                    </div>
+                                    </div>';
                                     
-                                    <!-- UPDATED: Simplified POST Form -->
-                                    <form id="paymentForm_' . $currentMonthBill['id'] . '" 
-                                          method="POST" 
-                                          action="../../digital/index.php" 
-                                          target="_blank">
-                                        <input type="hidden" name="system" value="market_rent">
-                                        <input type="hidden" name="ref" value="' . $currentMonthBill['id'] . '">
-                                        <input type="hidden" name="amount" value="' . $currentMonthBill['total_amount_due'] . '">
-                                        <input type="hidden" name="purpose" value="' . htmlspecialchars('Market Rent ' . $current_month_name . ' ' . $current_year . ' - ' . $stall['stall_name']) . '">
-                                        <input type="hidden" name="callback" value="' . $market_callback_url . '">
+                                    if ($annualPayment['payment_status'] == 'paid') {
+                                        echo '
+                                        <div class="paid-indicator">
+                                            <i class="fas fa-check-circle"></i>
+                                            Paid
+                                        </div>';
+                                    } else {
+                                        $purpose_text = 'MARKET ANNUAL ' . $current_year . ' - ' . $stall['business_name'];
+                                        $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                         
-                                        <button type="submit" 
-                                                class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 pulse' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
-                                            <i class="fas fa-external-link-alt mr-2"></i> Pay in New Tab
-                                        </button>
-                                        <p class="text-xs text-green-600 mt-2">
-                                            <i class="fas fa-shield-alt mr-1"></i> Secure POST • Opens in new tab
-                                        </p>
-                                    </form>
+                                        echo '
+                                        <form method="POST" 
+                                              action="../../digital/index.php" 
+                                              target="_blank">
+                                            <input type="hidden" name="system" value="market_rent">
+                                            <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['reference_number'] . '">
+                                            <input type="hidden" name="amount" value="' . $annualPayment['final_amount'] . '">
+                                            <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                            <input type="hidden" name="callback" value="' . $market_callback_url . '">
+                                            <input type="hidden" name="registration_id" value="' . $stall['registration_id'] . '">
+                                            
+                                            <button type="submit" 
+                                                    class="btn btn-success">
+                                                <i class="fas fa-external-link-alt mr-2"></i> Pay Annual
+                                            </button>
+                                        </form>';
+                                    }
+                                    echo '
                                 </div>
                             </div>
                         </div>';
                         }
                         
                         echo '
-                        <!-- Monthly Rent Billing Section -->
-                        <div class="p-6">';
+                        <!-- Monthly Payments -->
+                        <div class="p-6">
+                            <h4 class="section-title">
+                                <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                                Monthly Rent Payments
+                            </h4>
+                            
+                            <!-- Summary -->
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex space-x-4">
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Paid</div>
+                                        <div class="font-bold text-green-600">' . $paidMonths . '</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Pending</div>
+                                        <div class="font-bold text-yellow-600">' . $pendingMonths . '</div>
+                                    </div>';
+                                    if ($overdueMonths > 0) {
+                                        echo '
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Overdue</div>
+                                        <div class="font-bold text-red-600">' . $overdueMonths . '</div>
+                                    </div>';
+                                    }
+                                    echo '
+                                </div>
+                            </div>';
                             
                             if (empty($monthly_bills)) {
                                 echo '
-                            <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <i class="fas fa-file-invoice text-gray-400 text-2xl"></i>
-                                </div>
-                                <p class="text-gray-600 text-lg mb-2">No rent bills generated yet</p>
-                                <p class="text-gray-500 text-sm">Rent bills will be generated automatically each month</p>
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-file-invoice text-2xl mb-2 text-gray-300"></i>
+                                <p>No monthly rent bills generated yet</p>
                             </div>';
                             } else {
-                                // Monthly Grid View
                                 echo '
-                            <div class="mb-8">
-                                <h5 class="font-medium text-gray-700 mb-4 text-sm">Monthly Overview</h5>
-                                <div class="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-2 mb-6">';
-                                
-                                foreach ($month_names as $month_num => $month_abbr) {
-                                    $month_bill = null;
-                                    foreach ($monthly_bills as $bill) {
-                                        if ($bill['billing_month'] == $month_num && $bill['billing_year'] == $current_year) {
-                                            $month_bill = $bill;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    $status_class = 'month-pending';
-                                    $status_text = 'Pending';
-                                    
-                                    if ($month_bill) {
-                                        if ($month_bill['payment_status'] == 'paid') {
-                                            $status_class = 'month-paid';
-                                            $status_text = 'Paid';
-                                        } elseif ($month_bill['payment_status'] == 'overdue') {
-                                            $status_class = 'month-overdue';
-                                            $status_text = 'Overdue';
-                                        }
-                                    }
-                                    
-                                    $is_current = ($month_num == $current_month);
-                                    $current_class = $is_current ? 'ring-2 ring-blue-500 ring-offset-1' : '';
-                                    
-                                    echo '
-                                    <div class="text-center">
-                                        <div class="month-badge ' . $status_class . ' ' . $current_class . '" title="' . $status_text . '">
-                                            ' . $month_abbr . '
-                                        </div>
-                                        <div class="mt-1 text-xs text-gray-500">' . $month_num . '</div>
-                                    </div>';
-                                }
-                                
-                                echo '
-                                </div>
-                            </div>
-                            
-                            <!-- Monthly Table -->
-                            <div class="overflow-x-auto rounded-xl border border-gray-200 mb-8">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gradient-to-r from-gray-50 to-blue-50">
+                            <div class="overflow-x-auto">
+                                <table class="tax-table">
+                                    <thead>
                                         <tr>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Month</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Base Rent</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Penalty</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Due</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Action</th>
+                                            <th>Month</th>
+                                            <th>Due Date</th>
+                                            <th>Rent Amount</th>
+                                            <th>Penalty</th>
+                                            <th>Total Due</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">';
+                                    <tbody>';
                                     
-                                    $month_totals = [
-                                        'base_rent' => 0,
-                                        'penalty' => 0,
-                                        'discount' => 0,
-                                        'total_due' => 0
+                                    $month_names = [
+                                        1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+                                        5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+                                        9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
                                     ];
                                     
                                     foreach ($monthly_bills as $bill) {
-                                        $days_late = $bill['days_late'] ?? 0;
-                                        $penalty_amount = $bill['penalty_amount'] ?? 0;
-                                        $discount_amount = $bill['discount_amount'] ?? 0;
-                                        $base_rent = $bill['base_rent'] ?? 0;
-                                        $total_due = $bill['total_amount_due'] ?? 0;
-                                        $due_date = date('M d, Y', strtotime($bill['due_date']));
-                                        $full_month_name = date('F', mktime(0, 0, 0, $bill['billing_month'], 1));
+                                        $status = $bill['payment_status'];
+                                        $rent_amount = $bill['base_rent'] ?? 0;
+                                        $penaltyAmount = $bill['penalty_amount'] ?? 0;
+                                        $totalAmount = $bill['total_amount_due'] ?? 0;
+                                        $daysLate = $bill['days_late'] ?? 0;
                                         
-                                        // Update totals
-                                        $month_totals['base_rent'] += $base_rent;
-                                        $month_totals['penalty'] += $penalty_amount;
-                                        $month_totals['discount'] += $discount_amount;
-                                        $month_totals['total_due'] += $total_due;
+                                        $dueDate = new DateTime($bill['due_date']);
+                                        $isCurrentMonth = ($bill['billing_month'] == $current_month && $bill['billing_year'] == $current_year);
+                                        $month_name = $month_names[$bill['billing_month']] ?? 'Month ' . $bill['billing_month'];
                                         
                                         echo '
-                                        <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                            <td class="px-6 py-4">
-                                                <div class="font-medium text-gray-900 text-base">' . $full_month_name . '</div>
-                                                <div class="text-gray-500 text-sm">' . $bill['billing_year'] . '</div>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-medium text-gray-900">' . $due_date . '</div>';
-                                                if ($days_late > 0) {
-                                                    echo '<div class="text-xs font-medium bg-red-100 text-red-800 px-2 py-1 rounded inline-block mt-1">
-                                                        <i class="fas fa-clock mr-1"></i>' . $days_late . ' days late
+                                        <tr>
+                                            <td>
+                                                <div class="font-medium">' . $month_name . ' ' . $bill['billing_year'] . '</div>';
+                                                if ($isCurrentMonth) {
+                                                    echo '<div class="text-xs text-blue-600 font-medium">
+                                                        Current
                                                     </div>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-semibold text-gray-900 text-base">' . formatCurrency($base_rent) . '</div>
+                                            <td>
+                                                <div>' . $dueDate->format('M d, Y') . '</div>';
+                                                if ($daysLate > 0) {
+                                                    echo '<div class="text-xs text-red-600 font-medium">
+                                                        ' . $daysLate . ' days late
+                                                    </div>';
+                                                }
+                                                echo '
                                             </td>
-                                            <td class="px-6 py-4">';
-                                                if ($penalty_amount > 0) {
-                                                    echo '<div class="font-semibold text-red-600">' . formatCurrency($penalty_amount) . '</div>';
+                                            <td>
+                                                ' . formatCurrency($rent_amount) . '
+                                            </td>
+                                            <td>';
+                                                if ($penaltyAmount > 0) {
+                                                    echo '<span class="text-red-600 font-medium">' . formatCurrency($penaltyAmount) . '</span>';
                                                 } else {
-                                                    echo '<div class="text-gray-400">-</div>';
+                                                    echo '<span class="text-gray-400">₱0.00</span>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">';
-                                                if ($discount_amount > 0) {
-                                                    echo '<div class="font-semibold text-green-600">' . formatCurrency($discount_amount) . '</div>';
+                                            <td>
+                                                <span class="font-bold">' . formatCurrency($totalAmount) . '</span>
+                                            </td>
+                                            <td>';
+                                                if ($status == 'paid') {
+                                                    echo '<span class="status-badge status-paid">
+                                                        <i class="fas fa-check-circle mr-1"></i> Paid
+                                                    </span>';
+                                                } elseif ($status == 'overdue') {
+                                                    echo '<span class="status-badge status-overdue">
+                                                        <i class="fas fa-exclamation-triangle mr-1"></i> Overdue
+                                                    </span>';
                                                 } else {
-                                                    echo '<div class="text-gray-400">-</div>';
+                                                    echo '<span class="status-badge status-pending">
+                                                        <i class="fas fa-clock mr-1"></i> Pending
+                                                    </span>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-bold text-gray-900 text-base">' . formatCurrency($total_due) . '</div>
-                                            </td>
-                                            <td class="px-6 py-4">';
-                                                $status_class = 'status-pending';
-                                                if ($bill['payment_status'] == 'paid') {
-                                                    $status_class = 'status-paid';
-                                                } elseif ($bill['payment_status'] == 'overdue') {
-                                                    $status_class = 'status-overdue';
-                                                }
-                                                echo '<span class="status-badge ' . $status_class . '">
-                                                    <i class="fas ' . ($bill['payment_status'] == 'paid' ? 'fa-check-circle' : ($bill['payment_status'] == 'overdue' ? 'fa-exclamation-triangle' : 'fa-clock')) . ' mr-1"></i>
-                                                    ' . ucfirst($bill['payment_status']) . '
-                                                </span>';
-                                                echo '
-                                            </td>
-                                            <td class="px-6 py-4">';
-                                                if ($bill['payment_status'] != 'paid') {
+                                            <td>';
+                                                if ($status == 'paid') {
                                                     echo '
-                                                <form method="POST" action="../../digital/index.php" target="_blank" class="inline-block">
-                                                    <input type="hidden" name="system" value="market_rent">
-                                                    <input type="hidden" name="ref" value="' . $bill['id'] . '">
-                                                    <input type="hidden" name="amount" value="' . $total_due . '">
-                                                    <input type="hidden" name="purpose" value="' . htmlspecialchars('Market Rent ' . $full_month_name . ' ' . $bill['billing_year'] . ' - ' . $stall['stall_name']) . '">
-                                                    <input type="hidden" name="callback" value="' . $market_callback_url . '">
-                                                    <button type="submit" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium inline-flex items-center">
-                                                        <i class="fas fa-external-link-alt mr-1.5 text-xs"></i> Pay
-                                                    </button>
-                                                </form>';
+                                                    <div class="paid-indicator">
+                                                        <i class="fas fa-check-circle"></i>
+                                                        Paid
+                                                    </div>';
                                                 } else {
+                                                    $purpose_text = 'MARKET RENT ' . $month_name . ' ' . $bill['billing_year'] . ' - ' . $stall['business_name'];
+                                                    $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
+                                                    
                                                     echo '
-                                                <div class="inline-flex items-center text-green-600 font-medium">
-                                                    <i class="fas fa-check-circle mr-1.5"></i> Paid
-                                                </div>';
+                                                    <form class="inline-block" 
+                                                          method="POST" 
+                                                          action="../../digital/index.php" 
+                                                          target="_blank">
+                                                        <input type="hidden" name="system" value="market_rent">
+                                                        <input type="hidden" name="ref" value="' . $bill['id'] . '">
+                                                        <input type="hidden" name="amount" value="' . $totalAmount . '">
+                                                        <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                                        <input type="hidden" name="callback" value="' . $market_callback_url . '">
+                                                        
+                                                        <button type="submit" 
+                                                                class="btn btn-primary text-sm">
+                                                            <i class="fas fa-external-link-alt mr-1"></i> Pay Now
+                                                        </button>
+                                                    </form>';
                                                 }
                                                 echo '
                                             </td>
                                         </tr>';
                                     }
                                     
+                                    // Summary Row
                                     echo '
-                                    </tbody>
-                                    <tfoot class="bg-gradient-to-r from-gray-50 to-blue-50">
-                                        <tr>
-                                            <td colspan="2" class="px-6 py-4 font-bold text-gray-900 text-right">TOTALS:</td>
-                                            <td class="px-6 py-4 font-bold text-gray-900">' . formatCurrency($month_totals['base_rent']) . '</td>
-                                            <td class="px-6 py-4 font-bold text-red-600">' . formatCurrency($month_totals['penalty']) . '</td>
-                                            <td class="px-6 py-4 font-bold text-green-600">' . formatCurrency($month_totals['discount']) . '</td>
-                                            <td class="px-6 py-4 font-bold text-gray-900">' . formatCurrency($month_totals['total_due']) . '</td>
-                                            <td colspan="2" class="px-6 py-4"></td>
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td colspan="2" class="text-right">Totals:</td>
+                                            <td>' . formatCurrency($totalRent) . '</td>
+                                            <td class="' . ($totalPenalty > 0 ? 'text-red-600' : '') . '">' . formatCurrency($totalPenalty) . '</td>
+                                            <td class="text-blue-700">' . formatCurrency($totalRent + $totalPenalty) . '</td>
+                                            <td colspan="2"></td>
                                         </tr>
-                                    </tfoot>
+                                    </tbody>
                                 </table>
                             </div>';
                             }
-                            
                             echo '
                         </div>
                     </div>';
@@ -792,63 +758,99 @@ $is_january = $current_month == 1;
             }
         } catch (PDOException $e) {
             echo '
-            <div class="card p-8">
-                <div class="bg-red-50 border border-red-200 rounded-xl p-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-4">
-                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-red-800">Database Error</h3>
-                            <p class="text-red-700">Unable to load stall information. Please try again later.</p>
-                        </div>
-                    </div>
+            <div class="simple-card p-8 text-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Service Unavailable</h3>
+                <p class="text-gray-600 mb-6">We cannot load your market stall information right now. Please try again later.</p>
+                <div class="space-y-3 max-w-sm mx-auto">
+                    <button onclick="location.reload()" class="btn btn-primary w-full">
+                        Try Again
+                    </button>
+                    <a href="../market_services.php" class="btn btn-secondary w-full">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to Services
+                    </a>
                 </div>
             </div>';
         }
         ?>
     </div>
 
-    <!-- Footer -->
-    <div class="mt-12 pt-8 border-t border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="mb-4 md:mb-0">
-                    <p class="text-gray-600 text-sm">&copy; ' . date('Y') . ' LGU Market Services. All rights reserved.</p>
-                    <p class="text-gray-500 text-xs mt-1">Secure payment portal with POST method transmission</p>
+    <!-- Footer - Same as RPT -->
+    <footer class="footer-bg mt-16">
+        <div class="container mx-auto px-6 py-12 max-w-7xl">
+            <div class="responsive-grid grid-cols-1 md:grid-cols-4 gap-12">
+                <!-- Brand -->
+                <div class="col-span-1">
+                    <div class="flex items-center mb-4 text-2xl font-bold">
+                        <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed">
+                        The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
+                    </p>
                 </div>
-                <div class="flex items-center space-x-6">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center text-gray-600 text-sm">
-                            <i class="fas fa-shield-alt text-green-600 mr-2"></i>
-                            <span>Secure POST</span>
-                        </div>
-                        <div class="flex items-center text-gray-600 text-sm">
-                            <i class="fas fa-external-link-alt text-blue-600 mr-2"></i>
-                            <span>New Tab</span>
-                        </div>
-                        <div class="flex items-center text-gray-600 text-sm">
-                            <i class="fas fa-lock text-gray-600 mr-2"></i>
-                            <span>Encrypted</span>
-                        </div>
+                
+                <!-- Portal Links -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><a href="../market_services.php" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                        <li><i class="fas fa-envelope mr-2 text-gray-400"></i> market@goserveph.gov.ph</li>
+                        <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                    </ul>
+                </div>
+
+                <!-- Social -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                    <div class="flex space-x-4 text-2xl">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
                     </div>
                 </div>
             </div>
+            
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-10 pt-8">
+                <p class="text-sm text-gray-500 text-center">
+                    &copy; <?php echo date('Y'); ?> GoServePH Local Government Unit. Republic of the Philippines.
+                </p>
+            </div>
         </div>
-    </div>
+    </footer>
 
     <script>
-    // Auto-close success message after 5 seconds
     document.addEventListener('DOMContentLoaded', function() {
-        const successMessage = document.querySelector('[id*="payment_success"]');
-        if (successMessage) {
-            setTimeout(() => {
-                successMessage.style.transition = 'opacity 0.5s';
-                successMessage.style.opacity = '0';
-                setTimeout(() => successMessage.remove(), 500);
-            }, 5000);
-        }
+        document.querySelectorAll('form[target="_blank"]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn && !submitBtn.disabled) {
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+                    submitBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        submitBtn.innerHTML = submitBtn.getAttribute('data-original-text') || 'Pay Now';
+                        submitBtn.disabled = false;
+                    }, 3000);
+                }
+            });
+        });
     });
-</script>
+    </script>
 </body>
 </html>

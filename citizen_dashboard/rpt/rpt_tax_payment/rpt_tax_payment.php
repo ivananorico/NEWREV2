@@ -8,7 +8,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_name = $_SESSION['user_name'] ?? 'Citizen';
 
 include_once '../../../db/RPT/rpt_db.php';
 $pdo = getDatabaseConnection();
@@ -167,9 +166,6 @@ function formatCurrency($amount) {
 $current_year = date('Y');
 $is_january = date('n') == 1;
 $current_quarter = 'Q' . ceil(date('n') / 3);
-
-// Get base URL for background image
-$bg_image_path = '/revenue2/Login/images/gsmbg.png';
 ?>
 
 <!DOCTYPE html>
@@ -182,50 +178,49 @@ $bg_image_path = '/revenue2/Login/images/gsmbg.png';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Clean, Simple Styles */
-       /* Clean, Simple Styles */
-body {
-    background-color: #f8f9fa;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    position: relative;
-    min-height: 100vh;
-}
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            position: relative;
+            min-height: 100vh;
+        }
 
-/* Animated background particles - same as login page */
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: 
-        radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
-    animation: backgroundFloat 20s ease-in-out infinite;
-    z-index: -2;
-}
+        /* Animated background particles - same as login page */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -2;
+        }
 
-@keyframes backgroundFloat {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(-20px) rotate(1deg); }
-    66% { transform: translateY(10px) rotate(-1deg); }
-}
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
+        }
 
-/* Background image with subtle opacity - same as login page */
-body::after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: url('/revenue2/Login/images/gsmbg.png') center/cover no-repeat;
-    opacity: 0.08;
-    pointer-events: none;
-    z-index: -1;
-    filter: blur(1px);
-}
+        /* Background image with subtle opacity - same as login page */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/revenue2/Login/images/gsmbg.png') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -1;
+            filter: blur(1px);
+        }
         
         .simple-card {
             background: white;
@@ -404,7 +399,7 @@ body::after {
     <?php include '../../navbar.php'; ?>
     
     <div class="max-w-6xl mx-auto px-4 py-6">
-        <!-- Page Header with User Info Box -->
+        <!-- Page Header with Simple Title Only -->
         <div class="header-box mb-6">
             <div class="flex items-center mb-4">
                 <a href="../rpt_services.php" class="text-blue-600 hover:text-blue-800 mr-4">
@@ -412,22 +407,11 @@ body::after {
                 </a>
                 <div>
                     <h1 class="text-2xl font-semibold text-gray-900">Real Property Tax Payment</h1>
-                    <p class="text-gray-600 mt-1">Pay your property taxes online</p>
+                    <p class="text-gray-600 mt-1">Online payment portal for your property taxes</p>
                 </div>
             </div>
             
-            <!-- User Info inside the box -->
-            <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-user text-blue-600"></i>
-                    </div>
-                    <div>
-                        <span class="text-sm font-medium text-gray-700">Welcome,</span>
-                        <span class="text-sm font-semibold text-gray-900 ml-1"><?php echo htmlspecialchars($user_name); ?></span>
-                    </div>
-                </div>
-            </div>
+            <!-- Removed the user info box entirely -->
         </div>
 
         <!-- Payment Success Message -->
@@ -441,24 +425,28 @@ body::after {
         </div>
         <?php endif; ?>
 
-        <!-- Important Information -->
+        <!-- Simplified Important Information - Removed "Due Dates" box -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="info-box">
-                <div class="flex items-center mb-2">
-                    <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
-                    <h3 class="font-medium text-gray-800">Due Dates</h3>
-                </div>
-                <p class="text-sm text-gray-700">
-                    Q1: Mar 31 • Q2: Jun 30 • Q3: Sep 30 • Q4: Dec 31
-                </p>
-            </div>
-            
+            <!-- Only keep the penalty info box -->
             <div class="info-box" style="background-color: #fffbeb; border-left-color: #f59e0b;">
                 <div class="flex items-center mb-2">
                     <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
-                    <h3 class="font-medium text-gray-800">Late Payment Penalty</h3>
+                    <h3 class="font-medium text-gray-800">Important Notice</h3>
                 </div>
-                <p class="text-sm text-gray-700">2% monthly penalty for late payments</p>
+                <p class="text-sm text-gray-700">
+                    <strong>2% monthly penalty</strong> applies to late payments from the due date.
+                    <br>
+                    <strong>10% discount</strong> available for annual payments made in January.
+                </p>
+            </div>
+            
+            <!-- Add a new box for payment security -->
+            <div class="info-box">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
+                    <h3 class="font-medium text-gray-800">Secure Payment</h3>
+                </div>
+                <p class="text-sm text-gray-700">All transactions are secured with SSL encryption. Your payment information is protected.</p>
             </div>
         </div>
 

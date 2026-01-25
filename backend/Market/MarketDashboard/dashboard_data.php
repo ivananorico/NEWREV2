@@ -25,10 +25,112 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Include database connection
 require_once '../../../db/Market/market_db.php';
 
-// Get time range parameter
+// Get request parameters
+$action = $_GET['action'] ?? 'dashboard';
+$year = $_GET['year'] ?? date('Y');
+$month = $_GET['month'] ?? date('n');
 $timeRange = $_GET['range'] ?? 'month';
 
+// Function to get available years from database
+function getAvailableYears($pdo) {
+    try {
+        // Get years from payment logs (most reliable source)
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT YEAR(payment_date) as year 
+            FROM market_payment_logs 
+            WHERE payment_date IS NOT NULL 
+            ORDER BY year DESC
+        ");
+        $stmt->execute();
+        $years = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // If no payment data, get from rental registration
+        if (empty($years)) {
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT YEAR(created_at) as year 
+                FROM rental_registration 
+                WHERE created_at IS NOT NULL 
+                ORDER BY year DESC
+            ");
+            $stmt->execute();
+            $years = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        
+        // If still no data, return current year
+        if (empty($years)) {
+            $currentYear = date('Y');
+            return [$currentYear];
+        }
+        
+        return $years;
+    } catch (PDOException $e) {
+        error_log('Error getting available years: ' . $e->getMessage());
+        $currentYear = date('Y');
+        return [$currentYear];
+    }
+}
+
+// Function to get available months for a specific year
+function getAvailableMonths($pdo, $year) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT MONTH(payment_date) as month 
+            FROM market_payment_logs 
+            WHERE YEAR(payment_date) = ? 
+            AND payment_date IS NOT NULL 
+            ORDER BY month DESC
+        ");
+        $stmt->execute([$year]);
+        $months = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // If no payment data for this year, check rental registration
+        if (empty($months)) {
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT MONTH(created_at) as month 
+                FROM rental_registration 
+                WHERE YEAR(created_at) = ? 
+                AND created_at IS NOT NULL 
+                ORDER BY month DESC
+            ");
+            $stmt->execute([$year]);
+            $months = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        
+        // If still no data, return all months (1-12)
+        if (empty($months)) {
+            return range(1, 12);
+        }
+        
+        return $months;
+    } catch (PDOException $e) {
+        error_log('Error getting available months: ' . $e->getMessage());
+        return range(1, 12);
+    }
+}
+
 try {
+    // Handle different actions
+    if ($action === 'get_years') {
+        $years = getAvailableYears($pdo);
+        echo json_encode([
+            'status' => 'success',
+            'years' => $years,
+            'current_year' => date('Y')
+        ]);
+        exit;
+    }
+    
+    if ($action === 'get_months') {
+        $months = getAvailableMonths($pdo, $year);
+        echo json_encode([
+            'status' => 'success',
+            'months' => $months,
+            'current_month' => date('n')
+        ]);
+        exit;
+    }
+    
+    // Continue with dashboard data...
     // 1. Get Total Approved Citizens
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT ro.id) as total_citizens
@@ -291,6 +393,13 @@ try {
     $stmt->execute();
     $status_distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Get current month name
+    $month_names = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    $current_month = $month_names[date('n') - 1];
+
     // Prepare complete response
     $response = [
         'status' => 'success',
@@ -317,7 +426,11 @@ try {
         'revenue_trend' => $revenue_trend,
         'status_distribution' => $status_distribution,
         'timestamp' => date('Y-m-d H:i:s'),
-        'time_range' => $timeRange
+        'time_range' => $timeRange,
+        'current_month' => $current_month,
+        'current_year' => date('Y'),
+        'selected_year' => $year,
+        'selected_month' => $month
     ];
 
     echo json_encode($response);

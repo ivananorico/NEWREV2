@@ -8,7 +8,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_name = $_SESSION['user_name'] ?? 'Business Owner';
 
 include_once '../../../db/Business/business_db.php';
 $pdo = getDatabaseConnection();
@@ -17,16 +16,15 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
-// Determine base URL based on whether we're on localhost or live domain
+// Determine base URL
 $is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
 $base_url = $is_localhost 
     ? 'http://localhost/revenue2' 
     : 'https://revenuetreasury.goserveph.com';
 
-// Business payment callback URL - dynamically generated
 $business_callback_url = $base_url . '/citizen_dashboard/business/api/business_payment_api.php';
 
-// Get current penalty rate from config
+// Function to get current penalty rate
 function getBusinessPenaltyRate($pdo) {
     try {
         $penalty_stmt = $pdo->prepare("
@@ -39,17 +37,16 @@ function getBusinessPenaltyRate($pdo) {
         $penalty_stmt->execute();
         $penalty_config = $penalty_stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $penalty_config['penalty_percent'] ?? 1.00; // Default to 1%
+        return $penalty_config['penalty_percent'] ?? 1.00;
     } catch(PDOException $e) {
-        return 1.00; // Default fallback
+        return 1.00;
     }
 }
 
-// Get current discount rate from config (for annual payments)
+// Function to get current annual discount rate FROM DATABASE
 function getBusinessAnnualDiscountRate($pdo) {
     $current_month = date('n');
     
-    // Only eligible in January
     if ($current_month != 1) {
         return 0.00;
     }
@@ -65,12 +62,19 @@ function getBusinessAnnualDiscountRate($pdo) {
         $discount_stmt->execute();
         $discount_config = $discount_stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $discount_config['discount_percent'] ?? 5.00; // Default to 5% for January
+        if ($discount_config) {
+            return (float)$discount_config['discount_percent'];
+        }
+        
+        // Default to 5% if no active discount config found
+        return 5.00;
     } catch(PDOException $e) {
+        error_log("Discount config error: " . $e->getMessage());
         return $current_month == 1 ? 5.00 : 0.00;
     }
 }
 
+// Function to calculate penalties
 function calculateBusinessPenalties($quarterly_taxes, $pdo) {
     $current_date = date('Y-m-d');
     $penalty_rate = getBusinessPenaltyRate($pdo);
@@ -116,17 +120,15 @@ function calculateBusinessPenalties($quarterly_taxes, $pdo) {
     return $quarterly_taxes;
 }
 
-// Check if eligible for annual discount (like RPT system)
-function isEligibleForAnnualDiscount($quarterly_taxes, $pdo) {
+// Check eligibility for annual discount
+function isEligibleForAnnualDiscount($quarterly_taxes) {
     $current_month = date('n');
     $current_day = date('j');
     
-    // Only eligible in January
     if ($current_month != 1 || $current_day > 31) {
         return false;
     }
     
-    // Check if all quarters are unpaid and no penalties
     foreach ($quarterly_taxes as $quarter) {
         if ($quarter['payment_status'] == 'paid') {
             return false;
@@ -142,15 +144,15 @@ function isEligibleForAnnualDiscount($quarterly_taxes, $pdo) {
 
 // Check if can pay annual (no quarters already paid)
 function canPayAnnual($quarterly_taxes) {
-    // Check if any quarter is already paid
     foreach ($quarterly_taxes as $quarter) {
         if ($quarter['payment_status'] == 'paid') {
-            return false; // Cannot pay annual if any quarter is already paid
+            return false;
         }
     }
     return true;
 }
 
+// Calculate annual total
 function calculateAnnualTotal($quarterly_taxes, $discount_percent = 0) {
     $total_annual_tax = 0;
     $total_penalty = 0;
@@ -188,18 +190,20 @@ function calculateAnnualTotal($quarterly_taxes, $discount_percent = 0) {
     }
 }
 
+// Format currency
 function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
+// Get config values FROM DATABASE
+$penalty_rate = getBusinessPenaltyRate($pdo);
+$discount_rate = getBusinessAnnualDiscountRate($pdo);
+
 $current_year = date('Y');
 $is_january = date('n') == 1;
 $current_quarter = 'Q' . ceil(date('n') / 3);
-
-// Get config values for display
-$penalty_rate = getBusinessPenaltyRate($pdo);
-$discount_rate = getBusinessAnnualDiscountRate($pdo);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -209,209 +213,288 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .status-badge { 
-            display: inline-flex; 
-            align-items: center; 
-            padding: 0.4rem 0.8rem; 
-            border-radius: 6px; 
-            font-size: 0.8rem; 
-            font-weight: 500; 
+        /* Clean, Simple Styles - Same as RPT */
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            position: relative;
+            min-height: 100vh;
         }
-        .status-paid { background-color: #d1fae5; color: #065f46; }
-        .status-overdue { background-color: #fee2e2; color: #991b1b; }
-        .status-pending { background-color: #fef3c7; color: #92400e; }
+
+        /* Animated background particles - same as login page */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+            animation: backgroundFloat 20s ease-in-out infinite;
+            z-index: -2;
+        }
+
+        @keyframes backgroundFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(10px) rotate(-1deg); }
+        }
+
+        /* Background image with subtle opacity - same as login page */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/revenue2/Login/images/gsmbg.png') center/cover no-repeat;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: -1;
+            filter: blur(1px);
+        }
         
-        .card {
+        .simple-card {
             background: white;
-            border-radius: 0.625rem;
             border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
         
-        .section-header {
-            border-left: 4px solid #4a90e2;
-            padding-left: 1rem;
-            margin-bottom: 1.25rem;
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
         
-        .payment-summary-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-left: 4px solid #4a90e2;
+        .status-paid {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
         }
         
-        .glow-button {
-            transition: all 0.3s ease;
-        }
-        .glow-button:hover {
-            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
-            transform: translateY(-2px);
+        .status-overdue {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
         }
         
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
         }
         
-        /* POST method indicator */
-        .post-method-badge {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        /* Header box */
+        .header-box {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .info-box {
+            background: #f8fafc;
+            border-left: 3px solid #3b82f6;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+        }
+        
+        .tax-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .tax-table th {
+            background: #f9fafb;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .tax-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .tax-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .btn-success:hover {
+            background-color: #059669;
+        }
+        
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            border-color: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        
+        .btn-disabled {
+            background-color: #9ca3af;
+            color: white;
+            border-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .section-title {
+            color: #1f2937;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .payment-option {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-option.recommended {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .discount-badge {
+            background-color: #10b981;
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            margin-left: 0.5rem;
         }
         
-        .new-tab-indicator {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            padding: 0.2rem 0.6rem;
-            border-radius: 9999px;
-            font-size: 0.6rem;
-            font-weight: 600;
+        /* Footer styles */
+        .footer-bg {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .responsive-grid {
+            display: grid;
+            gap: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            .responsive-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Paid indicator style */
+        .paid-indicator {
             display: inline-flex;
             align-items: center;
-            margin-left: 0.5rem;
-        }
-        
-        .disabled-button {
-            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
-            cursor: not-allowed !important;
-            opacity: 0.7;
+            padding: 0.5rem 1rem;
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            border-radius: 6px;
+            font-weight: 500;
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Include Navbar -->
-    <?php include '../../../citizen_dashboard/navbar.php'; ?>
+<body>
+    <?php include '../../navbar.php'; ?>
     
-    <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <!-- Page Header with Simple Title Only -->
+        <div class="header-box mb-6">
+            <div class="flex items-center mb-4">
+                <a href="../business_services.php" class="text-blue-600 hover:text-blue-800 mr-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900">Business Tax Payment</h1>
+                    <p class="text-gray-600 mt-1">Online payment portal for your business taxes</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Payment Success Message -->
         <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
-        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
             <div class="flex items-center">
-                <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
-                <div>
-                    <h3 class="font-bold text-green-800 mb-1">Payment Successful!</h3>
-                    <p class="text-green-700 text-sm">Your business tax payment has been processed. Your payment status will update shortly.</p>
-                </div>
+                <i class="fas fa-check-circle mr-2"></i>
+                <span class="font-medium">Payment Successful!</span>
             </div>
+            <p class="mt-1 text-sm">Your business tax payment has been processed successfully.</p>
         </div>
         <?php endif; ?>
 
-        <!-- Back Button & Header -->
-        <div class="mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <a href="../business_services.php" class="text-blue-600 hover:text-blue-800 inline-flex items-center text-sm mb-2">
-                        <i class="fas fa-arrow-left mr-2"></i> Back to Business Services
-                    </a>
-                    <div class="flex items-center">
-                        <h1 class="text-2xl font-bold text-gray-800">Business Tax Payment</h1>
-                        <span class="post-method-badge">
-                            <i class="fas fa-shield-alt mr-1"></i> Secure POST
-                        </span>
-                        <span class="new-tab-indicator">
-                            <i class="fas fa-external-link-alt mr-1"></i> New Tab
-                        </span>
-                    </div>
-                    <p class="text-gray-600 text-sm">Manage and pay your business taxes online</p>
+        <!-- Simplified Important Information -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <!-- Only keep the penalty info box -->
+            <div class="info-box" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <h3 class="font-medium text-gray-800">Important Notice</h3>
                 </div>
-                <div class="text-right">
-                    <div class="flex items-center justify-end space-x-4">
-                        <div class="text-right">
-                            <p class="text-sm text-gray-500">Welcome, <?php echo htmlspecialchars($user_name); ?></p>
-                            <p class="text-sm text-gray-500">Current: <?php echo $current_quarter; ?> <?php echo $current_year; ?></p>
-                        </div>
-                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user text-blue-600"></i>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-gray-700">
+                    <strong><?php echo $penalty_rate; ?>% monthly penalty</strong> applies to late payments from the due date.
+                    <br>
+                    <strong><?php echo $discount_rate; ?>% discount</strong> available for annual payments made in January.
+                </p>
             </div>
             
-            <!-- Security Info Banner -->
-            <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-xl p-5 mb-6">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
-                        <i class="fas fa-shield-alt text-green-600 text-xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="text-lg font-bold text-green-800">Secure Payment Transmission</h3>
-                        <p class="text-green-700">Your payment data is transmitted securely using POST method and opens in new tab.</p>
-                    </div>
-                    <div class="hidden md:flex items-center space-x-3">
-                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
-                            <span class="text-green-700 font-medium text-sm">
-                                <i class="fas fa-lock mr-1"></i> Data Encrypted
-                            </span>
-                        </div>
-                        <div class="bg-white px-3 py-1 rounded-lg border border-green-200">
-                            <span class="text-green-700 font-medium text-sm">
-                                <i class="fas fa-external-link-alt mr-1"></i> New Tab
-                            </span>
-                        </div>
-                    </div>
+            <!-- Add a new box for payment security -->
+            <div class="info-box">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
+                    <h3 class="font-medium text-gray-800">Secure Payment</h3>
                 </div>
-            </div>
-            
-            <!-- Info Banner -->
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5 mb-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between">
-                    <div class="mb-4 md:mb-0">
-                        <div class="flex items-center mb-2">
-                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
-                                <i class="fas fa-info-circle text-blue-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-blue-800">Payment Information</h3>
-                                <p class="text-blue-700">Important dates and reminders</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div class="flex items-center bg-white px-3 py-2 rounded-lg">
-                            <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>
-                            <span class="font-medium">Due Dates:</span>
-                            <span class="ml-2 text-gray-700">Q1 Mar 31 • Q2 Jun 30 • Q3 Sep 30 • Q4 Dec 31</span>
-                        </div>
-                        <div class="flex items-center bg-white px-3 py-2 rounded-lg">
-                            <i class="fas fa-percent text-red-500 mr-2"></i>
-                            <span class="font-medium">Late Payment:</span>
-                            <span class="ml-2 text-gray-700"><?php echo $penalty_rate; ?>% monthly penalty applies</span>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-gray-700">All transactions are secured with SSL encryption. Your payment information is protected.</p>
             </div>
         </div>
-
-        <?php if ($is_january && $discount_rate > 0): ?>
-        <!-- January Discount Banner -->
-        <div class="bg-gradient-to-r from-emerald-400 to-green-500 rounded-xl p-5 mb-6 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="bg-white p-3 rounded-xl mr-4">
-                        <i class="fas fa-gift text-emerald-600 text-2xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-white mb-1">January Annual Payment Discount Available!</h3>
-                        <p class="text-emerald-100">Get <span class="font-bold text-yellow-300"><?php echo $discount_rate; ?>% discount</span> when paying full annual tax in January.</p>
-                    </div>
-                </div>
-                <div class="hidden md:block">
-                    <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                        <p class="text-white text-sm">Valid until January 31</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <!-- Businesses Section -->
         <?php
@@ -421,7 +504,6 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     bp.id,
                     bp.business_permit_id,
                     bp.business_name,
-                    bp.full_name as owner_name,
                     bp.business_type,
                     bp.tax_calculation_type,
                     bp.total_tax,
@@ -441,92 +523,33 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
 
             if (empty($businesses)) {
                 echo '
-                <div class="card p-10 text-center max-w-lg mx-auto">
-                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i class="fas fa-store text-gray-400 text-2xl"></i>
+                <div class="simple-card p-8 text-center">
+                    <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-store text-gray-500 text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-3">No Active Businesses</h3>
-                    <p class="text-gray-600 mb-8 text-sm leading-relaxed">You don\'t have any approved business permits yet. Apply for a business permit to start paying taxes online.</p>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">No Businesses Found</h3>
+                    <p class="text-gray-600 mb-6">You don\'t have any active business permits yet.</p>
                     <div class="space-y-3">
-                        <a href="business_application_status/business_application_status.php" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium inline-flex items-center justify-center w-full glow-button">
-                            <i class="fas fa-plus-circle mr-3"></i> Apply for Business Permit
+                        <a href="../business_application_status/business_application_status.php" class="btn btn-primary w-full">
+                            <i class="fas fa-plus-circle mr-2"></i> Apply for Business Permit
                         </a>
-                        <a href="../business_services.php" class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium inline-flex items-center justify-center w-full">
-                            <i class="fas fa-question-circle mr-3"></i> Learn About Business Taxes
+                        <a href="../business_services.php" class="btn btn-secondary w-full">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to Services
                         </a>
                     </div>
                 </div>';
             } else {
-                // Stats Summary
-                $totalBusinesses = count($businesses);
-                $totalAnnualTax = 0;
+                echo '<div class="space-y-6">';
                 
                 foreach ($businesses as $business) {
-                    $totalAnnualTax += $business['total_tax'];
-                }
-                
-                echo '
-                <!-- Summary Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-store text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Businesses</p>
-                                <p class="text-2xl font-bold text-gray-800">' . $totalBusinesses . '</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-shield-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Security Level</p>
-                                <p class="text-2xl font-bold text-green-600">POST</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-yellow-500 to-orange-500 p-3 rounded-xl mr-4">
-                                <i class="fas fa-calendar-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Current Quarter</p>
-                                <p class="text-2xl font-bold text-gray-800">' . $current_quarter . '</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card p-5 hover:shadow-lg transition-shadow duration-300">
-                        <div class="flex items-center">
-                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl mr-4">
-                                <i class="fas fa-external-link-alt text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium">Opens In</p>
-                                <p class="text-2xl font-bold text-purple-600">New Tab</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>';
-                
-                echo '<div class="space-y-8">';
-                
-                foreach ($businesses as $business) {
+                    // Get quarterly taxes
                     $taxQuery = "
                         SELECT 
                             bqt.*,
                             bqt.penalty_amount as penalty_amount_db
                         FROM business_quarterly_taxes bqt
                         WHERE bqt.business_permit_id = :business_id
-                        ORDER BY bqt.year ASC, 
+                        ORDER BY bqt.year DESC, 
                             CASE bqt.quarter 
                                 WHEN 'Q1' THEN 1
                                 WHEN 'Q2' THEN 2
@@ -542,43 +565,32 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     
                     $quarterlyTaxes = calculateBusinessPenalties($quarterlyTaxes, $pdo);
                     
-                    $businessPaid = 0;
-                    $businessPenalty = 0;
+                    // Calculate summary
                     $paidQuarters = 0;
                     $overdueQuarters = 0;
                     $pendingQuarters = 0;
-                    
-                    $hasUnpaidQuarters = false;
-                    foreach ($quarterlyTaxes as $tax) {
-                        if ($tax['payment_status'] != 'paid') {
-                            $hasUnpaidQuarters = true;
-                            break;
-                        }
-                    }
+                    $totalPenalty = 0;
+                    $totalTax = 0;
                     
                     foreach ($quarterlyTaxes as $tax) {
                         $status = $tax['actual_status'] ?? $tax['payment_status'];
-                        $totalAmount = $tax['total_quarterly_tax'] + ($tax['penalty_amount'] ?? 0);
+                        $totalTax += $tax['total_quarterly_tax'] ?? 0;
+                        $totalPenalty += ($tax['penalty_amount'] ?? 0);
                         
                         if ($status == 'paid') {
-                            $businessPaid += $totalAmount;
                             $paidQuarters++;
+                        } elseif ($status == 'overdue') {
+                            $overdueQuarters++;
                         } else {
-                            $businessPenalty += ($tax['penalty_amount'] ?? 0);
-                            
-                            if ($status == 'overdue') {
-                                $overdueQuarters++;
-                            } else {
-                                $pendingQuarters++;
-                            }
+                            $pendingQuarters++;
                         }
                     }
                     
-                    $eligibleForDiscount = isEligibleForAnnualDiscount($quarterlyTaxes, $pdo);
+                    $eligibleForDiscount = isEligibleForAnnualDiscount($quarterlyTaxes);
                     $canPayAnnual = canPayAnnual($quarterlyTaxes);
                     $annualPaymentInfo = calculateAnnualTotal($quarterlyTaxes, $eligibleForDiscount ? $discount_rate : 0);
                     
-                    // Check if annual payment exists - BUSINESS VERSION
+                    // Check if annual payment exists
                     $annual_payment_query = "
                         SELECT 
                             ap.*,
@@ -599,69 +611,56 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                     
                     echo '
                     <!-- Business Card -->
-                    <div class="card overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                    <div class="simple-card">
                         <!-- Business Header -->
-                        <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div class="mb-4 md:mb-0">
-                                    <div class="flex items-center">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
-                                            <i class="fas fa-store text-white text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-xl font-bold text-gray-800">' . htmlspecialchars($business['business_name']) . '</h3>
-                                            <div class="flex items-center gap-3 mt-2">
-                                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                                                    ' . htmlspecialchars($business['business_type']) . '
-                                                </span>
-                                                <span class="text-gray-600 text-sm">
-                                                    ' . htmlspecialchars($business['business_permit_id']) . '
-                                                </span>
-                                            </div>
-                                        </div>
+                        <div class="p-6 border-b border-gray-100">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-semibold text-gray-900">' . htmlspecialchars($business['business_name']) . '</span>
                                     </div>
-                                    <p class="text-gray-600 text-sm mt-2">
-                                        <i class="fas fa-map-marker-alt text-gray-400 mr-1 text-sm"></i>
+                                    <div class="text-gray-600 text-sm">
+                                        <i class="fas fa-map-marker-alt mr-1"></i>
                                         ' . htmlspecialchars($business['barangay']) . ', ' . htmlspecialchars($business['city']) . '
-                                    </p>
+                                    </div>
+                                    <div class="text-gray-600 text-sm mt-1">
+                                        <i class="fas fa-id-card mr-1"></i>
+                                        Permit ID: ' . htmlspecialchars($business['business_permit_id']) . ' • ' . htmlspecialchars($business['business_type']) . '
+                                    </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-sm text-gray-500 font-medium">Annual Tax</p>
-                                    <p class="text-2xl font-bold text-blue-600">' . formatCurrency($business['total_tax']) . '</p>
-                                    <p class="text-xs text-green-600 mt-1">
-                                        <i class="fas fa-shield-alt mr-1"></i> Secure POST • 
-                                        <i class="fas fa-external-link-alt ml-1"></i> New Tab
-                                    </p>
+                                <div>
+                                    <div class="text-sm text-gray-600 mb-1">Annual Tax:</div>
+                                    <div class="text-xl font-bold text-blue-700">' . formatCurrency($business['total_tax']) . '</div>
                                 </div>
                             </div>
                         </div>';
                         
-                        if ($hasUnpaidQuarters && $annualPayment && $canPayAnnual) {
-                            $annual_status = $annualPayment['payment_status'];
-                            $annual_amount = $annualPayment['final_amount'];
-                            $annual_ref = $annualPayment['reference_number'];
-                            
+                        // Annual Payment Option
+                        if ($annualPayment && $canPayAnnual) {
+                            $isRecommended = $eligibleForDiscount;
                             echo '
-                        <!-- Annual Payment Option -->
-                        <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
+                        <div class="p-6 border-b border-gray-100 ' . ($isRecommended ? 'bg-green-50' : '') . '">
                             <div class="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div class="mb-4 lg:mb-0">
                                     <div class="flex items-center mb-2">
-                                        <span class="status-badge ' . ($eligibleForDiscount ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-md' : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-md') . ' mr-3">
-                                            <i class="fas ' . ($eligibleForDiscount ? 'fa-gift' : 'fa-calendar-check') . ' mr-1.5"></i>
-                                            ' . ($eligibleForDiscount ? 'DISCOUNT AVAILABLE' : 'ANNUAL PAYMENT') . '
-                                        </span>
-                                        <h4 class="font-bold text-gray-800 text-base">' . ($eligibleForDiscount ? 'Save ' . $discount_rate . '% This Month' : 'Pay All Quarters Together') . '</h4>
+                                        <h4 class="font-medium text-gray-900">
+                                            <i class="fas fa-calendar-check text-green-600 mr-2"></i>
+                                            Annual Payment
+                                        </h4>';
+                                        if ($eligibleForDiscount) {
+                                            echo '
+                                        <span class="discount-badge ml-3">
+                                            <i class="fas fa-gift mr-1"></i>Save ' . number_format($discount_rate, 2) . '%
+                                        </span>';
+                                        }
+                                        echo '
                                     </div>
-                                    <p class="text-gray-600 text-sm">
-                                        ' . ($eligibleForDiscount 
-                                            ? 'Valid until January 31. Pay your annual tax in January and save money!' 
-                                            : 'Convenient single payment for all quarters. Avoid multiple transactions.') . '
+                                    <p class="text-sm text-gray-600">
+                                        Pay all 4 quarters in one payment' . ($eligibleForDiscount ? ' with discount' : '') . '
                                     </p>';
-                                    if (!$canPayAnnual) {
-                                        echo '<p class="text-red-600 text-sm mt-2 font-medium">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i>
-                                            Cannot pay annual - some quarters are already paid
+                                    if ($eligibleForDiscount) {
+                                        echo '<p class="text-xs text-green-600 mt-1">
+                                            <i class="fas fa-calendar-alt mr-1"></i> Valid until January 31
                                         </p>';
                                     }
                                     echo '
@@ -669,137 +668,104 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                 
                                 <div class="lg:text-right">
                                     <div class="mb-3">
-                                        <p class="text-2xl font-bold text-gray-900">' . formatCurrency($annual_amount) . '</p>';
+                                        <div class="text-xl font-bold text-gray-900">' . formatCurrency($annualPayment['final_amount']) . '</div>';
                                         if ($annualPaymentInfo['has_discount']) {
                                             echo '
-                                        <p class="text-sm text-gray-600 flex items-center justify-center lg:justify-end">
-                                            <span class="line-through mr-3">' . formatCurrency($annualPaymentInfo['total_before_discount']) . '</span>
-                                            <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-medium">
+                                        <div class="text-sm text-gray-600 mt-1">
+                                            <span class="line-through">' . formatCurrency($annualPaymentInfo['total_before_discount']) . '</span>
+                                            <span class="text-green-700 font-medium ml-2">
                                                 <i class="fas fa-piggy-bank mr-1"></i>Save ' . formatCurrency($annualPaymentInfo['discount_amount']) . '
                                             </span>
-                                        </p>';
+                                        </div>';
                                         }
                                         echo '
                                     </div>';
                                     
-                                    if ($annual_status == 'paid') {
+                                    if ($annualPayment['payment_status'] == 'paid') {
                                         echo '
-                                        <button onclick="viewReceipt(\'' . ($annualPayment['receipt_number'] ?? '') . '\')" 
-                                                class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold glow-button">
-                                            <i class="fas fa-receipt mr-3"></i> View Receipt
-                                        </button>';
+                                        <div class="paid-indicator">
+                                            <i class="fas fa-check-circle"></i>
+                                            Paid
+                                        </div>';
                                     } else {
-                                        // Create purpose string for annual payment
                                         $purpose_text = 'BUSINESS ANNUAL ' . $current_year . ' - ' . $business['business_name'];
                                         $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                         
                                         echo '
-                                        <form id="annualPaymentForm_' . $business['id'] . '" 
-                                              method="POST" 
+                                        <form method="POST" 
                                               action="../../digital/index.php" 
                                               target="_blank">
                                             <input type="hidden" name="system" value="business">
-                                            <input type="hidden" name="ref" value="ANNUAL-' . $annual_ref . '">
-                                            <input type="hidden" name="amount" value="' . $annual_amount . '">
+                                            <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['reference_number'] . '">
+                                            <input type="hidden" name="amount" value="' . $annualPayment['final_amount'] . '">
                                             <input type="hidden" name="purpose" value="' . $purpose_text . '">
                                             <input type="hidden" name="callback" value="' . $business_callback_url . '">
                                             <input type="hidden" name="business_permit_id" value="' . $business['id'] . '">
                                             
                                             <button type="submit" 
-                                                    class="' . ($canPayAnnual ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600' : 'disabled-button') . ' text-white px-6 py-3 rounded-lg font-semibold glow-button' . ($canPayAnnual ? '' : ' disabled-button') . '" ' . ($canPayAnnual ? '' : 'disabled') . '>
-                                                <i class="fas fa-external-link-alt mr-3"></i> Pay Annual in New Tab
+                                                    class="btn ' . ($canPayAnnual ? 'btn-success' : 'btn-disabled') . '" ' . ($canPayAnnual ? '' : 'disabled') . '>
+                                                <i class="fas fa-external-link-alt mr-2"></i> Pay Annual
                                             </button>
-                                        </form>
-                                        <p class="text-xs text-green-600 mt-2">
-                                            <i class="fas fa-shield-alt mr-1"></i> Secure POST • Opens in new tab
-                                        </p>';
+                                        </form>';
                                     }
                                     echo '
-                                </div>
-                            </div>
-                        </div>';
-                        } elseif ($hasUnpaidQuarters && !$canPayAnnual) {
-                            echo '
-                        <!-- Annual Payment Disabled (Quarters already paid) -->
-                        <div class="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-100 to-gray-200">
-                            <div class="flex flex-col lg:flex-row lg:items-center justify-between">
-                                <div class="mb-4 lg:mb-0">
-                                    <div class="flex items-center mb-2">
-                                        <span class="status-badge bg-gradient-to-r from-gray-400 to-gray-500 text-white border-0 shadow-md mr-3">
-                                            <i class="fas fa-ban mr-1.5"></i>
-                                            ANNUAL PAYMENT DISABLED
-                                        </span>
-                                        <h4 class="font-bold text-gray-700 text-base">Cannot Pay Annual</h4>
-                                    </div>
-                                    <p class="text-gray-600 text-sm">
-                                        You cannot pay annual tax because some quarters have already been paid individually.
-                                    </p>
-                                </div>
-                                
-                                <div class="lg:text-right">
-                                    <button class="disabled-button text-white px-6 py-3 rounded-lg font-semibold cursor-not-allowed" disabled>
-                                        <i class="fas fa-ban mr-3"></i> Not Available
-                                    </button>
                                 </div>
                             </div>
                         </div>';
                         }
                         
                         echo '
-                        <!-- Quarterly Taxes Section -->
+                        <!-- Quarterly Payments -->
                         <div class="p-6">
+                            <h4 class="section-title">
+                                <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                                Quarterly Payments
+                            </h4>
+                            
+                            <!-- Summary -->
                             <div class="flex items-center justify-between mb-6">
-                                <div class="flex items-center">
-                                    <div class="w-10 h-10 bg-gradient-to-r from-indigo-100 to-blue-100 rounded-lg flex items-center justify-center mr-3">
-                                        <i class="fas fa-calendar-check text-blue-600"></i>
+                                <div class="flex space-x-4">
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Paid</div>
+                                        <div class="font-bold text-green-600">' . $paidQuarters . '</div>
                                     </div>
-                                    <div>
-                                        <h4 class="font-semibold text-gray-800 text-lg">Quarterly Tax Payments</h4>
-                                        <p class="text-gray-500 text-sm">Pay your taxes by quarter</p>
-                                    </div>
-                                </div>
-                                <div class="text-xs font-medium">
-                                    <span class="bg-green-100 text-green-800 px-3 py-1.5 rounded-full mr-2">' . $paidQuarters . ' paid</span>
-                                    <span class="bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full mr-2">' . $pendingQuarters . ' pending</span>';
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Pending</div>
+                                        <div class="font-bold text-yellow-600">' . $pendingQuarters . '</div>
+                                    </div>';
                                     if ($overdueQuarters > 0) {
-                                        echo '<span class="bg-red-100 text-red-800 px-3 py-1.5 rounded-full pulse">' . $overdueQuarters . ' overdue</span>';
+                                        echo '
+                                    <div class="text-center">
+                                        <div class="text-xs text-gray-600">Overdue</div>
+                                        <div class="font-bold text-red-600">' . $overdueQuarters . '</div>
+                                    </div>';
                                     }
-                                echo '
+                                    echo '
                                 </div>
                             </div>';
                             
                             if (empty($quarterlyTaxes)) {
                                 echo '
-                            <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <i class="fas fa-file-invoice text-gray-400 text-2xl"></i>
-                                </div>
-                                <p class="text-gray-600 text-lg mb-2">No quarterly taxes generated yet</p>
-                                <p class="text-gray-500 text-sm">Tax bills will be generated automatically</p>
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-file-invoice text-2xl mb-2 text-gray-300"></i>
+                                <p>No quarterly taxes generated yet</p>
                             </div>';
                             } else {
                                 echo '
-                            <!-- Quarterly Table -->
-                            <div class="overflow-x-auto rounded-xl border border-gray-200 mb-8">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gradient-to-r from-gray-50 to-blue-50">
+                            <div class="overflow-x-auto">
+                                <table class="tax-table">
+                                    <thead>
                                         <tr>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Quarter</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Tax Amount</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Penalty</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Total</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Action</th>
+                                            <th>Quarter</th>
+                                            <th>Due Date</th>
+                                            <th>Tax Amount</th>
+                                            <th>Penalty</th>
+                                            <th>Total Due</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">';
-                                    
-                                    $quarter_totals = [
-                                        'tax_amount' => 0,
-                                        'penalty' => 0,
-                                        'total' => 0
-                                    ];
+                                    <tbody>';
                                     
                                     foreach ($quarterlyTaxes as $tax) {
                                         $status = $tax['actual_status'] ?? $tax['payment_status'];
@@ -809,86 +775,71 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                         $daysLate = $tax['days_late'] ?? 0;
                                         
                                         $dueDate = new DateTime($tax['due_date']);
-                                        $isOverdue = $status == 'overdue';
                                         $isCurrentQuarter = (ceil(date('n') / 3) == (int)substr($tax['quarter'], 1) && $tax['year'] == date('Y'));
                                         
-                                        // Update totals
-                                        $quarter_totals['tax_amount'] += $tax_amount;
-                                        $quarter_totals['penalty'] += $penaltyAmount;
-                                        $quarter_totals['total'] += $totalAmount;
-                                        
                                         echo '
-                                        <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                            <td class="px-6 py-4">
-                                                <div class="font-medium text-gray-900 text-base">' . $tax['quarter'] . ' ' . $tax['year'] . '</div>';
+                                        <tr>
+                                            <td>
+                                                <div class="font-medium">' . $tax['quarter'] . ' ' . $tax['year'] . '</div>';
                                                 if ($isCurrentQuarter) {
-                                                    echo '<div class="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded inline-block mt-1">
-                                                        <i class="fas fa-star mr-1"></i> Current Quarter
+                                                    echo '<div class="text-xs text-blue-600 font-medium">
+                                                        Current
                                                     </div>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-medium text-gray-900">' . $dueDate->format('M d, Y') . '</div>';
+                                            <td>
+                                                <div>' . $dueDate->format('M d, Y') . '</div>';
                                                 if ($daysLate > 0) {
-                                                    echo '<div class="text-xs font-medium bg-red-100 text-red-800 px-2 py-1 rounded inline-block mt-1">
-                                                        <i class="fas fa-clock mr-1"></i>' . $daysLate . ' days late
-                                                    </div>';
-                                                } elseif ($status == 'pending' && !$isOverdue) {
-                                                    echo '<div class="text-xs font-medium text-gray-500 mt-1">
-                                                        <i class="fas fa-hourglass-half mr-1"></i> Upcoming
+                                                    echo '<div class="text-xs text-red-600 font-medium">
+                                                        ' . $daysLate . ' days late
                                                     </div>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-semibold text-gray-900 text-base">' . formatCurrency($tax_amount) . '</div>
+                                            <td>
+                                                ' . formatCurrency($tax_amount) . '
                                             </td>
-                                            <td class="px-6 py-4">';
+                                            <td>';
                                                 if ($penaltyAmount > 0) {
-                                                    echo '<div class="font-bold text-red-600 text-base">' . formatCurrency($penaltyAmount) . '</div>';
+                                                    echo '<span class="text-red-600 font-medium">' . formatCurrency($penaltyAmount) . '</span>';
                                                 } else {
-                                                    echo '<div class="text-gray-400">' . formatCurrency(0) . '</div>';
+                                                    echo '<span class="text-gray-400">₱0.00</span>';
                                                 }
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">
-                                                <div class="font-bold text-xl text-blue-700">' . formatCurrency($totalAmount) . '</div>
+                                            <td>
+                                                <span class="font-bold">' . formatCurrency($totalAmount) . '</span>
                                             </td>
-                                            <td class="px-6 py-4">';
-                                                
+                                            <td>';
                                                 if ($status == 'paid') {
-                                                    echo '<span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200">
-                                                        <i class="fas fa-check-circle mr-2"></i> Paid
+                                                    echo '<span class="status-badge status-paid">
+                                                        <i class="fas fa-check-circle mr-1"></i> Paid
                                                     </span>';
                                                 } elseif ($status == 'overdue') {
-                                                    echo '<span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-red-100 to-pink-100 text-red-800 border border-red-200 pulse">
-                                                        <i class="fas fa-exclamation-triangle mr-2"></i> Overdue
+                                                    echo '<span class="status-badge status-overdue">
+                                                        <i class="fas fa-exclamation-triangle mr-1"></i> Overdue
                                                     </span>';
                                                 } else {
-                                                    echo '<span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 border border-yellow-200">
-                                                        <i class="fas fa-clock mr-2"></i> Pending
+                                                    echo '<span class="status-badge status-pending">
+                                                        <i class="fas fa-clock mr-1"></i> Pending
                                                     </span>';
                                                 }
-                                                
                                                 echo '
                                             </td>
-                                            <td class="px-6 py-4">';
-                                                
+                                            <td>';
                                                 if ($status == 'paid') {
                                                     echo '
-                                                    <button onclick="viewReceipt(\'' . ($tax['receipt_number'] ?? '') . '\')" 
-                                                            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-lg font-medium inline-flex items-center glow-button">
-                                                        <i class="fas fa-receipt mr-2"></i> View Receipt
-                                                    </button>';
+                                                    <div class="paid-indicator">
+                                                        <i class="fas fa-check-circle"></i>
+                                                        Paid
+                                                    </div>';
                                                 } else {
-                                                    // Create purpose string
-                                                    $purpose_text = 'Business Tax ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
+                                                    $purpose_text = 'BUSINESS ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $business['business_name'];
                                                     $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
                                                     
-                                                    // POST form for quarterly payment
                                                     echo '
-                                                    <form id="paymentForm_' . $tax['id'] . '" 
+                                                    <form class="inline-block" 
                                                           method="POST" 
                                                           action="../../digital/index.php" 
                                                           target="_blank">
@@ -899,85 +850,27 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
                                                         <input type="hidden" name="callback" value="' . $business_callback_url . '">
                                                         
                                                         <button type="submit" 
-                                                                class="' . ($isOverdue ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') . ' text-white px-5 py-2.5 rounded-lg font-semibold glow-button inline-flex items-center transform transition-transform duration-200 hover:scale-105">
-                                                            <i class="fas fa-external-link-alt mr-2"></i> Pay in New Tab
+                                                                class="btn btn-primary text-sm">
+                                                            <i class="fas fa-external-link-alt mr-1"></i> Pay Now
                                                         </button>
-                                                    </form>
-                                                    <p class="text-xs text-green-600 mt-2">
-                                                        <i class="fas fa-shield-alt mr-1"></i> Secure POST • Opens in new tab
-                                                    </p>';
+                                                    </form>';
                                                 }
-                                                
                                                 echo '
                                             </td>
                                         </tr>';
                                     }
                                     
-                                    // Add footer with totals
+                                    // Summary Row
                                     echo '
-                                    </tbody>
-                                    <tfoot class="bg-gradient-to-r from-gray-50 to-blue-50">
-                                        <tr>
-                                            <td colspan="2" class="px-6 py-5 text-right font-bold text-gray-700 text-lg">
-                                                Totals:
-                                            </td>
-                                            <td class="px-6 py-5 font-bold text-gray-900 text-lg">
-                                                ' . formatCurrency($quarter_totals['tax_amount']) . '
-                                            </td>
-                                            <td class="px-6 py-5 font-bold ' . ($quarter_totals['penalty'] > 0 ? 'text-red-600' : 'text-gray-900') . ' text-lg">
-                                                ' . formatCurrency($quarter_totals['penalty']) . '
-                                            </td>
-                                            <td class="px-6 py-5 font-bold text-2xl text-blue-700">
-                                                ' . formatCurrency($quarter_totals['total']) . '
-                                            </td>
-                                            <td colspan="2" class="px-6 py-5"></td>
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td colspan="2" class="text-right">Totals:</td>
+                                            <td>' . formatCurrency($totalTax) . '</td>
+                                            <td class="' . ($totalPenalty > 0 ? 'text-red-600' : '') . '">' . formatCurrency($totalPenalty) . '</td>
+                                            <td class="text-blue-700">' . formatCurrency($totalTax + $totalPenalty) . '</td>
+                                            <td colspan="2"></td>
                                         </tr>
-                                    </tfoot>
+                                    </tbody>
                                 </table>
-                            </div>';
-                            
-                            // Payment Summary
-                            echo '
-                            <!-- Payment Summary -->
-                            <div class="payment-summary-card p-6 rounded-xl">
-                                <h5 class="font-bold text-gray-800 mb-4 text-lg flex items-center">
-                                    <i class="fas fa-chart-pie text-blue-600 mr-3"></i> Payment Summary
-                                </h5>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                    <div class="text-center md:text-left">
-                                        <div class="text-sm text-gray-600 font-medium mb-2">Total Annual Tax</div>
-                                        <div class="text-2xl font-bold text-gray-900">' . formatCurrency($business['total_tax']) . '</div>
-                                    </div>
-                                    
-                                    <div class="text-center md:text-left">
-                                        <div class="text-sm text-gray-600 font-medium mb-2">Total Penalties</div>
-                                        <div class="text-2xl font-bold ' . ($businessPenalty > 0 ? 'text-red-600' : 'text-gray-900') . '">
-                                            ' . formatCurrency($businessPenalty) . '
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            ' . ($businessPenalty > 0 ? '<i class="fas fa-exclamation-circle mr-1"></i> ' . $penalty_rate . '% monthly penalty applied' : '<i class="fas fa-check-circle mr-1 text-green-500"></i> No penalties') . '
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="text-center md:text-left">
-                                        <div class="text-sm text-gray-600 font-medium mb-2">Payment Status</div>
-                                        <div class="text-2xl font-bold ' . ($overdueQuarters > 0 ? 'text-red-600' : ($paidQuarters == 4 ? 'text-green-600' : 'text-yellow-600')) . '">
-                                            ' . ($overdueQuarters > 0 ? 'Overdue' : ($paidQuarters == 4 ? 'Paid' : 'Pending')) . '
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            <span class="font-medium">' . $paidQuarters . ' paid</span> • 
-                                            <span class="font-medium">' . $pendingQuarters . ' pending</span>' . 
-                                            ($overdueQuarters > 0 ? ' • <span class="font-medium text-red-600">' . $overdueQuarters . ' overdue</span>' : '') . '
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="text-center md:text-left">
-                                        <div class="text-sm text-gray-600 font-medium mb-2">Total Amount Due</div>
-                                        <div class="text-3xl font-bold text-blue-700">
-                                            ' . formatCurrency($business['total_tax'] + $businessPenalty) . '
-                                        </div>
-                                    </div>
-                                </div>
                             </div>';
                             }
                             echo '
@@ -989,148 +882,99 @@ $discount_rate = getBusinessAnnualDiscountRate($pdo);
             }
         } catch (PDOException $e) {
             echo '
-            <div class="card p-8 text-center max-w-md mx-auto">
-                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+            <div class="simple-card p-8 text-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
                 </div>
-                <h3 class="text-xl font-semibold text-red-800 mb-3">Service Unavailable</h3>
-                <p class="text-gray-600 mb-6 text-sm">We\'re experiencing technical difficulties. Please try again in a few minutes.</p>
-                <div class="space-y-3">
-                    <button onclick="location.reload()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 inline-flex items-center justify-center w-full glow-button">
-                        <i class="fas fa-sync-alt mr-3"></i> Try Again
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Service Unavailable</h3>
+                <p class="text-gray-600 mb-6">We cannot load your business information right now. Please try again later.</p>
+                <div class="space-y-3 max-w-sm mx-auto">
+                    <button onclick="location.reload()" class="btn btn-primary w-full">
+                        Try Again
                     </button>
-                    <a href="../business_services.php" class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium inline-flex items-center justify-center w-full">
-                        <i class="fas fa-arrow-left mr-3"></i> Back to Services
+                    <a href="../business_services.php" class="btn btn-secondary w-full">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to Services
                     </a>
                 </div>
             </div>';
         }
         ?>
-        
-        <!-- Help Section -->
-        <div class="mt-10 card p-8">
-            <div class="flex items-center mb-6">
-                <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
-                    <i class="fas fa-question-circle text-white text-xl"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-gray-800 text-xl">Need Assistance?</h3>
-                    <p class="text-gray-600">Get help with your business tax payments</p>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow duration-300">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-phone text-blue-600"></i>
-                        </div>
-                        <p class="font-semibold text-gray-800">Business Tax Division</p>
-                    </div>
-                    <p class="text-gray-600 mb-2">Hotline:</p>
-                    <p class="text-blue-600 font-bold text-lg">(02) 8888-7777</p>
-                    <p class="text-xs text-gray-500 mt-2">Weekdays, 8:00 AM - 5:00 PM</p>
-                </div>
-                
-                <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow duration-300">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-external-link-alt text-green-600"></i>
-                        </div>
-                        <p class="font-semibold text-gray-800">New Tab Feature</p>
-                    </div>
-                    <ul class="space-y-2">
-                        <li class="flex items-center text-sm">
-                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span>Opens payment in new browser tab</span>
-                        </li>
-                        <li class="flex items-center text-sm">
-                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span>Secure POST data transmission</span>
-                        </li>
-                        <li class="flex items-center text-sm">
-                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            <span>Return here after payment completion</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow duration-300">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-file-alt text-purple-600"></i>
-                        </div>
-                        <p class="font-semibold text-gray-800">Quick Links</p>
-                    </div>
-                    <div class="space-y-2">
-                        <a href="#" class="block text-blue-600 hover:text-blue-800 text-sm font-medium">
-                            <i class="fas fa-download mr-2"></i> Download Business Forms
-                        </a>
-                        <a href="#" class="block text-blue-600 hover:text-blue-800 text-sm font-medium">
-                            <i class="fas fa-book mr-2"></i> Tax Regulations
-                        </a>
-                        <a href="#" class="block text-blue-600 hover:text-blue-800 text-sm font-medium">
-                            <i class="fas fa-calculator mr-2"></i> Tax Calculator
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-<script>
-// View receipt function
-function viewReceipt(receiptNumber) {
-    if (!receiptNumber) {
-        alert('No receipt number available for this payment.');
-        return;
-    }
-    
-    alert('Receipt Number: ' + receiptNumber + '\nReceipt details will be available in your payment history soon.');
-}
-
-// Tab tracking for better UX
-document.addEventListener('DOMContentLoaded', function() {
-    // Add a small indicator when forms are submitted
-    document.querySelectorAll('form[target="_blank"]').forEach(form => {
-        form.addEventListener('submit', function() {
-            const button = this.querySelector('button[type="submit"]');
-            if (button) {
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Opening...';
-                button.disabled = true;
+    <!-- Footer - Same as RPT -->
+    <footer class="footer-bg mt-16">
+        <div class="container mx-auto px-6 py-12 max-w-7xl">
+            <div class="responsive-grid grid-cols-1 md:grid-cols-4 gap-12">
+                <!-- Brand -->
+                <div class="col-span-1">
+                    <div class="flex items-center mb-4 text-2xl font-bold">
+                        <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed">
+                        The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
+                    </p>
+                </div>
                 
-                // Reset after 2 seconds
-                setTimeout(() => {
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }, 2000);
-            }
+                <!-- Portal Links -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><a href="../business_services.php" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                        <li><i class="fas fa-envelope mr-2 text-gray-400"></i> support@goserveph.gov.ph</li>
+                        <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                    </ul>
+                </div>
+
+                <!-- Social -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                    <div class="flex space-x-4 text-2xl">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
             
-            // Store timestamp for potential auto-refresh
-            localStorage.setItem('paymentTabOpened', Date.now());
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-10 pt-8">
+                <p class="text-sm text-gray-500 text-center">
+                    &copy; <?php echo date('Y'); ?> GoServePH Local Government Unit. Republic of the Philippines.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('form[target="_blank"]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn && !submitBtn.disabled) {
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+                    submitBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        submitBtn.innerHTML = submitBtn.getAttribute('data-original-text') || 'Pay Now';
+                        submitBtn.disabled = false;
+                    }, 3000);
+                }
+            });
         });
     });
-    
-    // Check if we should auto-refresh (if payment was completed)
-    const lastPaymentTime = localStorage.getItem('paymentTabOpened');
-    if (lastPaymentTime) {
-        const timeSincePayment = Date.now() - parseInt(lastPaymentTime);
-        const fiveMinutes = 5 * 60 * 1000; // 5 minutes
-        
-        // If payment tab was opened more than 5 minutes ago, refresh
-        if (timeSincePayment > fiveMinutes) {
-            localStorage.removeItem('paymentTabOpened');
-            window.location.reload();
-        }
-    }
-    
-    // Auto-refresh page every 5 minutes to update penalties
-    setTimeout(() => {
-        if (document.querySelector('.pulse')) {
-            window.location.reload();
-        }
-    }, 300000);
-});
-</script>
+    </script>
 </body>
 </html>
