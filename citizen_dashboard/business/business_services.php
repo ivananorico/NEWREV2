@@ -9,8 +9,15 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
-// Get the base URL for the background image
-$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+// Get the base URL for the background image - FIXED VERSION
+$scheme = 'http';
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    $scheme = 'https';
+} elseif (isset($_SERVER['REQUEST_SCHEME'])) {
+    $scheme = $_SERVER['REQUEST_SCHEME'];
+}
+
+$base_url = $scheme . '://' . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
