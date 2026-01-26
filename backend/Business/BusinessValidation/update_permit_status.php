@@ -29,33 +29,23 @@ if (!$pdo) {
 }
 
 // Function to get tax rate based on business type and taxable amount
-function getBusinessTaxRate($business_type, $taxable_amount, $tax_calculation_type, $pdo) {
+function getBusinessTaxRate($business_nature, $taxable_amount, $tax_calculation_type, $pdo) {
     try {
         if ($tax_calculation_type == 'capital_investment') {
             // Get capital investment tax rate based on amount range
             $rate_stmt = $pdo->prepare("
                 SELECT tax_percent 
                 FROM capital_investment_tax_config 
-                WHERE :amount BETWEEN min_amount AND max_amount
-                AND (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE())
+                WHERE ? BETWEEN min_amount AND max_amount
                 ORDER BY min_amount DESC
                 LIMIT 1
             ");
-            $rate_stmt->execute(['amount' => $taxable_amount]);
+            $rate_stmt->execute([$taxable_amount]);
             $rate = $rate_stmt->fetch(PDO::FETCH_ASSOC);
             return $rate['tax_percent'] ?? 25.00; // Default 25%
         } else {
-            // Get gross sales tax rate based on business type
-            $rate_stmt = $pdo->prepare("
-                SELECT tax_percent 
-                FROM gross_sales_tax_config 
-                WHERE business_type = :business_type
-                AND (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE())
-                LIMIT 1
-            ");
-            $rate_stmt->execute(['business_type' => $business_type]);
-            $rate = $rate_stmt->fetch(PDO::FETCH_ASSOC);
-            return $rate['tax_percent'] ?? 2.00; // Default 2%
+            // For gross sales, use default or try to match business nature
+            return 2.00; // Default 2% for gross sales
         }
     } catch(PDOException $e) {
         error_log("Error getting tax rate: " . $e->getMessage());
@@ -73,14 +63,12 @@ function generateBusinessReferenceNumber($prefix = 'APAY-BUS') {
 // Function to get business discount percentage
 function getBusinessDiscountPercent($pdo) {
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $pdo->query("
             SELECT discount_percent 
             FROM business_discount_config 
-            WHERE (expiration_date IS NULL OR expiration_date = '0000-00-00' OR expiration_date >= CURDATE())
-            ORDER BY effective_date DESC 
+            ORDER BY id DESC 
             LIMIT 1
         ");
-        $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         return $result ? floatval($result['discount_percent']) : 0.00;
@@ -91,7 +79,7 @@ function getBusinessDiscountPercent($pdo) {
 }
 
 // Function to generate quarterly taxes for business
-function createQuarterlyTaxes($pdo, $permitId, $annualTax, $businessPermitId, $taxableAmount, $businessType, $taxCalculationType) {
+function createQuarterlyTaxes($pdo, $permitId, $annualTax, $applicantId, $taxableAmount, $businessNature, $taxCalculationType) {
     try {
         // Check if quarterly taxes already exist for this permit
         $checkQuery = "SELECT id FROM business_quarterly_taxes WHERE business_permit_id = ? LIMIT 1";
@@ -104,7 +92,7 @@ function createQuarterlyTaxes($pdo, $permitId, $annualTax, $businessPermitId, $t
         }
         
         // Get tax rate
-        $taxRate = getBusinessTaxRate($businessType, $taxableAmount, $taxCalculationType, $pdo);
+        $taxRate = getBusinessTaxRate($businessNature, $taxableAmount, $taxCalculationType, $pdo);
         
         // Calculate quarterly tax amount (annual tax divided by 4)
         $quarterlyTaxAmount = $annualTax / 4;
@@ -252,10 +240,10 @@ function approvePermit($pdo) {
     $permit_id = intval($data['id']);
     
     try {
-        // Get business permit details
+        // Get business permit details - UPDATED COLUMN NAMES
         $permit_stmt = $pdo->prepare("
-            SELECT id, business_permit_id, taxable_amount, business_type, 
-                   tax_calculation_type, user_id, status
+            SELECT id, applicant_id, taxable_amount, capital_investment, business_nature, 
+                   tax_calculation_type, user_id, permit_status, tax_status
             FROM business_permits 
             WHERE id = ?
         ");
@@ -269,7 +257,7 @@ function approvePermit($pdo) {
         }
 
         // Check if permit is already approved
-        if ($permit['status'] === 'Approved') {
+        if ($permit['permit_status'] === 'APPROVED' || $permit['permit_status'] === 'ACTIVE') {
             http_response_code(400);
             echo json_encode(["error" => "Permit is already approved"]);
             return;
@@ -285,13 +273,13 @@ function approvePermit($pdo) {
         $pdo->beginTransaction();
 
         try {
-            // 1. Update permit status and tax values
+            // 1. Update permit status and tax values - UPDATED COLUMN NAMES
             $update_stmt = $pdo->prepare("
                 UPDATE business_permits 
-                SET status = 'Approved', 
+                SET permit_status = 'APPROVED', 
+                    tax_status = 'Approved',
                     tax_amount = :tax_amount,
                     tax_rate = :tax_rate,
-                    regulatory_fees = :regulatory_fees,
                     total_tax = :total_tax,
                     approved_date = NOW(),
                     updated_at = NOW()
@@ -301,42 +289,43 @@ function approvePermit($pdo) {
             $update_stmt->execute([
                 ':tax_amount' => $tax_amount,
                 ':tax_rate' => $tax_rate,
-                ':regulatory_fees' => $regulatory_fees,
                 ':total_tax' => $total_tax,
                 ':id' => $permit_id
             ]);
 
             // 2. GENERATE QUARTERLY TAXES
+            $taxable_amount = floatval($permit['taxable_amount']) ?: floatval($permit['capital_investment']);
             $quarterly_created = createQuarterlyTaxes(
                 $pdo, 
                 $permit_id, 
                 $total_tax,
-                $permit['business_permit_id'],
-                $permit['taxable_amount'],
-                $permit['business_type'],
+                $permit['applicant_id'], // Changed from business_permit_id
+                $taxable_amount,
+                $permit['business_nature'], // Changed from business_type
                 $permit['tax_calculation_type']
             );
 
-            // 3. GENERATE ANNUAL PAYMENT RECORD
+            // 3. GENERATE ANNUAL PAYMENT RECORD (Optional)
             $annual_payment_result = null;
             $annual_payment_id = null;
             
             // Check if annual_payments table exists
-            $table_check = $pdo->query("SHOW TABLES LIKE 'annual_payments'");
-            $table_exists = $table_check->rowCount() > 0;
-            
-            if ($table_exists) {
-                // Create annual payment
-                $annual_payment_result = createAnnualPayment(
-                    $pdo, 
-                    $permit_id, 
-                    $permit['user_id'], 
-                    $total_tax
-                );
+            try {
+                $table_check = $pdo->query("SHOW TABLES LIKE 'annual_payments'");
+                $table_exists = $table_check->rowCount() > 0;
                 
-                if ($annual_payment_result && $annual_payment_result['success']) {
-                    $annual_payment_id = $annual_payment_result['annual_payment_id'];
+                if ($table_exists && isset($permit['user_id'])) {
+                    // Create annual payment
+                    $annual_payment_result = createAnnualPayment(
+                        $pdo, 
+                        $permit_id, 
+                        $permit['user_id'] ?? 1, // Default user ID if not set
+                        $total_tax
+                    );
                 }
+            } catch (Exception $e) {
+                // Skip annual payment if there's an error
+                error_log("Annual payment skipped: " . $e->getMessage());
             }
 
             $pdo->commit();
@@ -345,11 +334,11 @@ function approvePermit($pdo) {
             $response_data = [
                 'permit_updated' => true,
                 'permit_id' => $permit_id,
-                'business_permit_id' => $permit['business_permit_id'],
-                'new_status' => 'Approved',
+                'applicant_id' => $permit['applicant_id'], // Changed from business_permit_id
+                'new_status' => 'APPROVED',
                 'approved_date' => date('Y-m-d H:i:s'),
                 'totals' => [
-                    'taxable_amount' => $permit['taxable_amount'],
+                    'taxable_amount' => $taxable_amount,
                     'tax_amount' => $tax_amount,
                     'tax_rate' => $tax_rate,
                     'regulatory_fees' => $regulatory_fees,
@@ -361,7 +350,7 @@ function approvePermit($pdo) {
             // Add annual payment info if created
             if ($annual_payment_result && $annual_payment_result['success']) {
                 $response_data['annual_payment'] = [
-                    'id' => $annual_payment_id,
+                    'id' => $annual_payment_result['annual_payment_id'],
                     'reference_number' => $annual_payment_result['reference_number'],
                     'receipt_number' => $annual_payment_result['receipt_number'],
                     'total_amount' => $annual_payment_result['total_amount'],
@@ -373,20 +362,26 @@ function approvePermit($pdo) {
             }
 
             echo json_encode([
-                "success" => true,
-                "message" => "Business permit approved successfully. Quarterly taxes and annual payment record generated.",
+                "status" => "success",
+                "message" => "Business permit approved successfully.",
                 "data" => $response_data
             ]);
 
         } catch (Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(["error" => "Transaction failed: " . $e->getMessage()]);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Transaction failed: " . $e->getMessage()
+            ]);
         }
 
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Database error: " . $e->getMessage()
+        ]);
     }
 }
 
@@ -402,7 +397,10 @@ switch ($method) {
         exit();
     default:
         http_response_code(405);
-        echo json_encode(["error" => "Method not allowed"]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Method not allowed"
+        ]);
         break;
 }
 ?>

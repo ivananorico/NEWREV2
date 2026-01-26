@@ -16,12 +16,11 @@ import {
   Receipt,
   Calendar,
   MapPin,
-  Home,
-  Briefcase,
   DollarSign,
   Percent,
   FileText,
-  ShieldCheck
+  ShieldCheck,
+  User,
 } from "lucide-react";
 
 export default function BusinessStatusInfo() {
@@ -40,7 +39,6 @@ export default function BusinessStatusInfo() {
   useEffect(() => {
     console.log("Current ID from URL params:", id);
     
-    // Don't fetch if ID is undefined
     if (!id || id === "undefined") {
       console.error("Invalid ID received:", id);
       setError("Invalid business permit ID. Please go back and try again.");
@@ -121,22 +119,12 @@ export default function BusinessStatusInfo() {
     }
   };
 
-  const getGenderText = (gender) => {
-    switch(gender) {
-      case 'male': return 'Male';
-      case 'female': return 'Female';
-      case 'other': return 'Other';
-      default: return 'Not specified';
-    }
-  };
-
-  const getMaritalStatusText = (status) => {
-    switch(status) {
-      case 'single': return 'Single';
-      case 'married': return 'Married';
-      case 'divorced': return 'Divorced';
-      case 'widowed': return 'Widowed';
-      default: return 'Not specified';
+  const getOwnerTypeText = (type) => {
+    switch(type?.toLowerCase()) {
+      case 'corporation': return 'Corporation';
+      case 'individual': return 'Individual';
+      case 'partnership': return 'Partnership';
+      default: return type || 'Not specified';
     }
   };
 
@@ -209,6 +197,12 @@ export default function BusinessStatusInfo() {
   const totalPending = parseFloat(permit.total_pending_tax) || 0;
   const totalPenalty = parseFloat(permit.total_penalty) || 0;
 
+  // Calculate stats for summary
+  const paidQuarters = quarterlyTaxes.filter(t => t.payment_status === 'paid').length;
+  const pendingQuarters = quarterlyTaxes.filter(t => t.payment_status === 'pending').length;
+  const overdueQuarters = quarterlyTaxes.filter(t => t.payment_status === 'overdue').length;
+  const totalQuarters = quarterlyTaxes.length;
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
@@ -233,7 +227,7 @@ export default function BusinessStatusInfo() {
                   <div className="flex flex-wrap items-center gap-4 mt-2">
                     <div className="flex items-center gap-2">
                       <div className="font-mono text-lg font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-                        {permit.business_permit_id}
+                        {permit.business_permit_id || permit.applicant_id}
                       </div>
                       <span className="text-sm text-gray-600">Permit Number</span>
                     </div>
@@ -247,9 +241,11 @@ export default function BusinessStatusInfo() {
             </div>
             <div className="flex flex-col items-start md:items-end gap-3">
               <span className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${
-                permit.business_status === 'Active' ? 'bg-green-100 text-green-800 border border-green-200' :
-                permit.business_status === 'Approved' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                permit.business_status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                permit.business_status === 'ACTIVE' ? 'bg-green-100 text-green-800 border border-green-200' :
+                permit.business_status === 'APPROVED' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                permit.business_status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                permit.business_status === 'RENEWED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                permit.business_status === 'EXPIRED' ? 'bg-red-100 text-red-800 border border-red-200' :
                 'bg-gray-100 text-gray-800 border border-gray-200'
               }`}>
                 {permit.business_status || 'N/A'}
@@ -257,7 +253,7 @@ export default function BusinessStatusInfo() {
               <div className="text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  Issued: {formatDate(permit.issue_date)}
+                  {permit.issue_date ? `Issued: ${formatDate(permit.issue_date)}` : 'No issue date'}
                 </div>
               </div>
             </div>
@@ -270,7 +266,10 @@ export default function BusinessStatusInfo() {
                 <Building2 className="w-6 h-6 text-gray-600" />
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{permit.business_name}</h2>
-                  <p className="text-gray-600">{permit.owner_name || 'Not specified'}</p>
+                  {permit.trade_name && (
+                    <p className="text-gray-600">Trade Name: {permit.trade_name}</p>
+                  )}
+                  <p className="text-sm text-gray-600 mt-1">{permit.owner_name || permit.owner_full_name || 'Owner not specified'}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -298,19 +297,17 @@ export default function BusinessStatusInfo() {
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</label>
-                    <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border">{permit.owner_name || 'Not specified'}</div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Owner Full Name</label>
+                    <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
+                      <User className="w-4 h-4 text-gray-400 mr-2" />
+                      {permit.owner_name || permit.owner_full_name || 'Not specified'}
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{getGenderText(permit.sex)}</div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Marital Status</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{getMaritalStatusText(permit.marital_status)}</div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Owner Type</label>
+                    <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">
+                      {getOwnerTypeText(permit.owner_type)}
                     </div>
                   </div>
                 </div>
@@ -319,45 +316,25 @@ export default function BusinessStatusInfo() {
                 <div className="border-t border-gray-200 pt-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Contact Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {permit.personal_contact && (
+                    {permit.contact_number && (
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Number</label>
                         <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                           <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                          {permit.personal_contact}
+                          {permit.contact_number}
                         </div>
                       </div>
                     )}
                     
-                    {permit.personal_email && (
+                    {permit.email_address && (
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Email Address</label>
                         <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                           <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                          {permit.personal_email}
+                          {permit.email_address}
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-
-                {/* Personal Address */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Personal Address</h3>
-                  <div className="space-y-2 p-3 bg-gray-50 rounded border">
-                    {permit.personal_street && (
-                      <p className="text-sm text-gray-900 flex items-start gap-2">
-                        <Home className="w-4 h-4 text-gray-400 mt-0.5" />
-                        {permit.personal_street}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-900 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      Brgy. {permit.personal_barangay || 'N/A'}, {permit.personal_city || 'N/A'}
-                    </p>
-                    <p className="text-sm text-gray-900 ml-6">
-                      {permit.personal_province || 'N/A'}{permit.personal_zipcode && `, ${permit.personal_zipcode}`}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -383,7 +360,7 @@ export default function BusinessStatusInfo() {
                     <div className="flex flex-wrap gap-2">
                       <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                         <Tag className="w-4 h-4 text-gray-400 mr-2" />
-                        {permit.business_type || 'N/A'}
+                        {permit.business_type || permit.business_nature || 'N/A'}
                       </div>
                       <div className={`text-sm font-medium p-2 rounded border flex items-center ${
                         permit.tax_calculation_type === 'capital_investment' 
@@ -402,9 +379,11 @@ export default function BusinessStatusInfo() {
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Tax Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Base</label>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Tax Base'}
+                      </label>
                       <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border">
-                        {formatCurrency(permit.taxable_amount)}
+                        {formatCurrency(permit.capital_investment || permit.taxable_amount || 0)}
                       </div>
                     </div>
                     
@@ -419,7 +398,7 @@ export default function BusinessStatusInfo() {
                     <div className="space-y-1">
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Amount</label>
                       <div className="text-sm font-bold text-green-600 bg-green-50 p-2 rounded border border-green-200">
-                        {formatCurrency(permit.tax_amount)}
+                        {formatCurrency(permit.tax_amount || 0)}
                       </div>
                     </div>
                   </div>
@@ -429,18 +408,15 @@ export default function BusinessStatusInfo() {
                 <div className="border-t border-gray-200 pt-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Business Address</h3>
                   <div className="space-y-2 p-3 bg-gray-50 rounded border">
-                    {permit.business_street && (
-                      <p className="text-sm text-gray-900 flex items-start gap-2">
-                        <Briefcase className="w-4 h-4 text-gray-400 mt-0.5" />
-                        {permit.business_street}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-900 flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      Brgy. {permit.business_barangay || 'N/A'}, {permit.business_city || 'N/A'}
-                    </p>
-                    <p className="text-sm text-gray-900 ml-6">
-                      {permit.business_province || 'N/A'}{permit.business_zipcode && `, ${permit.business_zipcode}`}
+                    <p className="text-sm text-gray-900 flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                      {permit.business_address || (
+                        <>
+                          Brgy. {permit.business_barangay || 'N/A'}, {permit.business_city || 'N/A'}
+                          {permit.business_province && `, ${permit.business_province}`}
+                          {permit.business_zipcode && ` ${permit.business_zipcode}`}
+                        </>
+                      )}
                     </p>
                     {permit.business_district && permit.business_district !== 'Unknown' && (
                       <p className="text-sm text-gray-900 ml-6">
@@ -458,7 +434,7 @@ export default function BusinessStatusInfo() {
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</label>
                       <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                         <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                        {formatDate(permit.issue_date)}
+                        {formatDate(permit.issue_date) || 'Not issued'}
                       </div>
                     </div>
                     
@@ -466,7 +442,7 @@ export default function BusinessStatusInfo() {
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Date</label>
                       <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                         <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                        {formatDate(permit.approved_date)}
+                        {formatDate(permit.approved_date) || 'Not approved'}
                       </div>
                     </div>
                     
@@ -474,7 +450,7 @@ export default function BusinessStatusInfo() {
                       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</label>
                       <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
                         <AlertCircle className="w-4 h-4 text-orange-400 mr-2" />
-                        {formatDate(permit.expiry_date)}
+                        {formatDate(permit.expiry_date) || 'Not set'}
                       </div>
                     </div>
                   </div>
@@ -483,45 +459,73 @@ export default function BusinessStatusInfo() {
             </div>
           </div>
 
-          {/* Right Column - Stats & Info */}
+          {/* Right Column - Combined Summary & Tax Information */}
           <div className="space-y-6">
             
-            {/* Quick Stats */}
+            {/* Summary Stats Card */}
             <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Stats</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Summary Stats</h2>
               
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-2xl font-bold text-blue-600">{quarterlyTaxes.filter(t => t.payment_status === 'paid').length}</div>
-                  <div className="text-xs text-blue-700 mt-1">Paid Quarters</div>
+              <div className="space-y-4">
+                {/* Quarter Stats */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quarterly Payments</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="text-xl font-bold text-green-600">{paidQuarters}</div>
+                      <div className="text-xs text-green-700 mt-1">Paid</div>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="text-xl font-bold text-yellow-600">{pendingQuarters}</div>
+                      <div className="text-xs text-yellow-700 mt-1">Pending</div>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="text-xl font-bold text-red-600">{overdueQuarters}</div>
+                      <div className="text-xs text-red-700 mt-1">Overdue</div>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="text-xl font-bold text-blue-600">{totalQuarters}</div>
+                      <div className="text-xs text-blue-700 mt-1">Total</div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <div className="text-2xl font-bold text-yellow-600">{quarterlyTaxes.filter(t => t.payment_status === 'pending').length}</div>
-                  <div className="text-xs text-yellow-700 mt-1">Pending</div>
+
+                {/* Collection Rate */}
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Collection Rate</span>
+                    <span className="text-lg font-bold text-blue-600">{collectionRate}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full"
+                      style={{ width: `${collectionRate}%` }}
+                    ></div>
+                  </div>
                 </div>
-                
-                <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-red-600">{quarterlyTaxes.filter(t => t.payment_status === 'overdue').length}</div>
-                  <div className="text-xs text-red-700 mt-1">Overdue</div>
-                </div>
-                
-                <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="text-2xl font-bold text-purple-600">{quarterlyTaxes.length}</div>
-                  <div className="text-xs text-purple-700 mt-1">Total Quarters</div>
-                </div>
-              </div>
-              
-              {/* Payment Status Summary */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Payment Status</h3>
-                <div className={`inline-flex items-center px-4 py-2 rounded-full font-medium ${
-                  permit.overall_status_color === 'green' ? 'bg-green-100 text-green-800 border border-green-200' :
-                  permit.overall_status_color === 'red' ? 'bg-red-100 text-red-800 border border-red-200' :
-                  permit.overall_status_color === 'yellow' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                  'bg-gray-100 text-gray-800 border border-gray-200'
-                }`}>
-                  {permit.overall_status_text || 'N/A'}
+
+                {/* Timestamps */}
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Record Info</h3>
+                  <div className="space-y-2">
+                    {permit.application_date && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Application</span>
+                        <span className="text-xs font-medium text-gray-900">{formatDate(permit.application_date)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Created</span>
+                      <span className="text-xs font-medium text-gray-900">{formatDate(permit.created_at)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Last Updated</span>
+                      <span className="text-xs font-medium text-gray-900">{formatDate(permit.updated_at)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -578,48 +582,6 @@ export default function BusinessStatusInfo() {
                     )}
                   </div>
                 </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Collection Rate</span>
-                      <span className="text-lg font-bold text-blue-600">{collectionRate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${collectionRate}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Record Information */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Record Information</h2>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Created</span>
-                  <span className="text-sm font-medium text-gray-900">{formatDate(permit.created_at)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Last Updated</span>
-                  <span className="text-sm font-medium text-gray-900">{formatDate(permit.updated_at)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Pending Quarters</span>
-                  <span className="text-sm font-medium text-yellow-600">{permit.pending_quarters_count || 0}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total Quarters</span>
-                  <span className="text-sm font-medium text-blue-600">{permit.total_quarters_count || 0}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -666,7 +628,6 @@ export default function BusinessStatusInfo() {
                         {quarterlyTaxes.map((tax) => {
                           const status = getPaymentStatus(tax.payment_status);
                           const StatusIcon = status.icon;
-                          // Calculate total: if no penalty, total = amount; if penalty, total = amount + penalty
                           const totalAmount = (parseFloat(tax.total_quarterly_tax) || 0) + (parseFloat(tax.penalty_amount) || 0);
                           
                           return (
@@ -713,7 +674,7 @@ export default function BusinessStatusInfo() {
         {/* Footer Actions */}
         <div className="mt-6 flex justify-between items-center">
           <div className="text-sm text-gray-500">
-            Business Permit: <span className="font-mono font-medium">{permit.business_permit_id}</span>
+            Business Permit: <span className="font-mono font-medium">{permit.business_permit_id || permit.applicant_id}</span>
           </div>
           <div className="flex space-x-3">
             <button
@@ -734,5 +695,5 @@ export default function BusinessStatusInfo() {
         </div>
       </div>
     </div>
-  ); 
+  );
 }
