@@ -105,11 +105,11 @@ try {
     
     $imported = 0;
     $skipped = 0;
-    $updated = 0;
     $errors = [];
     $details = [];
     
     error_log("Starting import of " . count($input['permits']) . " permits");
+    error_log("First permit data: " . json_encode($input['permits'][0]));
     
     // First, let's check what's already in the database
     $existingPermits = [];
@@ -121,6 +121,7 @@ try {
         error_log("Error checking existing permits: " . $e->getMessage());
     }
     
+    // Process each permit
     foreach ($input['permits'] as $index => $permit) {
         $permitId = $permit['applicant_id'] ?? 'unknown-' . $index;
         
@@ -138,12 +139,11 @@ try {
             
             $applicantId = $permit['applicant_id'];
             
-            // Check if exists
-            $exists = in_array($applicantId, $existingPermits);
-            
-            if ($exists) {
+            // Check if exists - PREVENT DUPLICATION
+            if (in_array($applicantId, $existingPermits)) {
                 $skipped++;
                 $details[] = "Skipped: $applicantId - {$permit['business_name']} (already exists)";
+                error_log("Duplicate skipped: $applicantId");
                 continue;
             }
             
@@ -158,37 +158,46 @@ try {
                 $ownerFullName = $permit['full_name'] ?? 'Unknown Owner';
             }
             
-            // Calculate tax
+            // Calculate tax based on capital investment
             $capital = floatval($permit['capital_investment'] ?? 0);
-            $taxRate = ($capital <= 5000) ? 20.00 : 25.00;
-            $taxAmount = ($capital * $taxRate) / 100;
-            $regulatoryFees = 499.98 + 500 + 300;
-            $totalTax = $taxAmount + $regulatoryFees;
             
-            // Generate business permit ID
-            $businessPermitId = "BUS" . date('Y') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            // Determine tax rate based on capital
+            if ($capital <= 5000) {
+                $taxRate = 20.00;
+            } elseif ($capital <= 10000) {
+                $taxRate = 25.00;
+            } elseif ($capital <= 15000) {
+                $taxRate = 25.00;
+            } elseif ($capital <= 20000) {
+                $taxRate = 25.00;
+            } else {
+                $taxRate = 25.00; // Default for > 20,000
+            }
+            
+            $taxAmount = ($capital * $taxRate) / 100;
+            $regulatoryFees = 499.98 + 500 + 300; // Mayor + Sanitary + Registration fees
+            $totalTax = $taxAmount + $regulatoryFees;
             
             // Dates
             $issueDate = date('Y-m-d');
             $expiryDate = date('Y-m-d', strtotime('+1 year'));
-            $appDate = $permit['application_date'] ?? $issueDate;
+            $appDate = !empty($permit['application_date']) ? $permit['application_date'] : $issueDate;
             
             // Insert the permit
             $stmt = $pdo->prepare("
                 INSERT INTO business_permits (
-                    applicant_id, business_permit_id, business_name, owner_full_name, 
+                    applicant_id, business_name, owner_full_name, 
                     owner_type, business_nature, trade_name, business_barangay, 
                     business_district, business_city, business_province, business_zipcode, 
                     contact_number, email_address, capital_investment, tax_calculation_type,
                     taxable_amount, tax_rate, tax_amount, regulatory_fees, total_tax,
                     application_date, permit_status, tax_status, issue_date, expiry_date,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
             
             $success = $stmt->execute([
                 $applicantId,
-                $businessPermitId,
                 $permit['business_name'] ?? '',
                 $ownerFullName,
                 $permit['owner_type'] ?? 'Individual',
@@ -224,10 +233,12 @@ try {
                 $existingPermits[] = $applicantId;
             } else {
                 $errors[] = "Permit $applicantId: Insert failed";
+                error_log("Insert failed for: $applicantId");
             }
             
         } catch (Exception $e) {
-            $errors[] = "Permit $permitId: " . $e->getMessage();
+            $errorMsg = "Permit $permitId: " . $e->getMessage();
+            $errors[] = $errorMsg;
             error_log("Error with permit $permitId: " . $e->getMessage());
         }
     }
@@ -238,7 +249,6 @@ try {
         'message' => "Import completed. Imported: $imported, Skipped: $skipped",
         'imported_count' => $imported,
         'skipped_count' => $skipped,
-        'updated_count' => $updated,
         'error_count' => count($errors),
         'total_processed' => count($input['permits']),
         'connection_method' => $connectionMethod,

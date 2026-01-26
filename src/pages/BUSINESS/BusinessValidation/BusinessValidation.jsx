@@ -63,15 +63,13 @@ const BusinessValidation = () => {
   };
 
   // Fetch data from CLASSMATE's system using proxy
-  // In the fetchExternalPermits function, update the fetch call:
-const fetchExternalPermits = async () => {
+  const fetchExternalPermits = async () => {
     try {
       setLoadingExternal(true);
       setError('');
       
       console.log('Fetching from proxy URL:', EXTERNAL_API_URL);
       
-      // SIMPLIFIED FETCH - no custom headers that cause CORS issues
       const response = await fetch(EXTERNAL_API_URL);
       
       if (!response.ok) {
@@ -117,9 +115,40 @@ const fetchExternalPermits = async () => {
     setError('');
     
     try {
-      const permitsToImport = externalPermits.filter(permit => 
-        selectedPermits.includes(permit.permit_id || permit.applicant_id)
-      );
+      // Get the selected permits
+      const permitsToImport = externalPermits.filter(permit => {
+        const permitId = permit.applicant_id || permit.permit_id;
+        return selectedPermits.includes(permitId);
+      });
+      
+      console.log('Selected permits for import:', permitsToImport.length);
+      console.log('First selected permit:', permitsToImport[0]);
+      
+      // Transform the data to match backend expectations
+      const transformedPermits = permitsToImport.map(permit => ({
+        applicant_id: permit.applicant_id || permit.permit_id || `EXT-${Date.now()}`,
+        business_name: permit.business_name || '',
+        owner_last_name: permit.last_name || permit.owner_last_name || '',
+        owner_first_name: permit.first_name || permit.owner_first_name || '',
+        owner_middle_name: permit.middle_name || permit.owner_middle_name || '',
+        full_name: permit.full_name || `${permit.first_name || ''} ${permit.middle_name || ''} ${permit.last_name || ''}`.trim(),
+        owner_type: permit.owner_type || 'Individual',
+        business_nature: permit.business_nature || '',
+        trade_name: permit.trade_name || null,
+        barangay: permit.barangay || '',
+        district: permit.district || '',
+        city_municipality: permit.city_municipality || permit.city || '',
+        province: permit.province || '',
+        zip_code: permit.zip_code || '',
+        contact_number: permit.contact_number || '',
+        email_address: permit.email_address || '',
+        capital_investment: parseFloat(permit.capital_investment) || 0,
+        application_date: permit.application_date || new Date().toISOString().split('T')[0],
+        business_area: permit.business_area || null,
+        status: permit.status || 'PENDING'
+      }));
+      
+      console.log('Transformed permits ready for import:', transformedPermits);
       
       const importResponse = await fetch(`${API_BASE}/import_external_permits.php`, {
         method: 'POST',
@@ -127,38 +156,48 @@ const fetchExternalPermits = async () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          permits: permitsToImport,
-          import_date: new Date().toISOString()
+          permits: transformedPermits,
+          import_date: new Date().toISOString(),
+          source: 'external_permit_system'
         })
       });
       
       const importData = await importResponse.json();
+      console.log('Import response:', importData);
       
       if (importData.status === 'success') {
         setImportResult({
           success: true,
-          message: `Successfully imported ${importData.imported_count || 0} business permits`,
-          details: importData.details || ''
+          message: `Successfully imported ${importData.imported_count || 0} business permits. ${importData.skipped_count || 0} were already in database.`,
+          details: importData.details || '',
+          imported_count: importData.imported_count || 0,
+          skipped_count: importData.skipped_count || 0,
+          error_count: importData.error_count || 0
         });
         
         setSelectedPermits([]);
-        setActiveTab('myData');
-        setTimeout(() => fetchMyPermits(), 500);
+        // Auto-switch to my data tab after 1.5 seconds
+        setTimeout(() => {
+          setActiveTab('myData');
+          fetchMyPermits();
+        }, 1500);
       } else {
         throw new Error(importData.message || 'Import failed');
       }
     } catch (err) {
       console.error('Import error:', err);
+      setError('Import failed: ' + err.message);
       setImportResult({
         success: false,
-        message: err.message || 'Failed to import permits'
+        message: err.message || 'Failed to import permits',
+        error_details: err.toString()
       });
     } finally {
       setIsImporting(false);
     }
   };
 
-  // Helper functions remain the same...
+  // Helper functions
   const toggleSelectPermit = (permitId) => {
     setSelectedPermits(prev => {
       if (prev.includes(permitId)) {
@@ -170,7 +209,9 @@ const fetchExternalPermits = async () => {
   };
 
   const selectAllPermits = () => {
-    const allIds = externalPermits.map(permit => permit.permit_id || permit.applicant_id);
+    const allIds = externalPermits
+      .map(permit => permit.applicant_id || permit.permit_id)
+      .filter(id => id); // Remove undefined/null IDs
     setSelectedPermits(allIds);
   };
 
@@ -183,12 +224,12 @@ const fetchExternalPermits = async () => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
       (permit.business_name || '').toLowerCase().includes(searchLower) ||
-      (permit.owner_name || '').toLowerCase().includes(searchLower) ||
+      (permit.owner_name || permit.owner_full_name || '').toLowerCase().includes(searchLower) ||
       (permit.business_permit_id || '').toLowerCase().includes(searchLower) ||
-      (permit.business_type || '').toLowerCase().includes(searchLower) ||
-      (permit.barangay || '').toLowerCase().includes(searchLower);
+      (permit.business_type || permit.business_nature || '').toLowerCase().includes(searchLower) ||
+      (permit.barangay || permit.business_barangay || '').toLowerCase().includes(searchLower);
     
-    const matchesStatus = filterStatus === 'all' || permit.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || permit.status === filterStatus || permit.permit_status === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
@@ -205,12 +246,16 @@ const fetchExternalPermits = async () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Active':
+      case 'ACTIVE':
         return 'bg-green-100 text-green-800 border border-green-200';
       case 'Approved':
+      case 'APPROVED':
         return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'Pending':
+      case 'PENDING':
         return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'Expired':
+      case 'EXPIRED':
         return 'bg-red-100 text-red-800 border border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border border-gray-200';
@@ -261,14 +306,13 @@ const fetchExternalPermits = async () => {
   };
 
   const stats = {
-    pending: myPermits.filter(p => p.status === 'Pending').length,
-    approved: myPermits.filter(p => p.status === 'Approved').length,
-    active: myPermits.filter(p => p.status === 'Active').length,
-    expired: myPermits.filter(p => p.status === 'Expired').length,
+    pending: myPermits.filter(p => (p.status === 'Pending' || p.permit_status === 'PENDING')).length,
+    approved: myPermits.filter(p => (p.status === 'Approved' || p.permit_status === 'APPROVED')).length,
+    active: myPermits.filter(p => (p.status === 'Active' || p.permit_status === 'ACTIVE')).length,
+    expired: myPermits.filter(p => (p.status === 'Expired' || p.permit_status === 'EXPIRED')).length,
     total: myPermits.length
   };
 
-  // Render component...
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header with Tabs */}
@@ -294,23 +338,30 @@ const fetchExternalPermits = async () => {
         {/* Import Result Alert */}
         {importResult && (
           <div className={`mb-4 p-4 rounded-lg ${importResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-            <div className="flex items-center">
+            <div className="flex items-start">
               {importResult.success ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               )}
-              <div>
+              <div className="flex-1">
                 <p className={`font-medium ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
                   {importResult.success ? 'Import Successful' : 'Import Failed'}
                 </p>
                 <p className={`text-sm ${importResult.success ? 'text-green-700' : 'text-red-700'}`}>
                   {importResult.message}
                 </p>
+                {importResult.imported_count >= 0 && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <span className="font-medium">Details:</span> Imported: {importResult.imported_count || 0}, 
+                    Skipped: {importResult.skipped_count || 0}, 
+                    Errors: {importResult.error_count || 0}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -521,23 +572,24 @@ const fetchExternalPermits = async () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {paginatedPermits.map((permit) => {
                           const taxInfo = getTaxTypeDisplay(permit);
+                          const status = permit.status || permit.permit_status;
                           return (
                             <tr key={permit.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4">
                                 <div>
                                   <div className="font-medium text-gray-900">{permit.business_name}</div>
                                   <div className="text-sm text-gray-500">
-                                    <span className="font-mono">{permit.business_permit_id}</span>
+                                    <span className="font-mono">{permit.applicant_id || permit.business_permit_id}</span>
                                   </div>
                                   <div className="text-xs text-gray-400 mt-1">
-                                    {permit.business_type} • Created: {formatDate(permit.created_at)}
+                                    {permit.business_type || permit.business_nature} • Created: {formatDate(permit.created_at)}
                                   </div>
                                 </div>
                               </td>
                               
                               <td className="px-6 py-4">
                                 <div>
-                                  <div className="font-medium text-gray-900">{permit.owner_name}</div>
+                                  <div className="font-medium text-gray-900">{permit.owner_name || permit.owner_full_name}</div>
                                   <div className="text-sm text-gray-600">{permit.contact_number}</div>
                                   {permit.owner_email && (
                                     <div className="text-xs text-gray-500 truncate max-w-[180px]">
@@ -549,9 +601,9 @@ const fetchExternalPermits = async () => {
                               
                               <td className="px-6 py-4">
                                 <div>
-                                  <div className="text-sm text-gray-900">{permit.barangay}</div>
-                                  <div className="text-xs text-gray-600">{permit.city}</div>
-                                  <div className="text-xs text-gray-500">{permit.district} District</div>
+                                  <div className="text-sm text-gray-900">{permit.barangay || permit.business_barangay}</div>
+                                  <div className="text-xs text-gray-600">{permit.city || permit.business_city}</div>
+                                  <div className="text-xs text-gray-500">{permit.district || permit.business_district} District</div>
                                 </div>
                               </td>
                               
@@ -584,8 +636,8 @@ const fetchExternalPermits = async () => {
                               
                               <td className="px-6 py-4">
                                 <div className="space-y-1">
-                                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(permit.status)}`}>
-                                    {permit.status}
+                                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
+                                    {status}
                                   </span>
                                   <div className="text-xs text-gray-500 space-y-0.5">
                                     {permit.issue_date && (
@@ -720,7 +772,7 @@ const fetchExternalPermits = async () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Permits from External System</h3>
                 <p className="text-gray-600 text-sm mt-1">
-                  Select permits to import into your database. Only selected permits will be stored.
+                  Select permits to import into your database. Duplicates (by applicant ID) will be skipped automatically.
                 </p>
               </div>
               
@@ -839,7 +891,7 @@ const fetchExternalPermits = async () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {externalPermits.map((permit, index) => {
-                      const permitId = permit.permit_id || permit.applicant_id || `ext-${index}`;
+                      const permitId = permit.applicant_id || permit.permit_id || `ext-${index}`;
                       const isSelected = selectedPermits.includes(permitId);
                       
                       return (
@@ -857,7 +909,7 @@ const fetchExternalPermits = async () => {
                             <div>
                               <div className="font-medium text-gray-900">{permit.business_name}</div>
                               <div className="text-sm text-gray-500">
-                                <span className="font-mono">{permit.applicant_id}</span>
+                                <span className="font-mono">{permit.applicant_id || permit.permit_id}</span>
                               </div>
                               {permit.trade_name && (
                                 <div className="text-xs text-gray-400 mt-1">
@@ -869,7 +921,7 @@ const fetchExternalPermits = async () => {
                           
                           <td className="px-6 py-4">
                             <div>
-                              <div className="font-medium text-gray-900">{permit.full_name}</div>
+                              <div className="font-medium text-gray-900">{permit.full_name || `${permit.first_name || ''} ${permit.last_name || ''}`}</div>
                               <div className="text-sm text-gray-600">{permit.contact_number}</div>
                               <div className="text-xs text-gray-500 truncate max-w-[180px]">
                                 {permit.email_address}
@@ -882,7 +934,7 @@ const fetchExternalPermits = async () => {
                               <div className="text-sm text-gray-900">{permit.business_nature}</div>
                               <div className="text-xs text-gray-500">
                                 <span className="inline-block px-2 py-1 bg-gray-100 rounded">
-                                  {permit.owner_type}
+                                  {permit.owner_type || 'Individual'}
                                 </span>
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
@@ -905,13 +957,13 @@ const fetchExternalPermits = async () => {
                           <td className="px-6 py-4">
                             <div className="space-y-1">
                               <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                permit.status === 'APPROVED' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                (permit.status === 'APPROVED' || permit.status === 'Approved') ? 'bg-green-100 text-green-800 border border-green-200' :
                                 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                               }`}>
                                 {permit.status || 'PENDING'}
                               </span>
                               <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>{permit.barangay}, {permit.city_municipality}</div>
+                                <div>{permit.barangay}, {permit.city_municipality || permit.city}</div>
                                 <div>{permit.province}</div>
                               </div>
                             </div>
