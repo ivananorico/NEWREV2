@@ -52,37 +52,50 @@ if (!$pdo) {
 try {
     /**
      * ======================================
-     * FETCH BUSINESS PERMITS (FIXED)
+     * FETCH BUSINESS PERMITS (UPDATED FOR YOUR DB STRUCTURE)
      * ======================================
      */
     $sql = "SELECT 
                 bp.id,
-                bp.business_permit_id,
+                bp.applicant_id as business_permit_id,
                 bp.business_name,
-                bp.full_name as owner_name,
-                bp.business_type,
+                bp.owner_full_name as owner_name,
+                bp.owner_type,
+                bp.business_nature as business_type,
+                bp.trade_name,
+                bp.business_barangay as barangay,
+                bp.business_district as district,
+                bp.business_city as city,
+                bp.business_province as province,
+                bp.business_zipcode as zipcode,
+                bp.contact_number,
+                bp.email_address as owner_email,
+                bp.capital_investment,
                 bp.tax_calculation_type,
                 bp.taxable_amount,
                 bp.tax_rate,
                 bp.tax_amount,
                 bp.regulatory_fees,
                 bp.total_tax,
+                bp.application_date,
                 bp.approved_date,
-                bp.business_street as street,
-                bp.business_barangay as barangay,
-                bp.business_district as district,
-                bp.business_city as city,
-                bp.business_province as province,
-                CONCAT(bp.business_street, ', ', bp.business_barangay, ', ', bp.business_district, ', ', bp.business_city, ', ', bp.business_province) as address,
-                bp.personal_contact as contact_number,
-                bp.personal_contact as phone,
-                bp.personal_email as owner_email,
                 bp.issue_date,
                 bp.expiry_date,
-                bp.status,
+                bp.permit_status as status,
+                bp.tax_status,
                 bp.created_at,
                 bp.updated_at,
-                bp.user_id
+                bp.user_id,
+                -- Create full address
+                CONCAT(
+                    COALESCE(bp.business_barangay, ''), 
+                    ', ', 
+                    COALESCE(bp.business_city, ''),
+                    ', ', 
+                    COALESCE(bp.business_province, ''),
+                    ' ', 
+                    COALESCE(bp.business_zipcode, '')
+                ) as address
             FROM business_permits bp
             ORDER BY bp.created_at DESC";
 
@@ -90,6 +103,13 @@ try {
     $stmt->execute();
 
     $permits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Add some debugging info
+    if (empty($permits)) {
+        error_log("No permits found in database");
+    } else {
+        error_log("Found " . count($permits) . " permits in database");
+    }
 
     echo json_encode([
         'status'  => 'success',
@@ -101,20 +121,20 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
+    error_log("Database error in get_permits.php: " . $e->getMessage());
     echo json_encode([
         'status'  => 'error',
-        'message' => 'Database error',
-        'error'   => $e->getMessage(),
-        'details' => $e->getTraceAsString(),
+        'message' => 'Database error: ' . $e->getMessage(),
+        'error_details' => $e->getMessage(),
         'permits' => [],
         'count'   => 0
     ]);
 } catch (Exception $e) {
     http_response_code(500);
+    error_log("General error in get_permits.php: " . $e->getMessage());
     echo json_encode([
         'status'  => 'error',
-        'message' => 'Server error',
-        'error'   => $e->getMessage(),
+        'message' => 'Server error: ' . $e->getMessage(),
         'permits' => [],
         'count'   => 0
     ]);
