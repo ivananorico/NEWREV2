@@ -11,10 +11,11 @@ const BusinessValidation = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filterStatus, setFilterStatus] = useState('Pending');
+  const [filterStatus, setFilterStatus] = useState('PENDING');
   const [isImporting, setIsImporting] = useState(false);
   const [selectedPermits, setSelectedPermits] = useState([]);
   const [importResult, setImportResult] = useState(null);
+  const [alreadyImportedIds, setAlreadyImportedIds] = useState([]);
 
   const isLocalhost = window.location.hostname === 'localhost' || 
                       window.location.hostname === '127.0.0.1';
@@ -48,8 +49,14 @@ const BusinessValidation = () => {
       const data = await response.json();
       
       if (data.status === 'success') {
-        setMyPermits(data.permits);
+        setMyPermits(data.permits || []);
         console.log(`Loaded ${data.permits?.length || 0} permits from database`);
+        console.log('First permit:', data.permits?.[0]);
+        
+        // Extract already imported IDs for filtering external data
+        const importedIds = data.permits?.map(p => p.applicant_id) || [];
+        setAlreadyImportedIds(importedIds);
+        console.log('Already imported IDs:', importedIds);
       } else {
         throw new Error(data.message || 'Failed to fetch permits');
       }
@@ -82,9 +89,16 @@ const BusinessValidation = () => {
       console.log('External data received:', data);
       
       if (data.success) {
-        setExternalPermits(data.data || []);
+        // Filter out already imported permits BEFORE setting state
+        const externalData = data.data || [];
+        const filteredData = externalData.filter(permit => {
+          const permitId = permit.applicant_id || permit.permit_id;
+          return !alreadyImportedIds.includes(permitId);
+        });
+        
+        setExternalPermits(filteredData);
         setSelectedPermits([]);
-        console.log(`Fetched ${data.data?.length || 0} permits from external system`);
+        console.log(`Fetched ${externalData.length} permits, filtered to ${filteredData.length} (removed ${externalData.length - filteredData.length} already imported)`);
       } else {
         throw new Error(data.message || 'Failed to fetch data from permit system');
       }
@@ -175,7 +189,17 @@ const BusinessValidation = () => {
           error_count: importData.error_count || 0
         });
         
+        // Update already imported IDs
+        const newlyImportedIds = permitsToImport.map(p => p.applicant_id || p.permit_id);
+        setAlreadyImportedIds(prev => [...prev, ...newlyImportedIds]);
+        
+        // Remove imported permits from external view
+        setExternalPermits(prev => 
+          prev.filter(permit => !selectedPermits.includes(permit.applicant_id || permit.permit_id))
+        );
+        
         setSelectedPermits([]);
+        
         // Auto-switch to my data tab after 1.5 seconds
         setTimeout(() => {
           setActiveTab('myData');
@@ -219,17 +243,18 @@ const BusinessValidation = () => {
     setSelectedPermits([]);
   };
 
-  // Filter and pagination
+  // Filter and pagination for MY DATA
   const filteredMyPermits = myPermits.filter(permit => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
       (permit.business_name || '').toLowerCase().includes(searchLower) ||
       (permit.owner_name || permit.owner_full_name || '').toLowerCase().includes(searchLower) ||
-      (permit.business_permit_id || '').toLowerCase().includes(searchLower) ||
+      (permit.applicant_id || '').toLowerCase().includes(searchLower) ||
       (permit.business_type || permit.business_nature || '').toLowerCase().includes(searchLower) ||
       (permit.barangay || permit.business_barangay || '').toLowerCase().includes(searchLower);
     
-    const matchesStatus = filterStatus === 'all' || permit.status === filterStatus || permit.permit_status === filterStatus;
+    const permitStatus = permit.status || permit.permit_status || 'PENDING';
+    const matchesStatus = filterStatus === 'all' || permitStatus === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
@@ -243,20 +268,20 @@ const BusinessValidation = () => {
     setCurrentPage(page);
   };
 
+  // Fix: Use permit_status from database (your data has permit_status, not status)
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
+    const statusValue = status || 'PENDING';
+    switch (statusValue.toUpperCase()) {
       case 'ACTIVE':
         return 'bg-green-100 text-green-800 border border-green-200';
-      case 'Approved':
       case 'APPROVED':
         return 'bg-blue-100 text-blue-800 border border-blue-200';
-      case 'Pending':
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'Expired':
       case 'EXPIRED':
         return 'bg-red-100 text-red-800 border border-red-200';
+      case 'RENEWED':
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
@@ -306,10 +331,10 @@ const BusinessValidation = () => {
   };
 
   const stats = {
-    pending: myPermits.filter(p => (p.status === 'Pending' || p.permit_status === 'PENDING')).length,
-    approved: myPermits.filter(p => (p.status === 'Approved' || p.permit_status === 'APPROVED')).length,
-    active: myPermits.filter(p => (p.status === 'Active' || p.permit_status === 'ACTIVE')).length,
-    expired: myPermits.filter(p => (p.status === 'Expired' || p.permit_status === 'EXPIRED')).length,
+    pending: myPermits.filter(p => (p.status === 'PENDING' || p.permit_status === 'PENDING')).length,
+    approved: myPermits.filter(p => (p.status === 'APPROVED' || p.permit_status === 'APPROVED')).length,
+    active: myPermits.filter(p => (p.status === 'ACTIVE' || p.permit_status === 'ACTIVE')).length,
+    expired: myPermits.filter(p => (p.status === 'EXPIRED' || p.permit_status === 'EXPIRED')).length,
     total: myPermits.length
   };
 
@@ -481,7 +506,7 @@ const BusinessValidation = () => {
                   </div>
                   <input
                     type="text"
-                    placeholder="Search applications by business name, owner, permit ID..."
+                    placeholder="Search by business name, owner, ID, or location..."
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -501,11 +526,12 @@ const BusinessValidation = () => {
                   }}
                   className="border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 >
-                  <option value="Pending">Pending Review</option>
+                  <option value="PENDING">Pending Review</option>
                   <option value="all">All Statuses</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Active">Active</option>
-                  <option value="Expired">Expired</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="EXPIRED">Expired</option>
+                  <option value="RENEWED">Renewed</option>
                 </select>
                 
                 <select
@@ -542,7 +568,7 @@ const BusinessValidation = () => {
                 </div>
               </div>
 
-              {/* Permits Table */}
+              {/* Permits Table - FIXED DATA MAPPING */}
               {paginatedPermits.length > 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
@@ -559,7 +585,7 @@ const BusinessValidation = () => {
                             Location
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tax Type
+                            Tax Information
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
@@ -572,25 +598,32 @@ const BusinessValidation = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {paginatedPermits.map((permit) => {
                           const taxInfo = getTaxTypeDisplay(permit);
-                          const status = permit.status || permit.permit_status;
+                          // FIX: Use permit_status from database
+                          const status = permit.permit_status || permit.status || 'PENDING';
+                          const ownerName = permit.owner_name || permit.owner_full_name || 'Unknown';
+                          const businessType = permit.business_type || permit.business_nature || 'Unknown';
+                          const barangay = permit.barangay || permit.business_barangay || '';
+                          const city = permit.city || permit.business_city || '';
+                          const district = permit.district || permit.business_district || '';
+                          
                           return (
                             <tr key={permit.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4">
                                 <div>
-                                  <div className="font-medium text-gray-900">{permit.business_name}</div>
+                                  <div className="font-medium text-gray-900">{permit.business_name || 'Unknown Business'}</div>
                                   <div className="text-sm text-gray-500">
-                                    <span className="font-mono">{permit.applicant_id || permit.business_permit_id}</span>
+                                    <span className="font-mono">{permit.applicant_id || 'No ID'}</span>
                                   </div>
                                   <div className="text-xs text-gray-400 mt-1">
-                                    {permit.business_type || permit.business_nature} • Created: {formatDate(permit.created_at)}
+                                    {businessType} • Created: {formatDate(permit.created_at)}
                                   </div>
                                 </div>
                               </td>
                               
                               <td className="px-6 py-4">
                                 <div>
-                                  <div className="font-medium text-gray-900">{permit.owner_name || permit.owner_full_name}</div>
-                                  <div className="text-sm text-gray-600">{permit.contact_number}</div>
+                                  <div className="font-medium text-gray-900">{ownerName}</div>
+                                  <div className="text-sm text-gray-600">{permit.contact_number || 'No contact'}</div>
                                   {permit.owner_email && (
                                     <div className="text-xs text-gray-500 truncate max-w-[180px]">
                                       {permit.owner_email}
@@ -601,9 +634,11 @@ const BusinessValidation = () => {
                               
                               <td className="px-6 py-4">
                                 <div>
-                                  <div className="text-sm text-gray-900">{permit.barangay || permit.business_barangay}</div>
-                                  <div className="text-xs text-gray-600">{permit.city || permit.business_city}</div>
-                                  <div className="text-xs text-gray-500">{permit.district || permit.business_district} District</div>
+                                  <div className="text-sm text-gray-900">{barangay}</div>
+                                  <div className="text-xs text-gray-600">{city}</div>
+                                  {district && (
+                                    <div className="text-xs text-gray-500">{district} District</div>
+                                  )}
                                 </div>
                               </td>
                               
@@ -617,18 +652,18 @@ const BusinessValidation = () => {
                                   </div>
                                   
                                   <div className="text-sm text-gray-900">
-                                    Amount: {formatCurrency(taxInfo.amount)}
+                                    Capital: {formatCurrency(taxInfo.amount)}
                                   </div>
                                   
                                   {permit.tax_rate > 0 && (
                                     <div className="text-xs text-gray-500">
-                                      Rate: {permit.tax_rate}%
+                                      Tax Rate: {permit.tax_rate}%
                                     </div>
                                   )}
                                   
                                   {permit.total_tax > 0 && (
                                     <div className="text-xs text-green-600 font-medium">
-                                      Total: {formatCurrency(permit.total_tax)}
+                                      Total Tax: {formatCurrency(permit.total_tax)}
                                     </div>
                                   )}
                                 </div>
@@ -770,9 +805,15 @@ const BusinessValidation = () => {
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Permits from External System</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Available Permits from External System</h3>
                 <p className="text-gray-600 text-sm mt-1">
-                  Select permits to import into your database. Duplicates (by applicant ID) will be skipped automatically.
+                  {alreadyImportedIds.length > 0 ? (
+                    <span className="text-blue-600">
+                      Already imported {alreadyImportedIds.length} permits. Only new permits are shown below.
+                    </span>
+                  ) : (
+                    'Select permits to import into your database.'
+                  )}
                 </p>
               </div>
               
@@ -811,12 +852,14 @@ const BusinessValidation = () => {
                   </>
                 )}
                 
-                <button
-                  onClick={selectAllPermits}
-                  className="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50"
-                >
-                  Select All
-                </button>
+                {externalPermits.length > 0 && (
+                  <button
+                    onClick={selectAllPermits}
+                    className="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50"
+                  >
+                    Select All ({externalPermits.length})
+                  </button>
+                )}
                 
                 <button
                   onClick={fetchExternalPermits}
@@ -977,23 +1020,31 @@ const BusinessValidation = () => {
             </div>
           ) : (
             <div className="bg-white p-8 rounded-lg border border-gray-200 shadow-sm text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-blue-400 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-green-400 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No external permits loaded</h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                Click "Refresh External Data" to fetch permits from external system.
+              <h3 className="text-lg font-medium text-gray-900 mb-2">All permits already imported!</h3>
+              <p className="text-gray-600 max-w-md mx-auto mb-4">
+                You have imported all available permits from the external system.
+                Switch to "My Database" tab to view and manage them.
               </p>
-              <button
-                onClick={fetchExternalPermits}
-                disabled={loadingExternal}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-                Refresh External Data
-              </button>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => setActiveTab('myData')}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                  </svg>
+                  View My Database
+                </button>
+                <button
+                  onClick={fetchExternalPermits}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Check for New Permits
+                </button>
+              </div>
             </div>
           )}
         </>
@@ -1002,6 +1053,9 @@ const BusinessValidation = () => {
       {/* Footer */}
       <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
         <p>Business Permit Management System • {new Date().toLocaleDateString('en-PH')}</p>
+        <p className="text-xs mt-1">
+          {myPermits.length} permits in database • {alreadyImportedIds.length} imported from external system
+        </p>
       </div>
     </div>
   );
