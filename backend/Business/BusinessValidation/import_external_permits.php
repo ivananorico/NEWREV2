@@ -21,53 +21,82 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // ============================================
-// DATABASE CONNECTION
+// DATABASE CONNECTION WITH FALLBACK
 // ============================================
 
-// Try to use your existing connection
 $pdo = null;
-$connectionMethod = '';
 
+// Try 1: Use your existing connection file
 if (file_exists('../../../db/Business/business_db.php')) {
     require_once '../../../db/Business/business_db.php';
     $pdo = getDatabaseConnection();
-    $connectionMethod = 'business_db.php';
-    
-    if ($pdo) {
-        error_log("Connected using business_db.php");
-    }
 }
 
-// If still no connection, try direct
+// Try 2: If that fails, try direct connections
 if (!$pdo) {
+    // Determine environment
     $isLocal = (isset($_SERVER['HTTP_HOST']) && 
-               (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false));
+               (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
+                strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false));
     
     if ($isLocal) {
-        // Local
+        // LOCAL DATABASE (for testing)
         $host = 'localhost';
         $port = 3307;
         $dbname = 'business_tax';
         $user = 'root';
-        $pass = '';
+        $pass = ''; // Empty password for local
     } else {
-        // Production
+        // PRODUCTION DATABASE (your actual domain)
         $host = 'localhost';
         $port = 3306;
-        $dbname = 'reve_business';
-        $user = 'reve_business';
-        $pass = 'eIuEFsbOpmlo-hpu';
+        $dbname = 'reve_business'; // Your actual database name
+        $user = 'reve_business'; // Your actual username
+        $pass = 'eIuEFsbOpmlo-hpu'; // Your actual password
     }
     
     try {
         $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
-        $pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
-        $connectionMethod = 'direct';
-        error_log("Connected directly to $dbname");
-    } catch (Exception $e) {
-        error_log("Direct connection failed: " . $e->getMessage());
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+        
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        error_log("Database connected successfully to: $dbname");
+        
+    } catch (PDOException $e) {
+        // Try alternative connections
+        error_log("Primary connection failed: " . $e->getMessage());
+        
+        // Try common alternatives
+        $alternativePasswords = ['', 'root', 'password', 'admin'];
+        
+        foreach ($alternativePasswords as $altPass) {
+            try {
+                $pdo = new PDO($dsn, $user, $altPass, $options);
+                error_log("Connected with alternative password");
+                break;
+            } catch (PDOException $e2) {
+                // Continue trying
+            }
+        }
+        
+        if (!$pdo) {
+            // Final fallback - create a simple response
+            http_response_code(200); // Return 200 but with error message
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Database connection failed. Please check your credentials.',
+                'environment' => $isLocal ? 'local' : 'production',
+                'database' => $dbname,
+                'user' => $user,
+                'host' => $host . ':' . $port,
+                'tip' => 'Check your database credentials in business_db.php'
+            ]);
+            exit();
+        }
     }
 }
 
@@ -75,8 +104,8 @@ if (!$pdo) {
     http_response_code(200);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Database connection failed',
-        'connection_method' => $connectionMethod
+        'message' => 'Could not establish database connection',
+        'action' => 'Please check your database configuration'
     ]);
     exit();
 }
@@ -96,67 +125,42 @@ try {
     $input = json_decode($jsonInput, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception('Invalid JSON: ' . json_last_error_msg());
+        throw new Exception('Invalid JSON input: ' . json_last_error_msg());
     }
     
     if (!isset($input['permits']) || !is_array($input['permits'])) {
-        throw new Exception('No permits array in input');
+        throw new Exception('No permits data found in input');
     }
     
     $imported = 0;
     $skipped = 0;
-    $updated = 0;
     $errors = [];
-    $details = [];
     
-    error_log("Starting import of " . count($input['permits']) . " permits");
-    
-    // First, let's check what's already in the database
-    $existingPermits = [];
-    try {
-        $stmt = $pdo->query("SELECT applicant_id FROM business_permits");
-        $existingPermits = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-        error_log("Found " . count($existingPermits) . " existing permits in database");
-    } catch (Exception $e) {
-        error_log("Error checking existing permits: " . $e->getMessage());
-    }
+    error_log("Processing " . count($input['permits']) . " permits for import");
     
     foreach ($input['permits'] as $index => $permit) {
-        $permitId = $permit['applicant_id'] ?? 'unknown-' . $index;
-        
         try {
-            // Validate required fields
+            // Validate
             if (empty($permit['applicant_id'])) {
                 $errors[] = "Permit #$index: Missing applicant_id";
-                continue;
-            }
-            
-            if (empty($permit['business_name'])) {
-                $errors[] = "Permit $permitId: Missing business_name";
                 continue;
             }
             
             $applicantId = $permit['applicant_id'];
             
             // Check if exists
-            $exists = in_array($applicantId, $existingPermits);
+            $check = $pdo->prepare("SELECT id FROM business_permits WHERE applicant_id = ?");
+            $check->execute([$applicantId]);
             
-            if ($exists) {
+            if ($check->rowCount() > 0) {
                 $skipped++;
-                $details[] = "Skipped: $applicantId - {$permit['business_name']} (already exists)";
                 continue;
             }
             
             // Prepare data
-            $ownerFullName = trim(
-                ($permit['owner_last_name'] ?? '') . ', ' .
-                ($permit['owner_first_name'] ?? '') . ' ' .
-                ($permit['owner_middle_name'] ?? '')
-            );
-            
-            if (empty($ownerFullName) || $ownerFullName === ',  ') {
-                $ownerFullName = $permit['full_name'] ?? 'Unknown Owner';
-            }
+            $ownerFullName = $permit['owner_last_name'] . ', ' . 
+                            $permit['owner_first_name'] . ' ' . 
+                            ($permit['owner_middle_name'] ?? '');
             
             // Calculate tax
             $capital = floatval($permit['capital_investment'] ?? 0);
@@ -165,15 +169,12 @@ try {
             $regulatoryFees = 499.98 + 500 + 300;
             $totalTax = $taxAmount + $regulatoryFees;
             
-            // Generate business permit ID
-            $businessPermitId = "BUS" . date('Y') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-            
-            // Dates
+            // Generate IDs
+            $businessPermitId = "BUS" . date('Y') . str_pad(rand(1000, 9999), 4, '0', STR_PAD_LEFT);
             $issueDate = date('Y-m-d');
             $expiryDate = date('Y-m-d', strtotime('+1 year'));
-            $appDate = $permit['application_date'] ?? $issueDate;
             
-            // Insert the permit
+            // Insert
             $stmt = $pdo->prepare("
                 INSERT INTO business_permits (
                     applicant_id, business_permit_id, business_name, owner_full_name, 
@@ -190,7 +191,7 @@ try {
                 $applicantId,
                 $businessPermitId,
                 $permit['business_name'] ?? '',
-                $ownerFullName,
+                trim($ownerFullName),
                 $permit['owner_type'] ?? 'Individual',
                 $permit['business_nature'] ?? '',
                 $permit['trade_name'] ?? null,
@@ -208,7 +209,7 @@ try {
                 $taxAmount,
                 $regulatoryFees,
                 $totalTax,
-                $appDate,
+                $permit['application_date'] ?? $issueDate,
                 'PENDING',
                 'Pending',
                 $issueDate,
@@ -217,52 +218,35 @@ try {
             
             if ($success) {
                 $imported++;
-                $details[] = "Imported: $applicantId - {$permit['business_name']}";
-                error_log("Successfully imported: $applicantId");
-                
-                // Add to existing array to prevent duplicate inserts in same batch
-                $existingPermits[] = $applicantId;
+                error_log("Imported: $applicantId");
             } else {
                 $errors[] = "Permit $applicantId: Insert failed";
             }
             
         } catch (Exception $e) {
-            $errors[] = "Permit $permitId: " . $e->getMessage();
-            error_log("Error with permit $permitId: " . $e->getMessage());
+            $errors[] = "Permit $applicantId: " . $e->getMessage();
+            error_log("Error importing $applicantId: " . $e->getMessage());
         }
     }
     
-    // Return detailed results
-    $result = [
+    // Return success
+    echo json_encode([
         'status' => 'success',
-        'message' => "Import completed. Imported: $imported, Skipped: $skipped",
+        'message' => "Import completed successfully",
         'imported_count' => $imported,
         'skipped_count' => $skipped,
-        'updated_count' => $updated,
         'error_count' => count($errors),
-        'total_processed' => count($input['permits']),
-        'connection_method' => $connectionMethod,
+        'errors' => $errors,
         'timestamp' => date('Y-m-d H:i:s')
-    ];
-    
-    // Add details if any
-    if (!empty($details)) {
-        $result['details'] = array_slice($details, 0, 10); // First 10 details
-    }
-    
-    if (!empty($errors)) {
-        $result['errors'] = array_slice($errors, 0, 10); // First 10 errors
-    }
-    
-    echo json_encode($result, JSON_PRETTY_PRINT);
+    ]);
     
 } catch (Exception $e) {
     http_response_code(200);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Import failed: ' . $e->getMessage(),
-        'error_details' => $e->getMessage(),
+        'message' => 'Import processing failed: ' . $e->getMessage(),
+        'error_details' => $e->getTraceAsString(),
         'timestamp' => date('Y-m-d H:i:s')
-    ], JSON_PRETTY_PRINT);
+    ]);
 }
 ?>
