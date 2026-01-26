@@ -10,11 +10,63 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Ensure modal is perfectly centered */
-        .modal-center {
-            display: flex !important;
+        /* Custom styles for better modal handling */
+        .modal-container {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: flex;
             align-items: center;
             justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 56rem;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .otp-modal {
+            max-width: 28rem;
+        }
+        
+        /* Hide scrollbar when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1001;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            color: white;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        /* Animation for OTP inputs */
+        .otp-input {
+            transition: all 0.2s ease;
+        }
+        
+        .otp-input:focus {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
     </style>
 </head>
@@ -135,10 +187,10 @@
         </div>
     </footer>
 
-    <!-- Registration Form - HIDDEN BY DEFAULT AND CENTERED -->
-    <div id="registerFormContainer" class="fixed inset-0 bg-black/40 hidden p-4 z-50">
-        <div class="flex items-center justify-center min-h-full">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <!-- Registration Form Modal -->
+    <div id="registerFormContainer" class="modal-container hidden">
+        <div class="modal-content">
+            <div class="p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-custom-secondary">Create your GoServePH Account</h2>
                     <button type="button" id="cancelRegister" class="text-gray-500 hover:text-gray-700 text-xl">
@@ -204,63 +256,62 @@
                     </div>
 
                     <!-- Address Information -->
-                    <!-- Address Information -->
-<div class="border-b border-gray-200 pb-4">
-    <h3 class="text-lg font-semibold text-gray-700 mb-4">Address Information</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">House Number/Unit *</label>
-            <input type="text" name="houseNumber" required 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                   placeholder="123">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Street *</label>
-            <input type="text" name="street" required 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                   placeholder="Main Street">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
-            <input type="text" name="barangay" required 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                   placeholder="Barangay Name">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
-            <select name="district" required 
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
-                <option value="">Select District</option>
-                <option value="1">District 1</option>
-                <option value="2">District 2</option>
-                <option value="3">District 3</option>
-                <option value="4">District 4</option>
-                <option value="5">District 5</option>
-                <option value="6">District 6</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">City/Municipality *</label>
-            <input type="text" name="city" value="Quezon City" required 
-                   readonly
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
-            <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
-            <input type="text" name="province" value="Metro Manila" required 
-                   readonly
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
-            <p class="text-xs text-gray-500 mt-1">Fixed to Metro Manila</p>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
-            <input type="text" name="zipCode" required 
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                   placeholder="1100" pattern="[0-9]{4}">
-        </div>
-    </div>
-</div>
+                    <div class="border-b border-gray-200 pb-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Address Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">House Number/Unit *</label>
+                                <input type="text" name="houseNumber" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="123">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Street *</label>
+                                <input type="text" name="street" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="Main Street">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
+                                <input type="text" name="barangay" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="Barangay Name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
+                                <select name="district" required 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                    <option value="">Select District</option>
+                                    <option value="1">District 1</option>
+                                    <option value="2">District 2</option>
+                                    <option value="3">District 3</option>
+                                    <option value="4">District 4</option>
+                                    <option value="5">District 5</option>
+                                    <option value="6">District 6</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City/Municipality *</label>
+                                <input type="text" name="city" value="Quezon City" required 
+                                       readonly
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
+                                <input type="text" name="province" value="Metro Manila" required 
+                                       readonly
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Metro Manila</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
+                                <input type="text" name="zipCode" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       placeholder="1100" pattern="[0-9]{4}">
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Account Security -->
                     <div class="border-b border-gray-200 pb-4">
@@ -315,774 +366,737 @@
     </div>
 
     <!-- OTP Verification Modal -->
-    <div id="otpModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-custom-secondary">Enter OTP Verification</h2>
-                <button type="button" id="closeOtpModal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-lg"></i>
-                </button>
-            </div>
-            
-            <div class="text-center mb-6">
-                <p class="text-gray-600">We've sent a 6-digit OTP to your email</p>
-                <p id="otpEmail" class="font-semibold text-custom-secondary mt-1"></p>
-                <p id="otpTimer" class="text-sm text-gray-500 mt-2">03:00</p>
-            </div>
-            
-            <form id="otpForm" class="space-y-4">
-                <div class="flex justify-center space-x-2 mb-4">
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                    <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent" required>
-                </div>
-                
-                <div id="otpError" class="text-red-500 text-sm text-center hidden"></div>
-                
-                <div class="flex justify-between items-center">
-                    <button type="button" id="resendOtp" class="text-custom-secondary hover:underline disabled:text-gray-400" disabled>
-                        Resend OTP
+    <div id="otpModal" class="modal-container hidden">
+        <div class="modal-content otp-modal">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-custom-secondary">Enter OTP Verification</h2>
+                    <button type="button" id="closeOtpModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-lg"></i>
                     </button>
-                    <div class="flex space-x-2">
-                        <button type="button" id="cancelOtp" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                            Cancel
-                        </button>
-                        <button type="submit" id="submitOtp" class="bg-custom-secondary text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                            Verify
-                        </button>
-                    </div>
                 </div>
-            </form>
+                
+                <div class="text-center mb-6">
+                    <p class="text-gray-600">We've sent a 6-digit OTP to your email</p>
+                    <p id="otpEmail" class="font-semibold text-custom-secondary mt-1"></p>
+                    <p id="otpTimer" class="text-sm text-gray-500 mt-2">03:00</p>
+                </div>
+                
+                <form id="otpForm" class="space-y-4">
+                    <div class="flex justify-center space-x-2 mb-4">
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                    </div>
+                    
+                    <div id="otpError" class="text-red-500 text-sm text-center hidden"></div>
+                    
+                    <div class="flex justify-between items-center">
+                        <button type="button" id="resendOtp" class="text-custom-secondary hover:underline disabled:text-gray-400" disabled>
+                            Resend OTP
+                        </button>
+                        <div class="flex space-x-2">
+                            <button type="button" id="cancelOtp" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                                Cancel
+                            </button>
+                            <button type="button" id="submitOtp" class="bg-custom-secondary text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                Verify
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Updated JavaScript -->
-   <script>
-    // ============================================
-    // CONFIGURATION - Works for both localhost and domain
-    // ============================================
-    // Detect if we're on localhost or domain
-    // ============================================
-// CONFIGURATION - Works for both localhost and domain
-// ============================================
-// Detect if we're on localhost or domain
-const isLocalhost = window.location.hostname === 'localhost' || 
-                   window.location.hostname === '127.0.0.1';
-    
-// Set base path dynamically
-const basePath = isLocalhost ? '/revenue2' : '';
-    
-// API endpoint - always use relative path
-const API_ENDPOINT = basePath + '/Login/api/auth.php';
-    
-console.log('🌐 Environment:', isLocalhost ? 'localhost' : 'production');
-console.log('🔗 API Endpoint:', API_ENDPOINT);
-console.log('📍 Current URL:', window.location.href);
-
-let currentUserId = null;
-let otpTimer = null;
-let otpTimeLeft = 180;
-
-// Initialize application
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 DOM loaded, initializing app...');
-    updateDateTime();
-    setInterval(updateDateTime, 1000);
-    setupEventListeners();
-    setupOTPInputs();
-    
-    // Test API connection
-    testAPIConnection();
-});
-
-// Test API connection
-async function testAPIConnection() {
-    try {
-        console.log('🔧 Testing connection to:', API_ENDPOINT);
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ action: 'test' })
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+        const basePath = isLocalhost ? '/revenue2' : '';
+        const API_ENDPOINT = basePath + '/Login/api/auth.php';
+        
+        let currentUserId = null;
+        let otpTimer = null;
+        let otpTimeLeft = 180;
+        
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded, initializing app...');
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            setupEventListeners();
+            setupOTPInputs();
         });
         
-        const responseText = await response.text();
-        console.log('📥 Raw test response:', responseText);
-        
-        try {
-            const data = JSON.parse(responseText);
-            console.log('✅ API Test Result:', data);
-            if (data.success) {
-                console.log('🎉 API is working correctly!');
+        function setupEventListeners() {
+            // Login form
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLoginSubmit);
             }
-        } catch (parseError) {
-            console.error('❌ JSON Parse Error in test:', parseError);
-            console.log('Response was:', responseText);
+            
+            // Register form
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', handleRegisterSubmit);
+            }
+            
+            // Show register form
+            const showRegister = document.getElementById('showRegister');
+            if (showRegister) {
+                showRegister.addEventListener('click', showRegisterForm);
+            }
+            
+            // Cancel register buttons
+            const cancelRegister = document.getElementById('cancelRegister');
+            const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
+            if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
+            if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
+            
+            // OTP buttons - Use onclick instead of addEventListener to avoid duplicates
+            const cancelOtp = document.getElementById('cancelOtp');
+            const resendOtp = document.getElementById('resendOtp');
+            const submitOtp = document.getElementById('submitOtp');
+            const closeOtpModal = document.getElementById('closeOtpModal');
+            
+            if (cancelOtp) cancelOtp.onclick = closeOtpModalFunc;
+            if (resendOtp) resendOtp.onclick = handleResendOtp;
+            if (submitOtp) submitOtp.onclick = handleVerifyOtp;
+            if (closeOtpModal) closeOtpModal.onclick = closeOtpModalFunc;
+            
+            // OTP form submit
+            const otpForm = document.getElementById('otpForm');
+            if (otpForm) {
+                otpForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    handleVerifyOtp();
+                });
+            }
+            
+            // Modal background clicks
+            const registerModal = document.getElementById('registerFormContainer');
+            const otpModalElement = document.getElementById('otpModal');
+            
+            if (registerModal) {
+                registerModal.addEventListener('click', function(e) {
+                    if (e.target === this) hideRegisterForm();
+                });
+            }
+            
+            if (otpModalElement) {
+                otpModalElement.addEventListener('click', function(e) {
+                    if (e.target === this) closeOtpModalFunc();
+                });
+            }
+            
+            // Terms and Privacy buttons
+            const footerTerms = document.getElementById('footerTerms');
+            const footerPrivacy = document.getElementById('footerPrivacy');
+            
+            if (footerTerms) {
+                footerTerms.addEventListener('click', function() {
+                    showNotification('Terms of Service will be available soon', 'info');
+                });
+            }
+            
+            if (footerPrivacy) {
+                footerPrivacy.addEventListener('click', function() {
+                    showNotification('Privacy Policy will be available soon', 'info');
+                });
+            }
         }
-    } catch (error) {
-        console.error('❌ API Connection Test Failed:', error);
-    }
-}
-
-function setupEventListeners() {
-    // Login form
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLoginSubmit);
-    }
-
-    // Register form
-    const registerForm = document.getElementById('registerForm');
-    if (registerForm) {
-        registerForm.addEventListener('submit', handleRegisterSubmit);
-    }
-
-    // Show register form
-    const showRegister = document.getElementById('showRegister');
-    if (showRegister) {
-        showRegister.addEventListener('click', showRegisterForm);
-    }
-
-    // Cancel register buttons
-    const cancelRegister = document.getElementById('cancelRegister');
-    const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
-    if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
-    if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
-
-    // OTP buttons
-    const cancelOtp = document.getElementById('cancelOtp');
-    const resendOtp = document.getElementById('resendOtp');
-    const submitOtp = document.getElementById('submitOtp');
-    const closeOtpModal = document.getElementById('closeOtpModal');
-    
-    if (cancelOtp) cancelOtp.addEventListener('click', closeOtpModal);
-    if (resendOtp) resendOtp.addEventListener('click', handleResendOtp);
-    if (submitOtp) submitOtp.addEventListener('click', handleVerifyOtp);
-    if (closeOtpModal) closeOtpModal.addEventListener('click', closeOtpModal);
-
-    // OTP form submit
-    const otpForm = document.getElementById('otpForm');
-    if (otpForm) {
-        otpForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            handleVerifyOtp();
-        });
-    }
-
-    // Modal background clicks
-    const registerModal = document.getElementById('registerFormContainer');
-    const otpModal = document.getElementById('otpModal');
-    
-    if (registerModal) {
-        registerModal.addEventListener('click', function(e) {
-            if (e.target === this) hideRegisterForm();
-        });
-    }
-    
-    if (otpModal) {
-        otpModal.addEventListener('click', function(e) {
-            if (e.target === this) closeOtpModal();
-        });
-    }
-
-    // Terms and Privacy buttons
-    const footerTerms = document.getElementById('footerTerms');
-    const footerPrivacy = document.getElementById('footerPrivacy');
-    
-    if (footerTerms) {
-        footerTerms.addEventListener('click', function() {
-            showNotification('Terms of Service will be available soon', 'info');
-        });
-    }
-    
-    if (footerPrivacy) {
-        footerPrivacy.addEventListener('click', function() {
-            showNotification('Privacy Policy will be available soon', 'info');
-        });
-    }
-}
-
-function setupOTPInputs() {
-    const inputs = document.querySelectorAll('.otp-input');
-    
-    inputs.forEach((input, index) => {
-        input.addEventListener('input', function(e) {
-            const value = e.target.value.replace(/[^0-9]/g, '');
-            e.target.value = value;
-            
-            if (value && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
-        });
         
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                inputs[index - 1].focus();
-            }
-        });
-        
-        input.addEventListener('paste', function(e) {
-            e.preventDefault();
-            const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
-            const digits = pasteData.split('').slice(0, 6);
+        function setupOTPInputs() {
+            const inputs = document.querySelectorAll('.otp-input');
             
-            digits.forEach((digit, i) => {
-                if (inputs[i]) {
-                    inputs[i].value = digit;
-                }
+            inputs.forEach((input, index) => {
+                // Clear existing event listeners
+                const newInput = input.cloneNode(true);
+                input.parentNode.replaceChild(newInput, input);
+                
+                newInput.addEventListener('input', function(e) {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    e.target.value = value;
+                    
+                    if (value && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                });
+                
+                newInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        inputs[index - 1].focus();
+                        inputs[index - 1].value = '';
+                    }
+                });
+                
+                newInput.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
+                    const digits = pasteData.split('').slice(0, 6);
+                    
+                    digits.forEach((digit, i) => {
+                        if (inputs[i]) {
+                            inputs[i].value = digit;
+                        }
+                    });
+                    
+                    if (digits.length < 6 && inputs[digits.length]) {
+                        inputs[digits.length].focus();
+                    }
+                });
             });
-            
-            if (digits.length < 6 && inputs[digits.length]) {
-                inputs[digits.length].focus();
-            }
-        });
-    });
-}
-
-// Main handler functions
-async function handleLoginSubmit(e) {
-    e.preventDefault();
-    console.log('🔐 Login form submitted');
-    
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
-    const loginBtn = document.getElementById('loginBtn');
-
-    // Basic validation
-    if (!email || !password) {
-        showNotification('Please enter both email and password', 'error');
-        return;
-    }
-
-    if (!isValidEmail(email)) {
-        showNotification('Please enter a valid email address', 'error');
-        return;
-    }
-
-    // Show loading state
-    setButtonLoading(loginBtn, true, 'Logging in...');
-
-    try {
-        console.log('📤 Sending login request to:', API_ENDPOINT);
-        console.log('Data:', { action: 'login', email: email });
-        
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'login',
-                email: email,
-                password: password
-            })
-        });
-
-        console.log('📥 Response received, status:', response.status);
-        const responseText = await response.text();
-        console.log('📨 Raw response:', responseText);
-
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ JSON Parse Error:', parseError);
-            console.error('Response text:', responseText);
-            showNotification('Server returned invalid response', 'error');
-            return;
         }
-
-        console.log('📨 Login response:', data);
-
-        if (data.success) {
-            console.log('✅ Login successful');
+        
+        // ============================================
+        // MAIN HANDLER FUNCTIONS
+        // ============================================
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            console.log('🔐 Login form submitted');
             
-            // Check if user is admin
-            if (data.user_role === 'admin') {
-                console.log('👑 Admin user detected, redirecting to admin panel');
-                showNotification('Admin login successful! Redirecting...', 'success');
-
-                // Redirect to admin panel
-                setTimeout(() => {
-                    window.location.href = basePath + '/dist/index.html';
-                }, 1000);
-            } else {
-                // Regular user - proceed with OTP
-                console.log('👤 Regular user, opening OTP modal');
-                currentUserId = data.user_id;
-                if (data.debug_otp) {
-                    console.log('🔑 DEBUG OTP:', data.debug_otp);
-                    showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
-                } else {
-                    showNotification('Login successful! OTP sent to your email.', 'success');
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // Validation
+            if (!email || !password) {
+                showNotification('Please enter both email and password', 'error');
+                return;
+            }
+            
+            if (!isValidEmail(email)) {
+                showNotification('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            setButtonLoading(loginBtn, true, 'Logging in...');
+            
+            try {
+                console.log('📤 Sending login request...');
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const responseText = await response.text();
+                console.log('📥 Raw response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ JSON Parse Error:', parseError);
+                    showNotification('Server returned invalid response', 'error');
+                    return;
                 }
-                openOtpModal();
-            }
-
-        } else {
-            console.log('❌ Login failed:', data.message);
-            showNotification(data.message || 'Invalid email or password', 'error');
-        }
-    } catch (error) {
-        console.error('🚨 Login error:', error);
-        showNotification('Network error. Please try again.', 'error');
-    } finally {
-        setButtonLoading(loginBtn, false, 'Login');
-    }
-}
-
-async function handleRegisterSubmit(e) {
-    e.preventDefault();
-    console.log('📝 Register form submitted');
-    
-    const formData = new FormData(document.getElementById('registerForm'));
-    const data = Object.fromEntries(formData.entries());
-    const registerBtn = document.querySelector('#registerForm button[type="submit"]');
-
-    // Basic validation
-    const requiredFields = [
-        'firstName', 'lastName', 'regEmail', 'regPassword', 
-        'confirmPassword', 'birthdate', 'mobile', 'houseNumber', 
-        'street', 'barangay', 'district', 'city', 'province', 'zipCode'
-    ];
-    
-    for (const field of requiredFields) {
-        if (!data[field] || data[field].trim() === '') {
-            showNotification('Please fill in all required fields', 'error');
-            return;
-        }
-    }
-
-    // Validate ZIP Code
-    if (!/^\d{4}$/.test(data.zipCode)) {
-        showNotification('Please enter a valid 4-digit ZIP code', 'error');
-        return;
-    }
-
-    // Validate mobile number
-    if (!/^\d{11}$/.test(data.mobile.replace(/\D/g, ''))) {
-        showNotification('Please enter a valid 11-digit mobile number', 'error');
-        return;
-    }
-
-    // Validate district
-    if (!['1', '2', '3', '4', '5', '6'].includes(data.district)) {
-        showNotification('Please select a valid district', 'error');
-        return;
-    }
-
-    // Validate fixed city and province
-    if (data.city !== 'Quezon City') {
-        showNotification('City must be Quezon City', 'error');
-        return;
-    }
-
-    if (data.province !== 'Metro Manila') {
-        showNotification('Province must be Metro Manila', 'error');
-        return;
-    }
-
-    if (data.regPassword !== data.confirmPassword) {
-        showNotification('Passwords do not match', 'error');
-        return;
-    }
-
-    if (!isValidEmail(data.regEmail)) {
-        showNotification('Please enter a valid email address', 'error');
-        return;
-    }
-
-    // Check if terms are agreed
-    if (!data.agreeTerms || !data.agreePrivacy) {
-        showNotification('Please agree to the Terms of Service and Privacy Policy', 'error');
-        return;
-    }
-
-    setButtonLoading(registerBtn, true, 'Creating Account...');
-
-    try {
-        console.log('📤 Sending registration request to:', API_ENDPOINT);
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'register',
-                ...data
-            })
-        });
-
-        const responseText = await response.text();
-        console.log('📥 Raw response:', responseText);
-
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ JSON Parse Error:', parseError);
-            console.error('Response text:', responseText);
-            showNotification('Server returned invalid response', 'error');
-            return;
-        }
-
-        console.log('📨 Register response:', result);
-        
-        if (result.success) {
-            currentUserId = result.user_id;
-            
-            // Show debug OTP if available
-            if (result.debug_otp) {
-                console.log('🔑 DEBUG OTP:', result.debug_otp);
-                showNotification('Registration successful! OTP: ' + result.debug_otp, 'success');
-            } else {
-                showNotification('Registration successful! OTP sent to your email.', 'success');
-            }
-            
-            hideRegisterForm();
-            openOtpModal();
-        } else {
-            showNotification(result.message || 'Registration failed', 'error');
-        }
-    } catch (error) {
-        console.error('Registration error:', error);
-        showNotification('Network error. Please try again.', 'error');
-    } finally {
-        setButtonLoading(registerBtn, false, 'Create Account');
-    }
-}
-
-async function handleVerifyOtp() {
-    console.log('🔑 Verifying OTP...');
-    const otpCode = getOtpCode();
-    const submitBtn = document.getElementById('submitOtp');
-    const errorElement = document.getElementById('otpError');
-
-    if (!otpCode || otpCode.length !== 6) {
-        showError('Please enter the complete 6-digit OTP');
-        return;
-    }
-
-    setButtonLoading(submitBtn, true, 'Verifying...');
-    hideError();
-
-    try {
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'verify_otp',
-                user_id: currentUserId,
-                otp_code: otpCode
-            })
-        });
-
-        const responseText = await response.text();
-        console.log('📥 OTP verification raw response:', responseText);
-
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ JSON Parse Error:', parseError);
-            showError('Server returned invalid response');
-            return;
-        }
-
-        console.log('📨 OTP verification response:', data);
-        
-        if (data.success) {
-            showNotification('OTP verified successfully!', 'success');
-            closeOtpModal();
-            // Redirect to citizen dashboard
-            setTimeout(() => {
-                if (data.redirect_url) {
-                    window.location.href = basePath + '/' + data.redirect_url;
+                
+                console.log('📨 Login response:', data);
+                
+                if (data.success) {
+                    console.log('✅ Login successful');
+                    
+                    if (data.user_role === 'admin') {
+                        console.log('👑 Admin user detected');
+                        showNotification('Admin login successful! Redirecting...', 'success');
+                        
+                        setTimeout(() => {
+                            window.location.href = basePath + '/dist/index.html';
+                        }, 1000);
+                    } else {
+                        currentUserId = data.user_id;
+                        if (data.debug_otp) {
+                            console.log('🔑 DEBUG OTP:', data.debug_otp);
+                            showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
+                        } else {
+                            showNotification('Login successful! OTP sent to your email.', 'success');
+                        }
+                        openOtpModal();
+                    }
+                    
                 } else {
-                    window.location.href = basePath + '/citizen_dashboard/citizen_dashboard.php';
+                    console.log('❌ Login failed:', data.message);
+                    showNotification(data.message || 'Invalid email or password', 'error');
                 }
-            }, 1500);
-        } else {
-            showError(data.message || 'Invalid OTP');
-        }
-    } catch (error) {
-        console.error('OTP verification error:', error);
-        showError('Network error. Please try again.');
-    } finally {
-        setButtonLoading(submitBtn, false, 'Verify');
-    }
-}
-
-async function handleResendOtp() {
-    console.log('🔄 Resending OTP...');
-    const resendBtn = document.getElementById('resendOtp');
-    
-    setButtonLoading(resendBtn, true, 'Sending...');
-
-    try {
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'resend_otp',
-                user_id: currentUserId
-            })
-        });
-
-        const responseText = await response.text();
-        console.log('📥 Resend OTP raw response:', responseText);
-
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ JSON Parse Error:', parseError);
-            showNotification('Server returned invalid response', 'error');
-            return;
-        }
-
-        console.log('📨 Resend OTP response:', data);
-        
-        if (data.success) {
-            // Show debug OTP if available
-            if (data.debug_otp) {
-                console.log('🔑 DEBUG OTP:', data.debug_otp);
-                showNotification('New OTP: ' + data.debug_otp, 'success');
-            } else {
-                showNotification('New OTP sent to your email', 'success');
+            } catch (error) {
+                console.error('🚨 Login error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            } finally {
+                setButtonLoading(loginBtn, false, 'Login');
             }
-            startOtpTimer();
-        } else {
-            showNotification(data.message || 'Failed to resend OTP', 'error');
         }
-    } catch (error) {
-        console.error('Resend OTP error:', error);
-        showNotification('Network error. Please try again.', 'error');
-    } finally {
-        setButtonLoading(resendBtn, false, 'Resend OTP');
-        resendBtn.disabled = true;
-    }
-}
-
-// UI Functions
-function showRegisterForm() {
-    const container = document.getElementById('registerFormContainer');
-    if (container) {
-        container.classList.remove('hidden');
-        container.classList.add('modal-center');
-        document.body.style.overflow = 'hidden';
-    }
-}
-
-function hideRegisterForm() {
-    const container = document.getElementById('registerFormContainer');
-    if (container) {
-        container.classList.add('hidden');
-        container.classList.remove('modal-center');
-        document.body.style.overflow = 'auto';
-        container.querySelector('form').reset();
-    }
-}
-
-function openOtpModal() {
-    console.log('🔑 Opening OTP modal');
-    const modal = document.getElementById('otpModal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-        resetOtpInputs();
-        startOtpTimer();
-        hideError();
-        console.log('✅ OTP modal opened successfully');
-    } else {
-        console.error('❌ OTP modal element not found!');
-    }
-}
-
-function closeOtpModal() {
-    console.log('🔑 Closing OTP modal');
-    const modal = document.getElementById('otpModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.style.overflow = 'auto';
-        stopOtpTimer();
-        hideError();
-    }
-}
-
-// OTP Functions
-function getOtpCode() {
-    const inputs = document.querySelectorAll('.otp-input');
-    const code = Array.from(inputs).map(input => input.value).join('');
-    console.log('🔑 OTP code entered:', code);
-    return code;
-}
-
-function resetOtpInputs() {
-    const inputs = document.querySelectorAll('.otp-input');
-    inputs.forEach(input => input.value = '');
-    if (inputs[0]) inputs[0].focus();
-}
-
-function startOtpTimer() {
-    otpTimeLeft = 180;
-    const timerElement = document.getElementById('otpTimer');
-    const resendButton = document.getElementById('resendOtp');
-    
-    if (resendButton) {
-        resendButton.disabled = true;
-    }
-    
-    updateTimerDisplay();
-    
-    if (otpTimer) {
-        clearInterval(otpTimer);
-    }
-    
-    otpTimer = setInterval(() => {
-        otpTimeLeft--;
-        updateTimerDisplay();
         
-        if (otpTimeLeft <= 0) {
-            stopOtpTimer();
+        async function handleRegisterSubmit(e) {
+            e.preventDefault();
+            console.log('📝 Register form submitted');
+            
+            const formData = new FormData(document.getElementById('registerForm'));
+            const data = Object.fromEntries(formData.entries());
+            const registerBtn = document.querySelector('#registerForm button[type="submit"]');
+            
+            // Validation
+            const requiredFields = [
+                'firstName', 'lastName', 'regEmail', 'regPassword', 
+                'confirmPassword', 'birthdate', 'mobile', 'houseNumber', 
+                'street', 'barangay', 'district', 'city', 'province', 'zipCode'
+            ];
+            
+            for (const field of requiredFields) {
+                if (!data[field] || data[field].trim() === '') {
+                    showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+            }
+            
+            if (!/^\d{4}$/.test(data.zipCode)) {
+                showNotification('Please enter a valid 4-digit ZIP code', 'error');
+                return;
+            }
+            
+            if (!/^\d{11}$/.test(data.mobile.replace(/\D/g, ''))) {
+                showNotification('Please enter a valid 11-digit mobile number', 'error');
+                return;
+            }
+            
+            if (!['1', '2', '3', '4', '5', '6'].includes(data.district)) {
+                showNotification('Please select a valid district', 'error');
+                return;
+            }
+            
+            if (data.city !== 'Quezon City') {
+                showNotification('City must be Quezon City', 'error');
+                return;
+            }
+            
+            if (data.province !== 'Metro Manila') {
+                showNotification('Province must be Metro Manila', 'error');
+                return;
+            }
+            
+            if (data.regPassword !== data.confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+            
+            if (!isValidEmail(data.regEmail)) {
+                showNotification('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            if (!data.agreeTerms || !data.agreePrivacy) {
+                showNotification('Please agree to the Terms of Service and Privacy Policy', 'error');
+                return;
+            }
+            
+            setButtonLoading(registerBtn, true, 'Creating Account...');
+            
+            try {
+                console.log('📤 Sending registration request...');
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'register',
+                        ...data
+                    })
+                });
+                
+                const responseText = await response.text();
+                console.log('📥 Raw response:', responseText);
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ JSON Parse Error:', parseError);
+                    showNotification('Server returned invalid response', 'error');
+                    return;
+                }
+                
+                console.log('📨 Register response:', result);
+                
+                if (result.success) {
+                    currentUserId = result.user_id;
+                    
+                    if (result.debug_otp) {
+                        console.log('🔑 DEBUG OTP:', result.debug_otp);
+                        showNotification('Registration successful! OTP: ' + result.debug_otp, 'success');
+                    } else {
+                        showNotification('Registration successful! OTP sent to your email.', 'success');
+                    }
+                    
+                    hideRegisterForm();
+                    openOtpModal();
+                } else {
+                    showNotification(result.message || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            } finally {
+                setButtonLoading(registerBtn, false, 'Create Account');
+            }
+        }
+        
+        async function handleVerifyOtp() {
+            console.log('🔑 Verifying OTP...');
+            const otpCode = getOtpCode();
+            const submitBtn = document.getElementById('submitOtp');
+            const errorElement = document.getElementById('otpError');
+            
+            if (!otpCode || otpCode.length !== 6) {
+                showOtpError('Please enter the complete 6-digit OTP');
+                return;
+            }
+            
+            setButtonLoading(submitBtn, true, 'Verifying...');
+            hideOtpError();
+            
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'verify_otp',
+                        user_id: currentUserId,
+                        otp_code: otpCode
+                    })
+                });
+                
+                const responseText = await response.text();
+                console.log('📥 OTP verification raw response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ JSON Parse Error:', parseError);
+                    showOtpError('Server returned invalid response');
+                    return;
+                }
+                
+                console.log('📨 OTP verification response:', data);
+                
+                if (data.success) {
+                    showNotification('OTP verified successfully!', 'success');
+                    closeOtpModalFunc();
+                    
+                    setTimeout(() => {
+                        if (data.redirect_url) {
+                            window.location.href = basePath + '/' + data.redirect_url;
+                        } else {
+                            window.location.href = basePath + '/citizen_dashboard/citizen_dashboard.php';
+                        }
+                    }, 1500);
+                } else {
+                    showOtpError(data.message || 'Invalid OTP');
+                }
+            } catch (error) {
+                console.error('OTP verification error:', error);
+                showOtpError('Network error. Please try again.');
+            } finally {
+                setButtonLoading(submitBtn, false, 'Verify');
+            }
+        }
+        
+        async function handleResendOtp() {
+            console.log('🔄 Resending OTP...');
+            const resendBtn = document.getElementById('resendOtp');
+            
+            setButtonLoading(resendBtn, true, 'Sending...');
+            
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'resend_otp',
+                        user_id: currentUserId
+                    })
+                });
+                
+                const responseText = await response.text();
+                console.log('📥 Resend OTP raw response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ JSON Parse Error:', parseError);
+                    showNotification('Server returned invalid response', 'error');
+                    return;
+                }
+                
+                console.log('📨 Resend OTP response:', data);
+                
+                if (data.success) {
+                    if (data.debug_otp) {
+                        console.log('🔑 DEBUG OTP:', data.debug_otp);
+                        showNotification('New OTP: ' + data.debug_otp, 'success');
+                    } else {
+                        showNotification('New OTP sent to your email', 'success');
+                    }
+                    startOtpTimer();
+                } else {
+                    showNotification(data.message || 'Failed to resend OTP', 'error');
+                }
+            } catch (error) {
+                console.error('Resend OTP error:', error);
+                showNotification('Network error. Please try again.', 'error');
+            } finally {
+                setButtonLoading(resendBtn, false, 'Resend OTP');
+                resendBtn.disabled = true;
+            }
+        }
+        
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
+        function showRegisterForm() {
+            const container = document.getElementById('registerFormContainer');
+            if (container) {
+                container.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            }
+        }
+        
+        function hideRegisterForm() {
+            const container = document.getElementById('registerFormContainer');
+            if (container) {
+                container.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+                container.querySelector('form').reset();
+            }
+        }
+        
+        function openOtpModal() {
+            console.log('🔑 Opening OTP modal');
+            const modal = document.getElementById('otpModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+                resetOtpInputs();
+                startOtpTimer();
+                hideOtpError();
+                console.log('✅ OTP modal opened successfully');
+            } else {
+                console.error('❌ OTP modal element not found!');
+            }
+        }
+        
+        function closeOtpModalFunc() {
+            console.log('🔑 Closing OTP modal');
+            const modal = document.getElementById('otpModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+                stopOtpTimer();
+                hideOtpError();
+            }
+        }
+        
+        // ============================================
+        // OTP FUNCTIONS
+        // ============================================
+        function getOtpCode() {
+            const inputs = document.querySelectorAll('.otp-input');
+            const code = Array.from(inputs).map(input => input.value).join('');
+            console.log('🔑 OTP code entered:', code);
+            return code;
+        }
+        
+        function resetOtpInputs() {
+            const inputs = document.querySelectorAll('.otp-input');
+            inputs.forEach(input => {
+                input.value = '';
+                input.classList.remove('border-red-500');
+            });
+            if (inputs[0]) inputs[0].focus();
+        }
+        
+        function startOtpTimer() {
+            otpTimeLeft = 180;
+            const timerElement = document.getElementById('otpTimer');
+            const resendButton = document.getElementById('resendOtp');
+            
             if (resendButton) {
-                resendButton.disabled = false;
+                resendButton.disabled = true;
+            }
+            
+            updateTimerDisplay();
+            
+            if (otpTimer) {
+                clearInterval(otpTimer);
+            }
+            
+            otpTimer = setInterval(() => {
+                otpTimeLeft--;
+                updateTimerDisplay();
+                
+                if (otpTimeLeft <= 0) {
+                    stopOtpTimer();
+                    if (resendButton) {
+                        resendButton.disabled = false;
+                    }
+                }
+            }, 1000);
+        }
+        
+        function stopOtpTimer() {
+            if (otpTimer) {
+                clearInterval(otpTimer);
+                otpTimer = null;
             }
         }
-    }, 1000);
-}
-
-function stopOtpTimer() {
-    if (otpTimer) {
-        clearInterval(otpTimer);
-        otpTimer = null;
-    }
-}
-
-function updateTimerDisplay() {
-    const timerElement = document.getElementById('otpTimer');
-    if (timerElement) {
-        const minutes = Math.floor(otpTimeLeft / 60);
-        const seconds = otpTimeLeft % 60;
-        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-}
-
-// Utility Functions
-function updateDateTime() {
-    const now = new Date();
-    const options = { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true 
-    };
-    
-    const dateTimeString = now.toLocaleDateString('en-US', options).toUpperCase();
-    const dateTimeElement = document.getElementById('currentDateTime');
-    
-    if (dateTimeElement) {
-        dateTimeElement.textContent = dateTimeString;
-    }
-}
-
-function setButtonLoading(button, isLoading, text = '') {
-    if (!button) return;
-    
-    if (isLoading) {
-        button.disabled = true;
-        button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${text}`;
-    } else {
-        button.disabled = false;
-        button.textContent = text;
-    }
-}
-
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existing = document.querySelectorAll('.notification');
-    existing.forEach(notif => notif.remove());
-
-    const notification = document.createElement('div');
-    notification.className = `notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transform transition-all duration-300 translate-x-full ${
-        type === 'success' ? 'bg-green-500' :
-        type === 'error' ? 'bg-red-500' :
-        type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-    }`;
-    
-    const icon = type === 'success' ? 'fa-check-circle' :
-                 type === 'error' ? 'fa-exclamation-circle' :
-                 type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
-    
-    notification.innerHTML = `
-        <div class="flex items-center space-x-2">
-            <i class="fas ${icon}"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 hover:opacity-70">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-    }, 100);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.classList.add('translate-x-full');
+        
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('otpTimer');
+            if (timerElement) {
+                const minutes = Math.floor(otpTimeLeft / 60);
+                const seconds = otpTimeLeft % 60;
+                timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function showOtpError(message) {
+            const errorElement = document.getElementById('otpError');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+                
+                // Highlight OTP inputs in red
+                const inputs = document.querySelectorAll('.otp-input');
+                inputs.forEach(input => {
+                    input.classList.add('border-red-500');
+                });
+            }
+        }
+        
+        function hideOtpError() {
+            const errorElement = document.getElementById('otpError');
+            if (errorElement) {
+                errorElement.classList.add('hidden');
+                
+                // Remove red border from OTP inputs
+                const inputs = document.querySelectorAll('.otp-input');
+                inputs.forEach(input => {
+                    input.classList.remove('border-red-500');
+                });
+            }
+        }
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true 
+            };
+            
+            const dateTimeString = now.toLocaleDateString('en-US', options).toUpperCase();
+            const dateTimeElement = document.getElementById('currentDateTime');
+            
+            if (dateTimeElement) {
+                dateTimeElement.textContent = dateTimeString;
+            }
+        }
+        
+        function setButtonLoading(button, isLoading, text = '') {
+            if (!button) return;
+            
+            if (isLoading) {
+                button.disabled = true;
+                button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${text}`;
+            } else {
+                button.disabled = false;
+                button.textContent = text;
+            }
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existing = document.querySelectorAll('.notification');
+            existing.forEach(notif => notif.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${
+                type === 'success' ? 'bg-green-500' :
+                type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            
+            const icon = type === 'success' ? 'fa-check-circle' :
+                         type === 'error' ? 'fa-exclamation-circle' :
+                         type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+            
+            notification.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <i class="fas ${icon}"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 hover:opacity-70">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            // Auto remove after 5 seconds
             setTimeout(() => {
                 if (notification.parentNode) {
-                    notification.remove();
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
                 }
-            }, 300);
+            }, 5000);
         }
-    }, 5000);
-}
-
-function showError(message) {
-    const errorElement = document.getElementById('otpError');
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.classList.remove('hidden');
-    }
-}
-
-function hideError() {
-    const errorElement = document.getElementById('otpError');
-    if (errorElement) {
-        errorElement.classList.add('hidden');
-    }
-}
-
-function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-// Make functions globally available
-window.showNotification = showNotification;
-window.handleSocialLogin = function(provider) {
-    showNotification(`${provider} login is currently unavailable`, 'warning');
-};
-</script>
+        
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+        
+        // Make functions globally available
+        window.showNotification = showNotification;
+        window.handleSocialLogin = function(provider) {
+            showNotification(`${provider} login is currently unavailable`, 'warning');
+        };
+        window.closeOtpModalFunc = closeOtpModalFunc;
+    </script>
 </body>
 </html>
