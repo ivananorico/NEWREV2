@@ -557,7 +557,7 @@ export default function RPTDashboardImproved() {
               </span>
             </div>
             <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
-              Total Assessment
+              Total Tax
             </h3>
             <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalAnnualTax)}</p>
             <div className="space-y-2 text-sm text-gray-600">

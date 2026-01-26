@@ -68,6 +68,33 @@
             transform: scale(1.05);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
+        
+        /* OTP input focus styling */
+        .otp-input.filled {
+            background-color: #f0f9ff;
+            border-color: #3b82f6;
+        }
+        
+        /* Fix for background image on both localhost and domain */
+        .bg-custom-bg {
+            /* First try the relative path */
+            background-image: url('Login/images/bg.jpg');
+            /* Fallback for domain if relative path doesn't work */
+            background-image: url('/Login/images/bg.jpg'), url('Login/images/bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        
+        /* If both relative paths fail, use absolute path based on current domain */
+        @media (min-width: 1px) {
+            .bg-custom-bg {
+                /* This will override with the correct path based on JavaScript detection */
+                background-image: var(--custom-bg-image, url('Login/images/bg.jpg'));
+            }
+        }
     </style>
 </head>
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -378,24 +405,30 @@
                 
                 <div class="text-center mb-6">
                     <p class="text-gray-600">We've sent a 6-digit OTP to your email</p>
-                    <p id="otpEmail" class="font-semibold text-custom-secondary mt-1"></p>
+                    <p id="otpEmail" class="font-semibold text-custom-secondary mt-1">user@example.com</p>
                     <p id="otpTimer" class="text-sm text-gray-500 mt-2">03:00</p>
                 </div>
                 
                 <form id="otpForm" class="space-y-4">
-                    <div class="flex justify-center space-x-2 mb-4">
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
-                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" required>
+                    <div class="flex justify-center space-x-2 mb-4" id="otpContainer">
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="0" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="1" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="2" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="3" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="4" required>
+                        <input type="text" maxlength="1" class="otp-input w-12 h-12 text-center text-xl border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary" 
+                               data-index="5" required>
                     </div>
                     
                     <div id="otpError" class="text-red-500 text-sm text-center hidden"></div>
                     
                     <div class="flex justify-between items-center">
-                        <button type="button" id="resendOtp" class="text-custom-secondary hover:underline disabled:text-gray-400" disabled>
+                        <button type="button" id="resendOtp" class="text-custom-secondary hover:underline disabled:text-gray-400 disabled:cursor-not-allowed" disabled>
                             Resend OTP
                         </button>
                         <div class="flex space-x-2">
@@ -432,7 +465,79 @@
             setInterval(updateDateTime, 1000);
             setupEventListeners();
             setupOTPInputs();
+            fixBackgroundImage();
         });
+        
+        function fixBackgroundImage() {
+            // Try multiple paths to find the correct background image
+            const pathsToTest = [
+                'Login/images/bg.jpg',           // Relative path from current location
+                '/Login/images/bg.jpg',          // Absolute path from root
+                basePath + '/Login/images/bg.jpg', // With base path
+                '/revenue2/Login/images/bg.jpg', // Hardcoded path
+                'images/bg.jpg',                 // Just from images folder
+                '/images/bg.jpg'                 // Absolute from images folder
+            ];
+            
+            const bgElement = document.querySelector('.bg-custom-bg');
+            if (!bgElement) return;
+            
+            // First, check if the background is already working
+            const computedStyle = window.getComputedStyle(bgElement);
+            const bgImage = computedStyle.backgroundImage;
+            
+            // If background image is not set or is showing "none", fix it
+            if (!bgImage || bgImage === 'none' || bgImage.includes('url("")')) {
+                console.log('🖼️ Background image not found, trying different paths...');
+                
+                // Test each path
+                let foundPath = null;
+                const testImage = new Image();
+                
+                // Function to test a single path
+                function testPath(path, callback) {
+                    testImage.onload = function() {
+                        console.log('✅ Found background image at:', path);
+                        foundPath = path;
+                        callback(true);
+                    };
+                    testImage.onerror = function() {
+                        callback(false);
+                    };
+                    testImage.src = path;
+                }
+                
+                // Test paths sequentially
+                let index = 0;
+                function testNextPath() {
+                    if (index >= pathsToTest.length) {
+                        // If no path works, use a default background color
+                        console.log('❌ No background image found, using fallback');
+                        bgElement.style.backgroundColor = '#f3f4f6';
+                        bgElement.style.backgroundImage = 'none';
+                        return;
+                    }
+                    
+                    const path = pathsToTest[index];
+                    console.log('🔍 Testing path:', path);
+                    
+                    testPath(path, function(success) {
+                        if (success) {
+                            // Apply the found path
+                            document.documentElement.style.setProperty('--custom-bg-image', `url('${path}')`);
+                            bgElement.style.backgroundImage = `url('${path}')`;
+                        } else {
+                            index++;
+                            setTimeout(testNextPath, 100);
+                        }
+                    });
+                }
+                
+                testNextPath();
+            } else {
+                console.log('✅ Background image is already working:', bgImage);
+            }
+        }
         
         function setupEventListeners() {
             // Login form
@@ -516,27 +621,70 @@
             const inputs = document.querySelectorAll('.otp-input');
             
             inputs.forEach((input, index) => {
-                // Clear existing event listeners
-                const newInput = input.cloneNode(true);
-                input.parentNode.replaceChild(newInput, input);
-                
-                newInput.addEventListener('input', function(e) {
+                // Handle input event
+                input.addEventListener('input', function(e) {
                     const value = e.target.value.replace(/[^0-9]/g, '');
-                    e.target.value = value;
                     
-                    if (value && index < inputs.length - 1) {
-                        inputs[index + 1].focus();
+                    if (value) {
+                        // Auto-advance to next input
+                        e.target.value = value.charAt(0);
+                        e.target.classList.add('filled');
+                        
+                        if (index < inputs.length - 1) {
+                            inputs[index + 1].focus();
+                            inputs[index + 1].select();
+                        } else {
+                            // If last input, blur it
+                            e.target.blur();
+                        }
+                    } else {
+                        e.target.classList.remove('filled');
+                    }
+                    
+                    // Auto-submit if all inputs are filled
+                    const allFilled = Array.from(inputs).every(input => input.value.length === 1);
+                    if (allFilled) {
+                        // Small delay to let the last input be filled
+                        setTimeout(() => {
+                            handleVerifyOtp();
+                        }, 100);
                     }
                 });
                 
-                newInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                // Handle backspace
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace') {
+                        // If current input is empty, go to previous input
+                        if (!e.target.value && index > 0) {
+                            e.preventDefault();
+                            inputs[index - 1].focus();
+                            inputs[index - 1].select();
+                            inputs[index - 1].classList.remove('filled');
+                        }
+                    }
+                    
+                    // Handle left/right arrow keys for navigation
+                    if (e.key === 'ArrowLeft' && index > 0) {
+                        e.preventDefault();
                         inputs[index - 1].focus();
-                        inputs[index - 1].value = '';
+                        inputs[index - 1].select();
+                    }
+                    
+                    if (e.key === 'ArrowRight' && index < inputs.length - 1) {
+                        e.preventDefault();
+                        inputs[index + 1].focus();
+                        inputs[index + 1].select();
+                    }
+                    
+                    // Handle delete key
+                    if (e.key === 'Delete') {
+                        e.target.value = '';
+                        e.target.classList.remove('filled');
                     }
                 });
                 
-                newInput.addEventListener('paste', function(e) {
+                // Handle paste
+                input.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
                     const digits = pasteData.split('').slice(0, 6);
@@ -544,12 +692,33 @@
                     digits.forEach((digit, i) => {
                         if (inputs[i]) {
                             inputs[i].value = digit;
+                            inputs[i].classList.add('filled');
                         }
                     });
                     
-                    if (digits.length < 6 && inputs[digits.length]) {
-                        inputs[digits.length].focus();
+                    // Focus on next empty input or last input
+                    const nextIndex = digits.length < 6 ? digits.length : 5;
+                    if (inputs[nextIndex]) {
+                        inputs[nextIndex].focus();
+                        inputs[nextIndex].select();
                     }
+                    
+                    // Auto-submit if all filled
+                    if (digits.length === 6) {
+                        setTimeout(() => {
+                            handleVerifyOtp();
+                        }, 100);
+                    }
+                });
+                
+                // Handle focus to select all text
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+                
+                // Handle click to select all text
+                input.addEventListener('click', function() {
+                    this.select();
                 });
             });
         }
@@ -820,6 +989,8 @@
             console.log('🔄 Resending OTP...');
             const resendBtn = document.getElementById('resendOtp');
             
+            if (resendBtn.disabled) return;
+            
             setButtonLoading(resendBtn, true, 'Sending...');
             
             try {
@@ -864,7 +1035,6 @@
                 showNotification('Network error. Please try again.', 'error');
             } finally {
                 setButtonLoading(resendBtn, false, 'Resend OTP');
-                resendBtn.disabled = true;
             }
         }
         
@@ -897,6 +1067,14 @@
                 resetOtpInputs();
                 startOtpTimer();
                 hideOtpError();
+                // Focus on first OTP input
+                const firstInput = document.querySelector('.otp-input[data-index="0"]');
+                if (firstInput) {
+                    setTimeout(() => {
+                        firstInput.focus();
+                        firstInput.select();
+                    }, 100);
+                }
                 console.log('✅ OTP modal opened successfully');
             } else {
                 console.error('❌ OTP modal element not found!');
@@ -928,9 +1106,12 @@
             const inputs = document.querySelectorAll('.otp-input');
             inputs.forEach(input => {
                 input.value = '';
-                input.classList.remove('border-red-500');
+                input.classList.remove('filled', 'border-red-500');
             });
-            if (inputs[0]) inputs[0].focus();
+            if (inputs[0]) {
+                inputs[0].focus();
+                inputs[0].select();
+            }
         }
         
         function startOtpTimer() {
@@ -940,6 +1121,7 @@
             
             if (resendButton) {
                 resendButton.disabled = true;
+                resendButton.innerHTML = 'Resend OTP';
             }
             
             updateTimerDisplay();
@@ -956,6 +1138,7 @@
                     stopOtpTimer();
                     if (resendButton) {
                         resendButton.disabled = false;
+                        resendButton.innerHTML = '<i class="fas fa-redo-alt mr-1"></i> Resend OTP';
                     }
                 }
             }, 1000);
