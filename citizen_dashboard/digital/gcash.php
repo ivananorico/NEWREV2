@@ -49,10 +49,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (strlen($clean_phone) === 11 && strpos($clean_phone, '09') === 0) {
             try {
-                // Generate payment ID and OTP
-                $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
+                // =====================================================
+                // DEBUG LOGGING START
+                // =====================================================
+                error_log("========================================");
+                error_log("GCASH.PHP DEBUG START");
+                error_log("Time: " . date('Y-m-d H:i:s'));
+                error_log("Phone submitted: " . $clean_phone);
+                error_log("Payment data: " . print_r($payment_data, true));
+                // =====================================================
+                
+                // Generate OTP
                 $generated_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                error_log("Generated OTP: " . $generated_otp);
+                
+                // Generate payment ID
+                $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $created_at = date('Y-m-d H:i:s');
+                error_log("Payment ID: " . $payment_id);
                 
                 // =====================================================
                 // CREATE PENDING TRANSACTION WITH OTP IN DATABASE
@@ -68,8 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      :created_at, :callback_url, :callback_sent)
                 ";
                 
+                error_log("Preparing query: " . $insert_query);
+                
                 $stmt = $pdo->prepare($insert_query);
-                $stmt->execute([
+                
+                // Bind parameters
+                $params = [
                     ':payment_id' => $payment_id,
                     ':client_system' => $client_system,
                     ':client_reference' => $reference_id,
@@ -84,7 +102,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':created_at' => $created_at,
                     ':callback_url' => $callback_url,
                     ':callback_sent' => 0
-                ]);
+                ];
+                
+                error_log("Parameters: " . print_r($params, true));
+                
+                $result = $stmt->execute($params);
+                
+                if (!$result) {
+                    error_log("INSERT FAILED!");
+                    $errorInfo = $stmt->errorInfo();
+                    error_log("PDO Error: " . print_r($errorInfo, true));
+                    throw new Exception("Failed to insert payment transaction: " . $errorInfo[2]);
+                }
+                
+                $rowCount = $stmt->rowCount();
+                error_log("Rows affected: " . $rowCount);
+                
+                // Verify OTP was stored
+                $check_query = "SELECT otp_code FROM payment_transactions WHERE payment_id = :payment_id";
+                $check_stmt = $pdo->prepare($check_query);
+                $check_stmt->execute([':payment_id' => $payment_id]);
+                $check_result = $check_stmt->fetch(PDO::FETCH_ASSOC);
+                
+                error_log("Checking stored OTP - Query result: " . print_r($check_result, true));
+                
+                if (!$check_result) {
+                    error_log("ERROR: No record found after insert!");
+                    throw new Exception("No record found after insert");
+                }
+                
+                if (!isset($check_result['otp_code'])) {
+                    error_log("ERROR: otp_code column not in result!");
+                    throw new Exception("otp_code column not found");
+                }
+                
+                if (empty($check_result['otp_code'])) {
+                    error_log("ERROR: OTP is empty in database!");
+                    throw new Exception("OTP was not stored in database (empty)");
+                }
+                
+                error_log("SUCCESS: OTP stored in database: " . $check_result['otp_code']);
                 
                 // Store in session
                 $_SESSION['phone'] = $clean_phone;
@@ -93,15 +150,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['otp_attempts'] = 0;
                 $_SESSION['pending_payment_id'] = $payment_id;
                 
+                error_log("Session data set:");
+                error_log("- phone: " . $clean_phone);
+                error_log("- generated_otp: " . $generated_otp);
+                error_log("- pending_payment_id: " . $payment_id);
+                
+                // =====================================================
+                // DEBUG LOGGING END
+                // =====================================================
+                error_log("GCASH.PHP DEBUG END");
+                error_log("========================================");
+                // =====================================================
+                
                 // Redirect to OTP page
                 header('Location: gcash_otp.php');
                 exit();
                 
-            } catch (PDOException $e) {
-                $error = 'System error. Please try again.';
-                error_log("GCash Pending Transaction Error: " . $e->getMessage());
+            } catch (Exception $e) {
+                error_log("EXCEPTION: " . $e->getMessage());
+                $error = 'System error. Please try again. Error: ' . $e->getMessage();
             }
         } else {
+            error_log("VALIDATION FAILED: Invalid phone - " . $phone);
             $error = 'Please enter a valid 11-digit mobile number starting with 09';
         }
     }

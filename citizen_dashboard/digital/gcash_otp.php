@@ -32,16 +32,7 @@ $otp_attempts = $_SESSION['otp_attempts'] ?? 0;
 // Get Digital DB connection
 $pdo = getDigitalDB();
 if (!$pdo) {
-    die("
-        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
-            <i class='fas fa-exclamation-triangle' style='font-size: 48px; color: #f59e0b;'></i>
-            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Database Connection Error</h2>
-            <p style='color: #6b7280; margin-bottom: 20px;'>Please try again in a few minutes.</p>
-            <a href='gcash.php' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
-                <i class='fas fa-arrow-left'></i> Go Back
-            </a>
-        </div>
-    ");
+    die("Database connection error");
 }
 
 // =====================================================
@@ -59,7 +50,6 @@ if ($pending_payment_id) {
         
         if ($result && isset($result['otp_code'])) {
             $generated_otp = $result['otp_code'];
-            // Calculate expiration based on created_at
             $created_at = strtotime($result['created_at']);
             if (!$otp_expires) {
                 $otp_expires = $created_at + (5 * 60);
@@ -120,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['otp_attempts'] = $otp_attempts + 1;
             $attempts_left = 3 - ($otp_attempts + 1);
             
-            // Record failed attempt in database
             try {
                 $update_query = "
                     UPDATE payment_transactions 
@@ -137,7 +126,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($attempts_left > 0) {
                 $error = "Incorrect OTP. {$attempts_left} attempt(s) remaining.";
             } else {
-                // Maximum attempts exceeded - MARK AS FAILED
                 try {
                     $update_query = "
                         UPDATE payment_transactions 
@@ -152,7 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Silent fail
                 }
                 
-                // Clear session and redirect
                 unset($_SESSION['generated_otp']);
                 unset($_SESSION['otp_expires']);
                 unset($_SESSION['otp_attempts']);
@@ -170,9 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $receipt_number = 'RCPT-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $paid_at = date('Y-m-d H:i:s');
                 
-                // =====================================================
-                // SEND CALLBACK TO ORIGINAL SYSTEM
-                // =====================================================
+                // SEND CALLBACK
                 $callback_response = '';
                 $http_code = 0;
                 
@@ -202,77 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     curl_close($ch);
                 }
                 
-                // =====================================================
-                // STORE IN TREASURY DATABASE
-                // =====================================================
-                $treasury_stored = false;
-                $treasury_error = '';
-                $treasury_id = null;
-                
-                try {
-                    // Determine revenue source
-                    $revenue_source = 'General Payment';
-                    if ($client_system === 'rpt') {
-                        $revenue_source = 'Real Property Tax';
-                    } elseif ($client_system === 'business') {
-                        $revenue_source = 'Business Tax';
-                    } elseif ($client_system === 'health') {
-                        $revenue_source = 'Health Fee';
-                    } elseif ($client_system === 'market') {
-                        $revenue_source = 'Market Fee';
-                    }
-                    
-                    // Prepare treasury data
-                    $treasury_data = [
-                        'or_number' => $receipt_number,
-                        'payment_date' => $paid_at,
-                        'amount' => $amount,
-                        'revenue_source' => $revenue_source,
-                        'reference_id' => $reference_id,
-                        'payment_method' => 'gcash',
-                        'transaction_data' => json_encode([
-                            'client_system' => $client_system,
-                            'purpose' => $purpose,
-                            'phone' => $phone,
-                            'callback_response' => $callback_response,
-                            'original_data' => $payment_data
-                        ])
-                    ];
-                    
-                    // Send to Treasury API (relative path)
-                    $treasury_api = $base_url . '/api/treasury/store_collection.php';
-                    
-                    $ch = curl_init($treasury_api);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                    curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($treasury_data));
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-                    
-                    $treasury_response = curl_exec($ch);
-                    $treasury_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-                    
-                    if ($treasury_response !== false) {
-                        $treasury_result = json_decode($treasury_response, true);
-                        
-                        if ($treasury_http_code === 200 && isset($treasury_result['success']) && $treasury_result['success']) {
-                            $treasury_stored = true;
-                            $treasury_id = $treasury_result['collection_id'] ?? null;
-                        } else {
-                            $treasury_error = $treasury_result['error'] ?? 'Unknown Treasury error (Code: ' . $treasury_http_code . ')';
-                        }
-                    } else {
-                        $treasury_error = 'Failed to connect to Treasury API';
-                    }
-                    
-                } catch (Exception $e) {
-                    $treasury_error = $e->getMessage();
-                }
-                
-                // =====================================================
-                // UPDATE PAYMENT TO PAID IN DIGITAL DATABASE
-                // =====================================================
+                // UPDATE PAYMENT TO PAID
                 $update_query = "
                     UPDATE payment_transactions 
                     SET payment_status = 'paid',
@@ -284,13 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE payment_id = :payment_id
                 ";
                 
-                // Build callback response
                 $callback_response_text = 'Payment successful at ' . date('Y-m-d H:i:s');
                 $callback_response_text .= ' | Callback HTTP: ' . $http_code;
-                $callback_response_text .= ' | Treasury stored: ' . ($treasury_stored ? 'YES' . ($treasury_id ? ' (ID: ' . $treasury_id . ')' : '') : 'NO');
-                if ($treasury_error) {
-                    $callback_response_text .= ' | Treasury error: ' . $treasury_error;
-                }
                 
                 $stmt = $pdo->prepare($update_query);
                 $stmt->execute([
@@ -301,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':callback_response' => $callback_response_text
                 ]);
                 
-                // Store receipt data for success page
+                // Store receipt data
                 $_SESSION['receipt_data'] = [
                     'payment_id' => $pending_payment_id,
                     'receipt_number' => $receipt_number,
@@ -309,19 +219,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'purpose' => $purpose,
                     'phone' => $phone,
                     'paid_at' => $paid_at,
-                    'client_system' => $client_system,
-                    'treasury_stored' => $treasury_stored,
-                    'treasury_id' => $treasury_id,
-                    'treasury_error' => $treasury_error
+                    'client_system' => $client_system
                 ];
                 
-                // Clear sensitive session data
+                // Clear session data
                 unset($_SESSION['generated_otp']);
                 unset($_SESSION['otp_expires']);
                 unset($_SESSION['otp_attempts']);
                 unset($_SESSION['phone']);
                 unset($_SESSION['pending_payment_id']);
-                // Don't unset payment_data yet - success page might need it
                 
                 // Redirect to success
                 header('Location: success_gcash.php');
@@ -330,7 +236,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (PDOException $e) {
                 $error = 'Payment processing error. Please try again.';
                 
-                // Mark as failed in database
                 try {
                     $update_query = "
                         UPDATE payment_transactions 
@@ -350,7 +255,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'resend_otp') {
-        // Generate new OTP
         $new_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
         $_SESSION['generated_otp'] = $new_otp;
         $_SESSION['otp_expires'] = time() + (5 * 60);
@@ -358,7 +262,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $generated_otp = $new_otp;
         $otp_expires = $_SESSION['otp_expires'];
         
-        // Update OTP in database
         try {
             $update_query = "
                 UPDATE payment_transactions 
@@ -376,11 +279,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Silent fail
         }
         
-        // Redirect to refresh page
         header('Location: gcash_otp.php');
         exit();
     } elseif ($action === 'cancel') {
-        // User explicitly cancelled - MARK AS CANCELLED
         try {
             $update_query = "
                 UPDATE payment_transactions 
@@ -395,7 +296,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Silent fail
         }
         
-        // Clear session
         unset($_SESSION['payment_data']);
         unset($_SESSION['phone']);
         unset($_SESSION['generated_otp']);
@@ -411,10 +311,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // =====================================================
 // DISPLAY PAGE
 // =====================================================
-// Calculate remaining time
 $remaining_time = max(0, $otp_expires - time());
 $minutes = floor($remaining_time / 60);
 $seconds = $remaining_time % 60;
+
+$abandoned_url = $base_url . '/citizen_dashboard/digital/mark_abandoned.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -438,8 +339,7 @@ $seconds = $remaining_time % 60;
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-md mx-auto p-4">
         <!-- Back Button -->
-        <a href="gcash.php" 
-           class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
+        <a href="gcash.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
             <i class="fas fa-arrow-left mr-2"></i> Back to Phone Entry
         </a>
 
@@ -476,10 +376,6 @@ $seconds = $remaining_time % 60;
                     <div class="flex justify-between">
                         <span class="text-gray-600">Mobile:</span>
                         <span class="font-medium"><?php echo htmlspecialchars($phone); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Payment ID:</span>
-                        <span class="font-mono text-xs"><?php echo substr($pending_payment_id, 0, 20) . '...'; ?></span>
                     </div>
                 </div>
             </div>
@@ -525,69 +421,114 @@ $seconds = $remaining_time % 60;
                            autocomplete="off"
                            inputmode="numeric"
                            class="otp-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200">
-                    <p class="text-xs text-gray-500 mt-2">
-                        <i class="fas fa-shield-alt mr-1"></i>
-                        Enter the OTP sent to your GCash account
-                    </p>
                 </div>
 
                 <!-- Buttons -->
                 <div class="space-y-3">
-                    <button type="submit" 
-                            id="submitBtn"
-                            class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg transition-all duration-300 flex items-center justify-center">
+                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg transition-all duration-300">
                         <i class="fas fa-check-circle mr-2"></i> Complete Payment
                     </button>
                     
                     <div class="flex space-x-3">
-                        <button type="submit" name="action" value="resend_otp"
-                                id="resendBtn"
-                                class="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg transition-colors duration-200">
+                        <button type="submit" name="action" value="resend_otp" id="resendBtn" class="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg">
                             <i class="fas fa-redo mr-2"></i> Resend OTP
                         </button>
                         
-                        <button type="submit" name="action" value="cancel"
-                                class="flex-1 border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg transition-colors duration-200">
+                        <button type="submit" name="action" value="cancel" id="cancelBtn" class="flex-1 border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg">
                             <i class="fas fa-times mr-2"></i> Cancel
                         </button>
                     </div>
                 </div>
             </form>
             
-            <!-- Security Notice -->
-            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-                <div class="flex items-start">
-                    <i class="fas fa-shield-alt text-green-600 mr-3 mt-1"></i>
-                    <div>
-                        <p class="text-sm text-green-700">
-                            <strong>Secure Payment:</strong> The OTP is valid for 5 minutes only. 
-                            Do not share this code with anyone.
-                        </p>
-                    </div>
-                </div>
+            <!-- Debug Info -->
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p class="text-sm text-yellow-700">
+                    <i class="fas fa-bug mr-2"></i>
+                    <strong>Debug:</strong> 
+                    <span id="debug-status">Page loaded</span>
+                </p>
             </div>
         </div>
     </div>
 
     <script>
+        // Abandonment detection
+        const paymentId = '<?php echo $pending_payment_id; ?>';
+        const abandonedUrl = '<?php echo $abandoned_url; ?>';
+        let paymentCompleted = false;
+        let userCancelled = false;
+        let pageLoadedTime = Date.now();
+        
+        // Update debug status
+        function updateDebugStatus(message) {
+            document.getElementById('debug-status').textContent = message;
+            console.log('Debug:', message);
+        }
+        
+        // Mark as abandoned function
+        function markAsAbandoned() {
+            if (!paymentCompleted && !userCancelled && paymentId) {
+                updateDebugStatus('Marking as abandoned...');
+                
+                // Use sendBeacon for reliable abandonment tracking
+                const data = new Blob([JSON.stringify({payment_id: paymentId})], {type: 'application/json'});
+                if (navigator.sendBeacon(abandonedUrl, data)) {
+                    updateDebugStatus('Payment marked as abandoned');
+                    console.log('Payment abandoned:', paymentId);
+                } else {
+                    // Fallback to fetch if sendBeacon fails
+                    fetch(abandonedUrl, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({payment_id: paymentId}),
+                        keepalive: true
+                    }).then(response => response.json())
+                      .then(data => {
+                          console.log('Abandonment response:', data);
+                          updateDebugStatus('Abandonment marked: ' + data.status);
+                      })
+                      .catch(error => {
+                          console.error('Abandonment error:', error);
+                          updateDebugStatus('Abandonment failed');
+                      });
+                }
+            }
+        }
+        
+        // When user leaves the page
+        window.addEventListener('beforeunload', function(e) {
+            // Only mark as abandoned if user spent more than 5 seconds on page
+            if (Date.now() - pageLoadedTime > 5000) {
+                markAsAbandoned();
+            }
+        });
+        
+        // When user submits form (not cancelling)
+        document.getElementById('otpForm').addEventListener('submit', function(e) {
+            const submitter = e.submitter;
+            if (submitter && submitter.value === 'cancel') {
+                userCancelled = true;
+                updateDebugStatus('User cancelled payment');
+            } else {
+                paymentCompleted = true;
+                updateDebugStatus('Payment being processed...');
+            }
+        });
+        
         // Timer functionality
         let totalSeconds = <?php echo $remaining_time; ?>;
         const otpTimer = document.getElementById('otp-timer');
-        const submitBtn = document.getElementById('submitBtn');
-        const resendBtn = document.getElementById('resendBtn');
-        const otpInput = document.getElementById('otp');
         
         function updateTimer() {
             if (totalSeconds <= 0) {
                 otpTimer.textContent = "00:00";
                 otpTimer.classList.add('timer-expired');
-                otpInput.disabled = true;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-clock mr-2"></i> OTP Expired';
-                submitBtn.classList.remove('from-green-500', 'to-green-600', 'hover:from-green-600', 'hover:to-green-700');
-                submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                document.getElementById('otp').disabled = true;
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('submitBtn').textContent = 'OTP Expired';
+                document.getElementById('submitBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
                 
-                // Auto-redirect after 2 seconds
                 setTimeout(() => {
                     window.location.href = 'gcash.php?expired=1';
                 }, 2000);
@@ -598,7 +539,6 @@ $seconds = $remaining_time % 60;
             const sec = totalSeconds % 60;
             otpTimer.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
             
-            // Add warning when less than 60 seconds
             if (totalSeconds < 60) {
                 otpTimer.classList.add('timer-expired');
             }
@@ -609,62 +549,12 @@ $seconds = $remaining_time % 60;
         // Start timer
         setInterval(updateTimer, 1000);
         
-        // Auto-focus and auto-tab OTP input
+        // Initial debug status
+        updateDebugStatus('Abandonment detection active. Payment ID: ' + paymentId.substring(0, 20) + '...');
+        
+        // Focus on OTP input
         document.addEventListener('DOMContentLoaded', function() {
-            otpInput.focus();
-            
-            // Auto-tab between OTP digits (if using 6 separate inputs)
-            otpInput.addEventListener('input', function(e) {
-                if (this.value.length === 6) {
-                    this.blur();
-                }
-            });
-        });
-        
-        // Form submission handling
-        document.getElementById('otpForm').addEventListener('submit', function(e) {
-            const btn = this.querySelector('button[type="submit"][name="action"][value="verify_otp"]');
-            if (btn) {
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
-                btn.disabled = true;
-                
-                // Auto-reset after 5 seconds in case of error
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }, 5000);
-            }
-        });
-        
-        // Resend button handling
-        resendBtn.addEventListener('click', function(e) {
-            const btn = this;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sending...';
-            btn.disabled = true;
-            
-            // Auto-reset after 3 seconds
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }, 3000);
-        });
-        
-        // Input validation
-        otpInput.addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value.length > 6) {
-                this.value = this.value.substring(0, 6);
-            }
-        });
-        
-        // Allow paste
-        otpInput.addEventListener('paste', function(e) {
-            e.preventDefault();
-            const pastedData = (e.clipboardData || window.clipboardData).getData('text');
-            const numbers = pastedData.replace(/[^0-9]/g, '');
-            this.value = numbers.substring(0, 6);
+            document.getElementById('otp').focus();
         });
     </script>
 </body>
