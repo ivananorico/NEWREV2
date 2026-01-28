@@ -66,7 +66,9 @@ function getBusinessDiscountPercent($pdo) {
         $stmt = $pdo->query("
             SELECT discount_percent 
             FROM business_discount_config 
-            ORDER BY id DESC 
+            WHERE effective_date <= CURDATE() 
+            AND (expiration_date IS NULL OR expiration_date >= CURDATE())
+            ORDER BY effective_date DESC 
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -134,23 +136,23 @@ function createQuarterlyTaxes($pdo, $permitId, $annualTax, $applicantId, $taxabl
     }
 }
 
-// Function to create annual payment
+// Function to create annual payment - UPDATED TO MIRROR RPT
 function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax) {
     try {
         $current_year = date('Y');
         $discount_percent = getBusinessDiscountPercent($pdo);
         
-        // Calculate discount (apply only in January)
+        // Calculate discount (similar to RPT - for early payment in first quarter)
         $discount_amount = 0;
-        if (date('n') == 1) { // January only
+        if (date('n') <= 3) { // January to March - like RPT discount period
             $discount_amount = $annual_tax * ($discount_percent / 100);
         }
         
         $final_amount = $annual_tax - $discount_amount;
         $reference_number = generateBusinessReferenceNumber();
-        $receipt_number = 'RCPT-' . date('YmdHis') . '-' . mt_rand(1000, 9999);
+        $receipt_number = 'RCPT-BUS-' . date('YmdHis') . '-' . mt_rand(1000, 9999);
         
-        // Check if annual payment already exists
+        // Check if annual payment already exists for this permit and year
         $check_stmt = $pdo->prepare("
             SELECT id FROM annual_payments 
             WHERE business_permit_id = ? AND payment_year = ? AND status = 'active'
@@ -161,17 +163,18 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax) {
         if ($existing) {
             return [
                 'success' => false, 
-                'message' => 'Annual payment already exists for this year'
+                'message' => 'Annual payment already exists for this year',
+                'existing_id' => $existing['id']
             ];
         }
         
-        // Insert new annual payment
+        // Insert new annual payment - UPDATED COLUMNS TO MATCH BUSINESS DB
         $insert_query = "
             INSERT INTO annual_payments 
             (business_permit_id, user_id, payment_year, reference_number, total_amount,
              discount_percent, discount_amount, final_amount, payment_status,
-             receipt_number, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, 'active', NOW())
+             receipt_number, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, 'active', NOW(), NOW())
         ";
         
         $insert_stmt = $pdo->prepare($insert_query);
@@ -240,10 +243,11 @@ function approvePermit($pdo) {
     $permit_id = intval($data['id']);
     
     try {
-        // Get business permit details - UPDATED COLUMN NAMES
+        // Get business permit details - with user_id for annual payment
         $permit_stmt = $pdo->prepare("
             SELECT id, applicant_id, taxable_amount, capital_investment, business_nature, 
-                   tax_calculation_type, user_id, permit_status, tax_status
+                   tax_calculation_type, user_id, permit_status, tax_status,
+                   business_name, owner_full_name
             FROM business_permits 
             WHERE id = ?
         ");
@@ -273,7 +277,7 @@ function approvePermit($pdo) {
         $pdo->beginTransaction();
 
         try {
-            // 1. Update permit status and tax values - UPDATED COLUMN NAMES
+            // 1. Update permit status and tax values
             $update_stmt = $pdo->prepare("
                 UPDATE business_permits 
                 SET permit_status = 'APPROVED', 
@@ -299,33 +303,40 @@ function approvePermit($pdo) {
                 $pdo, 
                 $permit_id, 
                 $total_tax,
-                $permit['applicant_id'], // Changed from business_permit_id
+                $permit['applicant_id'],
                 $taxable_amount,
-                $permit['business_nature'], // Changed from business_type
+                $permit['business_nature'],
                 $permit['tax_calculation_type']
             );
 
-            // 3. GENERATE ANNUAL PAYMENT RECORD (Optional)
+            // 3. GENERATE ANNUAL PAYMENT RECORD (MANDATORY like RPT)
             $annual_payment_result = null;
             $annual_payment_id = null;
+            $annual_payment_error = null;
             
-            // Check if annual_payments table exists
             try {
-                $table_check = $pdo->query("SHOW TABLES LIKE 'annual_payments'");
-                $table_exists = $table_check->rowCount() > 0;
-                
-                if ($table_exists && isset($permit['user_id'])) {
-                    // Create annual payment
+                // Always create annual payment when approving (like RPT)
+                if ($permit['user_id']) {
                     $annual_payment_result = createAnnualPayment(
                         $pdo, 
                         $permit_id, 
-                        $permit['user_id'] ?? 1, // Default user ID if not set
+                        $permit['user_id'],
                         $total_tax
                     );
+                    
+                    if (!$annual_payment_result['success']) {
+                        $annual_payment_error = $annual_payment_result['message'];
+                        // Log but don't fail transaction
+                        error_log("Annual payment warning: " . $annual_payment_error);
+                    }
+                } else {
+                    $annual_payment_error = "No user_id found for permit. Annual payment skipped.";
+                    error_log($annual_payment_error);
                 }
             } catch (Exception $e) {
-                // Skip annual payment if there's an error
-                error_log("Annual payment skipped: " . $e->getMessage());
+                $annual_payment_error = "Annual payment error: " . $e->getMessage();
+                error_log($annual_payment_error);
+                // Continue with approval even if annual payment fails
             }
 
             $pdo->commit();
@@ -334,7 +345,9 @@ function approvePermit($pdo) {
             $response_data = [
                 'permit_updated' => true,
                 'permit_id' => $permit_id,
-                'applicant_id' => $permit['applicant_id'], // Changed from business_permit_id
+                'applicant_id' => $permit['applicant_id'],
+                'business_name' => $permit['business_name'],
+                'owner_name' => $permit['owner_full_name'],
                 'new_status' => 'APPROVED',
                 'approved_date' => date('Y-m-d H:i:s'),
                 'totals' => [
@@ -359,6 +372,11 @@ function approvePermit($pdo) {
                     'final_amount' => $annual_payment_result['final_amount'],
                     'payment_year' => $annual_payment_result['payment_year']
                 ];
+            }
+            
+            // Add warning if annual payment failed
+            if ($annual_payment_error) {
+                $response_data['annual_payment_warning'] = $annual_payment_error;
             }
 
             echo json_encode([

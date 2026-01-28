@@ -39,10 +39,11 @@ $payment_id = $data['payment_id'] ?? null;
 
 // Log for debugging
 error_log("=== BUSINESS PAYMENT API CALLED ===");
-error_log("Client System: $client_system");
-error_log("Reference ID: $reference_id");
-error_log("Receipt: $receipt_number");
-error_log("Payment ID: $payment_id");
+error_log("Client System: " . ($client_system ?? 'NOT SET'));
+error_log("Reference ID: " . ($reference_id ?? 'NOT SET'));
+error_log("Receipt: " . ($receipt_number ?? 'NOT SET'));
+error_log("Payment ID: " . ($payment_id ?? 'NOT SET'));
+error_log("Full Data: " . print_r($data, true));
 
 // Validate required fields
 if (!$reference_id || !$receipt_number) {
@@ -60,7 +61,7 @@ if ($client_system !== 'business') {
     http_response_code(400);
     echo json_encode([
         'status' => 'error',
-        'message' => 'This API is for business system only. Received: ' . $client_system
+        'message' => 'This API is for business system only. Received: ' . ($client_system ?? 'NULL')
     ]);
     exit();
 }
@@ -74,7 +75,8 @@ if (!file_exists($business_db_path)) {
     // Try alternative paths
     $alt_paths = [
         __DIR__ . '/../../../../db/Business/business_db.php',
-        'C:/xampp/htdocs/revenue2/db/Business/business_db.php'
+        'C:/xampp/htdocs/revenue2/db/Business/business_db.php',
+        '../../../db/Business/business_db.php'
     ];
     
     foreach ($alt_paths as $path) {
@@ -112,19 +114,41 @@ try {
     // Start transaction for atomic operations
     $business_pdo->beginTransaction();
     
-    // Check if this is an annual payment (starts with ANNUAL-)
+    // Check if this is an annual payment - FIXED LOGIC
+    // Look for ANNUAL prefix OR check if reference exists in annual_payments table
+    $is_annual_payment = false;
+    $annual_ref = $reference_id;
+    
     if (strpos($reference_id, 'ANNUAL-') === 0) {
-        // Extract annual reference number
+        $is_annual_payment = true;
         $annual_ref = substr($reference_id, 7); // Remove "ANNUAL-" prefix
+        error_log("Detected ANNUAL- prefix. Processing annual payment with ref: $annual_ref");
+    } else {
+        // Check if this reference exists in annual_payments table
+        $check_annual_query = "SELECT id FROM annual_payments WHERE reference_number = :ref";
+        $check_annual_stmt = $business_pdo->prepare($check_annual_query);
+        $check_annual_stmt->execute([':ref' => $reference_id]);
         
+        if ($check_annual_stmt->fetch()) {
+            $is_annual_payment = true;
+            $annual_ref = $reference_id;
+            error_log("Reference found in annual_payments table. Processing as annual payment.");
+        } else {
+            error_log("Reference NOT found in annual_payments table. Processing as quarterly payment.");
+        }
+    }
+    
+    if ($is_annual_payment) {
+        // Process annual payment
         error_log("Processing ANNUAL payment with reference: $annual_ref");
         
-        // Check if annual payment exists
+        // Check if annual payment exists - IMPROVED QUERY
         $check_annual_query = "
-            SELECT ap.*, bp.id as business_permit_id, bp.business_name, bp.business_permit_id as permit_number
+            SELECT ap.*, bp.id as business_permit_id, bp.business_name, bp.applicant_id as permit_number
             FROM annual_payments ap
             JOIN business_permits bp ON ap.business_permit_id = bp.id
             WHERE ap.reference_number = :annual_ref
+            AND ap.status = 'active'
         ";
         
         $check_annual_stmt = $business_pdo->prepare($check_annual_query);
@@ -132,7 +156,7 @@ try {
         $annual_payment = $check_annual_stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$annual_payment) {
-            throw new Exception("Annual payment not found: $annual_ref");
+            throw new Exception("Annual payment not found or inactive: $annual_ref");
         }
         
         error_log("Found annual payment: ID={$annual_payment['id']}, Status={$annual_payment['payment_status']}, Year={$annual_payment['payment_year']}");
@@ -149,14 +173,15 @@ try {
             exit();
         }
         
-        // Update annual_payments
+        // Update annual_payments - FIXED QUERY WITH ALL FIELDS
         $update_annual_query = "
             UPDATE annual_payments 
             SET payment_status = 'paid',
                 payment_date = :paid_at,
                 receipt_number = :receipt_number,
-                transaction_id = :payment_id
-            WHERE reference_number = :annual_ref
+                transaction_id = :payment_id,
+                updated_at = NOW()
+            WHERE id = :payment_id_value
         ";
         
         $annual_stmt = $business_pdo->prepare($update_annual_query);
@@ -164,7 +189,7 @@ try {
             ':paid_at' => $paid_at,
             ':receipt_number' => $receipt_number,
             ':payment_id' => $payment_id,
-            ':annual_ref' => $annual_ref
+            ':payment_id_value' => $annual_payment['id']
         ]);
         
         $annual_rows_updated = $annual_stmt->rowCount();
@@ -193,6 +218,8 @@ try {
         ]);
         $quarterly_taxes = $quarterly_tax_stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        $quarterly_rows_updated = 0;
+        
         // Update each quarterly tax with the SAME receipt and date
         foreach ($quarterly_taxes as $quarterly) {
             // Calculate discount for this quarter
@@ -209,6 +236,7 @@ try {
                     discount_percent_used = :discount_percent,
                     discount_amount = :discount_amount
                 WHERE id = :quarterly_id
+                AND payment_status != 'paid'
             ";
             
             $update_quarterly_stmt = $business_pdo->prepare($update_quarterly_query);
@@ -220,9 +248,9 @@ try {
                 ':discount_amount' => $quarter_discount_amount,
                 ':quarterly_id' => $quarterly['id']
             ]);
+            
+            $quarterly_rows_updated += $update_quarterly_stmt->rowCount();
         }
-        
-        $quarterly_rows_updated = count($quarterly_taxes);
         
         // =============== BUSINESS TAX CLEARANCE AUTOMATION FOR ANNUAL PAYMENT ===============
         $clearance_generated = false;
@@ -251,8 +279,8 @@ try {
                 // Insert into business_tax_clearances table
                 $insert_query = "
                     INSERT INTO business_tax_clearances 
-                    (certificate_number, business_permit_id, clearance_year, issue_date, generated_by)
-                    VALUES (:cert_number, :business_permit_id, :year, CURDATE(), 1)
+                    (certificate_number, business_permit_id, clearance_year, issue_date, generated_by, created_at)
+                    VALUES (:cert_number, :business_permit_id, :year, CURDATE(), 1, NOW())
                 ";
                 
                 $insert_stmt = $business_pdo->prepare($insert_query);
@@ -266,9 +294,9 @@ try {
                 
                 error_log("Business tax clearance generated! ID: $clearance_id, Certificate: $certificate_number");
                 
-                // Get business info for notification
+                // Get business info for notification (if needed)
                 $business_query = "
-                    SELECT bp.business_name, bp.full_name, bp.personal_email, bp.business_permit_id
+                    SELECT bp.business_name, bp.owner_full_name, bp.email_address
                     FROM business_permits bp
                     WHERE bp.id = :business_permit_id
                 ";
@@ -277,21 +305,8 @@ try {
                 $business_info = $business_stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($business_info) {
-                    // Log notification
-                    $notification_query = "
-                        INSERT INTO notifications 
-                        (user_email, subject, message, sent_at) 
-                        VALUES (:email, :subject, :message, NOW())
-                    ";
-                    
-                    $notification_stmt = $business_pdo->prepare($notification_query);
-                    $notification_stmt->execute([
-                        ':email' => $business_info['personal_email'],
-                        ':subject' => 'Business Tax Clearance Certificate Generated - ' . $certificate_number,
-                        ':message' => "Dear " . $business_info['full_name'] . ",\n\nYour business tax clearance certificate has been generated for " . $business_info['business_name'] . " (Permit: " . $business_info['business_permit_id'] . ") for year " . $payment_year . ".\n\nCertificate Number: " . $certificate_number . "\n\nYou can download it from your dashboard.\n\nThank you!"
-                    ]);
-                    
-                    error_log("Notification sent to: " . $business_info['personal_email']);
+                    // Log the clearance generation (you can add email notification here)
+                    error_log("Business tax clearance generated for: {$business_info['business_name']}, Owner: {$business_info['owner_full_name']}");
                 }
                 
                 $clearance_generated = true;
@@ -311,7 +326,7 @@ try {
             'message' => 'Annual payment processed successfully. All quarterly taxes marked as paid with same receipt.',
             'reference_id' => $reference_id,
             'annual_ref' => $annual_ref,
-            'business_permit_id' => $annual_payment['permit_number'],
+            'business_permit_id' => $annual_payment['permit_number'] ?? $business_permit_id,
             'business_name' => $annual_payment['business_name'],
             'annual_payment_updated' => true,
             'quarterly_taxes_updated' => $quarterly_rows_updated,
@@ -340,7 +355,7 @@ try {
         
         error_log("Processing QUARTERLY payment with ID: $quarterly_id");
         
-        // Check if the quarterly tax exists
+        // Check if the quarterly tax exists - FIXED QUERY
         $check_query = "
             SELECT 
                 bqt.id, 
@@ -348,7 +363,7 @@ try {
                 bqt.receipt_number,
                 bqt.business_permit_id,
                 bqt.year,
-                bp.business_permit_id as permit_number,
+                bp.applicant_id as permit_number,
                 bp.business_name
             FROM business_quarterly_taxes bqt
             INNER JOIN business_permits bp ON bqt.business_permit_id = bp.id
@@ -380,7 +395,7 @@ try {
             exit();
         }
         
-        // Check if annual payment exists for this business and year
+        // Check if annual payment exists for this business and year - FIXED QUERY
         $check_annual_exists_query = "
             SELECT id, reference_number, payment_status 
             FROM annual_payments 
@@ -396,18 +411,21 @@ try {
         ]);
         $existing_annual = $annual_exists_stmt->fetch(PDO::FETCH_ASSOC);
         
+        $annual_cancelled = false;
         if ($existing_annual && $existing_annual['payment_status'] == 'pending') {
             // Mark annual payment as cancelled if it exists and is pending
             $cancel_annual_query = "
                 UPDATE annual_payments 
                 SET payment_status = 'cancelled',
-                    status = 'inactive'
+                    status = 'inactive',
+                    updated_at = NOW()
                 WHERE id = :annual_id
             ";
             
             $cancel_annual_stmt = $business_pdo->prepare($cancel_annual_query);
             $cancel_annual_stmt->execute([':annual_id' => $existing_annual['id']]);
             
+            $annual_cancelled = true;
             error_log("Cancelled annual payment ID: {$existing_annual['id']} because quarterly was paid");
         }
         
@@ -418,6 +436,7 @@ try {
                 payment_date = :paid_at,
                 receipt_number = :receipt_number
             WHERE id = :quarterly_id
+            AND payment_status != 'paid'
         ";
         
         $stmt = $business_pdo->prepare($update_query);
@@ -500,8 +519,8 @@ try {
                     // Insert into business_tax_clearances table
                     $insert_query = "
                         INSERT INTO business_tax_clearances 
-                        (certificate_number, business_permit_id, clearance_year, issue_date, generated_by)
-                        VALUES (:cert_number, :business_permit_id, :year, CURDATE(), 1)
+                        (certificate_number, business_permit_id, clearance_year, issue_date, generated_by, created_at)
+                        VALUES (:cert_number, :business_permit_id, :year, CURDATE(), 1, NOW())
                     ";
                     
                     $insert_stmt = $business_pdo->prepare($insert_query);
@@ -517,7 +536,7 @@ try {
                     
                     // Get business info for notification
                     $business_query = "
-                        SELECT bp.business_name, bp.full_name, bp.personal_email, bp.business_permit_id
+                        SELECT bp.business_name, bp.owner_full_name, bp.email_address
                         FROM business_permits bp
                         WHERE bp.id = :business_permit_id
                     ";
@@ -526,21 +545,7 @@ try {
                     $business_info = $business_stmt->fetch(PDO::FETCH_ASSOC);
                     
                     if ($business_info) {
-                        // Log notification
-                        $notification_query = "
-                            INSERT INTO notifications 
-                            (user_email, subject, message, sent_at) 
-                            VALUES (:email, :subject, :message, NOW())
-                        ";
-                        
-                        $notification_stmt = $business_pdo->prepare($notification_query);
-                        $notification_stmt->execute([
-                            ':email' => $business_info['personal_email'],
-                            ':subject' => 'Business Tax Clearance Certificate Generated - ' . $certificate_number,
-                            ':message' => "Dear " . $business_info['full_name'] . ",\n\nYour business tax clearance certificate has been generated for " . $business_info['business_name'] . " (Permit: " . $business_info['business_permit_id'] . ") for year " . $year . ".\n\nCertificate Number: " . $certificate_number . "\n\nYou can download it from your dashboard.\n\nThank you!"
-                        ]);
-                        
-                        error_log("Notification sent to: " . $business_info['personal_email']);
+                        error_log("Business tax clearance generated for: {$business_info['business_name']}");
                     }
                     
                     $clearance_generated = true;
@@ -565,14 +570,14 @@ try {
             'rows_updated' => $rows_updated,
             'reference_id' => $reference_id,
             'quarterly_id' => $quarterly_id,
-            'business_permit_id' => $quarterly_tax['permit_number'],
+            'business_permit_id' => $quarterly_tax['permit_number'] ?? $business_permit_id,
             'business_name' => $quarterly_tax['business_name'],
             'receipt_number' => $receipt_number,
             'payment_date' => $paid_at,
             'payment_id' => $payment_id,
             'new_status' => $updated_record['payment_status'],
             'type' => 'quarterly',
-            'annual_cancelled' => isset($existing_annual) ? true : false
+            'annual_cancelled' => $annual_cancelled
         ];
         
         // Add clearance info if generated
@@ -591,21 +596,32 @@ try {
 } catch (PDOException $e) {
     // Database error
     if (isset($business_pdo)) {
-        $business_pdo->rollBack();
+        try {
+            $business_pdo->rollBack();
+        } catch (Exception $rollback_error) {
+            error_log("Rollback failed: " . $rollback_error->getMessage());
+        }
     }
     
     error_log("Business PDO Exception: " . $e->getMessage());
+    error_log("Error Code: " . $e->getCode());
+    error_log("Error Info: " . print_r($business_pdo->errorInfo() ?? [], true));
     
     http_response_code(500);
     echo json_encode([
         'status' => 'error', 
         'message' => 'Business database error: ' . $e->getMessage(),
+        'error_code' => $e->getCode(),
         'reference_id' => $reference_id
     ]);
 } catch (Exception $e) {
     // General error
     if (isset($business_pdo)) {
-        $business_pdo->rollBack();
+        try {
+            $business_pdo->rollBack();
+        } catch (Exception $rollback_error) {
+            error_log("Rollback failed: " . $rollback_error->getMessage());
+        }
     }
     
     error_log("Business General Exception: " . $e->getMessage());

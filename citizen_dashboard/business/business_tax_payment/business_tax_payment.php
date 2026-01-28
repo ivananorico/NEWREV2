@@ -499,20 +499,21 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
         <!-- Businesses Section -->
         <?php
         try {
+            // FIXED: Use correct field names from your database schema
             $query = "
                 SELECT 
                     bp.id,
-                    bp.business_permit_id,
+                    bp.applicant_id as business_permit_id,  -- FIXED: Changed from business_permit_id to applicant_id
                     bp.business_name,
-                    bp.business_type,
+                    bp.business_nature as business_type,    -- FIXED: Changed from business_type to business_nature
                     bp.tax_calculation_type,
                     bp.total_tax,
-                    bp.status,
+                    bp.permit_status as status,             -- FIXED: Changed from status to permit_status
                     bp.business_barangay as barangay,
                     bp.business_city as city
                 FROM business_permits bp
                 WHERE bp.user_id = :user_id 
-                AND bp.status IN ('Active', 'Approved')
+                AND bp.permit_status IN ('ACTIVE', 'APPROVED')  -- FIXED: Match database values
                 ORDER BY bp.created_at DESC
             ";
             

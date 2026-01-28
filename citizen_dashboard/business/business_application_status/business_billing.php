@@ -379,6 +379,101 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             transition: all .25s ease;
         }
+        
+        .bill-download-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .bill-download-btn:hover {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+        
+        .bill-view-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .bill-view-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Locked button styles */
+        .bill-view-btn-locked {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .bill-view-btn-locked:hover {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Tooltip styles */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
     </style>
 </head>
 
@@ -424,7 +519,9 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         <!-- Applications List - All information displayed immediately -->
         <div class="space-y-8">
             <?php foreach ($permits as $permit): 
-                $status_class = 'status-' . strtolower($permit['status']);
+                // FIXED: Use permit_status instead of status
+                $permit_status = $permit['permit_status'] ?? 'PENDING';
+                $status_class = 'status-' . strtolower($permit_status);
                 $permit_taxes = $quarterly_taxes[$permit['id']] ?? [];
                 $permit_clearances = $tax_clearances[$permit['id']] ?? [];
                 
@@ -456,9 +553,12 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 }
                 
                 $grand_total = ($permit['total_tax'] ?? 0) + $total_penalty;
+                
+                // Check if all quarters are paid
+                $all_quarters_paid = ($paid_count == 4);
             ?>
                 <div class="info-card p-6">
-                    <!-- Permit Header -->
+                    <!-- Permit Header with View Bill Button -->
                     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8">
                         <div class="mb-4 md:mb-0">
                             <div class="flex items-center mb-3">
@@ -466,14 +566,51 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <?php echo htmlspecialchars($permit['business_name']); ?>
                                 </h3>
                                 <span class="status-badge <?php echo $status_class; ?>">
-                                    <?php echo $permit['status']; ?>
+                                    <?php echo $permit_status; ?>
                                 </span>
                             </div>
                             <div class="text-gray-600 flex items-center">
                                 <i class="fas fa-id-card mr-2"></i>
-                                Permit ID: <span class="font-mono font-semibold ml-2"><?php echo htmlspecialchars($permit['business_permit_id']); ?></span>
+                                <!-- FIXED: Use applicant_id instead of business_permit_id -->
+                                Permit ID: <span class="font-mono font-semibold ml-2"><?php echo htmlspecialchars($permit['applicant_id']); ?></span>
                             </div>
                         </div>
+                        
+                        <?php if ($permit_status == 'APPROVED' || $permit_status == 'ACTIVE'): ?>
+                            <div class="tooltip-container">
+                                <?php if (!$all_quarters_paid): ?>
+                                    <!-- Active button when NOT all quarters are paid -->
+                                    <a href="view_business_bill.php?permit_id=<?php echo $permit['id']; ?>" 
+                                       target="_blank"
+                                       class="bill-view-btn mt-4 md:mt-0">
+                                        <i class="fas fa-file-invoice mr-2"></i>
+                                        View Billing Statement
+                                        <?php if ($paid_count > 0): ?>
+                                            <span class="ml-2 text-xs bg-blue-800 text-white px-2 py-1 rounded-full">
+                                                <?php echo $paid_count; ?>/4 paid
+                                            </span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php else: ?>
+                                    <!-- Locked button when ALL quarters are paid -->
+                                    <button class="bill-view-btn-locked mt-4 md:mt-0" disabled>
+                                        <i class="fas fa-lock mr-2"></i>
+                                        Billing Statement
+                                        <span class="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                                            <i class="fas fa-check mr-1"></i> All paid
+                                        </span>
+                                    </button>
+                                    <div class="tooltip-text">
+                                        <div class="font-semibold mb-1">All Taxes Paid</div>
+                                        <p class="text-gray-300 text-xs">All 4 quarters have been fully paid for the year.</p>
+                                        <p class="text-green-400 text-xs mt-1 flex items-center">
+                                            <i class="fas fa-check-circle mr-1"></i>
+                                            Tax clearance certificates are available below
+                                        </p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- COMPACT BUSINESS TAX CLEARANCE SECTION -->
@@ -496,7 +633,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                             </div>
                                             <div>
                                                 <div class="text-xs font-medium text-gray-900"><?php echo $year; ?> Clearance</div>
-                                                <div class="text-[10px] text-gray-500 font-mono"><?php echo substr($clearance['certificate_number'], -8); ?></div>
+                                                <div class="text-[10px] text-gray-500 font-mono"><?php echo substr($clearance['certificate_number'] ?? '', -8); ?></div>
                                             </div>
                                         </div>
                                         <div>
@@ -556,8 +693,9 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <i class="fas fa-building text-[var(--primary)]"></i>
                                 </div>
                                 <div>
-                                    <div class="text-sm text-gray-500">Business Type</div>
-                                    <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($permit['business_type']); ?></div>
+                                    <div class="text-sm text-gray-500">Business Nature</div>
+                                    <!-- FIXED: Use business_nature instead of business_type -->
+                                    <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($permit['business_nature']); ?></div>
                                 </div>
                             </div>
                         </div>
@@ -589,68 +727,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                         </div>
                     </div>
 
-                    <!-- PERSONAL INFORMATION SECTION -->
-                    <div class="mb-8">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-6 section-header">
-                            <i class="fas fa-user-circle mr-3"></i>Personal Information
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div class="lgu-card p-5">
-                                <h5 class="font-medium text-gray-700 mb-4 flex items-center">
-                                    <i class="fas fa-id-card mr-2"></i>Applicant Details
-                                </h5>
-                                <div class="space-y-3">
-                                    <div class="flex items-center"><i class="fas fa-user text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Full Name: </span>
-                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['full_name']); ?></span>
-                                    </div>
-                                    <div class="flex items-center"><i class="fas fa-birthday-cake text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Date of Birth: </span>
-                                        <span class="font-semibold ml-2"><?php echo date('M d, Y', strtotime($permit['date_of_birth'])); ?></span>
-                                    </div>
-                                    <div class="flex items-center"><i class="fas fa-venus-mars text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Sex: </span>
-                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['sex'] ?? 'N/A'); ?></span>
-                                    </div>
-                                    <div class="flex items-center"><i class="fas fa-ring text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Marital Status: </span>
-                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['marital_status'] ?? 'N/A'); ?></span>
-                                    </div>
-                                    <div class="flex items-center"><i class="fas fa-phone text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Contact: </span>
-                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['personal_contact']); ?></span>
-                                    </div>
-                                    <div class="flex items-center"><i class="fas fa-envelope text-gray-400 mr-3 w-5"></i>
-                                        <span class="text-gray-600">Email: </span>
-                                        <span class="font-semibold ml-2"><?php echo htmlspecialchars($permit['personal_email']); ?></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="lgu-card p-5">
-                                <h5 class="font-medium text-gray-700 mb-4 flex items-center">
-                                    <i class="fas fa-map-marker-alt mr-2"></i>Business Address
-                                </h5>
-                                <div class="space-y-3">
-                                    <div class="flex items-start"><i class="fas fa-road text-gray-400 mr-3 mt-1 w-5"></i>
-                                        <div class="font-semibold"><?php echo htmlspecialchars($permit['business_street'] ?? 'N/A'); ?></div>
-                                    </div>
-                                    <div class="flex items-start"><i class="fas fa-map-pin text-gray-400 mr-3 mt-1 w-5"></i>
-                                        <div><?php echo htmlspecialchars($permit['business_barangay']); ?>, 
-                                             <?php echo htmlspecialchars($permit['business_district']); ?></div>
-                                    </div>
-                                    <div class="flex items-start"><i class="fas fa-city text-gray-400 mr-3 mt-1 w-5"></i>
-                                        <div><?php echo htmlspecialchars($permit['business_city']); ?>, 
-                                             <?php echo htmlspecialchars($permit['business_province']); ?></div>
-                                    </div>
-                                    <div class="flex items-start"><i class="fas fa-mail-bulk text-gray-400 mr-3 mt-1 w-5"></i>
-                                        <div>ZIP: <?php echo htmlspecialchars($permit['business_zipcode'] ?? 'N/A'); ?></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <?php if ($permit['status'] == 'Pending'): ?>
+                    <?php if ($permit_status == 'PENDING'): ?>
                         <!-- Pending Application Message -->
                         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <div class="flex items-start">

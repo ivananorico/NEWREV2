@@ -16,11 +16,6 @@ function formatCurrency($amount) {
     return '₱' . number_format($amount, 2);
 }
 
-// Function to format date
-function formatDate($date, $format = 'F j, Y') {
-    return ($date && $date != '0000-00-00' && $date != '0000-00-00 00:00:00') ? date($format, strtotime($date)) : '-';
-}
-
 // Function to build full address from owner details
 function buildFullAddress($owner) {
     $address_parts = [];
@@ -74,11 +69,17 @@ function getTaxClearanceInfo($property_total_id, $year, $pdo) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-// Function to check if all quarters are paid
-function isAllQuartersPaid($quarterly_taxes) {
+// Function to check if all quarters are paid for a specific year
+function isAllQuartersPaidForYear($quarterly_taxes, $year) {
     if (empty($quarterly_taxes)) return false;
     
-    foreach ($quarterly_taxes as $tax) {
+    $year_quarters = array_filter($quarterly_taxes, function($qt) use ($year) {
+        return $qt['year'] == $year;
+    });
+    
+    if (empty($year_quarters)) return false;
+    
+    foreach ($year_quarters as $tax) {
         if ($tax['payment_status'] != 'paid') {
             return false;
         }
@@ -206,7 +207,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             font-family: Inter, system-ui, sans-serif;
         }
 
-        /* Background image with blur - ABSOLUTE PATH */
+        /* Background image with blur */
         body::after {
             content: '';
             position: fixed;
@@ -221,7 +222,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             filter: blur(1px);
         }
         
-        /* Animated background particles - same as login */
+        /* Animated background particles */
         body::before {
             content: '';
             position: fixed;
@@ -243,7 +244,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             66% { transform: translateY(10px) rotate(-1deg); }
         }
 
-        /* Simple Card */
         .simple-card {
             background: white;
             border: 1px solid #e5e7eb;
@@ -251,7 +251,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        /* Status Badge */
         .status-badge {
             padding: 0.375rem 0.875rem;
             border-radius: 9999px;
@@ -283,7 +282,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             border: 1px solid #3b82f6;
         }
 
-        /* Info Box */
         .info-box {
             background: #f8fafc;
             border-left: 3px solid #3b82f6;
@@ -292,7 +290,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             border-radius: 6px;
         }
 
-        /* Progress Bar */
         .simple-progress {
             height: 6px;
             background: #e5e7eb;
@@ -306,7 +303,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             border-radius: 3px;
         }
 
-        /* Document Card */
         .simple-doc-card {
             border: 1px solid #e5e7eb;
             border-radius: 6px;
@@ -322,7 +318,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
         }
 
-        /* Modal */
         .modal { 
             display: none; 
             position: fixed; 
@@ -363,7 +358,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             background: rgba(0,0,0,0.7); 
         }
 
-        /* Header box styles - same as dashboard */
         .header-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -381,7 +375,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transition: all .25s ease;
         }
 
-        /* Compact Clearance Card */
         .clearance-card-compact {
             background: #fff;
             border: 1px solid #d1fae5;
@@ -397,7 +390,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
         }
 
-        /* Assessment Section */
         .assessment-section {
             border-radius: 10px;
             border: 1px solid #e5e7eb;
@@ -405,7 +397,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             height: 100%;
         }
 
-        /* Tax Status Badge */
         .tax-status-badge {
             display: inline-flex;
             align-items: center;
@@ -415,7 +406,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             font-weight: 600;
         }
 
-        /* Download Button */
         .download-btn {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
@@ -436,7 +426,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             color: white;
         }
 
-        /* Compact Download Button */
         .download-btn-compact {
             background: #10b981;
             color: white;
@@ -458,7 +447,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transform: translateY(-1px);
         }
 
-        /* Animation for cards */
         .notification-slide {
             animation: slideIn .3s ease-out;
         }
@@ -468,14 +456,12 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             to { opacity: 1; transform: translateX(0); }
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .responsive-grid {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Table styles */
         .tax-table {
             width: 100%;
             border-collapse: separate;
@@ -500,7 +486,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             background: #f9fafb;
         }
 
-        /* Progress indicator */
         .progress-steps {
             display: flex;
             justify-content: space-between;
@@ -557,7 +542,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             font-weight: 600;
         }
 
-        /* Assessment Grid Item */
         .assessment-grid-item {
             background: #fff;
             border: 1px solid #e5e7eb;
@@ -571,7 +555,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transform: translateY(-2px);
         }
 
-        /* Perfectly aligned assessment sections */
         .land-assessment-card {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border: 1px solid #bae6fd;
@@ -587,7 +570,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             border: 1px solid #ddd6fe;
         }
 
-        /* Perfectly aligned grid for assessment details */
         .assessment-detail-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -598,6 +580,84 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             background: rgba(255, 255, 255, 0.7);
             border-radius: 8px;
             padding: 0.75rem;
+        }
+
+        /* Billing Button Styles */
+        .billing-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .billing-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .billing-btn-locked {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .billing-btn-locked:hover {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
         }
     </style>
 </head>
@@ -766,19 +826,14 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                     $discount_amount = $eligible_for_discount ? ($total_annual_tax * ($discount_percent / 100)) : 0;
                     $discounted_total = $eligible_for_discount ? ($total_annual_tax - $discount_amount) : $grand_total;
                     
-                    // Check if any year has all quarters paid
-                    $all_quarters_paid_by_year = [];
-                    foreach ($tax_years as $year) {
-                        $year_quarters = array_filter($quarterly_taxes, function($qt) use ($year) {
-                            return $qt['year'] == $year;
-                        });
-                        $all_quarters_paid_by_year[$year] = isAllQuartersPaid($year_quarters);
-                    }
+                    // Check if current year quarters are all paid
+                    $current_year = date('Y');
+                    $current_year_all_paid = isAllQuartersPaidForYear($quarterly_taxes, $current_year);
                 ?>
 
                 <!-- Application Card -->
                 <div class="lgu-card overflow-hidden">
-                    <!-- Header -->
+                    <!-- Header with Billing Button -->
                     <div class="p-6 border-b border-gray-100">
                         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                             <div>
@@ -793,8 +848,40 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <?php echo $app['lot_location']; ?>, Brgy. <?php echo $app['barangay']; ?>
                                 </div>
                             </div>
-                            <div class="text-gray-600 text-sm">
-                                Approved: <?php echo date('M j, Y', strtotime($app['approval_date'])); ?>
+                            
+                            <!-- Billing Statement Button -->
+                            <div class="tooltip-container">
+                                <?php if (!$current_year_all_paid): ?>
+                                    <!-- Active button when NOT all quarters are paid for current year -->
+                                    <a href="view_rpt_bill.php?registration_id=<?php echo $app['id']; ?>" 
+                                       target="_blank"
+                                       class="billing-btn">
+                                        <i class="fas fa-file-invoice mr-2"></i>
+                                        View Billing Statement
+                                        <?php if ($paid_count > 0): ?>
+                                            <span class="ml-2 text-xs bg-blue-800 text-white px-2 py-1 rounded-full">
+                                                <?php echo $paid_count; ?>/<?php echo count($quarterly_taxes); ?> paid
+                                            </span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php else: ?>
+                                    <!-- Locked button when ALL quarters are paid for current year -->
+                                    <button class="billing-btn-locked" disabled>
+                                        <i class="fas fa-lock mr-2"></i>
+                                        Billing Statement
+                                        <span class="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                                            <i class="fas fa-check mr-1"></i> All paid
+                                        </span>
+                                    </button>
+                                    <div class="tooltip-text">
+                                        <div class="font-semibold mb-1">All Taxes Paid for <?php echo $current_year; ?></div>
+                                        <p class="text-gray-300 text-xs">All quarterly taxes have been fully paid for the current year.</p>
+                                        <p class="text-green-400 text-xs mt-1 flex items-center">
+                                            <i class="fas fa-check-circle mr-1"></i>
+                                            Tax clearance certificate is available below
+                                        </p>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         
@@ -981,7 +1068,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                             <!-- Perfect Grid for Assessments -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 
-                                <!-- Land Assessment - Perfectly Aligned -->
+                                <!-- Land Assessment -->
                                 <div class="assessment-section land-assessment-card">
                                     <div class="flex items-center justify-between mb-4">
                                         <h4 class="text-base font-semibold text-gray-900 flex items-center">
@@ -1048,7 +1135,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     </div>
                                 </div>
 
-                                <!-- Building Assessment - Perfectly Aligned -->
+                                <!-- Building Assessment -->
                                 <div class="assessment-section building-assessment-card">
                                     <div class="flex items-center justify-between mb-4">
                                         <div>
@@ -1165,7 +1252,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <?php endif; ?>
                                 </div>
 
-                                <!-- Tax Summary - Perfectly Aligned -->
+                                <!-- Tax Summary -->
                                 <div class="assessment-section tax-summary-card">
                                     <div class="flex items-center justify-between mb-4">
                                         <h4 class="text-base font-semibold text-gray-900 flex items-center">
