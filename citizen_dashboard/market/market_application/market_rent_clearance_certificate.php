@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'] ?? 'Market Renter';
 
-// Include market database (which creates global $pdo)
+// Include market database (which creates global $pdo variable)
 require_once '../../../db/Market/market_db.php';
 
 // Check if we have global $pdo variable
@@ -201,7 +201,7 @@ try {
     
     // Month names
     $month_names = [
-        1 => 'First Quarter', 2 => 'Second Quarter', 3 => 'Third Quarter', 4 => 'Fourth Quarter',
+        1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
         5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
         9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
     ];
@@ -211,392 +211,550 @@ try {
 }
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Market Rent Clearance Certificate - <?php echo $certificate['certificate_number']; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Rent Clearance Certificate</title>
     <style>
-        body { 
-            font-family: 'Arial', sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: #f5f5f5; 
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            @page {
+                margin: 15mm;
+                size: A4 landscape;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                font-size: 12pt !important;
+            }
+            .certificate-container {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                min-height: auto !important;
+            }
         }
-        .certificate-container { 
-            max-width: 800px; 
-            margin: 0 auto; 
-            border: 3px double #000; 
-            padding: 40px; 
-            position: relative; 
+        
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .certificate-container {
+            position: relative;
+            width: 11in;
+            min-height: 8.5in;
+            background: #fff;
+            border: 3px double #1a237e;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><text x="200" y="200" text-anchor="middle" dy=".3em" font-family="Georgia" font-size="30" fill="%23000" opacity="0.05">MARKET CLEARANCE</text></svg>');
+            background-repeat: repeat;
+        }
+        
+        .certificate-container::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 2px solid #d4af37;
+            pointer-events: none;
+        }
+        
+        .certificate-header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #1a237e;
+        }
+        
+        .official-seal {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 100px;
+            height: 100px;
+            border: 3px solid #d4af37;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #d4af37;
+            font-size: 14px;
+            text-align: center;
+            line-height: 1.2;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
-        .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
+        
+        .republic {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a237e;
+            margin-bottom: 5px;
         }
-        .title { 
-            font-size: 24px; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            color: #1a237e; 
-            margin-bottom: 10px; 
+        
+        .lgu-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1a237e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0;
         }
-        .subtitle { 
-            font-size: 16px; 
-            color: #666; 
-            margin-bottom: 20px; 
+        
+        .office {
+            font-size: 20px;
+            color: #d32f2f;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
-        .cert-number { 
-            font-size: 18px; 
-            color: #d32f2f; 
-            font-weight: bold; 
-            text-align: center; 
-            margin: 20px 0; 
-            padding: 10px; 
-            border: 2px solid #ccc; 
-            background: #f9f9f9; 
+        
+        .division {
+            font-size: 16px;
+            color: #666;
         }
-        .section { 
-            margin: 25px 0; 
+        
+        .certificate-title {
+            text-align: center;
+            font-size: 32px;
+            color: #1a237e;
+            font-weight: bold;
+            margin: 40px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 3px double #d4af37;
+            padding: 20px;
+            background: #f8f9ff;
         }
-        .section-title { 
-            font-size: 18px; 
-            font-weight: bold; 
-            color: #1a237e; 
-            border-bottom: 2px solid #1a237e; 
-            padding-bottom: 8px; 
-            margin-bottom: 15px; 
+        
+        .certificate-body {
+            margin: 40px 0;
+            line-height: 1.8;
+            font-size: 16px;
         }
-        .info-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-            margin-bottom: 15px; 
+        
+        .certification-text {
+            text-align: justify;
+            margin-bottom: 40px;
+            padding: 20px;
+            border-left: 4px solid #1a237e;
+            background: #f8f9ff;
         }
-        .info-item { 
-            margin-bottom: 10px; 
+        
+        .stall-info {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
         }
-        .label { 
-            font-weight: bold; 
-            color: #555; 
-            display: inline-block; 
-            width: 150px; 
+        
+        .renter-info {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
         }
-        .value { 
-            color: #333; 
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
         }
-        .payment-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0; 
+        
+        .info-item {
+            margin-bottom: 12px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #1a237e;
+            display: block;
+            margin-bottom: 4px;
             font-size: 14px;
         }
-        .payment-table th, .payment-table td { 
-            border: 1px solid #ddd; 
-            padding: 8px; 
-            text-align: left; 
+        
+        .info-value {
+            color: #333;
+            font-size: 16px;
+            padding: 5px 0;
+            border-bottom: 1px dashed #ddd;
         }
-        .payment-table th { 
-            background-color: #1a237e; 
-            color: white; 
+        
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 14px;
         }
-        .total-row { 
-            font-weight: bold; 
-            background-color: #e8f4ff; 
+        
+        .payment-table th {
+            background: #1a237e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
         }
-        .validity-badge { 
-            background: #d4edda; 
-            color: #155724; 
-            padding: 15px; 
-            border-radius: 8px; 
-            border: 2px solid #c3e6cb; 
-            text-align: center; 
-            margin: 20px 0; 
-            font-size: 16px; 
+        
+        .payment-table td {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
         }
-        .footer { 
-            margin-top: 50px; 
-            text-align: center; 
-            font-size: 12px; 
-            color: #666; 
+        
+        .payment-table tr:nth-child(even) {
+            background: #f9f9f9;
         }
-        .seal { 
-            position: absolute; 
-            top: 20px; 
-            right: 20px; 
-            width: 80px; 
-            height: 80px;
-            opacity: 0.2; 
+        
+        .total-row {
+            background: #1a237e !important;
+            color: white;
+            font-weight: bold;
         }
-        .print-button { 
-            display: block; 
-            margin: 20px auto; 
-            padding: 12px 24px; 
-            background: #1a237e; 
-            color: white; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 16px; 
+        
+        .total-row td {
+            border-color: #1a237e;
         }
+        
+        .validity-info {
+            background: #e8f4ff;
+            border: 2px solid #1a237e;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .signature-section {
+            margin-top: 60px;
+        }
+        
+        .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 40px;
+        }
+        
+        .signature-line {
+            border-top: 2px solid #000;
+            width: 300px;
+            margin: 0 auto;
+            padding-top: 15px;
+            text-align: center;
+        }
+        
+        .signature-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a237e;
+        }
+        
+        .signature-title {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .footer {
+            margin-top: 80px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        .verification-code {
+            background: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            letter-spacing: 1px;
+            margin-top: 10px;
+        }
+        
+        .print-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
         .print-button:hover {
             background: #283593;
         }
+        
         .watermark {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 80px;
-            color: rgba(0,0,0,0.1);
+            font-size: 120px;
+            color: rgba(26, 35, 126, 0.05);
             font-weight: bold;
             white-space: nowrap;
             pointer-events: none;
             z-index: 1;
         }
+        
+        .certificate-number {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
         .back-button {
-            display: inline-block;
-            margin-bottom: 20px;
-            padding: 8px 16px;
+            position: fixed;
+            top: 20px;
+            left: 20px;
             background: #4a5568;
             color: white;
-            text-decoration: none;
+            border: none;
+            padding: 10px 20px;
             border-radius: 5px;
+            cursor: pointer;
             font-size: 14px;
+            text-decoration: none;
+            z-index: 1000;
         }
+        
         .back-button:hover {
             background: #2d3748;
-        }
-        @media print {
-            .print-button, .back-button { 
-                display: none; 
-            }
-            body { 
-                margin: 0; 
-                padding: 0;
-                background: white;
-            }
-            .certificate-container {
-                border: none;
-                box-shadow: none;
-                padding: 20px;
-                max-width: 100%;
-            }
-        }
-        .address-item {
-            grid-column: 1 / -1;
         }
     </style>
 </head>
 <body>
     <!-- Back Button -->
-    <a href="approved.php" class="back-button">
+    <a href="approved.php" class="back-button no-print">
         <i class="fas fa-arrow-left"></i> Back to Approved Applications
     </a>
     
     <div class="certificate-container">
         <!-- Watermark -->
-        <div class="watermark">RENT CLEARANCE</div>
+        <div class="watermark">MARKET CLEARANCE</div>
+        
+        <!-- Certificate Number -->
+        <div class="certificate-number">
+            <strong>CERTIFICATE NO:</strong> <?php echo htmlspecialchars($certificate['certificate_number']); ?>
+        </div>
         
         <!-- Official Seal -->
-        <div class="seal" style="text-align: center; font-size: 60px;">🏬</div>
-        
-        <div class="header">
-            <div class="title">Republic of the Philippines</div>
-            <div class="title">City of Quezon</div>
-            <div class="subtitle">OFFICE OF THE MARKET ADMINISTRATOR</div>
-        </div>
-        
-        <div class="cert-number">
-            CERTIFICATE NO: <?php echo htmlspecialchars($certificate['certificate_number']); ?>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">MARKET RENT CLEARANCE CERTIFICATE</div>
-            <p style="font-size: 16px; line-height: 1.6; text-align: justify;">
-                This is to certify that <strong><?php echo htmlspecialchars($renter_name); ?></strong> has fully paid all Market Rent obligations for the year <strong><?php echo htmlspecialchars($certificate['clearance_year']); ?></strong> for the stall described below:
-            </p>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">STALL INFORMATION</div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="label">Stall Rights No:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['stall_rights_no']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Market Location:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['market_name']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Stall Name:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['stall_name']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Stall Class:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['class_name']); ?> Class</span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Business Name:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['business_name']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Business Type:</span>
-                    <span class="value"><?php echo !empty($certificate['business_type']) ? htmlspecialchars($certificate['business_type']) : 'Not specified'; ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Monthly Rent:</span>
-                    <span class="value">₱<?php echo number_format($certificate['monthly_rent'], 2); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Contract Period:</span>
-                    <span class="value"><?php echo $contract_start; ?> to <?php echo $contract_end; ?></span>
-                </div>
+        <div class="official-seal">
+            <div>
+                OFFICIAL<br>
+                SEAL<br>
+                LGU
             </div>
         </div>
         
-        <div class="section">
-            <div class="section-title">RENTER INFORMATION</div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="label">Full Name:</span>
-                    <span class="value"><?php echo htmlspecialchars($renter_name); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Gender:</span>
-                    <span class="value"><?php echo !empty($certificate['gender']) ? ucfirst($certificate['gender']) : 'Not specified'; ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Birth Date:</span>
-                    <span class="value"><?php echo $birth_date; ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Mobile Number:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['mobile']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Telephone:</span>
-                    <span class="value"><?php echo !empty($certificate['telephone']) ? htmlspecialchars($certificate['telephone']) : 'Not specified'; ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Email Address:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['email']); ?></span>
-                </div>
-                <div class="info-item address-item">
-                    <span class="label">Complete Address:</span>
-                    <span class="value"><?php echo htmlspecialchars($full_address); ?></span>
-                </div>
-                <?php if (!empty($certificate['emergency_name']) && !empty($certificate['emergency_contact'])): ?>
-                <div class="info-item">
-                    <span class="label">Emergency Contact Person:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['emergency_name']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="label">Emergency Contact:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['emergency_contact']); ?></span>
-                </div>
-                <?php endif; ?>
-                <div class="info-item">
-                    <span class="label">Renter Code:</span>
-                    <span class="value"><?php echo htmlspecialchars($certificate['renter_code']); ?></span>
-                </div>
+        <!-- Header -->
+        <div class="certificate-header">
+            <div class="republic">Republic of the Philippines</div>
+            <div class="lgu-name">Local Government Unit</div>
+            <div class="office">OFFICE OF THE MARKET ADMINISTRATOR</div>
+            <div class="division">Market Rent Division • Quezon City</div>
+        </div>
+        
+        <!-- Title -->
+        <div class="certificate-title">
+            MARKET RENT CLEARANCE CERTIFICATE
+        </div>
+        
+        <!-- Certification Text -->
+        <div class="certificate-body">
+            <div class="certification-text">
+                <p style="font-size: 18px; line-height: 1.6; text-align: center;">
+                    <strong>THIS IS TO CERTIFY THAT</strong>
+                </p>
+                <p style="text-align: center; font-size: 20px; color: #1a237e; margin: 20px 0; padding: 15px; background: #f8f9ff; border-radius: 5px;">
+                    <strong><?php echo htmlspecialchars($renter_name); ?></strong>
+                </p>
+                <p style="font-size: 18px; line-height: 1.6; text-align: center;">
+                    operating <strong><?php echo htmlspecialchars($certificate['business_name']); ?></strong> at <?php echo htmlspecialchars($certificate['market_name']); ?>,
+                    has fully paid all Market Rent obligations for the year <strong><?php echo $certificate['clearance_year']; ?></strong>.
+                </p>
             </div>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">RENT PAYMENT DETAILS</div>
-            <table class="payment-table">
-                <tr>
-                    <th>Month</th>
-                    <th>Base Rent</th>
-                    <th>Penalty</th>
-                    <th>Discount</th>
-                    <th>Total Paid</th>
-                    <th>Payment Date</th>
-                    <th>Receipt No.</th>
-                </tr>
-                <?php if (!empty($monthly_payments)): ?>
-                    <?php foreach ($monthly_payments as $payment): ?>
-                    <tr>
-                        <td><?php echo $month_names[$payment['billing_month']] ?? 'Month ' . $payment['billing_month']; ?></td>
-                        <td>₱<?php echo number_format($payment['base_rent'], 2); ?></td>
-                        <td>₱<?php echo number_format($payment['penalty_amount'], 2); ?></td>
-                        <td>₱<?php echo number_format($payment['discount_amount'], 2); ?></td>
-                        <td>₱<?php echo number_format($payment['total_amount_due'], 2); ?></td>
-                        <td><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
-                        <td><?php echo htmlspecialchars($payment['receipt_number']); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="7" style="text-align: center;">No payment records found</td>
-                    </tr>
-                <?php endif; ?>
-                <tr class="total-row">
-                    <td><strong>TOTALS:</strong></td>
-                    <td><strong>₱<?php echo number_format($total_base_rent, 2); ?></strong></td>
-                    <td><strong>₱<?php echo number_format($total_penalty, 2); ?></strong></td>
-                    <td><strong>₱<?php echo number_format($total_discount, 2); ?></strong></td>
-                    <td colspan="3"><strong>₱<?php echo number_format($total_paid, 2); ?></strong></td>
-                </tr>
-            </table>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">CERTIFICATE VALIDITY</div>
-            <div class="validity-badge">
-                <div><strong>ISSUED:</strong> <?php echo $issue_date; ?></div>
-                <div><strong>VALID UNTIL:</strong> <?php echo $valid_until; ?></div>
-            </div>
-            <p style="text-align: center; font-size: 14px; color: #666;">
-                This certificate is valid for one year from date of issue and may be used for business permit renewals, stall transfer applications, and other market-related transactions.
-            </p>
-        </div>
-        
-        <div class="section">
-            <div style="margin-top: 50px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
-                    <div style="text-align: center;">
-                        <div style="border-top: 1px solid #000; width: 250px; margin: 0 auto; padding-top: 20px;">
-                            <div style="font-weight: bold; font-size: 16px;">JUAN DELA CRUZ</div>
-                            <div>Market Administrator</div>
-                            <div>Market Management Office</div>
-                        </div>
+            
+            <!-- Stall Information -->
+            <div class="stall-info">
+                <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px;">
+                    STALL INFORMATION
+                </h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Stall Rights No:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['stall_rights_no']); ?></div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="border-top: 1px solid #000; width: 250px; margin: 0 auto; padding-top: 20px;">
-                            <div style="font-weight: bold; font-size: 16px;">MARIA CRISTINA G. REYES</div>
-                            <div>City Treasurer</div>
-                            <div>Quezon City Treasury Office</div>
-                        </div>
+                    <div class="info-item">
+                        <div class="info-label">Market Location:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['market_name']); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Stall Name:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['stall_name']); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Stall Class:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['class_name']); ?> Class</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Business Name:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['business_name']); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Business Type:</div>
+                        <div class="info-value"><?php echo !empty($certificate['business_type']) ? htmlspecialchars($certificate['business_type']) : 'Not specified'; ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Monthly Rent Rate:</div>
+                        <div class="info-value">₱<?php echo number_format($certificate['monthly_rent'], 2); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Contract Period:</div>
+                        <div class="info-value"><?php echo $contract_start; ?> to <?php echo $contract_end; ?></div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="footer">
-            <p>This is a computer-generated document. No signature required.</p>
-            <p>Verification Code: <?php echo strtoupper(substr(md5($certificate['certificate_number']), 0, 12)); ?></p>
-            <p>Generated on: <?php echo date('F j, Y \a\t h:i:s A'); ?></p>
-        </div>
-        
-        <button class="print-button" onclick="window.print()">
-            <i class="fas fa-print" style="margin-right: 8px;"></i> Print Certificate
-        </button>
-    </div>
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <script>
-        // Auto-print option (optional)
-        setTimeout(function() {
-            if (window.location.href.indexOf('autoprint') > -1) {
-                window.print();
-            }
-        }, 1000);
-    </script>
-</body>
-</html>
+            
+            <!-- Renter Information -->
+            <div class="renter-info">
+                <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px;">
+                    RENTER INFORMATION
+                </h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Full Name:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($renter_name); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Gender:</div>
+                        <div class="info-value"><?php echo !empty($certificate['gender']) ? ucfirst($certificate['gender']) : 'Not specified'; ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Birth Date:</div>
+                        <div class="info-value"><?php echo $birth_date; ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Mobile Number:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['mobile']); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Telephone:</div>
+                        <div class="info-value"><?php echo !empty($certificate['telephone']) ? htmlspecialchars($certificate['telephone']) : 'Not specified'; ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Email Address:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['email']); ?></div>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Complete Address:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($full_address); ?></div>
+                    </div>
+                    <?php if (!empty($certificate['emergency_name']) && !empty($certificate['emergency_contact'])): ?>
+                    <div class="info-item">
+                        <div class="info-label">Emergency Contact Person:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['emergency_name']); ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Emergency Contact:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['emergency_contact']); ?></div>
+                    </div>
+                    <?php endif; ?>
+                    <div class="info-item">
+                        <div class="info-label">Renter Code:</div>
+                        <div class="info-value"><?php echo htmlspecialchars($certificate['renter_code']); ?></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rent Payment Details -->
+            <div class="stall-info">
+                <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px;">
+                    RENT PAYMENT DETAILS
+                </h3>
+                
+                <table class="payment-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Base Rent</th>
+                            <th>Penalty</th>
+                            <th>Discount</th>
+                            <th>Total Paid</th>
+                            <th>Payment Date</th>
+                            <th>Receipt No.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($monthly_payments)): ?>
+                            <?php foreach ($monthly_payments as $payment): ?>
+                            <tr>
+                                <td><strong><?php echo $month_names[$payment['billing_month']] ?? 'Month ' . $payment['billing_month']; ?></strong></td>
+                                <td>₱<?php echo number_format($payment['base_rent'], 2); ?></td>
+                                <td>₱<?php echo number_format($payment['penalty_amount'], 2); ?></td>
+                                <td>₱<?php echo number_format($payment['discount_amount'], 2); ?></td>
+                                <td>₱<?php echo number_format($payment['total_amount_due'], 2); ?></td>
+                                <td><?php echo date('F d, Y', strtotime($payment['payment_date'])); ?></td>
+                                <td><?php echo htmlspecialchars($payment['receipt_number']); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #666; font-style: italic;">
+                                    No monthly payment records found
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>TOTALS:</strong></td>
+                            <td><strong>₱<?php echo number_format($total_base_rent, 2); ?></strong></td>
+                            <td><strong>₱<?php echo number_format($total_penalty, 2); ?></strong></td>
+                            <td><strong>₱<?php echo number_format($total_discount, 2); ?></strong></td>
+                            <td colspan="3" style="text-align: left;">
+                                <strong style="font-size: 18px;">₱<?php echo number_format($total_paid, 2); ?></strong>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- Certificate Validity -->
+            <div class="validity-info">
+                <h3 style="color: #1a237e; margin-bottom: 20px;">CERTIFICATE VALIDITY</h3>
+                <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div>
+                        <div style="font-size: 14px; color: #666;">ISSUED:</div>
+                        <div style="font-size: 18px; font-weight: bold; color: #1a237e;"><?php echo $issue_date; ?></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; color: #666;">VALID UNTIL:</div>
+                        <div style="font-size: 18px; font-weight: bold; color: #1a237e;"><?php echo $valid_until; ?></div>
+                    </
