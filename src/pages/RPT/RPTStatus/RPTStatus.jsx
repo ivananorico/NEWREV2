@@ -76,7 +76,6 @@ export default function RPTStatus() {
   const [searchTerm, setSearchTerm] = useState("");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [useFallbackData, setUseFallbackData] = useState(false);
   const navigate = useNavigate();
 
   // API Configuration
@@ -85,45 +84,6 @@ export default function RPTStatus() {
     : "https://revenuetreasury.goserveph.com/backend";
 
   const API_PATH = "/RPT/RPTStatus";
-
-  // Generate fallback data for development/demo
-  const generateFallbackData = () => {
-    const propertyTypes = ['Residential', 'Commercial', 'Industrial', 'Agricultural'];
-    const barangays = ['Poblacion', 'San Isidro', 'Santa Cruz', 'San Jose', 'San Miguel', 'San Roque', 'San Antonio', 'San Vicente'];
-    const firstNames = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Carmen', 'Antonio', 'Teresa', 'Manuel', 'Rosa'];
-    const lastNames = ['Dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Ramos', 'Aquino', 'Mendoza', 'Torres', 'Fernandez', 'Castro'];
-    const locations = ['Main Street', 'Highway Road', 'Market Area', 'Subdivision', 'Commercial Center', 'Industrial Zone'];
-    
-    const fallbackData = [];
-    
-    for (let i = 1; i <= 20; i++) {
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const propertyType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
-      const barangay = barangays[Math.floor(Math.random() * barangays.length)];
-      const location = locations[Math.floor(Math.random() * locations.length)];
-      
-      fallbackData.push({
-        id: i,
-        reference_number: `RPT-2024-${String(i).padStart(5, '0')}`,
-        owner_name: `${firstName} ${lastName}`,
-        first_name: firstName,
-        last_name: lastName,
-        property_type: propertyType,
-        lot_location: `${i} ${location}`,
-        barangay: barangay,
-        total_annual_tax: (Math.random() * 50000 + 5000).toFixed(2),
-        land_area_sqm: (Math.random() * 1000 + 100).toFixed(2),
-        has_building: Math.random() > 0.3 ? 'yes' : 'no',
-        building_count: Math.random() > 0.5 ? Math.floor(Math.random() * 5) + 1 : 0,
-        phone: `09${Math.floor(Math.random() * 900000000 + 100000000)}`,
-        created_at: new Date(Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000).toISOString(),
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(' ', '')}@example.com`
-      });
-    }
-    
-    return fallbackData;
-  };
 
   // Define getPaymentStatus function FIRST before using it
   const getPaymentStatus = (createdDate) => {
@@ -145,11 +105,11 @@ export default function RPTStatus() {
       return 'next-quarter';
     }
     
-    // Random status for demo (weighted towards paid)
-    const random = Math.random();
-    if (random < 0.5) return 'paid';
-    if (random < 0.8) return 'pending';
-    return 'overdue';
+    // Simple logic: Random status for demo
+    const statuses = ['paid', 'pending', 'overdue'];
+    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    return randomStatus;
   };
 
   // Get building status text
@@ -168,32 +128,13 @@ export default function RPTStatus() {
       setLoading(true);
       setError(null);
       
-      // Check if we're in development mode and should use fallback
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                          window.location.hostname === 'localhost' ||
-                          window.location.hostname === '127.0.0.1';
-      
-      // For development/testing, you can force fallback data by adding ?fallback=true to URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const forceFallback = urlParams.get('fallback') === 'true';
-      
-      if (forceFallback) {
-        console.log("Using fallback data (forced via URL parameter)");
-        const fallbackData = generateFallbackData();
-        setApprovedProperties(fallbackData);
-        setUseFallbackData(true);
-        setLoading(false);
-        return;
-      }
-      
       // Fetch approved properties
       const response = await fetch(`${API_BASE}${API_PATH}/get_approved_properties.php`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(8000) // 8 second timeout
+        }
       });
       
       if (!response.ok) {
@@ -202,26 +143,10 @@ export default function RPTStatus() {
       
       const text = await response.text();
       
-      // Handle empty response
-      if (!text.trim()) {
-        throw new Error("Empty response from server");
-      }
-      
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseError) {
-        console.error("Failed to parse JSON:", text);
-        
-        // In development mode, use fallback data
-        if (isDevelopment) {
-          console.log("Using fallback data due to JSON parse error");
-          const fallbackData = generateFallbackData();
-          setApprovedProperties(fallbackData);
-          setUseFallbackData(true);
-          setLoading(false);
-          return;
-        }
         throw new Error("Invalid JSON response from server");
       }
       
@@ -245,48 +170,11 @@ export default function RPTStatus() {
         }
         
         setApprovedProperties(propertiesData);
-        setUseFallbackData(false);
       } else {
-        // Check if this is a database connection error
-        const errorMessage = data.error || data.message || "Failed to load approved properties";
-        
-        if (errorMessage.includes('database') || errorMessage.includes('SQLSTATE') || errorMessage.includes('connection')) {
-          console.warn("Database connection issue detected");
-          
-          // In development or if explicitly allowed, use fallback data
-          if (isDevelopment) {
-            console.log("Using fallback data due to database error");
-            const fallbackData = generateFallbackData();
-            setApprovedProperties(fallbackData);
-            setUseFallbackData(true);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(data.error || data.message || "Failed to load approved properties");
       }
     } catch (err) {
-      console.error("Fetch error:", err);
-      
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                          window.location.hostname === 'localhost' ||
-                          window.location.hostname === '127.0.0.1';
-      
-      // Check if this is a network/connection error
-      const isConnectionError = err.message.includes('Connection refused') || 
-                               err.message.includes('Failed to fetch') ||
-                               err.message.includes('NetworkError') ||
-                               err.message.includes('timeout');
-      
-      if (isConnectionError && isDevelopment) {
-        console.log("Using fallback data for development (connection error)");
-        const fallbackData = generateFallbackData();
-        setApprovedProperties(fallbackData);
-        setUseFallbackData(true);
-      } else {
-        setError(`Failed to load approved properties: ${err.message}`);
-      }
+      setError(`Failed to load approved properties: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -296,7 +184,7 @@ export default function RPTStatus() {
     fetchApprovedProperties();
   }, []);
 
-  // Calculate total annual revenue
+  // Calculate total annual revenue - NOW getPaymentStatus is defined
   const totalAnnualRevenue = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
   
   // Calculate total collected (assuming paid properties have total annual tax collected)
@@ -319,9 +207,7 @@ export default function RPTStatus() {
       (property.owner_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (property.reference_number?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (property.lot_location?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (property.barangay?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (property.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (property.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (property.barangay?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const propertyType = property.property_type || '';
     const matchesType = propertyTypeFilter === "all" || 
@@ -448,46 +334,20 @@ export default function RPTStatus() {
     );
   }
 
-  if (error && !useFallbackData) {
+  if (error) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="bg-white border border-gray-200 rounded-xl p-8 max-w-md w-full">
           <div className="text-center">
-            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <p className="text-sm text-gray-500 mb-4">
-              This could be due to:
-              <ul className="mt-2 text-left list-disc pl-5">
-                <li>Backend server not running</li>
-                <li>Database connection issues</li>
-                <li>Network problems</li>
-              </ul>
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={fetchApprovedProperties}
-                className="w-full bg-gray-900 hover:bg-black text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Try Again
-              </button>
-              {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-                <button
-                  onClick={() => {
-                    const fallbackData = generateFallbackData();
-                    setApprovedProperties(fallbackData);
-                    setUseFallbackData(true);
-                    setError(null);
-                  }}
-                  className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-lg font-medium"
-                >
-                  Use Demo Data for Development
-                </button>
-              )}
-            </div>
+            <button
+              onClick={fetchApprovedProperties}
+              className="w-full bg-gray-900 hover:bg-black text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
           </div>
         </div>
       </div>
@@ -506,24 +366,10 @@ export default function RPTStatus() {
               </h1>
               <p className="text-sm text-gray-600">
                 Track property taxes and payment status
-                {useFallbackData && (
-                  <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
-                    Using Demo Data
-                  </span>
-                )}
               </p>
             </div>
             
             <div className="flex flex-wrap gap-3 items-center">
-              {useFallbackData && (
-                <button
-                  onClick={fetchApprovedProperties}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 text-sm"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Retry Real Data
-                </button>
-              )}
               <button
                 onClick={fetchApprovedProperties}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
@@ -612,7 +458,7 @@ export default function RPTStatus() {
           </div>
         </div>
 
-        {/* Revenue Summary Boxes */}
+        {/* ADDED: Revenue Summary Boxes - Exactly like Business Status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           {/* Total Annual Revenue */}
           <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
@@ -723,11 +569,6 @@ export default function RPTStatus() {
               ) : (
                 <span>Showing all citizen properties</span>
               )}
-              {useFallbackData && (
-                <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
-                  Demo Mode
-                </span>
-              )}
             </div>
             <div className="text-gray-700 font-medium">
               {filteredProperties.length} of {approvedProperties.length} properties
@@ -735,7 +576,7 @@ export default function RPTStatus() {
           </div>
         </div>
 
-        {/* Properties Table */}
+        {/* Properties Table - UNCHANGED */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -743,7 +584,6 @@ export default function RPTStatus() {
                 <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Citizen Properties</h2>
                 <p className="text-sm text-gray-600 mt-1">
                   {filteredProperties.length} propert{filteredProperties.length !== 1 ? 'ies' : 'y'}
-                  {useFallbackData && " (Demo Data)"}
                 </p>
               </div>
               <div className="mt-2 sm:mt-0">
@@ -921,13 +761,10 @@ export default function RPTStatus() {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - Simplified */}
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="text-center text-sm text-gray-600">
             <p className="font-medium">Property Tax Management System</p>
-            <p className="mt-1 text-xs">
-              {useFallbackData ? "Currently using demo data. Check backend connection for real data." : "Connected to live database"}
-            </p>
           </div>
         </div>
       </div>
