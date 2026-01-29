@@ -30,15 +30,27 @@ const MarketValidationInfo = () => {
   const [showDocumentPreview, setShowDocumentPreview] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
-  // Dynamic API base URL
+  // FIXED: Dynamic API base URL
   const getApiBaseUrl = () => {
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1';
+    const { hostname, protocol, pathname } = window.location;
     
-    if (isLocalhost) {
+    console.log("Current location info:", { hostname, protocol, pathname });
+    
+    // Production domain - NO /revenue2 in path
+    if (hostname === 'revenuetreasury.goserveph.com') {
+      return `${protocol}//${hostname}/backend`;
+    }
+    
+    // Localhost - WITH /revenue2 in path
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost/revenue2/backend';
+    }
+    
+    // Default: Try to detect from current path
+    if (pathname.includes('/revenue2')) {
+      return '/revenue2/backend';
     } else {
-      return 'https://revenuetreasury.goserveph.com/backend';
+      return '/backend';
     }
   };
 
@@ -55,23 +67,26 @@ const MarketValidationInfo = () => {
       setError(null);
       
       const API_BASE = getApiBaseUrl();
-      const API_PATH = "/Market/MarketValidation";
-
-      const response = await fetch(
-        `${API_BASE}${API_PATH}/get_application_details.php?id=${id}`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          }
-        }
-      );
+      const url = `${API_BASE}/Market/MarketValidation/get_application_details.php?id=${id}`;
+      
+      console.log("Fetching from URL:", url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+      
+      console.log("Response status:", response.status);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log("Response data:", data);
       
       if (data.status === 'success') {
         setApplication(data.data);
@@ -79,6 +94,7 @@ const MarketValidationInfo = () => {
         throw new Error(data.message || "Failed to fetch application");
       }
     } catch (err) {
+      console.error("Fetch error:", err);
       setError(err.message || "Failed to load data.");
     } finally {
       setLoading(false);
@@ -90,19 +106,18 @@ const MarketValidationInfo = () => {
     setActionLoading(true);
     try {
       const API_BASE = getApiBaseUrl();
-      const API_PATH = "/Market/MarketValidation";
+      const url = `${API_BASE}/Market/MarketValidation/${endpoint}`;
       
-      const response = await fetch(
-        `${API_BASE}${API_PATH}/${endpoint}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        }
-      );
+      console.log(`Calling API: ${url}`, payload);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
       
       const result = await response.json();
       
@@ -112,6 +127,7 @@ const MarketValidationInfo = () => {
         throw new Error(result.message || "Failed to update");
       }
     } catch (error) {
+      console.error("API call error:", error);
       throw error;
     } finally {
       setActionLoading(false);
@@ -407,13 +423,14 @@ const MarketValidationInfo = () => {
     if (!filePath) return "#";
     if (filePath.startsWith('http')) return filePath;
     
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1';
+    const API_BASE = getApiBaseUrl();
     
-    if (isLocalhost) {
-      return `http://localhost/revenue2/${filePath}`;
+    // Check if filePath is relative or absolute
+    if (filePath.startsWith('/')) {
+      return `${API_BASE}${filePath}`;
     } else {
-      return `https://revenuetreasury.goserveph.com/${filePath}`;
+      // Assume it's in uploads directory
+      return `${API_BASE}/uploads/${filePath}`;
     }
   };
 
@@ -677,6 +694,14 @@ const MarketValidationInfo = () => {
           </div>
           <h2 className="text-lg font-bold text-gray-900 mb-2 text-center">Error Loading Data</h2>
           <p className="text-gray-600 mb-4 text-center">{error || "Application not found"}</p>
+          
+          <div className="mb-4 p-3 bg-gray-100 rounded text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Application ID: {id}</p>
+            <p>Current Host: {window.location.hostname}</p>
+            <p>API Base URL: {getApiBaseUrl()}</p>
+            <p>Full URL: {getApiBaseUrl()}/Market/MarketValidation/get_application_details.php?id={id}</p>
+          </div>
           
           <div className="space-y-3">
             <button 
