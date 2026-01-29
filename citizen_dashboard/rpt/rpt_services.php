@@ -15,6 +15,27 @@ $user_id = $_SESSION['user_id'];
 require_once '../../db/RPT/rpt_db.php';
 $pdo = getDatabaseConnection();
 
+// FIX: Check if $pdo is actually a PDO object
+if (!($pdo instanceof PDO)) {
+    // If it's an array or something else, debug it
+    error_log("Database connection returned: " . gettype($pdo));
+    
+    // Try to create a direct connection as fallback
+    try {
+        // Add your actual database credentials here
+        $host = 'localhost';
+        $dbname = 'your_database_name';
+        $username = 'your_username';
+        $password = 'your_password';
+        
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        die("Database connection failed: " . $e->getMessage());
+    }
+}
+
 // Status counters
 $status_counts = [
     'pending' => 0,
