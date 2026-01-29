@@ -531,7 +531,7 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">No Businesses Found</h3>
                     <p class="text-gray-600 mb-6">You don\'t have any active business permits yet.</p>
                     <div class="space-y-3">
-                        <a href="../business_application_status/business_application_status.php" class="btn btn-primary w-full">
+                        <a href="https://e-plms.goserveph.com" class="btn btn-primary w-full">
                             <i class="fas fa-plus-circle mr-2"></i> Apply for Business Permit
                         </a>
                         <a href="../business_services.php" class="btn btn-secondary w-full">

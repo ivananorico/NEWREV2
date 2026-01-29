@@ -508,7 +508,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             <p class="text-gray-600 mb-6 max-w-md mx-auto">
                 You haven't applied for any business permits yet. Start your application to manage your business taxes online.
             </p>
-            <a href="../business_application.php" 
+            <a href="https://e-plms.goserveph.com" 
                class="inline-flex items-center px-6 py-3 rounded-lg font-semibold text-white"
                style="background-color: #4a90e2;">
                 <i class="fas fa-plus mr-2"></i>

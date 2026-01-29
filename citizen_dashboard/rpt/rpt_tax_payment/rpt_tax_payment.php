@@ -483,7 +483,7 @@ $current_quarter = 'Q' . ceil(date('n') / 3);
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">No Properties Found</h3>
                     <p class="text-gray-600 mb-6">You don\'t have any approved properties yet.</p>
                     <div class="space-y-3">
-                        <a href="rpt_registration/rpt_registration.php" class="btn btn-primary w-full">
+                        <a href="../rpt_registration/rpt_registration.php" class="btn btn-primary w-full">
                             <i class="fas fa-plus-circle mr-2"></i> Register New Property
                         </a>
                         <a href="../rpt_services.php" class="btn btn-secondary w-full">

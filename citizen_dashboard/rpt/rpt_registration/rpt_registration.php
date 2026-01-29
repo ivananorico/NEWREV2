@@ -347,8 +347,10 @@ if (empty($_SESSION['csrf_token'])) {
 // Merge POST data with autofill for form display
 $form_data = array_merge($autofill_data, $_POST ?? []);
 
-// Get base URL for background image
-$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+// Get base URL for background image - FIXED VERSION
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$base_url = $protocol . $host;
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
