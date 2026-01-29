@@ -8,18 +8,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Database connection
-$host = 'localhost:3307';
-$dbname = 'market_rent';
-$username = 'root';
-$password = '';
-
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
-}
+// Include the database connection from market_db.php
+include_once '../../../db/Market/market_db.php';
 
 // Fetch all maps from database
 $stmt = $pdo->prepare("SELECT * FROM maps ORDER BY created_at DESC");
