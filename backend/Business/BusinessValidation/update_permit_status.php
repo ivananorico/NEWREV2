@@ -32,7 +32,6 @@ if (!$pdo) {
 function getBusinessTaxRate($business_nature, $taxable_amount, $tax_calculation_type, $pdo) {
     try {
         if ($tax_calculation_type == 'capital_investment') {
-            // Get capital investment tax rate based on amount range
             $rate_stmt = $pdo->prepare("
                 SELECT tax_percent 
                 FROM capital_investment_tax_config 
@@ -42,13 +41,11 @@ function getBusinessTaxRate($business_nature, $taxable_amount, $tax_calculation_
             ");
             $rate_stmt->execute([$taxable_amount]);
             $rate = $rate_stmt->fetch(PDO::FETCH_ASSOC);
-            return $rate['tax_percent'] ?? 25.00; // Default 25%
+            return $rate['tax_percent'] ?? 25.00;
         } else {
-            // For gross sales, use default or try to match business nature
-            return 2.00; // Default 2% for gross sales
+            return 2.00;
         }
     } catch(PDOException $e) {
-        error_log("Error getting tax rate: " . $e->getMessage());
         return $tax_calculation_type == 'capital_investment' ? 25.00 : 2.00;
     }
 }
@@ -75,7 +72,6 @@ function getBusinessDiscountPercent($pdo) {
         
         return $result ? floatval($result['discount_percent']) : 0.00;
     } catch (Exception $e) {
-        error_log("Error getting business discount: " . $e->getMessage());
         return 0.00;
     }
 }
@@ -131,15 +127,14 @@ function createQuarterlyTaxes($pdo, $permitId, $annualTax, $applicantId, $taxabl
         return true;
         
     } catch (Exception $e) {
-        error_log("Error creating quarterly taxes: " . $e->getMessage());
         return false;
     }
 }
 
-// Function to create annual payment - UPDATED TO MIRROR RPT
-function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax) {
+// Function to create annual payment
+function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax, $year = null) {
     try {
-        $current_year = date('Y');
+        $current_year = $year ?? date('Y');
         $discount_percent = getBusinessDiscountPercent($pdo);
         
         // Calculate discount (similar to RPT - for early payment in first quarter)
@@ -168,7 +163,7 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax) {
             ];
         }
         
-        // Insert new annual payment - UPDATED COLUMNS TO MATCH BUSINESS DB
+        // Insert new annual payment
         $insert_query = "
             INSERT INTO annual_payments 
             (business_permit_id, user_id, payment_year, reference_number, total_amount,
@@ -206,10 +201,86 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax) {
         ];
         
     } catch (Exception $e) {
-        error_log("Error creating annual payment: " . $e->getMessage());
         return [
             'success' => false, 
             'message' => 'Failed to create annual payment: ' . $e->getMessage()
+        ];
+    }
+}
+
+// Function to create tax summary in tax_summary table WITH YEAR - UPDATED to use applicant_id
+function createTaxSummary($pdo, $permitId, $year = null) {
+    try {
+        // Use current year if not specified
+        if ($year === null) {
+            $year = date('Y');
+        }
+        
+        // Get business permit details for tax summary - UPDATED to include applicant_id
+        $stmt = $pdo->prepare("
+            SELECT 
+                applicant_id as business_id,  -- Changed from id to applicant_id
+                business_name as name,
+                owner_type,
+                business_nature,
+                trade_name
+            FROM business_permits 
+            WHERE id = ?
+        ");
+        $stmt->execute([$permitId]);
+        $business = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$business) {
+            return [
+                'success' => false,
+                'message' => 'Business permit not found'
+            ];
+        }
+        
+        // Check if tax summary already exists for this business and year
+        $check_stmt = $pdo->prepare("SELECT id FROM tax_summary WHERE business_id = ? AND year = ?");
+        $check_stmt->execute([$business['business_id'], $year]);  // Using applicant_id as business_id
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            return [
+                'success' => false,
+                'message' => "Tax summary already exists for this business for year $year"
+            ];
+        }
+        
+        // Insert tax summary with "Unpaid" status and year
+        $insert_stmt = $pdo->prepare("
+            INSERT INTO tax_summary 
+            (business_id, year, name, owner_type, business_nature, trade_name, tax_status) 
+            VALUES (?, ?, ?, ?, ?, ?, 'Unpaid')
+        ");
+        
+        $insert_stmt->execute([
+            $business['business_id'],  // This is now applicant_id (e.g., 'BUS2026568')
+            $year,
+            $business['name'],
+            $business['owner_type'],
+            $business['business_nature'],
+            $business['trade_name']
+        ]);
+        
+        $tax_summary_id = $pdo->lastInsertId();
+        
+        return [
+            'success' => true,
+            'tax_summary_id' => $tax_summary_id,
+            'business_id' => $business['business_id'],  // Will be 'BUS2026568'
+            'business_name' => $business['name'],
+            'year' => $year,
+            'status' => 'Unpaid',
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        
+    } catch (PDOException $e) {
+        return [
+            'success' => false,
+            'message' => 'Failed to create tax summary: ' . $e->getMessage()
         ];
     }
 }
@@ -241,13 +312,14 @@ function approvePermit($pdo) {
     }
 
     $permit_id = intval($data['id']);
+    $current_year = date('Y');
     
     try {
-        // Get business permit details - with user_id for annual payment
+        // Get business permit details WITH tax_status field
         $permit_stmt = $pdo->prepare("
             SELECT id, applicant_id, taxable_amount, capital_investment, business_nature, 
                    tax_calculation_type, user_id, permit_status, tax_status,
-                   business_name, owner_full_name
+                   business_name, owner_full_name, owner_type, trade_name
             FROM business_permits 
             WHERE id = ?
         ");
@@ -277,7 +349,7 @@ function approvePermit($pdo) {
         $pdo->beginTransaction();
 
         try {
-            // 1. Update permit status and tax values
+            // 1. Update permit status, tax values, AND tax_status
             $update_stmt = $pdo->prepare("
                 UPDATE business_permits 
                 SET permit_status = 'APPROVED', 
@@ -309,34 +381,42 @@ function approvePermit($pdo) {
                 $permit['tax_calculation_type']
             );
 
-            // 3. GENERATE ANNUAL PAYMENT RECORD (MANDATORY like RPT)
+            // 3. GENERATE ANNUAL PAYMENT RECORD
             $annual_payment_result = null;
-            $annual_payment_id = null;
             $annual_payment_error = null;
             
             try {
-                // Always create annual payment when approving (like RPT)
                 if ($permit['user_id']) {
                     $annual_payment_result = createAnnualPayment(
                         $pdo, 
                         $permit_id, 
                         $permit['user_id'],
-                        $total_tax
+                        $total_tax,
+                        $current_year
                     );
                     
                     if (!$annual_payment_result['success']) {
                         $annual_payment_error = $annual_payment_result['message'];
-                        // Log but don't fail transaction
-                        error_log("Annual payment warning: " . $annual_payment_error);
                     }
                 } else {
                     $annual_payment_error = "No user_id found for permit. Annual payment skipped.";
-                    error_log($annual_payment_error);
                 }
             } catch (Exception $e) {
                 $annual_payment_error = "Annual payment error: " . $e->getMessage();
-                error_log($annual_payment_error);
-                // Continue with approval even if annual payment fails
+            }
+
+            // 4. CREATE TAX SUMMARY RECORD WITH YEAR - Now using applicant_id
+            $tax_summary_result = null;
+            $tax_summary_error = null;
+            
+            try {
+                $tax_summary_result = createTaxSummary($pdo, $permit_id, $current_year);
+                
+                if (!$tax_summary_result['success']) {
+                    $tax_summary_error = $tax_summary_result['message'];
+                }
+            } catch (Exception $e) {
+                $tax_summary_error = "Tax summary error: " . $e->getMessage();
             }
 
             $pdo->commit();
@@ -345,11 +425,13 @@ function approvePermit($pdo) {
             $response_data = [
                 'permit_updated' => true,
                 'permit_id' => $permit_id,
-                'applicant_id' => $permit['applicant_id'],
+                'applicant_id' => $permit['applicant_id'],  // e.g., 'BUS2026568'
                 'business_name' => $permit['business_name'],
                 'owner_name' => $permit['owner_full_name'],
                 'new_status' => 'APPROVED',
+                'tax_status' => 'Approved',
                 'approved_date' => date('Y-m-d H:i:s'),
+                'year' => $current_year,
                 'totals' => [
                     'taxable_amount' => $taxable_amount,
                     'tax_amount' => $tax_amount,
@@ -374,9 +456,26 @@ function approvePermit($pdo) {
                 ];
             }
             
-            // Add warning if annual payment failed
+            // Add tax summary info if created
+            if ($tax_summary_result && $tax_summary_result['success']) {
+                $response_data['tax_summary'] = [
+                    'id' => $tax_summary_result['tax_summary_id'],
+                    'business_id' => $tax_summary_result['business_id'],  // Will be 'BUS2026568'
+                    'business_name' => $tax_summary_result['business_name'],
+                    'year' => $tax_summary_result['year'],
+                    'tax_status' => $tax_summary_result['status'],
+                    'created_at' => $tax_summary_result['created_at']
+                ];
+            }
+            
+            // Add warnings if annual payment failed
             if ($annual_payment_error) {
                 $response_data['annual_payment_warning'] = $annual_payment_error;
+            }
+            
+            // Add warning if tax summary failed
+            if ($tax_summary_error) {
+                $response_data['tax_summary_warning'] = $tax_summary_error;
             }
 
             echo json_encode([
@@ -421,4 +520,3 @@ switch ($method) {
         ]);
         break;
 }
-?>

@@ -7,7 +7,8 @@ import {
   ChevronLeft, ChevronRight, Maximize2, Minimize2, XCircle, Check,
   Grid3x3, Layers, ChevronUp, ChevronRight as ChevronRightIcon,
   Landmark, Building2, Store, CreditCard, FileText, AlertOctagon,
-  TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon
+  TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon,
+  TreePine // For isolation forest icon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -94,6 +95,105 @@ const Stats = {
   }
 };
 
+// Isolation Forest implementation
+class IsolationForest {
+  constructor(numTrees = 100, sampleSize = 256) {
+    this.numTrees = numTrees;
+    this.sampleSize = sampleSize;
+    this.trees = [];
+    this.heightLimit = Math.ceil(Math.log2(sampleSize));
+  }
+
+  fit(data) {
+    this.trees = [];
+    for (let i = 0; i < this.numTrees; i++) {
+      // Sample data
+      const sampleIndices = [];
+      for (let j = 0; j < Math.min(this.sampleSize, data.length); j++) {
+        sampleIndices.push(Math.floor(Math.random() * data.length));
+      }
+      const sampleData = sampleIndices.map(idx => data[idx]);
+      
+      // Build tree
+      const tree = this.buildTree(sampleData, 0);
+      this.trees.push(tree);
+    }
+  }
+
+  buildTree(data, currentHeight) {
+    if (data.length <= 1 || currentHeight >= this.heightLimit) {
+      return {
+        size: data.length,
+        height: currentHeight,
+        isLeaf: true
+      };
+    }
+
+    // Randomly select a feature (in this case, just use the value itself)
+    const maxVal = Math.max(...data);
+    const minVal = Math.min(...data);
+    
+    if (maxVal === minVal) {
+      return {
+        size: data.length,
+        height: currentHeight,
+        isLeaf: true
+      };
+    }
+
+    // Random split point
+    const splitPoint = Math.random() * (maxVal - minVal) + minVal;
+    
+    const leftData = data.filter(val => val < splitPoint);
+    const rightData = data.filter(val => val >= splitPoint);
+
+    return {
+      splitPoint,
+      left: this.buildTree(leftData, currentHeight + 1),
+      right: this.buildTree(rightData, currentHeight + 1),
+      isLeaf: false
+    };
+  }
+
+  pathLength(value, tree, currentPathLength = 0) {
+    if (tree.isLeaf) {
+      const n = tree.size;
+      if (n <= 1) return currentPathLength;
+      // Average path length of unsuccessful search in BST
+      const c = 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1) / n);
+      return currentPathLength + c;
+    }
+
+    if (value < tree.splitPoint) {
+      return this.pathLength(value, tree.left, currentPathLength + 1);
+    } else {
+      return this.pathLength(value, tree.right, currentPathLength + 1);
+    }
+  }
+
+  anomalyScore(value) {
+    const pathLengths = this.trees.map(tree => this.pathLength(value, tree));
+    const avgPathLength = pathLengths.reduce((a, b) => a + b, 0) / pathLengths.length;
+    
+    const n = this.sampleSize;
+    const c = 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1) / n);
+    
+    const score = Math.pow(2, -avgPathLength / c);
+    return score;
+  }
+
+  predict(data) {
+    return data.map(value => {
+      const score = this.anomalyScore(value);
+      return {
+        value,
+        score,
+        isAnomaly: score > 0.6 // Threshold for anomaly
+      };
+    });
+  }
+}
+
 export default function Anomaly() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -126,6 +226,20 @@ export default function Anomaly() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [detectionHistory, setDetectionHistory] = useState([]);
+  const [isolationForest] = useState(new IsolationForest());
+
+  // Fix the expanded view CSS
+  useEffect(() => {
+    if (expandedView) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [expandedView]);
 
   // Fetch available years from database on component mount
   useEffect(() => {
@@ -432,6 +546,30 @@ export default function Anomaly() {
         }
       });
     }
+    else if (detectionMethod === 'isolation') {
+      // Train isolation forest
+      isolationForest.fit(revenues);
+      
+      // Predict anomalies
+      const predictions = isolationForest.predict(revenues);
+      
+      predictions.forEach((pred, index) => {
+        if (pred.isAnomaly) {
+          const score = pred.score;
+          anomalies.push({
+            index,
+            value: pred.value,
+            score: score.toFixed(3),
+            method: 'isolation',
+            severity: score > 0.8 ? 'high' : score > 0.6 ? 'medium' : 'low',
+            month: data[index]?.month_name || `Month ${index + 1}`,
+            system: data[index]?.system || systemFilter,
+            deviation: 'N/A',
+            isBelow: false // Isolation Forest doesn't indicate direction
+          });
+        }
+      });
+    }
     
     return anomalies;
   };
@@ -449,6 +587,8 @@ export default function Anomaly() {
         description = `${systemName}: Z-score of ${anomaly.zScore} detected for ${anomaly.month}`;
       } else if (anomaly.method === 'iqr') {
         description = `${systemName}: IQR deviation of ${anomaly.deviation} detected for ${anomaly.month}`;
+      } else if (anomaly.method === 'isolation') {
+        description = `${systemName}: Isolation Forest anomaly score ${anomaly.score} for ${anomaly.month}`;
       }
 
       alerts.push({
@@ -462,7 +602,7 @@ export default function Anomaly() {
         method: anomaly.method,
         timestamp: new Date().toISOString(),
         isResolved: false,
-        deviation: anomaly.deviation,
+        deviation: anomaly.deviation || anomaly.score,
         isBelow: anomaly.isBelow
       });
     });
@@ -477,7 +617,7 @@ export default function Anomaly() {
     const summary = {
       totalAnomalies: anomalies.length,
       bySeverity: { high: 0, medium: 0, low: 0 },
-      byMethod: { zscore: 0, iqr: 0 },
+      byMethod: { zscore: 0, iqr: 0, isolation: 0 },
       detectionMetrics: {},
       monthlyStats: data || [],
       systemTotals: totals,
@@ -533,7 +673,7 @@ export default function Anomaly() {
       return `₱${(numAmount / 1000000000).toFixed(2)}B`;
     }
     if (numAmount >= 1000000) {
-      return `₱${(numAmount / 1000000000).toFixed(2)}M`;
+      return `₱${(numAmount / 1000000).toFixed(2)}M`;
     }
     if (numAmount >= 1000) {
       return `₱${(numAmount / 1000).toFixed(2)}K`;
@@ -590,7 +730,7 @@ export default function Anomaly() {
         'Severity': alert.severity.toUpperCase(),
         'Value': formatCurrency(alert.value),
         'Detection Method': alert.method.toUpperCase(),
-        'Deviation': alert.deviation ? `${alert.deviation}%` : 'N/A',
+        'Deviation': alert.deviation ? `${alert.deviation}${alert.method === 'isolation' ? ' (score)' : '%'}` : 'N/A',
         'Timestamp': new Date(alert.timestamp).toLocaleString(),
         'Status': alert.isResolved ? 'Resolved' : 'Active',
         'Direction': alert.isBelow ? 'Below Normal' : 'Above Normal'
@@ -642,7 +782,6 @@ export default function Anomaly() {
   };
 
   const exportPDF = () => {
-    // This would typically be implemented with a PDF library like jsPDF
     alert('PDF export functionality would be implemented with jsPDF library');
   };
 
@@ -771,9 +910,9 @@ export default function Anomaly() {
                             systemFilter === 'business' ? 'Business Tax' : 'Market Rent';
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${expandedView ? 'fixed inset-0 z-50 overflow-auto' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${expandedView ? 'fixed inset-0 z-50 overflow-auto bg-white' : ''}`}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+      <div className={`bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40 ${expandedView ? '' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex-1">
@@ -988,7 +1127,8 @@ export default function Anomaly() {
                 <div className="flex gap-2">
                   {[
                     { id: 'zscore', label: 'Z-Score', icon: BarChart3, description: 'Standard deviations from mean' },
-                    { id: 'iqr', label: 'IQR', icon: LineChart, description: 'Interquartile range method' }
+                    { id: 'iqr', label: 'IQR', icon: LineChart, description: 'Interquartile range method' },
+                    { id: 'isolation', label: 'Isolation Forest', icon: TreePine, description: 'Machine learning isolation method' }
                   ].map((method) => {
                     const Icon = method.icon;
                     return (
@@ -1012,26 +1152,33 @@ export default function Anomaly() {
                 </div>
               </div>
               
-              {/* Threshold Control */}
-              <div className="flex items-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-2">
-                <Target className="w-5 h-5 text-gray-500" />
-                <div className="text-left">
-                  <div className="text-sm text-gray-500">Threshold</div>
-                  <div className="font-medium">{threshold.toFixed(1)}</div>
+              {/* Threshold Control - Only show for Z-Score and IQR */}
+              {detectionMethod !== 'isolation' && (
+                <div className="flex items-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-2">
+                  <Target className="w-5 h-5 text-gray-500" />
+                  <div className="text-left">
+                    <div className="text-sm text-gray-500">
+                      {detectionMethod === 'zscore' ? 'Z-Score Threshold' : 'IQR Multiplier'}
+                    </div>
+                    <div className="font-medium">{threshold.toFixed(1)}</div>
+                  </div>
+                  <input
+                    type="range"
+                    min={detectionMethod === 'zscore' ? "1" : "1"}
+                    max={detectionMethod === 'zscore' ? "5" : "3"}
+                    step="0.5"
+                    value={threshold}
+                    onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                    className="w-32 accent-gray-900"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {detectionMethod === 'zscore' 
+                      ? (threshold <= 2 ? 'Standard' : threshold <= 3 ? 'Strict' : 'Aggressive')
+                      : (threshold <= 1.5 ? 'Standard' : threshold <= 2 ? 'Strict' : 'Aggressive')
+                    }
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  step="0.5"
-                  value={threshold}
-                  onChange={(e) => setThreshold(parseFloat(e.target.value))}
-                  className="w-32 accent-gray-900"
-                />
-                <div className="text-xs text-gray-500">
-                  {threshold <= 2 ? 'Standard' : threshold <= 3 ? 'Strict' : 'Aggressive'}
-                </div>
-              </div>
+              )}
               
               {/* Refresh Button */}
               <button
@@ -1086,7 +1233,7 @@ export default function Anomaly() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ${expandedView ? '' : ''}`}>
         {error && (
           <div className="mb-6 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl p-4">
             <div className="flex items-center gap-3">
@@ -1489,14 +1636,26 @@ export default function Anomaly() {
                   </div>
                   <div className="pt-4 border-t border-gray-200">
                     <div className="text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-yellow-500" />
-                        <span>Threshold: {threshold.toFixed(1)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Target className="w-4 h-4 text-blue-500" />
-                        <span>{threshold <= 2 ? 'Standard sensitivity' : threshold <= 3 ? 'High sensitivity' : 'Very high sensitivity'}</span>
-                      </div>
+                      {detectionMethod !== 'isolation' ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-yellow-500" />
+                            <span>Threshold: {threshold.toFixed(1)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Target className="w-4 h-4 text-blue-500" />
+                            <span>{detectionMethod === 'zscore' 
+                              ? (threshold <= 2 ? 'Standard sensitivity' : threshold <= 3 ? 'High sensitivity' : 'Very high sensitivity')
+                              : (threshold <= 1.5 ? 'Standard sensitivity' : threshold <= 2 ? 'High sensitivity' : 'Very high sensitivity')
+                            }</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <TreePine className="w-4 h-4 text-green-500" />
+                          <span>Isolation Forest with automatic threshold detection</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1524,7 +1683,7 @@ export default function Anomaly() {
                           </span>
                         </div>
                         <div className="mt-2 text-xs text-gray-500">
-                          {history.system} • {history.method} (T: {history.threshold})
+                          {history.system} • {history.method} {history.method !== 'isolation' && `(T: ${history.threshold})`}
                         </div>
                       </div>
                     ))
@@ -1755,15 +1914,19 @@ export default function Anomaly() {
                           </td>
                           <td className="py-4 px-6 whitespace-nowrap">
                             <div className="flex items-center gap-1">
-                              {alert.isBelow ? (
+                              {alert.method !== 'isolation' && alert.isBelow ? (
                                 <TrendingDownIcon className="w-4 h-4 text-red-500" />
-                              ) : (
+                              ) : alert.method !== 'isolation' ? (
                                 <TrendingUpIcon className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <TreePine className="w-4 h-4 text-green-600" />
                               )}
                               <span className={`text-sm font-medium ${
+                                alert.method === 'isolation' ? 'text-green-600' :
                                 alert.isBelow ? 'text-red-600' : 'text-green-600'
                               }`}>
                                 {alert.deviation || 'N/A'}
+                                {alert.method === 'isolation' && ' (score)'}
                               </span>
                             </div>
                           </td>

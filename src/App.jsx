@@ -16,7 +16,7 @@ import RPTValidationInfo from './pages/RPT/RPTValidationTable/RPTValidationInfo'
 import RPTStatus from './pages/RPT/RPTStatus/RPTStatus'
 import RPTStatusInfo from './pages/RPT/RPTStatus/RPTStatusInfo'
 import RPTDashboard from './pages/RPT/RPTDashboard/RPTDashboard'
-import RPTAnomaly from './pages/RPT/RPTAnomaly/RPTAnomaly'
+import RPTDelinquent from './pages/RPT/RPTDelinquent/RPTDelinquent'
 
 // BUSINESS Pages
 import BusinessTaxConfig from './pages/BUSINESS/BusinessTaxConfig/BusinessTaxConfig'
@@ -25,7 +25,7 @@ import BusinessValidationInfo from './pages/BUSINESS/BusinessValidation/Business
 import BusinessStatus from './pages/BUSINESS/BusinessStatus/BusinessStatus'
 import BusinessStatusInfo from './pages/BUSINESS/BusinessStatus/BusinessStatusInfo'
 import BusinessTaxDashboard from './pages/BUSINESS/BusinessTaxDashboard/BusinessTaxDashboard'
-import BusinessAnomaly from './pages/BUSINESS/BusinessAnomaly/BusinessAnomaly'
+import BusinessDelinquent from './pages/BUSINESS/BusinessDelinquent/BusinessDelinquent'
 // DIGIPAY Pages
 import DigiDashboard from './pages/DIGITAL/DigiDashboard/DigiDashoard'
 
@@ -46,7 +46,7 @@ import MarketConfig from './pages/MARKET/MapCreator/MarketConfig'
 import MarketStatus from './pages/MARKET/MarketStatus/MarketStatus'
 import MarketStatusInfo from './pages/MARKET/MarketStatus/MarketStatusInfo'
 import MarketDashboard from './pages/MARKET/MarketDashboard/MarketDashboard'
-import MarketAnomaly from './pages/MARKET/MarketAnomaly/MarketAnomaly'
+import MarketDelinquent from './pages/MARKET/MarketDelinquent/MarketDelinquent'
 
 import MarketValidation from './pages/MARKET/MarketValidation/MarketValidation'
 import MarketValidationInfo from './pages/MARKET/MarketValidation/MarketValidationInfo' // ADD THIS IMPORT
@@ -89,7 +89,7 @@ function App() {
               <Route path="/rpt/rptstatus" element={<RPTStatus />} />
               <Route path="/rpt/rptstatusinfo/:id" element={<RPTStatusInfo />} />
               <Route path="/rpt/rptdashboard" element={<RPTDashboard />} />
-              <Route path="/rpt/rptanomaly" element={<RPTAnomaly />} />
+              <Route path="/rpt/rptdelinquent" element={<RPTDelinquent />} />
 
               {/* BUSINESS */}
               <Route path="/business/businesstaxdashboard" element={<BusinessTaxDashboard />} />
@@ -98,7 +98,7 @@ function App() {
               <Route path="/business/businessvalidationinfo/:id" element={<BusinessValidationInfo />} />
               <Route path="/business/businessstatus" element={<BusinessStatus />} />
               <Route path="/business/businessstatusinfo/:id" element={<BusinessStatusInfo />} />
-              <Route path="/business/businessanomaly" element={<BusinessAnomaly />} />
+              <Route path="/business/businessdelinquent" element={<BusinessDelinquent />} />
 
               {/* TREASURY */}
               <Route path="/treasury/revenue" element={<Revenue />} />
@@ -115,7 +115,7 @@ function App() {
               <Route path="/market/viewallmaps" element={<ViewAllMaps />} />
               <Route path="/market/mapeditor/:id" element={<MapEditor />} />
               <Route path="/Market/Config" element={<MarketConfig />} />
-              <Route path="/market/marketanomaly" element={<MarketAnomaly />} />
+              <Route path="/market/marketdelinquent" element={<MarketDelinquent />} />
 
               <Route path="/market/marketvalidation" element={<MarketValidation />} />
               <Route path="/market/marketvalidationinfo/:id" element={<MarketValidationInfo />} />
