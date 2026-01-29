@@ -148,7 +148,7 @@ try {
 }
 
 // Get the base URL for the background image
-$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
