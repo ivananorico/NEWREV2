@@ -57,7 +57,13 @@ $max_price = count($prices) > 0 ? max($prices) : 0;
 $user_name = $_SESSION['user_name'] ?? 'Citizen';
 
 // Get the base URL for the background image
-$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+// Get base URL for background image - FIXED: Using reliable method
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    $protocol = 'https://';
+} else {
+    $protocol = 'http://';
+}
+$base_url = $protocol . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 <!DOCTYPE html>
