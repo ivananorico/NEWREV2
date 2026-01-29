@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             $registration_id = $pdo->lastInsertId();
             
-            // 3. Insert into renter_owner
+            // 3. Insert into renter_owner - FIXED: Gender validation added
             $owner_stmt = $pdo->prepare("
                 INSERT INTO renter_owner (
                     registration_id, user_id,
@@ -214,6 +214,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $city = $_POST['city'] ?? 'Quezon City';
             $province = $_POST['province'] ?? 'Metro Manila';
             $renter_code = 'RENTER-' . date('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            
+            // Validate and sanitize gender input
+            $gender_input = $_POST['gender'] ?? '';
+            $allowed_genders = ['male', 'female', 'other'];
+            $gender = in_array(strtolower($gender_input), $allowed_genders) ? strtolower($gender_input) : null;
             
             // Execute renter_owner insert
             $owner_stmt->execute([
@@ -233,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $province,
                 $_POST['zip_code'] ?? null,
                 $_POST['birthdate'],
-                $_POST['gender'] ?? null,
+                $gender, // Use validated gender
                 $_POST['emergency_name'] ?? null,
                 $_POST['emergency_contact'] ?? null,
                 $renter_code
@@ -308,7 +313,6 @@ if (empty($_SESSION['csrf_token'])) {
 $form_data = array_merge($autofill_data, $_POST ?? []);
 
 // Get the base URL for the background image
-// Get base URL for background image - FIXED: Using reliable method
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
     $protocol = 'https://';
 } else {
@@ -844,9 +848,9 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 </label>
                                 <select name="gender" class="input-field">
                                     <option value="">Select Gender</option>
-                                    <option value="male" <?php echo ($form_data['gender'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
-                                    <option value="female" <?php echo ($form_data['gender'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
-                                    <option value="other" <?php echo ($form_data['gender'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
+                                    <option value="male" <?php echo (strtolower($form_data['gender'] ?? '') == 'male') ? 'selected' : ''; ?>>Male</option>
+                                    <option value="female" <?php echo (strtolower($form_data['gender'] ?? '') == 'female') ? 'selected' : ''; ?>>Female</option>
+                                    <option value="other" <?php echo (strtolower($form_data['gender'] ?? '') == 'other') ? 'selected' : ''; ?>>Other</option>
                                 </select>
                             </div>
                         </div>
@@ -1024,91 +1028,90 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                         </div>
 
                         <!-- Required Documents -->
-                       <!-- Required Documents Section - Updated with correct IDs -->
-<div class="section-header mt-8">
-    <h2 class="text-xl font-bold text-gray-900 flex items-center">
-        <i class="fas fa-file-upload mr-3 text-primary"></i>
-        Required Documents
-    </h2>
-    <p class="text-gray-600 text-sm mt-1">Upload clear images of the following documents (Max 5MB each)</p>
-</div>
+                        <div class="section-header mt-8">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-file-upload mr-3 text-primary"></i>
+                                Required Documents
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Upload clear images of the following documents (Max 5MB each)</p>
+                        </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <!-- Barangay Clearance -->
-    <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-            Barangay Clearance <span class="text-red-500">*</span>
-        </label>
-        <div class="file-input-wrapper">
-            <div class="file-input-button">
-                <span>Choose File</span>
-                <i class="fas fa-paperclip"></i>
-            </div>
-            <input type="file" name="barangay_clearance" id="barangay_clearance" 
-                   accept="image/jpeg,image/jpg,image/png" 
-                   class="file-input" required
-                   onchange="handleFileSelect(this, 'barangay-display')">
-        </div>
-        <div id="barangay-display" class="file-display">
-            <div class="file-name" id="barangay-name"></div>
-            <div class="file-size" id="barangay-size"></div>
-            <div class="file-actions">
-                <button type="button" class="file-action-btn preview" onclick="previewFile('barangay_clearance')">Preview</button>
-                <button type="button" class="file-action-btn remove" onclick="removeFile('barangay_clearance', 'barangay-display')">Remove</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 2x2 ID Photo -->
-    <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-            2x2 ID Photo <span class="text-red-500">*</span>
-        </label>
-        <div class="file-input-wrapper">
-            <div class="file-input-button">
-                <span>Choose File</span>
-                <i class="fas fa-paperclip"></i>
-            </div>
-            <input type="file" name="id_photo_2x2" id="id_photo_2x2"
-                   accept="image/jpeg,image/jpg,image/png" 
-                   class="file-input" required
-                   onchange="handleFileSelect(this, 'id-photo-display')">
-        </div>
-        <div id="id-photo-display" class="file-display">
-            <div class="file-name" id="id-photo-name"></div>
-            <div class="file-size" id="id-photo-size"></div>
-            <div class="file-actions">
-                <button type="button" class="file-action-btn preview" onclick="previewFile('id_photo_2x2')">Preview</button>
-                <button type="button" class="file-action-btn remove" onclick="removeFile('id_photo_2x2', 'id-photo-display')">Remove</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Valid ID -->
-    <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-            Valid ID (Passport, Driver's License, etc.) <span class="text-red-500">*</span>
-        </label>
-        <div class="file-input-wrapper">
-            <div class="file-input-button">
-                <span>Choose File</span>
-                <i class="fas fa-paperclip"></i>
-            </div>
-            <input type="file" name="valid_id" id="valid_id"
-                   accept="image/jpeg,image/jpg,image/png" 
-                   class="file-input" required
-                   onchange="handleFileSelect(this, 'valid-id-display')">
-        </div>
-        <div id="valid-id-display" class="file-display">
-            <div class="file-name" id="valid-id-name"></div>
-            <div class="file-size" id="valid-id-size"></div>
-            <div class="file-actions">
-                <button type="button" class="file-action-btn preview" onclick="previewFile('valid_id')">Preview</button>
-                <button type="button" class="file-action-btn remove" onclick="removeFile('valid_id', 'valid-id-display')">Remove</button>
-            </div>
-        </div>
-    </div>
-</div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Barangay Clearance -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Barangay Clearance <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="barangay_clearance" id="barangay_clearance" 
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'barangay-display')">
+                                </div>
+                                <div id="barangay-display" class="file-display">
+                                    <div class="file-name" id="barangay-name"></div>
+                                    <div class="file-size" id="barangay-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('barangay_clearance')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('barangay_clearance', 'barangay-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 2x2 ID Photo -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    2x2 ID Photo <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="id_photo_2x2" id="id_photo_2x2"
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'id-photo-display')">
+                                </div>
+                                <div id="id-photo-display" class="file-display">
+                                    <div class="file-name" id="id-photo-name"></div>
+                                    <div class="file-size" id="id-photo-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('id_photo_2x2')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('id_photo_2x2', 'id-photo-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Valid ID -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Valid ID (Passport, Driver's License, etc.) <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="valid_id" id="valid_id"
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'valid-id-display')">
+                                </div>
+                                <div id="valid-id-display" class="file-display">
+                                    <div class="file-name" id="valid-id-name"></div>
+                                    <div class="file-size" id="valid-id-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('valid_id')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('valid_id', 'valid-id-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Terms and Conditions -->
                         <div class="section-header mt-8">
@@ -1512,4 +1515,4 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     });
 </script> 
 </body>
-</html>
+</html> 
