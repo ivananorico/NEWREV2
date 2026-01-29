@@ -61,8 +61,9 @@ try {
     $error_message = "Database error: " . $e->getMessage();
 }
 
-// Get the base URL for the background image
-$base_url_bg = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+// Get the base URL for the background image - FIXED LINE 65
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$base_url_bg = $protocol . '://' . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url_bg . '/revenue2/Login/images/gsmbg.png';
 ?>
 
