@@ -30,6 +30,9 @@ import DigiDashboard from './pages/DIGITAL/DigiDashboard/DigiDashoard'
 
 // TREASURY Pages
 import Revenue from './pages/TREASURY/Revenue/Revenue'
+import Collection from './pages/TREASURY/Collection/Collection'
+import Anomaly from './pages/TREASURY/Anomaly/Anomaly'
+
 
 
 // MARKET Pages
@@ -94,6 +97,8 @@ function App() {
 
               {/* TREASURY */}
               <Route path="/treasury/revenue" element={<Revenue />} />
+              <Route path="/treasury/collection" element={<Collection />} />
+              <Route path="/treasury/anomaly" element={<Anomaly />} />
 
               {/* DIGIPAY */}
               <Route path="/digital/digidashboard" element={<DigiDashboard />} />

@@ -36,6 +36,8 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "Revenue", label: "Revenue", path: "/TREASURY/Revenue" },
+      { id: "Collection", label: "Collection", path: "/TREASURY/Collection" },
+      { id: "Anomaly", label: "Anomaly Detection", path: "/TREASURY/Anomaly" },
     ]
   },
   {
