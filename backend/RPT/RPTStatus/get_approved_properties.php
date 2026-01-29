@@ -1,7 +1,7 @@
 <?php
 // revenue2/backend/RPT/RPTStatus/get_approved_properties.php
 // ================================================
-// GET APPROVED PROPERTIES API - SIMPLIFIED VERSION
+// GET APPROVED PROPERTIES API
 // ================================================
 
 // Set CORS headers
@@ -20,35 +20,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database configuration - Hardcoded to avoid dependency issues
-$host = 'localhost:3307';
-$dbname = 'rpt';
-$username = 'root';
-$password = '';
+// ================================================
+// INCLUDE DATABASE CONFIGURATION
+// ================================================
 
-try {
-    // Create database connection
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    
-} catch (PDOException $e) {
-    // Return error response
+// Try to include the database configuration
+$dbConfigPath = __DIR__ . '/../../../db/RPT/rpt_db.php';
+
+if (!file_exists($dbConfigPath)) {
+    http_response_code(500);
     echo json_encode([
         "success" => false,
-        "error" => "Database connection failed: " . $e->getMessage(),
-        "details" => "Check database credentials"
+        "error" => "Database configuration file not found",
+        "path" => $dbConfigPath,
+        "dir_exists" => file_exists(dirname($dbConfigPath))
     ]);
     exit();
 }
 
-// Handle GET request
+require_once $dbConfigPath;
+
+// Get database connection
+$dbConnection = getDatabaseConnection();
+
+// Check if connection failed
+if (is_array($dbConnection) && isset($dbConnection['error'])) {
+    http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "error" => $dbConnection['message'],
+        "debug" => $dbConnection['debug'] ?? null
+    ]);
+    exit();
+}
+
+// Assign PDO object
+$pdo = $dbConnection;
+
+// ================================================
+// HANDLE REQUEST
+// ================================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     getApprovedProperties($pdo);
 } else {
     http_response_code(405);
     echo json_encode(["success" => false, "error" => "Method not allowed"]);
 }
+
+// ================================================
+// FUNCTIONS
+// ================================================
 
 function getApprovedProperties($pdo) {
     try {
@@ -57,6 +79,15 @@ function getApprovedProperties($pdo) {
         $currentQuarter = ceil($currentMonth / 3);
         $currentYear = date('Y');
         $quarterStr = 'Q' . $currentQuarter;
+        
+        // Simple query first - test if it works
+        $testQuery = "SELECT 1 as test";
+        $testStmt = $pdo->query($testQuery);
+        $testResult = $testStmt->fetch();
+        
+        if (!$testResult) {
+            throw new Exception("Database test query failed");
+        }
         
         // Get approved properties with simplified query
         $query = "
@@ -115,7 +146,8 @@ function getApprovedProperties($pdo) {
             "data" => $processedProperties,
             "count" => count($processedProperties),
             "current_quarter" => $quarterStr,
-            "current_year" => $currentYear
+            "current_year" => $currentYear,
+            "message" => "Properties loaded successfully"
         ]);
         
     } catch (Exception $e) {
@@ -123,7 +155,8 @@ function getApprovedProperties($pdo) {
         echo json_encode([
             "success" => false,
             "error" => "Query failed: " . $e->getMessage(),
-            "trace" => $e->getTraceAsString()
+            "trace" => $e->getTraceAsString(),
+            "query_error" => $pdo->errorInfo()
         ]);
     }
 }
