@@ -287,14 +287,53 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Handle document preview
+  // Get document URL - FIXED VERSION
+  const getDocumentUrl = (filePath) => {
+    if (!filePath || filePath === 'null' || filePath === 'undefined') {
+      console.log('No file path provided');
+      return null;
+    }
+    
+    console.log('File path:', filePath);
+    
+    // If it's already a full URL, return it
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    
+    // If it starts with 'uploads/' or similar, handle it properly
+    const API_BASE = getApiBaseUrl();
+    
+    // Check if the filePath is an absolute path or relative path
+    if (filePath.startsWith('/')) {
+      // Already absolute path, append to base URL
+      return `${API_BASE}${filePath}`;
+    } else if (filePath.includes('uploads/')) {
+      // Already includes uploads directory
+      return `${API_BASE}/${filePath}`;
+    } else {
+      // Assume it's a filename, prepend with uploads directory
+      return `${API_BASE}/uploads/${filePath}`;
+    }
+  };
+
+  // Handle document preview - FIXED VERSION
   const handleDocumentPreview = (docType, filePath) => {
-    if (!filePath) {
-      alert("No document available");
+    console.log('Document preview clicked:', { docType, filePath });
+    
+    if (!filePath || filePath === 'null' || filePath === 'undefined') {
+      alert(`No ${docType.replace('_', ' ')} document available`);
       return;
     }
     
     const url = getDocumentUrl(filePath);
+    
+    if (!url) {
+      alert(`Unable to load ${docType.replace('_', ' ')} document`);
+      return;
+    }
+    
+    console.log('Generated URL:', url);
     setPreviewUrl(url);
     setShowDocumentPreview(docType);
   };
@@ -416,22 +455,6 @@ const MarketValidationInfo = () => {
         </div>
       </div>
     );
-  };
-
-  // Get document URL
-  const getDocumentUrl = (filePath) => {
-    if (!filePath) return "#";
-    if (filePath.startsWith('http')) return filePath;
-    
-    const API_BASE = getApiBaseUrl();
-    
-    // Check if filePath is relative or absolute
-    if (filePath.startsWith('/')) {
-      return `${API_BASE}${filePath}`;
-    } else {
-      // Assume it's in uploads directory
-      return `${API_BASE}/uploads/${filePath}`;
-    }
   };
 
   // Render action buttons based on status
@@ -1039,7 +1062,7 @@ const MarketValidationInfo = () => {
             </div>
           </div>
 
-          {/* Documents Section */}
+          {/* Documents Section - FIXED */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
               <div className="p-2 bg-indigo-50 rounded-lg">
@@ -1050,7 +1073,7 @@ const MarketValidationInfo = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Barangay Clearance */}
-              {application.barangay_clearance && (
+              {application.barangay_clearance && application.barangay_clearance !== 'null' && application.barangay_clearance !== 'undefined' ? (
                 <div 
                   className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm cursor-pointer transition-all duration-200 bg-gray-50 hover:bg-blue-50"
                   onClick={() => handleDocumentPreview('barangay_clearance', application.barangay_clearance)}
@@ -1065,10 +1088,22 @@ const MarketValidationInfo = () => {
                     </div>
                   </div>
                 </div>
+              ) : (
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 opacity-60">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-file-contract text-gray-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-400">Barangay Clearance</p>
+                      <p className="text-xs text-gray-400 mt-1">Not uploaded</p>
+                    </div>
+                  </div>
+                </div>
               )}
               
               {/* 2x2 ID Photo */}
-              {application.id_photo_2x2 && (
+              {application.id_photo_2x2 && application.id_photo_2x2 !== 'null' && application.id_photo_2x2 !== 'undefined' ? (
                 <div 
                   className="border border-gray-200 rounded-xl p-4 hover:border-green-300 hover:shadow-sm cursor-pointer transition-all duration-200 bg-gray-50 hover:bg-green-50"
                   onClick={() => handleDocumentPreview('id_photo', application.id_photo_2x2)}
@@ -1083,10 +1118,22 @@ const MarketValidationInfo = () => {
                     </div>
                   </div>
                 </div>
+              ) : (
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 opacity-60">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-user-circle text-gray-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-400">2x2 ID Photo</p>
+                      <p className="text-xs text-gray-400 mt-1">Not uploaded</p>
+                    </div>
+                  </div>
+                </div>
               )}
               
               {/* Valid ID */}
-              {application.valid_id && (
+              {application.valid_id && application.valid_id !== 'null' && application.valid_id !== 'undefined' ? (
                 <div 
                   className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm cursor-pointer transition-all duration-200 bg-gray-50 hover:bg-purple-50"
                   onClick={() => handleDocumentPreview('valid_id', application.valid_id)}
@@ -1098,6 +1145,18 @@ const MarketValidationInfo = () => {
                     <div>
                       <p className="font-semibold text-gray-900">Valid ID</p>
                       <p className="text-xs text-gray-500 mt-1">Click to view</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 opacity-60">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-id-card text-gray-400 text-lg"></i>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-400">Valid ID</p>
+                      <p className="text-xs text-gray-400 mt-1">Not uploaded</p>
                     </div>
                   </div>
                 </div>
@@ -1182,11 +1241,16 @@ const MarketValidationInfo = () => {
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <div className="h-[60vh] flex items-center justify-center bg-gray-100 rounded-lg">
-                {previewUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                {previewUrl && previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                   <img 
                     src={previewUrl} 
                     alt="Document" 
                     className="max-h-full max-w-full object-contain rounded"
+                    onError={(e) => {
+                      console.error('Image failed to load:', previewUrl);
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjNmMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+                    }}
                   />
                 ) : (
                   <div className="text-center">
