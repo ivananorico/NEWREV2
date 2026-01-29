@@ -31,7 +31,7 @@ if (is_array($dbConnection) && isset($dbConnection['error'])) {
 $pdo = $dbConnection;
 
 try {
-    // SIMPLE QUERY: Get all pending and overdue taxes
+    // Query: Get only overdue taxes (not pending)
     $sql = "
         SELECT 
             qt.id,
@@ -83,10 +83,10 @@ try {
         LEFT JOIN property_owners po ON pr.owner_id = po.id
         LEFT JOIN land_properties lp ON pt.land_id = lp.id
         
-        WHERE qt.payment_status IN ('pending', 'overdue')
+        -- CHANGED HERE: Only get overdue, not pending
+        WHERE qt.payment_status = 'overdue'
         
         ORDER BY 
-            qt.payment_status DESC, -- overdue first
             qt.due_date ASC,
             qt.id DESC
     ";
@@ -105,10 +105,8 @@ try {
             // If due date is in the past, calculate days late
             if ($dueDate < $currentDate) {
                 $delinquent['days_late'] = $interval->days;
-                // Auto-mark as overdue if not already
-                if ($delinquent['payment_status'] == 'pending') {
-                    $delinquent['payment_status'] = 'overdue';
-                }
+                // Ensure status is overdue
+                $delinquent['payment_status'] = 'overdue';
             } else {
                 $delinquent['days_late'] = 0;
             }
@@ -164,7 +162,7 @@ try {
         'count' => count($delinquents),
         'timestamp' => date('Y-m-d H:i:s'),
         'current_date' => $currentDate->format('Y-m-d'),
-        'query' => 'payment_status IN (pending, overdue)'
+        'query' => 'payment_status = overdue'  // Updated
     ]);
     
 } catch (PDOException $e) {
