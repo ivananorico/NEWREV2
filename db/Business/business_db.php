@@ -16,7 +16,7 @@ function getDatabaseConnection() {
         $port = 3306;
         $dbname = 'reve_business';
         $user = 'reve_business';
-        $pass = 'eIuEFsbOpmlo-hpu';
+        $pass = 'IMCF*e^P#nDvoPNl';
     } else {
         // Local development credentials
         $host = 'localhost';
