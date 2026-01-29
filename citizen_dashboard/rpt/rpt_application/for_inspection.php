@@ -114,8 +114,13 @@ try {
     $error_message = "Database error: " . $e->getMessage();
 }
 
-// Get base URL for background image
-$base_url = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
+// Get base URL for background image - FIXED: Using reliable method
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    $protocol = 'https://';
+} else {
+    $protocol = 'http://';
+}
+$base_url = $protocol . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 ?>
 
