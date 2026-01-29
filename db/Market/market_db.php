@@ -17,7 +17,7 @@ function getDatabaseConfig() {
             'port' => 3306,
             'dbname' => 'reve_market_rent',
             'user' => 'reve_market_rent',
-            'pass' => 'EN%7%snqAgp8Nss2'
+            'pass' => '^NHcAIm^n6Ko7fvg'
         ];
     } else {
         // LOCALHOST SETTINGS

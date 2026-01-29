@@ -14,7 +14,7 @@ function getDatabaseConfig() {
             'port' => 3306,  // Production usually uses default port
             'dbname' => 'reve_rpt',
             'user' => 'reve_rpt',
-            'pass' => 'mA7s8A0DFo1PmH2u'
+            'pass' => 'u0I6%f#6!-LM#EAr'
         ];
     } else {
         // LOCALHOST SETTINGS
