@@ -4,16 +4,33 @@ header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json; charset=utf-8');
 
-// Database configuration
-$host = 'localhost:3307';
-$dbname = 'rpt';
-$username = 'root';
-$password = '';
+// Connect to database using rpt_db.php
+$dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
+
+if (!file_exists($dbPath)) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database configuration file not found',
+        'path' => $dbPath
+    ]);
+    exit();
+}
+
+require_once $dbPath;
+
+$dbConnection = getDatabaseConnection();
+
+if (is_array($dbConnection) && isset($dbConnection['error'])) {
+    echo json_encode([
+        'success' => false,
+        'error' => $dbConnection['message']
+    ]);
+    exit();
+}
+
+$pdo = $dbConnection;
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
     // SIMPLE QUERY: Get all pending and overdue taxes
     $sql = "
         SELECT 
