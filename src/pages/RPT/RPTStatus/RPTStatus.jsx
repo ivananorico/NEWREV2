@@ -79,29 +79,31 @@ export default function RPTStatus() {
   const [useFallbackData, setUseFallbackData] = useState(false);
   const navigate = useNavigate();
 
-  // API Configuration
-  const API_BASE = window.location.hostname === "localhost" 
+  // API Configuration - FIXED: Use relative path for production
+  const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "http://localhost/revenue2/backend" 
-    : "https://revenuetreasury.goserveph.com/backend";
+    : "/backend"; // Use relative path for production
 
   const API_PATH = "/RPT/RPTStatus";
 
-  // Generate fallback data for development/demo
+  // Generate comprehensive fallback data for development/demo
   const generateFallbackData = () => {
     const propertyTypes = ['Residential', 'Commercial', 'Industrial', 'Agricultural'];
     const barangays = ['Poblacion', 'San Isidro', 'Santa Cruz', 'San Jose', 'San Miguel', 'San Roque', 'San Antonio', 'San Vicente'];
-    const firstNames = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Carmen', 'Antonio', 'Teresa', 'Manuel', 'Rosa'];
-    const lastNames = ['Dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Ramos', 'Aquino', 'Mendoza', 'Torres', 'Fernandez', 'Castro'];
-    const locations = ['Main Street', 'Highway Road', 'Market Area', 'Subdivision', 'Commercial Center', 'Industrial Zone'];
+    const firstNames = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Carmen', 'Antonio', 'Teresa', 'Manuel', 'Rosa', 'Carlos', 'Elena'];
+    const lastNames = ['Dela Cruz', 'Santos', 'Reyes', 'Gonzales', 'Ramos', 'Aquino', 'Mendoza', 'Torres', 'Fernandez', 'Castro', 'Lopez', 'Rivera'];
+    const locations = ['Main Street', 'Highway Road', 'Market Area', 'Subdivision', 'Commercial Center', 'Industrial Zone', 'National Road', 'Provincial Road'];
     
     const fallbackData = [];
     
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 25; i++) {
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
       const propertyType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
       const barangay = barangays[Math.floor(Math.random() * barangays.length)];
       const location = locations[Math.floor(Math.random() * locations.length)];
+      const hasBuilding = Math.random() > 0.4;
+      const buildingCount = hasBuilding ? Math.floor(Math.random() * 4) + 1 : 0;
       
       fallbackData.push({
         id: i,
@@ -110,22 +112,48 @@ export default function RPTStatus() {
         first_name: firstName,
         last_name: lastName,
         property_type: propertyType,
-        lot_location: `${i} ${location}`,
+        lot_location: `${Math.floor(Math.random() * 999) + 1} ${location}`,
         barangay: barangay,
-        total_annual_tax: (Math.random() * 50000 + 5000).toFixed(2),
-        land_area_sqm: (Math.random() * 1000 + 100).toFixed(2),
-        has_building: Math.random() > 0.3 ? 'yes' : 'no',
-        building_count: Math.random() > 0.5 ? Math.floor(Math.random() * 5) + 1 : 0,
+        total_annual_tax: (Math.random() * 45000 + 5000).toFixed(2),
+        land_area_sqm: (Math.random() * 1500 + 200).toFixed(2),
+        has_building: hasBuilding ? 'yes' : 'no',
+        building_count: buildingCount,
         phone: `09${Math.floor(Math.random() * 900000000 + 100000000)}`,
-        created_at: new Date(Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000).toISOString(),
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(' ', '')}@example.com`
+        created_at: new Date(Date.now() - Math.floor(Math.random() * 365) * 24 * 60 * 60 * 1000).toISOString(),
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(' ', '')}@example.com`,
+        street: `${Math.floor(Math.random() * 999) + 1} ${location}`,
+        city: 'Sample City',
+        province: 'Sample Province',
+        zip_code: `${Math.floor(Math.random() * 9000) + 1000}`
       });
     }
     
     return fallbackData;
   };
 
-  // Define getPaymentStatus function FIRST before using it
+  // Check if backend is reachable
+  const checkBackendAvailability = async () => {
+    try {
+      // Try to fetch a simple endpoint to check if backend is up
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      
+      const response = await fetch(`${API_BASE}/health.php`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      }).catch(() => null);
+      
+      clearTimeout(timeoutId);
+      
+      return response && response.ok;
+    } catch (error) {
+      console.log('Backend health check failed:', error.message);
+      return false;
+    }
+  };
+
+  // Define getPaymentStatus function
   const getPaymentStatus = (createdDate) => {
     if (!createdDate) return 'pending';
     
@@ -133,11 +161,11 @@ export default function RPTStatus() {
     const created = new Date(createdDate);
     const currentMonth = now.getMonth();
     const currentQuarter = Math.floor(currentMonth / 3) + 1;
+    const currentYear = now.getFullYear();
     
     // Check if property was created this quarter
     const createdMonth = created.getMonth();
     const createdQuarter = Math.floor(createdMonth / 3) + 1;
-    const currentYear = now.getFullYear();
     const createdYear = created.getFullYear();
     
     // If created this quarter, show "Next Quarter"
@@ -145,11 +173,19 @@ export default function RPTStatus() {
       return 'next-quarter';
     }
     
+    // Check if overdue (older than 1 year)
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    if (created < oneYearAgo) {
+      return Math.random() > 0.3 ? 'overdue' : 'paid';
+    }
+    
     // Random status for demo (weighted towards paid)
     const random = Math.random();
-    if (random < 0.5) return 'paid';
-    if (random < 0.8) return 'pending';
-    return 'overdue';
+    if (random < 0.6) return 'paid'; // 60% paid
+    if (random < 0.9) return 'pending'; // 30% pending
+    return 'overdue'; // 10% overdue
   };
 
   // Get building status text
@@ -168,12 +204,11 @@ export default function RPTStatus() {
       setLoading(true);
       setError(null);
       
-      // Check if we're in development mode and should use fallback
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                          window.location.hostname === 'localhost' ||
-                          window.location.hostname === '127.0.0.1';
+      // Check if we should use fallback data
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
       
-      // For development/testing, you can force fallback data by adding ?fallback=true to URL
+      // Check URL parameter for forcing fallback
       const urlParams = new URLSearchParams(window.location.search);
       const forceFallback = urlParams.get('fallback') === 'true';
       
@@ -186,18 +221,41 @@ export default function RPTStatus() {
         return;
       }
       
-      // Fetch approved properties
+      // First check if backend is available
+      const isBackendAvailable = await checkBackendAvailability();
+      
+      if (!isBackendAvailable && isLocalhost) {
+        console.log("Backend not available, using fallback data for development");
+        const fallbackData = generateFallbackData();
+        setApprovedProperties(fallbackData);
+        setUseFallbackData(true);
+        setLoading(false);
+        return;
+      }
+      
+      if (!isBackendAvailable) {
+        throw new Error("Backend server is not available. Please check if the server is running.");
+      }
+      
+      // Fetch approved properties from backend
+      console.log("Fetching data from:", `${API_BASE}${API_PATH}/get_approved_properties.php`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`${API_BASE}${API_PATH}/get_approved_properties.php`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        signal: AbortSignal.timeout(8000) // 8 second timeout
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
       }
       
       const text = await response.text();
@@ -211,10 +269,10 @@ export default function RPTStatus() {
       try {
         data = JSON.parse(text);
       } catch (parseError) {
-        console.error("Failed to parse JSON:", text);
+        console.error("Failed to parse JSON response:", text);
         
         // In development mode, use fallback data
-        if (isDevelopment) {
+        if (isLocalhost) {
           console.log("Using fallback data due to JSON parse error");
           const fallbackData = generateFallbackData();
           setApprovedProperties(fallbackData);
@@ -225,10 +283,14 @@ export default function RPTStatus() {
         throw new Error("Invalid JSON response from server");
       }
       
+      // Check for success in various response formats
       const isSuccess = (
         data.success === true || 
         data.success === "true" || 
-        data.status === "success"
+        data.status === "success" ||
+        data.status === "success" ||
+        Array.isArray(data) ||
+        Array.isArray(data.data)
       );
       
       if (isSuccess) {
@@ -242,8 +304,11 @@ export default function RPTStatus() {
           propertiesData = data.data || [];
         } else if (Array.isArray(data.data)) {
           propertiesData = data.data;
+        } else if (data.properties) {
+          propertiesData = data.properties;
         }
         
+        console.log(`Loaded ${propertiesData.length} properties from backend`);
         setApprovedProperties(propertiesData);
         setUseFallbackData(false);
       } else {
@@ -253,8 +318,8 @@ export default function RPTStatus() {
         if (errorMessage.includes('database') || errorMessage.includes('SQLSTATE') || errorMessage.includes('connection')) {
           console.warn("Database connection issue detected");
           
-          // In development or if explicitly allowed, use fallback data
-          if (isDevelopment) {
+          // In development, use fallback data
+          if (isLocalhost) {
             console.log("Using fallback data due to database error");
             const fallbackData = generateFallbackData();
             setApprovedProperties(fallbackData);
@@ -267,19 +332,21 @@ export default function RPTStatus() {
         throw new Error(errorMessage);
       }
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Fetch error details:", err);
       
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                          window.location.hostname === 'localhost' ||
-                          window.location.hostname === '127.0.0.1';
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
       
       // Check if this is a network/connection error
       const isConnectionError = err.message.includes('Connection refused') || 
                                err.message.includes('Failed to fetch') ||
                                err.message.includes('NetworkError') ||
-                               err.message.includes('timeout');
+                               err.message.includes('timeout') ||
+                               err.message.includes('aborted') ||
+                               err.name === 'AbortError' ||
+                               err.message.includes('server is not available');
       
-      if (isConnectionError && isDevelopment) {
+      if (isConnectionError && isLocalhost) {
         console.log("Using fallback data for development (connection error)");
         const fallbackData = generateFallbackData();
         setApprovedProperties(fallbackData);
@@ -296,10 +363,9 @@ export default function RPTStatus() {
     fetchApprovedProperties();
   }, []);
 
-  // Calculate total annual revenue
+  // Calculate statistics
   const totalAnnualRevenue = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
   
-  // Calculate total collected (assuming paid properties have total annual tax collected)
   const totalCollected = approvedProperties
     .filter(p => {
       const status = getPaymentStatus(p.created_at);
@@ -307,13 +373,11 @@ export default function RPTStatus() {
     })
     .reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
   
-  // Calculate collection rate
   const collectionRate = totalAnnualRevenue > 0 ? Math.round((totalCollected / totalAnnualRevenue) * 100) : 0;
   
-  // Calculate pending payments
   const pendingPayments = totalAnnualRevenue - totalCollected;
 
-  // Filter properties based on search, type, and payment status
+  // Filter properties
   const filteredProperties = approvedProperties.filter(property => {
     const matchesSearch = 
       (property.owner_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -423,8 +487,8 @@ export default function RPTStatus() {
     window.URL.revokeObjectURL(url);
   };
 
-  // Calculate statistics
-  const totalAnnualTax = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
+  // Calculate statistics for display
+  const totalProperties = approvedProperties.length;
   const propertiesWithBuildings = approvedProperties.filter(p => p.has_building === 'yes' && (p.building_count || 0) > 0).length;
   const vacantProperties = approvedProperties.filter(p => p.has_building !== 'yes').length;
   
@@ -433,7 +497,7 @@ export default function RPTStatus() {
     const status = getPaymentStatus(property.created_at);
     stats[status] = (stats[status] || 0) + 1;
     return stats;
-  }, {});
+  }, { paid: 0, pending: 0, overdue: 0, 'next-quarter': 0 });
 
   if (loading) {
     return (
@@ -442,6 +506,11 @@ export default function RPTStatus() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800 mx-auto"></div>
           <p className="mt-4 text-gray-600 font-medium">
             Loading citizen properties...
+            {window.location.hostname === 'localhost' && (
+              <span className="block text-sm text-gray-500 mt-1">
+                (If this takes too long, add ?fallback=true to URL)
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -456,7 +525,7 @@ export default function RPTStatus() {
             <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Connection Error</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <p className="text-sm text-gray-500 mb-4">
               This could be due to:
@@ -464,6 +533,7 @@ export default function RPTStatus() {
                 <li>Backend server not running</li>
                 <li>Database connection issues</li>
                 <li>Network problems</li>
+                <li>Wrong API URL configuration</li>
               </ul>
             </p>
             <div className="space-y-3">
@@ -475,17 +545,22 @@ export default function RPTStatus() {
                 Try Again
               </button>
               {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-                <button
-                  onClick={() => {
-                    const fallbackData = generateFallbackData();
-                    setApprovedProperties(fallbackData);
-                    setUseFallbackData(true);
-                    setError(null);
-                  }}
-                  className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-lg font-medium"
-                >
-                  Use Demo Data for Development
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      const fallbackData = generateFallbackData();
+                      setApprovedProperties(fallbackData);
+                      setUseFallbackData(true);
+                      setError(null);
+                    }}
+                    className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-lg font-medium"
+                  >
+                    Use Demo Data for Development
+                  </button>
+                  <p className="text-xs text-gray-500">
+                    Or visit: <code className="bg-gray-100 px-2 py-1 rounded">{window.location.href}?fallback=true</code>
+                  </p>
+                </>
               )}
             </div>
           </div>
@@ -533,7 +608,8 @@ export default function RPTStatus() {
               </button>
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg"
+                disabled={filteredProperties.length === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${filteredProperties.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-gray-900 hover:bg-black text-white'}`}
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -552,7 +628,7 @@ export default function RPTStatus() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Properties</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(approvedProperties.length)}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(totalProperties)}</p>
               </div>
               <div className="p-3 bg-gray-100 rounded-lg">
                 <Home className="w-5 h-5 text-gray-700" />
@@ -763,12 +839,12 @@ export default function RPTStatus() {
               <h3 className="text-sm font-medium text-gray-900 mb-1">
                 {searchTerm || propertyTypeFilter !== "all" || paymentFilter !== "all"
                   ? "No matching properties found" 
-                  : "No approved properties yet"}
+                  : "No properties available"}
               </h3>
               <p className="text-sm text-gray-500 max-w-xs mx-auto">
                 {searchTerm || propertyTypeFilter !== "all" || paymentFilter !== "all"
                   ? "Try adjusting your search terms or clear filters"
-                  : "Check back later for approved properties"}
+                  : "No properties match your current criteria"}
               </p>
               {(searchTerm || propertyTypeFilter !== "all" || paymentFilter !== "all") && (
                 <button
@@ -910,6 +986,9 @@ export default function RPTStatus() {
                       <span className="px-2 py-1 rounded bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs">
                         Current: {paymentStats.pending || 0}
                       </span>
+                      <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                        Next Q: {paymentStats['next-quarter'] || 0}
+                      </span>
                       <span className="px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 text-xs">
                         Delinquent: {paymentStats.overdue || 0}
                       </span>
@@ -926,7 +1005,9 @@ export default function RPTStatus() {
           <div className="text-center text-sm text-gray-600">
             <p className="font-medium">Property Tax Management System</p>
             <p className="mt-1 text-xs">
-              {useFallbackData ? "Currently using demo data. Check backend connection for real data." : "Connected to live database"}
+              {useFallbackData 
+                ? "Currently using demo data. To connect to real database, ensure backend server is running." 
+                : "Connected to live database"}
             </p>
           </div>
         </div>
