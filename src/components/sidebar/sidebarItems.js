@@ -34,16 +34,6 @@ const sidebarItems = [
   },
   {
     id: "module4",
-    label: "Treasury Dashboard & Report",
-    icon: LayoutDashboard,
-    subItems: [
-      { id: "Revenue", label: "Revenue", path: "/TREASURY/Revenue" },
-      { id: "Collection", label: "Collection", path: "/TREASURY/Collection" },
-      { id: "Anomaly", label: "Anomaly Detection", path: "/TREASURY/Anomaly" },
-    ]
-  },
-  {
-    id: "module5",
     label: "Digital Payment Integration",
     icon: LayoutDashboard,
     subItems: [
@@ -51,6 +41,16 @@ const sidebarItems = [
 
     ]
   },
+  {
+    id: "module5",
+    label: "Treasury Dashboard & Report",
+    icon: LayoutDashboard,
+    subItems: [
+      { id: "RevenueCollection", label: "Revenue Collection", path: "/TREASURY/RevenueCollection" },
+      { id: "Anomaly", label: "Anomaly Detection", path: "/TREASURY/Anomaly" },
+    ]
+  },
+
   {
     id: "module6",
     label: "Market Stall Rental and Billing",

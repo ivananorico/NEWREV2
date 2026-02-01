@@ -16,14 +16,6 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
-// Determine base URL
-$is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
-$base_url = $is_localhost 
-    ? 'http://localhost/revenue2' 
-    : 'https://revenuetreasury.goserveph.com';
-
-$rpt_callback_url = $base_url . '/citizen_dashboard/rpt/api/rpt_payment_api.php';
-
 // Function to calculate penalties
 function calculatePenalties($quarterly_taxes, $pdo) {
     $current_date = date('Y-m-d');
@@ -208,6 +200,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             overflow-x: hidden;
             min-height: 100vh;
             font-family: Inter, system-ui, sans-serif;
+            font-size: 16px;
         }
 
         /* Background image with blur */
@@ -285,9 +278,9 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         .badge {
             display: inline-flex;
             align-items: center;
-            padding: 0.25rem 0.75rem;
+            padding: 0.35rem 0.85rem;
             border-radius: 9999px;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             font-weight: 500;
             line-height: 1;
         }
@@ -316,20 +309,20 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
+            padding: 0.6rem 1.2rem;
+            border-radius: 7px;
             font-weight: 500;
-            font-size: 0.875rem;
-            line-height: 1.25rem;
+            font-size: 0.95rem;
+            line-height: 1.4;
             border: none;
             cursor: pointer;
             transition: all 0.2s;
-            gap: 0.375rem;
+            gap: 0.4rem;
         }
         
         .btn-sm {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.75rem;
+            padding: 0.45rem 0.9rem;
+            font-size: 0.85rem;
         }
         
         .btn-primary {
@@ -365,10 +358,10 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         
         .status-indicator {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 6px;
+            margin-right: 7px;
         }
         
         .status-paid { background-color: var(--success); }
@@ -378,30 +371,32 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         .discount-tag {
             background: linear-gradient(135deg, var(--accent), #3d8b40);
             color: white;
-            padding: 0.125rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            gap: 2px;
+            gap: 3px;
         }
 
         .penalty-amount {
             color: var(--error);
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 1.05rem;
         }
         
         .total-amount {
             color: var(--primary);
             font-weight: 700;
+            font-size: 1.05rem;
         }
 
         .table-header {
             background-color: #f8fafc;
-            font-weight: 500;
+            font-weight: 600;
             color: #64748b;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -417,11 +412,11 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             color: var(--primary);
             background: rgba(74, 144, 226, 0.1);
-            border-radius: 10px;
+            border-radius: 11px;
             text-decoration: none;
             transition: all 0.2s;
             border: 1px solid rgba(74, 144, 226, 0.2);
@@ -441,7 +436,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 <main class="container mx-auto px-6 py-10 flex-grow max-w-7xl">
 
     <!-- Page Header - Centered Layout -->
-    <div class="glass-header p-6 mb-12">
+    <div class="glass-header p-7 mb-12">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <!-- Arrow button on left -->
             <a href="../rpt_services.php" class="arrow-button self-start">
@@ -450,11 +445,11 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             
             <!-- Centered title -->
             <div class="text-center flex-1">
-                <h1 class="text-4xl font-bold text-gray-900 mb-2">
+                <h1 class="text-3xl font-bold text-gray-900 mb-3">
                     Real Property Tax Payment
                 </h1>
                 <p class="text-gray-600 text-lg">
-                    Manage and pay your property taxes securely online
+                    Manage and view your property taxes
                 </p>
             </div>
             
@@ -462,27 +457,16 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             <div class="w-10"></div>
         </div>
         
-        <!-- Success message -->
-        <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
-        <div class="mt-4 max-w-md mx-auto p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
-            <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
-            <div>
-                <p class="text-sm font-medium text-green-800">Payment successful</p>
-                <p class="text-xs text-green-700 mt-0.5">Your tax payment has been processed</p>
-            </div>
-        </div>
-        <?php endif; ?>
-        
         <!-- Info Box -->
-        <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-            <div class="flex items-center gap-2 mb-1">
+        <div class="mt-5 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+            <div class="flex items-center gap-2 mb-2">
                 <i class="fas fa-info-circle text-blue-500"></i>
-                <span class="font-medium text-blue-800">Payment Information</span>
+                <span class="font-semibold text-blue-800">Payment Information</span>
             </div>
-            <p class="text-blue-700 text-sm">2% monthly penalty for late payments • 10% discount for annual payments in January</p>
+            <p class="text-blue-700">2% monthly penalty for late payments • 10% discount for annual payments in January</p>
         </div>
         
-        <div class="h-1 w-20 rounded-full mt-4 mx-auto" style="background-color: #4a90e2;"></div>
+        <div class="h-1.5 w-22 rounded-full mt-5 mx-auto" style="background-color: #4a90e2;"></div>
     </div>
 
     <!-- Properties Section -->
@@ -512,11 +496,11 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         if (empty($properties)) {
             echo '
             <div class="property-card p-8 text-center">
-                <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-home text-gray-400"></i>
+                <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-home text-gray-400 text-2xl"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">No Properties</h3>
-                <p class="text-gray-600 text-sm mb-6">You don\'t have any approved properties</p>
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">No Properties</h3>
+                <p class="text-gray-600 mb-6">You don\'t have any approved properties</p>
                 <div class="flex gap-3 justify-center">
                     <a href="../rpt_registration/rpt_registration.php" class="btn btn-primary">
                         <i class="fas fa-plus mr-1"></i> Register Property
@@ -527,7 +511,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 </div>
             </div>';
         } else {
-            echo '<div class="space-y-6">';
+            echo '<div class="space-y-7">';
             
             foreach ($properties as $property) {
                 $taxQuery = "
@@ -578,33 +562,14 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 $discountPercent = getDiscountPercentage($pdo);
                 $annualPaymentInfo = calculateAnnualTotal($quarterlyTaxes, $eligibleForDiscount ? $discountPercent : 0);
                 
-                // Check if annual payment exists
-                $annual_payment_query = "
-                    SELECT 
-                        ap.*,
-                        ap.final_amount as total_to_pay
-                    FROM annual_payments ap
-                    WHERE ap.property_total_id = :property_total_id 
-                    AND ap.payment_year = :current_year
-                    AND ap.status = 'active'
-                    LIMIT 1
-                ";
-                
-                $annual_stmt = $pdo->prepare($annual_payment_query);
-                $annual_stmt->execute([
-                    ':property_total_id' => $property['property_total_id'],
-                    ':current_year' => $current_year
-                ]);
-                $annualPayment = $annual_stmt->fetch(PDO::FETCH_ASSOC);
-                
                 echo '
                 <div class="property-card overflow-hidden">
                     <!-- Property Header -->
-                    <div class="p-6 border-b border-gray-100">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div class="p-7 border-b border-gray-100">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
                             <div>
-                                <div class="flex items-center gap-2 mb-1">
-                                    <h3 class="text-xl font-bold text-gray-900">' . htmlspecialchars($property['reference_number']) . '</h3>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <h3 class="text-2xl font-bold text-gray-900">' . htmlspecialchars($property['reference_number']) . '</h3>
                                     <span class="badge badge-primary">
                                         <i class="fas fa-map-marker-alt text-xs mr-1"></i>
                                         ' . htmlspecialchars($property['barangay']) . '
@@ -614,123 +579,53 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                             </div>
                             
                             <div class="text-right">
-                                <div class="text-sm text-gray-500 mb-1">Annual Tax</div>
+                                <div class="text-gray-500 mb-1">Annual Tax</div>
                                 <div class="text-2xl font-bold" style="color: var(--primary)">' . formatCurrency($property['total_annual_tax']) . '</div>
                             </div>
                         </div>
                         
                         <!-- Summary Stats -->
-                        <div class="flex flex-wrap gap-4 mb-3">
-                            <div class="flex items-center gap-2 text-sm">
+                        <div class="flex flex-wrap gap-5 mb-3">
+                            <div class="flex items-center gap-2">
                                 <span class="status-indicator status-paid"></span>
                                 <span class="text-gray-700">Paid:</span>
-                                <span class="font-medium">' . $paidQuarters . '</span>
+                                <span class="font-semibold">' . $paidQuarters . '</span>
                             </div>
-                            <div class="flex items-center gap-2 text-sm">
+                            <div class="flex items-center gap-2">
                                 <span class="status-indicator status-pending"></span>
                                 <span class="text-gray-700">Pending:</span>
-                                <span class="font-medium">' . $pendingQuarters . '</span>
+                                <span class="font-semibold">' . $pendingQuarters . '</span>
                             </div>';
                             if ($overdueQuarters > 0) {
                                 echo '
-                            <div class="flex items-center gap-2 text-sm">
+                            <div class="flex items-center gap-2">
                                 <span class="status-indicator status-overdue"></span>
                                 <span class="text-gray-700">Overdue:</span>
-                                <span class="font-medium">' . $overdueQuarters . '</span>
+                                <span class="font-semibold">' . $overdueQuarters . '</span>
                             </div>';
                             }
                         echo '
                         </div>';
                         
-                        // Annual Payment Option
-                        if ($annualPayment && $canPayAnnual) {
-                            echo '
-                        <div class="annual-payment-card p-5 mt-4">
-                            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <h4 class="font-medium text-gray-900 text-lg">Annual Payment</h4>';
-                                        if ($eligibleForDiscount) {
-                                            echo '
-                                        <span class="discount-tag">
-                                            <i class="fas fa-gift"></i>
-                                            ' . $discountPercent . '% OFF
-                                        </span>';
-                                        }
-                                        echo '
-                                    </div>
-                                    <p class="text-gray-600 text-sm">Pay all 4 quarters together for ' . $current_year . '</p>
-                                </div>
-                                
-                                <div class="flex items-center gap-4">
-                                    <div class="text-right">
-                                        <div class="text-xl font-bold">' . formatCurrency($annualPayment['final_amount']) . '</div>';
-                                        if ($annualPaymentInfo['has_discount']) {
-                                            echo '
-                                        <div class="text-sm text-gray-600 mt-0.5">
-                                            <span class="line-through mr-1">' . formatCurrency($annualPaymentInfo['total_before_discount']) . '</span>
-                                            <span class="text-green-700 font-medium">
-                                                Save ' . formatCurrency($annualPaymentInfo['discount_amount']) . '
-                                            </span>
-                                        </div>';
-                                        }
-                                        echo '
-                                    </div>';
-                                    
-                                    if ($annualPayment['payment_status'] == 'paid') {
-                                        echo '
-                                        <button onclick="viewReceipt(\'' . ($annualPayment['receipt_number'] ?? '') . '\')" 
-                                                class="btn btn-outline">
-                                            <i class="fas fa-receipt"></i>
-                                            Receipt
-                                        </button>';
-                                    } else {
-                                        $purpose_text = 'RPT ANNUAL ' . $current_year . ' - ' . $property['reference_number'];
-                                        $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
-                                        
-                                        echo '
-                                        <form method="POST" 
-                                              action="../../digital/index.php" 
-                                              target="_blank">
-                                            <input type="hidden" name="system" value="rpt">
-                                            <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['reference_number'] . '">
-                                            <input type="hidden" name="amount" value="' . $annualPayment['final_amount'] . '">
-                                            <input type="hidden" name="purpose" value="' . $purpose_text . '">
-                                            <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
-                                            <input type="hidden" name="property_total_id" value="' . $property['property_total_id'] . '">
-                                            
-                                            <button type="submit" 
-                                                    class="btn btn-success">
-                                                <i class="fas fa-external-link-alt"></i>
-                                                Pay Now
-                                            </button>
-                                        </form>';
-                                    }
-                                    echo '
-                                </div>
-                            </div>
-                        </div>';
-                        }
                         echo '
                     </div>';
                     
                     // Quarterly Payments
                     if (!empty($quarterlyTaxes)) {
                         echo '
-                    <div class="p-6">
-                        <h4 class="font-medium text-gray-900 text-lg mb-4 section-header">Quarterly Payments</h4>
+                    <div class="p-7">
+                        <h4 class="font-semibold text-gray-900 text-xl mb-5 section-header">Quarterly Payments</h4>
                         
                         <div class="overflow-x-auto rounded-lg border border-gray-200">
-                            <table class="w-full text-sm">
+                            <table class="w-full">
                                 <thead>
                                     <tr class="table-header">
-                                        <th class="py-3 px-4 text-left">Quarter</th>
-                                        <th class="py-3 px-4 text-left">Due Date</th>
-                                        <th class="py-3 px-4 text-left">Base Tax</th>
-                                        <th class="py-3 px-4 text-left">Penalty</th>
-                                        <th class="py-3 px-4 text-left">Total</th>
-                                        <th class="py-3 px-4 text-left">Status</th>
-                                        <th class="py-3 px-4 text-right">Action</th>
+                                        <th class="py-3.5 px-5 text-left">Quarter</th>
+                                        <th class="py-3.5 px-5 text-left">Due Date</th>
+                                        <th class="py-3.5 px-5 text-left">Base Tax</th>
+                                        <th class="py-3.5 px-5 text-left">Penalty</th>
+                                        <th class="py-3.5 px-5 text-left">Total</th>
+                                        <th class="py-3.5 px-5 text-left">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>';
@@ -747,30 +642,30 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     
                                     echo '
                                     <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                        <td class="py-4 px-4">
+                                        <td class="py-4 px-5">
                                             <div class="font-medium">' . $tax['quarter'] . ' ' . $tax['year'] . '</div>';
                                             if ($isCurrentQuarter) {
-                                                echo '<div class="text-xs text-blue-600 font-medium mt-0.5">Current Quarter</div>';
+                                                echo '<div class="text-sm text-blue-600 font-medium mt-0.5">Current Quarter</div>';
                                             }
                                             echo '
                                         </td>
-                                        <td class="py-4 px-4">
+                                        <td class="py-4 px-5">
                                             <div>' . $dueDate->format('M d, Y') . '</div>';
                                             if ($daysLate > 0) {
-                                                echo '<div class="text-xs text-red-600 mt-0.5">' . $daysLate . ' days late</div>';
+                                                echo '<div class="text-sm text-red-600 mt-0.5">' . $daysLate . ' days late</div>';
                                             }
                                             echo '
                                         </td>
-                                        <td class="py-4 px-4 font-medium">' . formatCurrency($tax_amount) . '</td>
-                                        <td class="py-4 px-4 penalty-amount font-medium">';
+                                        <td class="py-4 px-5 font-medium">' . formatCurrency($tax_amount) . '</td>
+                                        <td class="py-4 px-5 penalty-amount">';
                                             if ($penaltyAmount > 0) {
                                                 echo '+' . formatCurrency($penaltyAmount);
                                             } else {
                                                 echo formatCurrency(0);
                                             }
                                         echo '</td>
-                                        <td class="py-4 px-4 total-amount font-medium">' . formatCurrency($totalAmount) . '</td>
-                                        <td class="py-4 px-4">';
+                                        <td class="py-4 px-5 total-amount">' . formatCurrency($totalAmount) . '</td>
+                                        <td class="py-4 px-5">';
                                             if ($status == 'paid') {
                                                 echo '<span class="badge badge-success">
                                                     <i class="fas fa-check text-xs mr-1"></i> Paid
@@ -786,49 +681,17 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                             }
                                             echo '
                                         </td>
-                                        <td class="py-4 px-4 text-right">';
-                                            if ($status == 'paid') {
-                                                echo '
-                                                <button onclick="viewReceipt(\'' . ($tax['receipt_number'] ?? '') . '\')" 
-                                                        class="btn btn-outline btn-sm">
-                                                    <i class="fas fa-receipt text-xs"></i>
-                                                    Receipt
-                                                </button>';
-                                            } else {
-                                                $purpose_text = 'RPT ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $property['reference_number'];
-                                                $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
-                                                
-                                                echo '
-                                                <form class="inline-block" 
-                                                      method="POST" 
-                                                      action="../../digital/index.php" 
-                                                      target="_blank">
-                                                    <input type="hidden" name="system" value="rpt">
-                                                    <input type="hidden" name="ref" value="' . $tax['id'] . '">
-                                                    <input type="hidden" name="amount" value="' . $totalAmount . '">
-                                                    <input type="hidden" name="purpose" value="' . $purpose_text . '">
-                                                    <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
-                                                    
-                                                    <button type="submit" 
-                                                            class="btn btn-primary btn-sm">
-                                                        <i class="fas fa-credit-card text-xs"></i>
-                                                        Pay
-                                                    </button>
-                                                </form>';
-                                            }
-                                            echo '
-                                        </td>
                                     </tr>';
                                 }
                                 
-                                // Summary Row - ALWAYS SHOWN
+                                // Summary Row
                                 echo '
-                                    <tr class="font-medium bg-gray-50">
-                                        <td colspan="2" class="py-4 px-4">Total</td>
-                                        <td class="py-4 px-4 font-bold">' . formatCurrency($totalTax) . '</td>
-                                        <td class="py-4 px-4 penalty-amount font-bold">' . formatCurrency($totalPenalty) . '</td>
-                                        <td class="py-4 px-4 total-amount font-bold" style="color: var(--primary)">' . formatCurrency($totalTax + $totalPenalty) . '</td>
-                                        <td colspan="2"></td>
+                                    <tr class="font-semibold bg-gray-50">
+                                        <td colspan="2" class="py-4 px-5">Total</td>
+                                        <td class="py-4 px-5 font-bold">' . formatCurrency($totalTax) . '</td>
+                                        <td class="py-4 px-5 penalty-amount font-bold">' . formatCurrency($totalPenalty) . '</td>
+                                        <td class="py-4 px-5 total-amount font-bold" style="color: var(--primary)">' . formatCurrency($totalTax + $totalPenalty) . '</td>
+                                        <td></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -836,10 +699,10 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                     </div>';
                     } else {
                         echo '
-                    <div class="p-6">
-                        <div class="text-center py-8 text-gray-500 text-sm">
+                    <div class="p-7">
+                        <div class="text-center py-10 text-gray-500">
                             <i class="fas fa-file-invoice mb-3 text-gray-300 text-3xl"></i>
-                            <p>No quarterly taxes generated yet</p>
+                            <p class="text-lg">No quarterly taxes generated yet</p>
                         </div>
                     </div>';
                     }
@@ -851,12 +714,12 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         }
     } catch (PDOException $e) {
         echo '
-        <div class="property-card p-6 text-center">
-            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <i class="fas fa-exclamation-triangle text-red-500"></i>
+        <div class="property-card p-7 text-center">
+            <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
             </div>
-            <h3 class="font-medium text-gray-800 mb-2">Service Unavailable</h3>
-            <p class="text-gray-600 text-sm mb-4">Unable to load tax information</p>
+            <h3 class="text-xl font-semibold text-gray-800 mb-3">Service Unavailable</h3>
+            <p class="text-gray-600 mb-6">Unable to load tax information</p>
             <div class="flex gap-3 justify-center">
                 <button onclick="location.reload()" class="btn btn-primary">
                     Try Again
@@ -928,32 +791,8 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 </footer>
 
 <script>
-function viewReceipt(receiptNumber) {
-    if (!receiptNumber) {
-        alert('Receipt number not available.');
-        return;
-    }
-    
-    alert('Receipt Number: ' + receiptNumber + '\n\nThis receipt has been recorded in the system.');
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('form[target="_blank"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const submitBtn = this.querySelector('button[type="submit"]');
-            if (submitBtn && !submitBtn.disabled) {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
-                submitBtn.disabled = true;
-                
-                setTimeout(() => {
-                    if (submitBtn.disabled) {
-                        submitBtn.innerHTML = '<i class="fas fa-credit-card"></i> Pay';
-                        submitBtn.disabled = false;
-                    }
-                }, 5000);
-            }
-        });
-    });
+    // All payment-related code has been removed
 });
 </script>
 </body>

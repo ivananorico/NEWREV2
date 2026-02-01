@@ -31,8 +31,7 @@ import DigiDashboard from './pages/DIGITAL/DigiDashboard/DigiDashoard'
 
 
 // TREASURY Pages
-import Revenue from './pages/TREASURY/Revenue/Revenue'
-import Collection from './pages/TREASURY/Collection/Collection'
+import RevenueCollection from './pages/TREASURY/RevenueCollection/RevenueCollection'
 import Anomaly from './pages/TREASURY/Anomaly/Anomaly'
 
 
@@ -101,8 +100,7 @@ function App() {
               <Route path="/business/businessdelinquent" element={<BusinessDelinquent />} />
 
               {/* TREASURY */}
-              <Route path="/treasury/revenue" element={<Revenue />} />
-              <Route path="/treasury/collection" element={<Collection />} />
+              <Route path="/treasury/revenuecollection" element={<RevenueCollection/>} />
               <Route path="/treasury/anomaly" element={<Anomaly />} />
 
               {/* DIGIPAY */}
