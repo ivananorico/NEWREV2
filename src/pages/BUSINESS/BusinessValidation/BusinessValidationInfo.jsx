@@ -20,6 +20,7 @@ const BusinessValidationInfo = () => {
   const [taxConfig, setTaxConfig] = useState(null);
   const [discountConfig, setDiscountConfig] = useState(null);
   const [penaltyConfig, setPenaltyConfig] = useState(null);
+  const [autoCalculatedRate, setAutoCalculatedRate] = useState(null);
 
   const API_BASE = window.location.hostname === "localhost"
     ? "http://localhost/revenue2/backend"
@@ -69,61 +70,41 @@ const BusinessValidationInfo = () => {
         setDiscountConfig(permitData.discount_config || null);
         setPenaltyConfig(permitData.penalty_config || null);
         
+        // Load tax rates
         await loadTaxRates(permitData.permit);
         
-        // Initialize calculated tax from permit data
+        // Check if there's already calculated tax in the permit
         const permitTaxAmount = parseFloat(permitData.permit.tax_amount) || 0;
         const permitTotalTax = parseFloat(permitData.permit.total_tax) || 0;
         
-        if (permitTaxAmount > 0 || permitTotalTax > 0 || permitData.calculated_tax_amount > 0) {
-          const taxAmount = permitTaxAmount || permitData.calculated_tax_amount || 0;
-          const totalTax = permitTotalTax || permitData.calculated_total_tax || 0;
-          const taxRate = parseFloat(permitData.permit.tax_rate) || 
-                         (permitData.tax_config ? parseFloat(permitData.tax_config.tax_percent) : 
-                          (permitData.permit.tax_calculation_type === 'capital_investment' ? 25 : 2));
-          
+        if (permitTaxAmount > 0 || permitTotalTax > 0) {
+          // Use existing tax calculation
           const existingTax = {
             status: 'success',
             calculation: {
               taxable_amount: permitData.permit.taxable_amount || permitData.permit.capital_investment || 0,
-              tax_rate: taxRate,
-              tax_amount: taxAmount,
+              tax_rate: parseFloat(permitData.permit.tax_rate) || 0,
+              tax_amount: permitTaxAmount,
               regulatory_fees: permitData.total_regulatory_fees || 0,
-              total_tax: totalTax
+              total_tax: permitTotalTax
             }
           };
           setCalculatedTax(existingTax);
           
           const quarterlyData = calculateQuarterlyBreakdown(
-            totalTax, 
+            permitTotalTax, 
             permitData.permit.issue_date || permitData.permit.application_date
           );
           setQuarterlyBreakdown(quarterlyData);
           
-          // Set selected rate based on tax config
-          if (permitData.tax_config) {
-            if (permitData.permit.tax_calculation_type === 'capital_investment') {
-              const matchingRate = taxRates.find(rate => 
-                permitData.permit.taxable_amount >= parseFloat(rate.min_amount) && 
-                permitData.permit.taxable_amount <= parseFloat(rate.max_amount)
-              );
-              if (matchingRate) {
-                setSelectedRate(matchingRate.id);
-              }
-            } else {
-              // For gross sales, we need to find matching business type
-              // Since business_permits has business_nature, not business_type
-              const matchingRate = taxRates.find(rate => 
-                rate.tax_percent === permitData.tax_config.tax_percent.toString()
-              );
-              if (matchingRate) {
-                setSelectedRate(matchingRate.id);
-              }
-            }
+          // Set selected rate from existing data
+          if (permitData.permit.tax_rate) {
+            setSelectedRate(parseFloat(permitData.permit.tax_rate));
+            setAutoCalculatedRate(parseFloat(permitData.permit.tax_rate));
           }
         } else {
-          // No tax calculated yet, calculate now
-          await calculateTax(permitData.permit);
+          // Auto-calculate tax based on permit data
+          await autoCalculateTax(permitData.permit);
         }
         
       } catch (err) {
@@ -143,7 +124,7 @@ const BusinessValidationInfo = () => {
       if (permitData.tax_calculation_type === 'capital_investment') {
         ratesUrl = `${API_BASE}/Business/BusinessValidation/get_capital_config.php`;
       } else {
-        ratesUrl = `${API_BASE}/Business/BusinessValidation/get_gross_sales_config.php`; // Fixed typo
+        ratesUrl = `${API_BASE}/Business/BusinessValidation/get_gross_sales_config.php`;
       }
       
       console.log('Loading tax rates from:', ratesUrl);
@@ -162,26 +143,124 @@ const BusinessValidationInfo = () => {
       } else {
         console.warn('Tax rates API returned:', data);
         // Fallback to default rates
-        throw new Error(data.message || 'Failed to load tax rates');
+        if (permitData.tax_calculation_type === 'capital_investment') {
+          setTaxRates([
+            { id: 1, min_amount: '1.00', max_amount: '5000.00', tax_percent: '20.00' },
+            { id: 2, min_amount: '5000.00', max_amount: '10000.00', tax_percent: '25.00' },
+            { id: 3, min_amount: '10000.00', max_amount: '15000.00', tax_percent: '25.00' },
+            { id: 4, min_amount: '15000.01', max_amount: '20000.00', tax_percent: '25.00' }
+          ]);
+        } else {
+          setTaxRates([
+            { id: 1, business_type: 'Retailer', tax_percent: '2.00' },
+            { id: 2, business_type: 'Wholesaler', tax_percent: '1.50' },
+            { id: 3, business_type: 'Manufacturer', tax_percent: '1.75' },
+            { id: 4, business_type: 'Service', tax_percent: '1.25' }
+          ]);
+        }
       }
     } catch (err) {
       console.error('Error loading tax rates, using defaults:', err);
-      // Provide default tax rates based on database structure
-      if (permitData.tax_calculation_type === 'capital_investment') {
-        setTaxRates([
-          { id: 1, min_amount: '1.00', max_amount: '5000.00', tax_percent: '20.00' },
-          { id: 2, min_amount: '5000.00', max_amount: '10000.00', tax_percent: '25.00' },
-          { id: 3, min_amount: '10000.00', max_amount: '15000.00', tax_percent: '25.00' },
-          { id: 4, min_amount: '15000.01', max_amount: '20000.00', tax_percent: '25.00' }
-        ]);
-      } else {
-        setTaxRates([
-          { id: 1, business_type: 'Retailer', tax_percent: '2.00' },
-          { id: 2, business_type: 'Wholesaler', tax_percent: '1.50' },
-          { id: 3, business_type: 'Manufacturer', tax_percent: '1.75' },
-          { id: 4, business_type: 'Service', tax_percent: '1.25' }
-        ]);
+    }
+  };
+
+  const autoCalculateTax = async (permitData) => {
+    try {
+      setIsCalculating(true);
+      
+      if (!permitData) {
+        alert('Permit data not available');
+        return;
       }
+      
+      const taxableAmount = parseFloat(permitData.taxable_amount || permitData.capital_investment || 0);
+      let taxRate = 0;
+      let rateInfo = {};
+      
+      // Determine tax rate based on calculation type
+      if (permitData.tax_calculation_type === 'capital_investment') {
+        // Find the appropriate bracket for capital investment
+        const bracket = taxRates.find(rate => 
+          taxableAmount >= parseFloat(rate.min_amount) && 
+          taxableAmount <= parseFloat(rate.max_amount)
+        );
+        
+        if (bracket) {
+          taxRate = parseFloat(bracket.tax_percent);
+          rateInfo = {
+            type: 'Auto-selected',
+            bracket: bracket,
+            isCustom: false
+          };
+        } else {
+          // Default rate if no bracket matches
+          taxRate = 25.00;
+          rateInfo = {
+            type: 'Default',
+            isCustom: false
+          };
+        }
+      } else {
+        // For gross sales, use business_nature to determine rate
+        const businessNature = permitData.business_nature || '';
+        let businessType = '';
+        
+        if (businessNature.toLowerCase().includes('retail')) businessType = 'Retailer';
+        else if (businessNature.toLowerCase().includes('whole')) businessType = 'Wholesaler';
+        else if (businessNature.toLowerCase().includes('manufact') || businessNature.toLowerCase().includes('factory')) 
+          businessType = 'Manufacturer';
+        else if (businessNature.toLowerCase().includes('service') || businessNature.toLowerCase().includes('consult')) 
+          businessType = 'Service';
+        else businessType = 'Retailer'; // Default
+        
+        const rate = taxRates.find(r => r.business_type === businessType);
+        taxRate = rate ? parseFloat(rate.tax_percent) : 2.00; // Default 2%
+        rateInfo = {
+          type: 'Auto-selected',
+          businessType: businessType,
+          isCustom: false
+        };
+      }
+      
+      // Calculate tax amount
+      const taxAmount = (taxableAmount * taxRate) / 100;
+      
+      // Calculate regulatory fees
+      const totalRegulatoryFees = regulatoryFees.reduce((sum, fee) => sum + parseFloat(fee.amount || 0), 0);
+      const totalTax = taxAmount + totalRegulatoryFees;
+      
+      const calculatedTaxData = {
+        status: 'success',
+        calculation: {
+          taxable_amount: taxableAmount,
+          tax_rate: taxRate,
+          tax_amount: taxAmount,
+          regulatory_fees: totalRegulatoryFees,
+          total_tax: totalTax,
+          rate_info: rateInfo
+        }
+      };
+      
+      setCalculatedTax(calculatedTaxData);
+      setAutoCalculatedRate(taxRate);
+      setSelectedRate(taxRate);
+      
+      const quarterlyData = calculateQuarterlyBreakdown(totalTax, permitData.issue_date);
+      setQuarterlyBreakdown(quarterlyData);
+      
+      // Update permit with auto-calculated values
+      setPermit(prev => ({
+        ...prev,
+        tax_amount: taxAmount,
+        total_tax: totalTax,
+        tax_rate: taxRate
+      }));
+      
+    } catch (err) {
+      console.error('Auto tax calculation error:', err);
+      alert('Auto tax calculation failed: ' + err.message);
+    } finally {
+      setIsCalculating(false);
     }
   };
 
@@ -232,103 +311,6 @@ const BusinessValidationInfo = () => {
     }));
   };
 
-  const calculateTax = async (permitData, rateId = null, customRateValue = null) => {
-    try {
-      setIsCalculating(true);
-      
-      if (!permitData || !permitData.id) {
-        alert('Permit data not available');
-        return;
-      }
-      
-      let url = `${API_BASE}/Business/BusinessValidation/calculate_tax.php?`;
-      url += `tax_type=${encodeURIComponent(permitData.tax_calculation_type || 'capital_investment')}`;
-      url += `&taxable_amount=${encodeURIComponent(permitData.taxable_amount || permitData.capital_investment || 0)}`;
-      url += `&business_nature=${encodeURIComponent(permitData.business_nature || 'Retailer')}`; // Using business_nature
-      url += `&permit_id=${encodeURIComponent(permitData.id)}`;
-      
-      if (rateId) {
-        url += `&selected_config_id=${rateId}`;
-      } else if (customRateValue !== null) {
-        url += `&override_tax_rate=${customRateValue}`;
-      }
-      
-      console.log('Calculating tax with URL:', url);
-      const response = await fetch(url);
-      const text = await response.text();
-      console.log('Tax calculation response:', text.substring(0, 500));
-      
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('Failed to parse tax calculation:', text);
-        throw new Error('Invalid response from server');
-      }
-      
-      if (data.status === 'success') {
-        setCalculatedTax(data);
-        
-        const totalTax = data.calculation?.total_tax || 0;
-        const quarterlyData = calculateQuarterlyBreakdown(totalTax, permitData.issue_date);
-        setQuarterlyBreakdown(quarterlyData);
-        
-        if (rateId) {
-          setSelectedRate(rateId);
-        } else if (customRateValue !== null) {
-          setSelectedRate('custom');
-        }
-        
-        // Update permit with new tax values
-        if (data.calculation) {
-          setPermit(prev => ({
-            ...prev,
-            tax_amount: data.calculation.tax_amount,
-            total_tax: data.calculation.total_tax,
-            tax_rate: data.calculation.tax_rate
-          }));
-        }
-      } else {
-        throw new Error(data.message || 'Calculation failed');
-      }
-    } catch (err) {
-      console.error('Tax calculation error:', err);
-      alert('Tax calculation failed: ' + err.message + '. Using fallback calculation.');
-      
-      // Fallback calculation
-      const taxableAmount = parseFloat(permitData.taxable_amount || permitData.capital_investment || 0);
-      const taxRate = customRateValue || (permitData.tax_calculation_type === 'capital_investment' ? 25 : 2);
-      const taxAmount = (taxableAmount * parseFloat(taxRate)) / 100;
-      const regulatoryFees = 499.98 + 500 + 300; // Default fees
-      const totalTax = taxAmount + regulatoryFees;
-      
-      const simpleTax = {
-        status: 'success',
-        calculation: {
-          taxable_amount: taxableAmount,
-          tax_rate: parseFloat(taxRate),
-          tax_amount: taxAmount,
-          regulatory_fees: regulatoryFees,
-          total_tax: totalTax
-        }
-      };
-      
-      setCalculatedTax(simpleTax);
-      const quarterlyData = calculateQuarterlyBreakdown(totalTax, permitData.issue_date);
-      setQuarterlyBreakdown(quarterlyData);
-      
-      // Update permit with fallback values
-      setPermit(prev => ({
-        ...prev,
-        tax_amount: taxAmount,
-        total_tax: totalTax,
-        tax_rate: parseFloat(taxRate)
-      }));
-    } finally {
-      setIsCalculating(false);
-    }
-  };
-
   const handleCustomRate = () => {
     if (!permit) {
       alert('No permit data available');
@@ -340,9 +322,70 @@ const BusinessValidationInfo = () => {
       return;
     }
     
-    setSelectedRate('custom');
+    const customRateValue = parseFloat(customRate);
+    updateTaxWithNewRate(customRateValue, true);
     setShowRateOptions(false);
-    calculateTax(permit, null, parseFloat(customRate));
+  };
+
+  const updateTaxWithNewRate = (newRate, isCustom = false) => {
+    if (!permit || !calculatedTax) return;
+    
+    const taxableAmount = parseFloat(calculatedTax.calculation?.taxable_amount || 0);
+    const taxAmount = (taxableAmount * newRate) / 100;
+    const totalRegulatoryFees = calculatedTax.calculation?.regulatory_fees || 0;
+    const totalTax = taxAmount + totalRegulatoryFees;
+    
+    const updatedTax = {
+      ...calculatedTax,
+      calculation: {
+        ...calculatedTax.calculation,
+        tax_rate: newRate,
+        tax_amount: taxAmount,
+        total_tax: totalTax,
+        rate_info: {
+          ...calculatedTax.calculation?.rate_info,
+          isCustom: isCustom
+        }
+      }
+    };
+    
+    setCalculatedTax(updatedTax);
+    setSelectedRate(newRate);
+    
+    const quarterlyData = calculateQuarterlyBreakdown(totalTax, permit.issue_date);
+    setQuarterlyBreakdown(quarterlyData);
+    
+    // Update permit with new values
+    setPermit(prev => ({
+      ...prev,
+      tax_amount: taxAmount,
+      total_tax: totalTax,
+      tax_rate: newRate
+    }));
+  };
+
+  const handleSelectBracket = (bracketId) => {
+    const bracket = taxRates.find(rate => rate.id === bracketId);
+    if (bracket) {
+      const taxRate = parseFloat(bracket.tax_percent);
+      updateTaxWithNewRate(taxRate, false);
+    }
+  };
+
+  const handleSelectBusinessType = (rateId) => {
+    const rate = taxRates.find(r => r.id === rateId);
+    if (rate) {
+      const taxRate = parseFloat(rate.tax_percent);
+      updateTaxWithNewRate(taxRate, false);
+    }
+  };
+
+  const handleResetToAuto = () => {
+    if (autoCalculatedRate !== null) {
+      updateTaxWithNewRate(autoCalculatedRate, false);
+      setCustomRate('');
+      setShowRateOptions(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -456,65 +499,55 @@ const BusinessValidationInfo = () => {
   const getCurrentRateInfo = () => {
     if (!permit || !calculatedTax) return null;
     
+    const rateInfo = calculatedTax.calculation?.rate_info || {};
+    
     if (permit.tax_calculation_type === 'capital_investment') {
-      const rate = taxRates.find(r => r.id === selectedRate);
-      if (rate) {
+      if (rateInfo.isCustom) {
         return {
-          type: 'Capital Investment Bracket',
-          range: `₱${parseFloat(rate.min_amount).toLocaleString()} - ₱${parseFloat(rate.max_amount).toLocaleString()}`,
-          rate: `${rate.tax_percent}%`,
-          description: `Applicable for capital investments within this range`
+          type: 'Custom Rate',
+          rate: `${calculatedTax.calculation?.tax_rate}%`,
+          description: 'Manually adjusted tax rate',
+          isCustom: true
+        };
+      } else if (rateInfo.bracket) {
+        return {
+          type: 'Auto-selected Bracket',
+          bracket: rateInfo.bracket,
+          rate: `${calculatedTax.calculation?.tax_rate}%`,
+          description: `Auto-applied for capital investment: ₱${(calculatedTax.calculation?.taxable_amount || 0).toLocaleString()}`,
+          isCustom: false
         };
       }
     } else {
-      const rate = taxRates.find(r => r.id === selectedRate);
-      if (rate) {
+      if (rateInfo.isCustom) {
         return {
-          type: 'Business Type Rate',
-          range: rate.business_type,
-          rate: `${rate.tax_percent}%`,
-          description: `Standard rate for ${rate.business_type.toLowerCase()} businesses`
+          type: 'Custom Rate',
+          rate: `${calculatedTax.calculation?.tax_rate}%`,
+          description: 'Manually adjusted tax rate',
+          isCustom: true
+        };
+      } else {
+        return {
+          type: 'Auto-selected Rate',
+          businessType: rateInfo.businessType || 'Standard',
+          rate: `${calculatedTax.calculation?.tax_rate}%`,
+          description: `Auto-applied for ${rateInfo.businessType || 'Standard'} business type`,
+          isCustom: false
         };
       }
     }
     
-    if (selectedRate === 'custom') {
-      return {
-        type: 'Custom Rate',
-        range: 'Manual adjustment',
-        rate: `${calculatedTax.calculation?.tax_rate}%`,
-        description: 'Manually adjusted tax rate'
-      };
-    }
-    
-    // If no specific rate selected, show from tax config
-    if (taxConfig) {
-      return {
-        type: permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment Bracket' : 'Business Type Rate',
-        range: permit.tax_calculation_type === 'capital_investment' 
-          ? `₱${parseFloat(taxConfig.min_amount || 0).toLocaleString()} - ₱${parseFloat(taxConfig.max_amount || 0).toLocaleString()}`
-          : (taxConfig.business_type || 'Standard'),
-        rate: `${taxConfig.tax_percent}%`,
-        description: 'Auto-selected based on configuration'
-      };
-    }
-    
-    return null;
+    return {
+      type: 'Standard Rate',
+      rate: `${calculatedTax.calculation?.tax_rate}%`,
+      description: 'Applied tax rate',
+      isCustom: false
+    };
   };
 
-  // Function to get selected bracket details
-  const getSelectedBracket = () => {
-    if (permit?.tax_calculation_type === 'capital_investment' && selectedRate) {
-      return taxRates.find(rate => rate.id === selectedRate);
-    }
-    return null;
-  };
-
-  // Get business type for display (since database has business_nature, not business_type)
   const getBusinessTypeDisplay = () => {
     if (!permit) return '';
     
-    // Try to map business_nature to a business type
     const businessNature = permit.business_nature || '';
     if (businessNature.toLowerCase().includes('retail')) return 'Retailer';
     if (businessNature.toLowerCase().includes('whole')) return 'Wholesaler';
@@ -562,16 +595,16 @@ const BusinessValidationInfo = () => {
   }
 
   const currentRateInfo = getCurrentRateInfo();
-  const selectedBracket = getSelectedBracket();
   const businessTypeDisplay = getBusinessTypeDisplay();
+  const isCustomRate = currentRateInfo?.isCustom;
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
 
-        {/* Header / Status Card */}
+        {/* Header */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <button 
                 onClick={() => navigate(-1)} 
@@ -598,38 +631,15 @@ const BusinessValidationInfo = () => {
               </div>
             </div>
           </div>
-
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span className="font-bold text-blue-600">Submitted</span>
-              <span className={`font-bold ${permit.permit_status !== 'PENDING' ? 'text-blue-600' : 'text-gray-400'}`}>
-                Assessed
-              </span>
-              <span className={`${permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE' ? 'font-bold text-blue-600' : 'text-gray-400'}`}>
-                Approved
-              </span>
-              <span className={`${permit.permit_status === 'ACTIVE' ? 'font-bold text-blue-600' : 'text-gray-400'}`}>
-                Active
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-2 bg-blue-500 rounded-full ${
-                permit.permit_status === 'PENDING' ? 'w-1/4' :
-                permit.permit_status === 'APPROVED' ? 'w-3/4' :
-                permit.permit_status === 'ACTIVE' ? 'w-full' : 'w-1/4'
-              }`}></div>
-            </div>
-          </div>
         </div>
 
         {/* Main Content Grid */}
         <div className="flex flex-col lg:flex-row gap-6">
           
-          {/* Left Column - Business Details */}
+          {/* Left Column */}
           <div className="flex-1 space-y-6">
             
-            {/* Business Information Card - Compact Form-like Layout */}
+            {/* Business Information Card */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                 <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -639,7 +649,6 @@ const BusinessValidationInfo = () => {
               </h2>
               
               <div className="space-y-4">
-                {/* Business Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</label>
@@ -718,63 +727,6 @@ const BusinessValidationInfo = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Business Address */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Business Address</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Barangay</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_barangay}</div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">District</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_district}</div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">City</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_city}</div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Province</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_province}</div>
-                    </div>
-                    
-                    {permit.business_zipcode && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">ZIP Code</label>
-                        <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_zipcode}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Dates */}
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Application Date</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{formatDate(permit.application_date || permit.created_at)}</div>
-                    </div>
-                    
-                    {permit.issue_date && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</label>
-                        <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{formatDate(permit.issue_date)}</div>
-                      </div>
-                    )}
-                    
-                    {permit.expiry_date && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</label>
-                        <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">{formatDate(permit.expiry_date)}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -787,50 +739,52 @@ const BusinessValidationInfo = () => {
                   </svg>
                   Tax Calculation
                 </h2>
-                {calculatedTax && (
-                  <button
-                    onClick={() => setShowRateOptions(!showRateOptions)}
-                    className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    {showRateOptions ? 'Cancel' : 'Adjust Rate'}
-                  </button>
-                )}
+                
+                {/* Edit Rate Button in Tax Calculation Card */}
+                <button
+                  onClick={() => setShowRateOptions(!showRateOptions)}
+                  className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  {showRateOptions ? 'Hide Rate Options' : 'Edit Tax Rate'}
+                </button>
               </div>
               
-              {/* Tax Rate Selection Panel */}
+              {/* Tax Rate Selection Panel - Hidden by default, shows when button clicked */}
               {showRateOptions && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-medium text-gray-900 mb-3">Select Tax Rate</h3>
+                  <h3 className="font-medium text-gray-900 mb-3">Adjust Tax Rate</h3>
                   
                   {permit.tax_calculation_type === 'capital_investment' ? (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Capital Investment Brackets</h4>
-                      <select
-                        value={selectedRate || ''}
-                        onChange={(e) => {
-                          const rateId = e.target.value;
-                          if (rateId) {
-                            calculateTax(permit, parseInt(rateId));
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                      >
-                        <option value="">Select Capital Investment Bracket</option>
+                      <div className="space-y-2">
                         {taxRates.map((rate) => (
-                          <option key={rate.id} value={rate.id}>
-                            ₱{parseFloat(rate.min_amount).toLocaleString()} - ₱{parseFloat(rate.max_amount).toLocaleString()} : {rate.tax_percent}%
-                          </option>
+                          <button
+                            key={rate.id}
+                            onClick={() => handleSelectBracket(rate.id)}
+                            className={`w-full p-3 rounded-lg border text-left ${
+                              selectedRate === parseFloat(rate.tax_percent) && !isCustomRate
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 bg-white hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  ₱{parseFloat(rate.min_amount).toLocaleString()} - ₱{parseFloat(rate.max_amount).toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Auto-applied when capital is within this range
+                                </div>
+                              </div>
+                              <div className="text-sm font-bold text-blue-600">{rate.tax_percent}%</div>
+                            </div>
+                          </button>
                         ))}
-                      </select>
-                      {selectedBracket && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          <div>Selected bracket: ₱{parseFloat(selectedBracket.min_amount).toLocaleString()} - ₱{parseFloat(selectedBracket.max_amount).toLocaleString()}</div>
-                          <div>Tax rate: {selectedBracket.tax_percent}%</div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ) : (
                     <div className="mb-4">
@@ -839,15 +793,20 @@ const BusinessValidationInfo = () => {
                         {taxRates.map((rate) => (
                           <button
                             key={rate.id}
-                            onClick={() => calculateTax(permit, rate.id)}
+                            onClick={() => handleSelectBusinessType(rate.id)}
                             className={`w-full p-3 rounded-lg border text-left ${
-                              selectedRate === rate.id
+                              selectedRate === parseFloat(rate.tax_percent) && !isCustomRate
                                 ? 'border-blue-500 bg-blue-50'
                                 : 'border-gray-200 bg-white hover:bg-gray-50'
                             }`}
                           >
                             <div className="flex justify-between items-center">
-                              <div className="text-sm font-medium text-gray-900">{rate.business_type}</div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{rate.business_type}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Standard rate for {rate.business_type.toLowerCase()} businesses
+                                </div>
+                              </div>
                               <div className="text-sm font-bold text-blue-600">{rate.tax_percent}%</div>
                             </div>
                           </button>
@@ -876,9 +835,23 @@ const BusinessValidationInfo = () => {
                         onClick={handleCustomRate}
                         className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm"
                       >
-                        Apply
+                        Apply Custom
                       </button>
                     </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Enter a custom percentage rate (e.g., 2.5 for 2.5%)
+                    </div>
+                    {isCustomRate && autoCalculatedRate !== null && (
+                      <button
+                        onClick={handleResetToAuto}
+                        className="mt-2 inline-flex items-center px-3 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Reset to Auto-calculated Rate ({autoCalculatedRate}%)
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -893,33 +866,50 @@ const BusinessValidationInfo = () => {
                   
                   {/* Current Rate Information */}
                   {currentRateInfo && (
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className={`p-4 rounded-lg border ${
+                      isCustomRate 
+                        ? 'bg-purple-50 border-purple-200' 
+                        : 'bg-blue-50 border-blue-200'
+                    }`}>
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-sm font-medium text-blue-900">Applied Rate: {currentRateInfo.rate}</div>
-                          <div className="text-xs text-blue-700 mt-1">{currentRateInfo.description}</div>
-                          {permit.tax_calculation_type === 'capital_investment' && selectedBracket && (
-                            <div className="text-xs text-blue-700 mt-1">
-                              Range: ₱{parseFloat(selectedBracket.min_amount).toLocaleString()} - ₱{parseFloat(selectedBracket.max_amount).toLocaleString()}
+                          <div className="text-sm font-medium text-gray-900">
+                            {isCustomRate ? 'Custom Tax Rate Applied' : 'Auto-calculated Tax Rate'}
+                          </div>
+                          <div className="flex items-center mt-1">
+                            <span className="text-2xl font-bold text-blue-600 mr-2">
+                              {calculatedTax.calculation?.tax_rate}%
+                            </span>
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                              {currentRateInfo.type}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-2">
+                            {currentRateInfo.description}
+                          </div>
+                          {currentRateInfo.bracket && (
+                            <div className="text-xs text-gray-600 mt-1">
+                              Range: ₱{parseFloat(currentRateInfo.bracket.min_amount).toLocaleString()} - ₱{parseFloat(currentRateInfo.bracket.max_amount).toLocaleString()}
                             </div>
                           )}
                         </div>
+                        {isCustomRate && (
+                          <div className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                            MANUAL
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Tax Calculation Steps */}
                   <div className="space-y-4">
-                    {/* Base Calculation */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <div className="text-xs text-gray-500 mb-1">
-                          {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Taxable Base'}
-                        </div>
+                        <div className="text-xs text-gray-500 mb-1">Taxable Base</div>
                         <div className="text-lg font-bold text-gray-900">
                           {formatCurrency(calculatedTax.calculation?.taxable_amount || 0)}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">Taxable Amount</div>
                       </div>
                       
                       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -927,7 +917,6 @@ const BusinessValidationInfo = () => {
                         <div className="text-lg font-bold text-blue-600">
                           {calculatedTax.calculation?.tax_rate || 0}%
                         </div>
-                        <div className="text-xs text-blue-500 mt-1">Applied Rate</div>
                       </div>
                       
                       <div className="bg-green-50 p-4 rounded-lg border border-green-200">
@@ -935,7 +924,6 @@ const BusinessValidationInfo = () => {
                         <div className="text-lg font-bold text-green-600">
                           {formatCurrency(calculatedTax.calculation?.tax_amount || 0)}
                         </div>
-                        <div className="text-xs text-green-500 mt-1">Base × Rate</div>
                       </div>
                     </div>
 
@@ -981,7 +969,7 @@ const BusinessValidationInfo = () => {
                     </div>
                   </div>
 
-                  {/* Simple Quarterly Payment Schedule */}
+                  {/* Quarterly Payment Schedule */}
                   {quarterlyBreakdown && (
                     <div className="border-t border-gray-200 pt-6">
                       <h3 className="text-sm font-medium text-gray-700 mb-3">Quarterly Payment Schedule</h3>
@@ -1017,12 +1005,6 @@ const BusinessValidationInfo = () => {
                           </div>
                         ))}
                       </div>
-
-                      <div className="mt-4 pt-3 border-t border-gray-200">
-                        <div className="text-center text-sm text-gray-600">
-                          Payments are due quarterly. Late payments may incur penalties.
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1034,9 +1016,9 @@ const BusinessValidationInfo = () => {
             </div>
           </div>
 
-          {/* Right Column - Action Panel & Summary */}
+          {/* Right Column - Only Action Panel with Approve Button */}
           <div className="w-full lg:w-80 space-y-6">
-            {/* Action Panel */}
+            {/* Action Panel - Only Approve Button */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Actions</h2>
               
@@ -1047,58 +1029,36 @@ const BusinessValidationInfo = () => {
                     <p className="text-gray-700 text-sm">Calculating tax...</p>
                   </div>
                 ) : calculatedTax ? (
-                  <>
-                    <button
-                      onClick={handleApprove}
-                      disabled={isApproving || permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'}
-                      className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center ${
-                        permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      } ${isApproving ? 'opacity-50' : ''}`}
-                    >
-                      {isApproving ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Approving...
-                        </>
-                      ) : permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE' ? (
-                        <>
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Already Approved
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Approve Permit
-                        </>
-                      )}
-                    </button>
-                    
-                    {permit.permit_status !== 'APPROVED' && permit.permit_status !== 'ACTIVE' && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={isApproving || permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'}
+                    className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center ${
+                      permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    } ${isApproving ? 'opacity-50' : ''}`}
+                  >
+                    {isApproving ? (
                       <>
-                        <button
-                          onClick={() => setShowRateOptions(!showRateOptions)}
-                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all flex items-center justify-center"
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Adjust Tax Rate
-                        </button>
-                        
-                        <div className="bg-blue-50 p-3 rounded border border-blue-200 mt-4">
-                          <div className="text-sm text-blue-700">
-                            Approving will save the tax calculation and generate quarterly payment records.
-                          </div>
-                        </div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Approving...
+                      </>
+                    ) : permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE' ? (
+                      <>
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Already Approved
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Approve Permit
                       </>
                     )}
-                  </>
+                  </button>
                 ) : (
                   <div className="text-center py-4">
                     <p className="text-gray-600 text-sm">Please wait for tax calculation...</p>
@@ -1128,94 +1088,29 @@ const BusinessValidationInfo = () => {
                       {formatCurrency(permit.taxable_amount || permit.capital_investment || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Application Date</span>
-                    <span className="text-sm text-gray-900">{formatDate(permit.application_date || permit.created_at)}</span>
-                  </div>
-                </div>
-
-                {currentRateInfo && (
-                  <div className="pt-3 border-t border-gray-200">
-                    <h3 className="text-xs font-medium text-gray-700 mb-2">Applied Tax Rate</h3>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-gray-600">Type</span>
-                        <span className="text-xs font-medium text-gray-900">{currentRateInfo.type}</span>
+                  {calculatedTax && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Tax Rate</span>
+                        <span className={`text-sm font-bold ${isCustomRate ? 'text-purple-600' : 'text-blue-600'}`}>
+                          {calculatedTax.calculation?.tax_rate}%
+                        </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-gray-600">Rate</span>
-                        <span className="text-xs font-bold text-blue-600">{currentRateInfo.rate}</span>
-                      </div>
-                      {permit.tax_calculation_type === 'capital_investment' && selectedBracket && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-gray-600">Range</span>
-                          <span className="text-xs font-medium text-gray-900">
-                            ₱{parseFloat(selectedBracket.min_amount).toLocaleString()} - ₱{parseFloat(selectedBracket.max_amount).toLocaleString()}
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Annual Tax</span>
+                          <span className="text-lg font-bold text-green-600">
+                            {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
                           </span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {calculatedTax && (
-                  <div className="pt-3 border-t border-gray-200">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500 mb-1">Total Annual Tax</div>
-                        <div className="text-xl font-bold text-green-600">
-                          {formatCurrency(calculatedTax.calculation?.total_tax || 0)}
-                        </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Information Card */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">System Information</h2>
-              <div className="space-y-3">
-                <div className="text-sm text-gray-600">
-                  Tax rates are loaded from the database. You can select from available rates or enter a custom rate.
+                    </>
+                  )}
                 </div>
-                <div className="text-sm text-gray-600">
-                  Approving will automatically generate quarterly payment schedules.
-                </div>
-                {discountConfig && (
-                  <div className="text-sm text-blue-600">
-                    Discount available: {discountConfig.discount_percent}% for early payments
-                  </div>
-                )}
-                {penaltyConfig && (
-                  <div className="text-sm text-red-600">
-                    Penalty rate: {penaltyConfig.penalty_percent}% for late payments
-                  </div>
-                )}
               </div>
             </div>
           </div>
         </div>
-
-        {/* Important Notes Section */}
-        {!calculatedTax && (
-          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-            <div className="flex items-start">
-              <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-yellow-600">⚠️</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Tax Calculation Required</h3>
-                <ul className="text-sm text-gray-700">
-                  <li>• Tax calculation is in progress or not yet started</li>
-                  <li>• Review and adjust tax rates if necessary</li>
-                  <li>• Complete tax calculation before approving permit</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

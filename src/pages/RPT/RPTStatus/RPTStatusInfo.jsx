@@ -269,7 +269,7 @@ export default function RPTStatusInfo() {
           </div>
         </div>
 
-        {/* Combined Property & Owner Information */}
+        {/* Combined Property & Owner Information - OWNER NOW ON LEFT */}
         <div className="bg-white border rounded-xl shadow-sm mb-8">
           <div className="px-6 py-5 border-b">
             <div className="flex items-center justify-between">
@@ -289,46 +289,7 @@ export default function RPTStatusInfo() {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Property Information */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <div className="p-2 bg-gray-100 rounded">
-                      <Home className="w-4 h-4" />
-                    </div>
-                    Property Location
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-1">Complete Address</p>
-                      <p className="text-gray-900 font-medium">{property.lot_location}</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {property.barangay}, District {property.district}, {property.city}, {property.province}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">Property Type</p>
-                        <p className="text-gray-900 font-medium">{property.property_type || "Residential"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">Land Area</p>
-                        <p className="text-gray-900 font-medium">{property.land_area_sqm} sqm</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">Zip Code</p>
-                        <p className="text-gray-900 font-medium">{property.zip_code || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">Registered</p>
-                        <p className="text-gray-900 font-medium">{formatDate(property.created_at)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Owner Information */}
+              {/* Property Owner - NOW ON LEFT SIDE */}
               <div className="space-y-6">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -379,6 +340,45 @@ export default function RPTStatusInfo() {
                       <div>
                         <p className="text-sm font-medium text-gray-500 mb-1">Registered Address</p>
                         <p className="text-gray-900 font-medium">{property.owner_address || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Property Location - NOW ON RIGHT SIDE */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="p-2 bg-gray-100 rounded">
+                      <Home className="w-4 h-4" />
+                    </div>
+                    Property Location
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">Complete Address</p>
+                      <p className="text-gray-900 font-medium">{property.lot_location}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {property.barangay}, District {property.district}, {property.city}, {property.province}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">Property Type</p>
+                        <p className="text-gray-900 font-medium">{property.property_type || "Residential"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">Land Area</p>
+                        <p className="text-gray-900 font-medium">{property.land_area_sqm} sqm</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">Zip Code</p>
+                        <p className="text-gray-900 font-medium">{property.zip_code || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">Registered</p>
+                        <p className="text-gray-900 font-medium">{formatDate(property.created_at)}</p>
                       </div>
                     </div>
                   </div>
