@@ -37,7 +37,8 @@ try {
             po.city as owner_city,
             po.province as owner_province,
             po.phone,
-            po.email
+            po.email,
+            po.owner_code
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
         WHERE pr.id = ? AND po.user_id = ?
@@ -56,7 +57,7 @@ if (!$application) {
 $land_data = [];
 try {
     $land_stmt = $pdo->prepare("
-        SELECT lp.*, lc.classification
+        SELECT lp.*, lc.classification, lc.market_value as land_market_value_per_sqm
         FROM land_properties lp
         JOIN land_configurations lc ON lp.land_config_id = lc.id
         WHERE lp.registration_id = ?
@@ -70,10 +71,12 @@ try {
 // Fetch building assessment data
 $building_data = [];
 $total_building_tax = 0;
+$total_building_basic_tax = 0;
+$total_building_sef_tax = 0;
 if ($application['has_building'] == 'yes') {
     try {
         $building_stmt = $pdo->prepare("
-            SELECT bp.*, pc.material_type
+            SELECT bp.*, pc.material_type, pc.unit_cost, pc.depreciation_rate
             FROM building_properties bp
             JOIN property_configurations pc ON bp.property_config_id = pc.id
             WHERE bp.land_id = ?
@@ -83,6 +86,8 @@ if ($application['has_building'] == 'yes') {
         
         foreach ($building_data as $building) {
             $total_building_tax += $building['annual_tax'] ?? 0;
+            $total_building_basic_tax += $building['basic_tax_amount'] ?? 0;
+            $total_building_sef_tax += $building['sef_tax_amount'] ?? 0;
         }
     } catch(PDOException $e) {
         die("Error fetching building data: " . $e->getMessage());
@@ -119,10 +124,37 @@ if (!empty($total_tax_data)) {
     }
 }
 
-// Calculate totals
+// Calculate totals from land data
+$land_basic_tax = $land_data['basic_tax_amount'] ?? 0;
+$land_sef_tax = $land_data['sef_tax_amount'] ?? 0;
 $total_land_tax = $land_data['annual_tax'] ?? 0;
+
+// Calculate building totals
 $total_annual_tax = $total_land_tax + $total_building_tax;
-$quarterly_amount = $total_annual_tax / 4;
+$total_basic_tax = $land_basic_tax + $total_building_basic_tax;
+$total_sef_tax = $land_sef_tax + $total_building_sef_tax;
+
+// Verify totals match
+$calculated_total = $total_basic_tax + $total_sef_tax;
+
+// Get current tax rates
+$tax_rates = [];
+try {
+    $tax_rate_stmt = $pdo->prepare("
+        SELECT tax_name, tax_percent 
+        FROM rpt_tax_config 
+        WHERE status = 'active' 
+        AND effective_date <= CURDATE() 
+        AND (expiration_date IS NULL OR expiration_date >= CURDATE())
+    ");
+    $tax_rate_stmt->execute();
+    $rates = $tax_rate_stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rates as $rate) {
+        $tax_rates[$rate['tax_name']] = $rate['tax_percent'];
+    }
+} catch(PDOException $e) {
+    $tax_rates = ['Basic Tax' => 5.00, 'SEF Tax' => 3.00];
+}
 
 // Get discount percentage
 function getDiscountPercentage($pdo) {
@@ -131,6 +163,8 @@ function getDiscountPercentage($pdo) {
             SELECT discount_percent 
             FROM discount_configurations 
             WHERE status = 'active' 
+            AND effective_date <= CURDATE() 
+            AND (expiration_date IS NULL OR expiration_date >= CURDATE())
             LIMIT 1
         ");
         $discount_stmt->execute();
@@ -167,6 +201,28 @@ $eligible_for_discount = isEligibleForAnnualDiscount($quarterly_taxes);
 $discount_percent = getDiscountPercentage($pdo);
 $discount_amount = $eligible_for_discount ? ($total_annual_tax * ($discount_percent / 100)) : 0;
 $discounted_total = $eligible_for_discount ? ($total_annual_tax - $discount_amount) : $total_annual_tax;
+
+// Get penalty configuration
+function getPenaltyPercentage($pdo) {
+    try {
+        $penalty_stmt = $pdo->prepare("
+            SELECT penalty_percent 
+            FROM penalty_configurations 
+            WHERE status = 'active' 
+            AND effective_date <= CURDATE() 
+            AND (expiration_date IS NULL OR expiration_date >= CURDATE())
+            LIMIT 1
+        ");
+        $penalty_stmt->execute();
+        $penalty = $penalty_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $penalty['penalty_percent'] ?? 2.00;
+    } catch(PDOException $e) {
+        return 2.00;
+    }
+}
+
+$penalty_percent = getPenaltyPercentage($pdo);
 
 // Generate billing reference number
 $billing_reference = "RPT-BILL-" . date('Ymd-His') . "-" . rand(1000, 9999);
@@ -244,7 +300,7 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
 
         /* Watermark effect */
         .paper-form::before {
-            content: '';
+            content: 'BILLING STATEMENT';
             position: absolute;
             top: 50%;
             left: 50%;
@@ -539,13 +595,51 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
             text-align: center;
             font-weight: bold;
         }
+
+        /* Tax breakdown styles */
+        .tax-breakdown {
+            background: #f8fafc;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .tax-breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tax-breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .tax-breakdown-label {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .tax-breakdown-value {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #047857;
+        }
+
+        .tax-breakdown-total {
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: #1a56db;
+            color: white;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="paper-form">
-        <!-- Watermark -->
-        <div class="watermark">BILLING STATEMENT</div>
-        
         <!-- Official Header -->
         <div class="official-header">
             <div class="official-seal">
@@ -591,6 +685,16 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <div class="detail-item">
                     <div class="detail-label">Assessment Year</div>
                     <div class="detail-value"><?php echo $current_year; ?></div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Reference Number</div>
+                    <div class="detail-value"><?php echo $application['reference_number']; ?></div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">Owner Code</div>
+                    <div class="detail-value"><?php echo $application['owner_code']; ?></div>
                 </div>
             </div>
         </div>
@@ -647,6 +751,11 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 </div>
                 
                 <div class="detail-item">
+                    <div class="detail-label">District</div>
+                    <div class="detail-value"><?php echo $application['district']; ?></div>
+                </div>
+                
+                <div class="detail-item">
                     <div class="detail-label">City/Municipality</div>
                     <div class="detail-value"><?php echo $application['city']; ?></div>
                 </div>
@@ -654,6 +763,11 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <div class="detail-item">
                     <div class="detail-label">Property Type</div>
                     <div class="detail-value"><?php echo $application['has_building'] == 'yes' ? 'With Building' : 'Vacant Land'; ?></div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">ZIP Code</div>
+                    <div class="detail-value"><?php echo $application['zip_code']; ?></div>
                 </div>
             </div>
         </div>
@@ -664,66 +778,152 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <i class="fas fa-chart-bar mr-2"></i>Tax Assessment Details
             </div>
             
-            <table class="bill-table">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>Assessment Details</th>
-                        <th>Annual Tax</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Land Tax -->
-                    <tr>
-                        <td>LAND TAX</td>
-                        <td>
-                            <?php echo $land_data['classification'] ?? 'N/A'; ?> - 
-                            <?php echo $land_data['land_area_sqm'] ?? '0'; ?> sqm
-                        </td>
-                        <td class="amount"><?php echo formatCurrency($total_land_tax); ?></td>
-                    </tr>
+            <!-- Land Assessment Details -->
+            <div class="mb-6">
+                <h4 class="font-bold text-lg mb-3 text-blue-700">LAND ASSESSMENT</h4>
+                <div class="tax-breakdown">
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Classification:</span>
+                        <span><?php echo $land_data['classification'] ?? 'N/A'; ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Market Value (per sqm):</span>
+                        <span><?php echo formatCurrency($land_data['land_market_value_per_sqm'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Land Area:</span>
+                        <span><?php echo $land_data['land_area_sqm'] ?? '0'; ?> sqm</span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Total Market Value:</span>
+                        <span><?php echo formatCurrency($land_data['land_market_value'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Assessment Level:</span>
+                        <span><?php echo $land_data['assessment_level'] ?? '0'; ?>%</span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Assessed Value:</span>
+                        <span><?php echo formatCurrency($land_data['land_assessed_value'] ?? 0); ?></span>
+                    </div>
                     
-                    <!-- Building Tax -->
-                    <?php if (!empty($building_data)): ?>
-                    <?php foreach ($building_data as $index => $building): ?>
-                    <tr>
-                        <td>BUILDING <?php echo $index + 1; ?></td>
-                        <td>
-                            <?php echo $building['material_type'] ?? 'N/A'; ?> - 
-                            <?php echo $building['floor_area_sqm'] ?? '0'; ?> sqm
-                        </td>
-                        <td class="amount"><?php echo formatCurrency($building['annual_tax'] ?? 0); ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
+                    <!-- Land Tax Breakdown -->
+                    <div class="tax-breakdown-item" style="border-top: 2px solid #d1d5db; margin-top: 10px; padding-top: 10px;">
+                        <span class="tax-breakdown-label font-bold">Basic Tax (<?php echo $tax_rates['Basic Tax'] ?? '5.00'; ?>%):</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($land_basic_tax); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label font-bold">SEF Tax (<?php echo $tax_rates['SEF Tax'] ?? '3.00'; ?>%):</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($land_sef_tax); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item tax-breakdown-total">
+                        <span class="tax-breakdown-label">TOTAL LAND TAX:</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($total_land_tax); ?></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Building Assessment Details -->
+            <?php if (!empty($building_data)): ?>
+            <div class="mb-6">
+                <h4 class="font-bold text-lg mb-3 text-blue-700">BUILDING ASSESSMENT</h4>
+                <?php foreach ($building_data as $index => $building): ?>
+                <div class="tax-breakdown mb-4">
+                    <h5 class="font-bold mb-2">Building <?php echo $index + 1; ?></h5>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Construction Type:</span>
+                        <span><?php echo $building['construction_type']; ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Material Type:</span>
+                        <span><?php echo $building['material_type']; ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Unit Cost:</span>
+                        <span><?php echo formatCurrency($building['unit_cost']); ?> per sqm</span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Floor Area:</span>
+                        <span><?php echo $building['floor_area_sqm']; ?> sqm</span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Year Built:</span>
+                        <span><?php echo $building['year_built']; ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Depreciation Rate:</span>
+                        <span><?php echo $building['depreciation_rate']; ?>%</span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Market Value:</span>
+                        <span><?php echo formatCurrency($building['building_market_value'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Depreciated Value:</span>
+                        <span><?php echo formatCurrency($building['building_depreciated_value'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label">Assessed Value:</span>
+                        <span><?php echo formatCurrency($building['building_assessed_value'] ?? 0); ?></span>
+                    </div>
                     
-                    <!-- Subtotal -->
-                    <tr>
-                        <td colspan="2" class="text-right font-bold">SUBTOTAL:</td>
-                        <td class="amount font-bold"><?php echo formatCurrency($total_annual_tax); ?></td>
-                    </tr>
-                    
-                    <!-- Discount (if applicable) -->
-                    <?php if ($eligible_for_discount): ?>
-                    <tr style="background: #d1fae5;">
-                        <td colspan="2" class="text-right font-bold text-green-800">
-                            ANNUAL PAYMENT DISCOUNT (<?php echo $discount_percent; ?>%):
-                        </td>
-                        <td class="amount font-bold text-green-800">-<?php echo formatCurrency($discount_amount); ?></td>
-                    </tr>
-                    <?php endif; ?>
-                    
-                    <!-- Total Annual Tax -->
-                    <tr class="total-row">
-                        <td colspan="2" class="text-right font-bold text-white">
-                            TOTAL ANNUAL REAL PROPERTY TAX:
-                        </td>
-                        <td class="text-white font-bold text-xl">
-                            <?php echo formatCurrency($eligible_for_discount ? $discounted_total : $total_annual_tax); ?>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                    <!-- Building Tax Breakdown -->
+                    <div class="tax-breakdown-item" style="border-top: 2px solid #d1d5db; margin-top: 10px; padding-top: 10px;">
+                        <span class="tax-breakdown-label font-bold">Basic Tax (<?php echo $tax_rates['Basic Tax'] ?? '5.00'; ?>%):</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($building['basic_tax_amount'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item">
+                        <span class="tax-breakdown-label font-bold">SEF Tax (<?php echo $tax_rates['SEF Tax'] ?? '3.00'; ?>%):</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($building['sef_tax_amount'] ?? 0); ?></span>
+                    </div>
+                    <div class="tax-breakdown-item tax-breakdown-total">
+                        <span class="tax-breakdown-label">TOTAL BUILDING TAX:</span>
+                        <span class="tax-breakdown-value"><?php echo formatCurrency($building['annual_tax'] ?? 0); ?></span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Grand Total -->
+            <div class="tax-breakdown">
+                <div class="tax-breakdown-item">
+                    <span class="tax-breakdown-label font-bold text-lg">TOTAL LAND TAX:</span>
+                    <span class="tax-breakdown-value text-lg"><?php echo formatCurrency($total_land_tax); ?></span>
+                </div>
+                <div class="tax-breakdown-item">
+                    <span class="tax-breakdown-label font-bold text-lg">TOTAL BUILDING TAX:</span>
+                    <span class="tax-breakdown-value text-lg"><?php echo formatCurrency($total_building_tax); ?></span>
+                </div>
+                <div class="tax-breakdown-item" style="border-top: 2px solid #d1d5db; margin-top: 10px; padding-top: 10px;">
+                    <span class="tax-breakdown-label font-bold text-lg">SUBTOTAL:</span>
+                    <span class="tax-breakdown-value text-lg"><?php echo formatCurrency($total_annual_tax); ?></span>
+                </div>
+                
+                <!-- Tax Type Breakdown -->
+                <div class="tax-breakdown-item">
+                    <span class="tax-breakdown-label">Total Basic Tax (<?php echo $tax_rates['Basic Tax'] ?? '5.00'; ?>%):</span>
+                    <span class="tax-breakdown-value"><?php echo formatCurrency($total_basic_tax); ?></span>
+                </div>
+                <div class="tax-breakdown-item">
+                    <span class="tax-breakdown-label">Total SEF Tax (<?php echo $tax_rates['SEF Tax'] ?? '3.00'; ?>%):</span>
+                    <span class="tax-breakdown-value"><?php echo formatCurrency($total_sef_tax); ?></span>
+                </div>
+                
+                <?php if ($eligible_for_discount): ?>
+                <div class="tax-breakdown-item" style="background: #d1fae5; border-radius: 4px; padding: 8px;">
+                    <span class="tax-breakdown-label font-bold text-green-800">
+                        ANNUAL PAYMENT DISCOUNT (<?php echo $discount_percent; ?>%):
+                    </span>
+                    <span class="tax-breakdown-value text-green-800">-<?php echo formatCurrency($discount_amount); ?></span>
+                </div>
+                <?php endif; ?>
+                
+                <div class="tax-breakdown-item tax-breakdown-total">
+                    <span class="tax-breakdown-label">GRAND TOTAL ANNUAL RPT:</span>
+                    <span class="tax-breakdown-value"><?php echo formatCurrency($eligible_for_discount ? $discounted_total : $total_annual_tax); ?></span>
+                </div>
+            </div>
             
             <div class="mt-4 text-center">
                 <div class="text-lg font-bold">Quarterly Installment: <span class="amount"><?php echo formatCurrency($total_annual_tax / 4); ?></span></div>
@@ -746,18 +946,31 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <i class="fas fa-calendar-alt mr-2"></i>Quarterly Payment Schedule for <?php echo $current_year; ?>
             </div>
             
+            <div class="mb-4">
+                <div class="text-center mb-2">
+                    <span class="font-bold">Penalty Rate:</span> <?php echo $penalty_percent; ?>% per month for late payments
+                </div>
+            </div>
+            
             <table class="bill-table">
                 <thead>
                     <tr>
                         <th>Quarter</th>
                         <th>Due Date</th>
-                        <th>Amount Due</th>
+                        <th>Basic Tax</th>
+                        <th>SEF Tax</th>
+                        <th>Total Due</th>
                         <th>Payment Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (!empty($quarterly_taxes)): ?>
-                        <?php foreach ($quarterly_taxes as $tax): 
+                        <?php 
+                        $quarterly_basic_tax = $total_basic_tax / 4;
+                        $quarterly_sef_tax = $total_sef_tax / 4;
+                        $quarterly_total = $total_annual_tax / 4;
+                        
+                        foreach ($quarterly_taxes as $tax): 
                             $due_date_formatted = date('F j, Y', strtotime($tax['due_date']));
                             $is_past_due = strtotime($tax['due_date']) < time() && $tax['payment_status'] != 'paid';
                         ?>
@@ -769,7 +982,9 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                                     <div class="text-xs text-red-600">(Past Due)</div>
                                 <?php endif; ?>
                             </td>
-                            <td class="amount"><?php echo formatCurrency($tax['total_quarterly_tax']); ?></td>
+                            <td class="amount"><?php echo formatCurrency($quarterly_basic_tax); ?></td>
+                            <td class="amount"><?php echo formatCurrency($quarterly_sef_tax); ?></td>
+                            <td class="amount font-bold"><?php echo formatCurrency($quarterly_total); ?></td>
                             <td>
                                 <?php if ($tax['payment_status'] == 'paid'): ?>
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
@@ -789,20 +1004,57 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="4" class="text-center py-4 text-gray-500">
+                            <td colspan="6" class="text-center py-4 text-gray-500">
                                 No quarterly taxes have been generated for this year.
                             </td>
                         </tr>
                     <?php endif; ?>
                     
                     <tr class="total-row">
-                        <td colspan="2" class="text-right font-bold text-white">TOTAL FOR <?php echo $current_year; ?>:</td>
+                        <td colspan="2" class="text-right font-bold text-white">ANNUAL TOTAL:</td>
+                        <td class="text-white font-bold"><?php echo formatCurrency($total_basic_tax); ?></td>
+                        <td class="text-white font-bold"><?php echo formatCurrency($total_sef_tax); ?></td>
                         <td colspan="2" class="text-white font-bold text-xl">
                             <?php echo formatCurrency($total_annual_tax); ?>
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Tax Rates Information -->
+        <div class="bill-section print-section">
+            <div class="section-title">
+                <i class="fas fa-percentage mr-2"></i>Current Tax Rates
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 border border-gray-200 rounded">
+                    <h5 class="font-bold mb-2">Real Property Tax Rates</h5>
+                    <div class="space-y-2">
+                        <?php foreach ($tax_rates as $tax_name => $rate): ?>
+                        <div class="flex justify-between">
+                            <span><?php echo $tax_name; ?>:</span>
+                            <span class="font-bold"><?php echo $rate; ?>%</span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                
+                <div class="p-4 border border-gray-200 rounded">
+                    <h5 class="font-bold mb-2">Other Rates</h5>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Annual Discount:</span>
+                            <span class="font-bold text-green-600"><?php echo $discount_percent; ?>%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Penalty Rate (monthly):</span>
+                            <span class="font-bold text-red-600"><?php echo $penalty_percent; ?>%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Payment Instructions -->
@@ -861,6 +1113,9 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <div class="text-center text-sm text-gray-600 mt-2">
                     Due by: <?php echo $due_date; ?>
                 </div>
+                <div class="text-center text-xs text-gray-500 mt-1">
+                    (Includes Basic Tax: <?php echo formatCurrency($total_basic_tax); ?> + SEF Tax: <?php echo formatCurrency($total_sef_tax); ?>)
+                </div>
             </div>
         </div>
 
@@ -869,10 +1124,11 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
             <div class="notice-content">
                 <h4 class="font-bold text-gray-900 mb-2">Important Notices</h4>
                 <ul class="space-y-1 text-sm">
-                    <li>• Payments made after the due date will incur a 2% monthly penalty.</li>
+                    <li>• Payments made after the due date will incur a <?php echo $penalty_percent; ?>% monthly penalty.</li>
                     <li>• Keep this billing statement for your records and present it when making payments.</li>
                     <li>• For payment verification, please allow 3-5 business days for processing.</li>
                     <li>• Unpaid taxes may result in penalties, interest, and legal action.</li>
+                    <li>• Discount of <?php echo $discount_percent; ?>% applies only for full annual payment before January 31.</li>
                     <li>• For inquiries, contact the Treasurer's Office at (02) 8123-4567.</li>
                 </ul>
             </div>
@@ -934,7 +1190,8 @@ $bill_number = "RPT-" . date('Y') . "-" . str_pad($registration_id, 6, '0', STR_
                 <div class="text-xs text-gray-500 text-center">
                     This is an official billing statement. Please retain for your records.<br>
                     Document generated on: <?php echo date('F d, Y h:i A'); ?><br>
-                    System Reference: <?php echo $billing_reference; ?>
+                    System Reference: <?php echo $billing_reference; ?><br>
+                    Tax Rates Effective: <?php echo date('F d, Y'); ?>
                 </div>
             </div>
         </div>

@@ -17,16 +17,13 @@ $pdo = getDatabaseConnection();
 
 // FIX: Check if $pdo is actually a PDO object
 if (!($pdo instanceof PDO)) {
-    // If it's an array or something else, debug it
-    error_log("Database connection returned: " . gettype($pdo));
-    
     // Try to create a direct connection as fallback
     try {
         // Add your actual database credentials here
         $host = 'localhost';
-        $dbname = 'your_database_name';
-        $username = 'your_username';
-        $password = 'your_password';
+        $dbname = 'rpt';
+        $username = 'root';
+        $password = '';
         
         $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -49,6 +46,7 @@ $status_counts = [
 
 $total_applications = 0;
 $has_active_property = false;
+$has_active_application = false;
 
 try {
     // Get all application status counts
@@ -81,11 +79,24 @@ try {
         $has_active_property = true;
     }
     
+    // Check if user has ANY active application (not finalized)
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as count 
+        FROM property_registrations pr
+        JOIN property_owners po ON pr.owner_id = po.id
+        WHERE po.user_id = ? 
+        AND pr.status NOT IN ('approved', 'rejected', 'cancelled')
+    ");
+    $stmt->execute([$user_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $has_active_application = ($result && $result['count'] > 0);
+    
 } catch (PDOException $e) {
     error_log($e->getMessage());
 }
 
-// Get the base URL for the background image - FIXED VERSION
+// Get the base URL for the background image
 $scheme = 'http';
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
     $scheme = 'https';
@@ -120,7 +131,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             font-family: Inter, system-ui, sans-serif;
         }
 
-        /* Background image with blur - ABSOLUTE PATH */
+        /* Background image with blur */
         body::after {
             content: '';
             position: fixed;
@@ -174,6 +185,16 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         
         .service-arrow {
             transition: transform 0.3s ease;
+        }
+
+        .service-card.disabled {
+            opacity: 0.9;
+        }
+        
+        .service-card.disabled:hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: default;
         }
 
         .header-box {
@@ -281,30 +302,75 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         
         <!-- REGISTRATION CARD -->
-        <?php if ($has_active_property): ?>
-        <!-- Registration card with alert on click -->
-        <a href="javascript:void(0)" 
-           onclick="alert('You already have a registered property.\\n\\nPlease go to Tax Payment to pay your property taxes.');"
-           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <?php else: ?>
-        <!-- Normal registration card -->
-        <a href="rpt_registration/rpt_registration.php" 
-           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <?php endif; ?>
+        <?php if ($has_active_property || $has_active_application): ?>
+        <!-- Registration card - Already registered or application in progress -->
+        <div class="service-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-l-4 <?php echo $has_active_property ? 'border-l-green-500' : 'border-l-amber-500'; ?>">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $reg_image = 'images/rpt-registration.png';
                 if (file_exists($reg_image)): ?>
-                    <img src="<?php echo $reg_image; ?>" alt="Property Registration" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <img src="<?php echo $reg_image; ?>" alt="Property Registration" 
+                         class="w-full h-full object-cover">
+                <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(<?php echo $has_active_property ? '76,175,80' : '245,158,11'; ?>, 0.1);">
+                        <i class="fas fa-file-alt text-6xl" style="color: rgba(<?php echo $has_active_property ? '76,175,80' : '245,158,11'; ?>, 0.3);"></i>
+                    </div>
+                <?php endif; ?>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(<?php echo $has_active_property ? '76,175,80' : '245,158,11'; ?>, 0.95);">
+                    <span class="text-xs font-semibold uppercase text-white">
+                        <?php echo $has_active_property ? 'Registered' : 'In Progress'; ?>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="p-6 flex flex-col flex-grow">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: <?php echo $has_active_property ? '#4caf50' : '#f59e0b'; ?>;">
+                        <i class="fas <?php echo $has_active_property ? 'fa-check-circle' : 'fa-hourglass-half'; ?> text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800">Property Registration</h3>
+                </div>
+                
+                <p class="text-gray-600 mb-6 flex-grow">
+                    <?php if ($has_active_property): ?>
+                        <span class="font-medium text-green-600">Property already registered.</span>
+                        <br><br>
+                        You can manage your property tax payments and view details in the tax payment section.
+                    <?php else: ?>
+                        <span class="font-medium text-amber-600">Application currently in progress.</span>
+                        <br><br>
+                        Please wait for your current application to be processed.
+                    <?php endif; ?>
+                </p>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span class="font-semibold <?php echo $has_active_property ? 'text-green-600' : 'text-amber-600'; ?>">
+                        <?php echo $has_active_property ? 'Already Registered' : 'In Progress'; ?>
+                    </span>
+                    <i class="fas <?php echo $has_active_property ? 'fa-check-circle text-green-600' : 'fa-hourglass-half text-amber-600'; ?>"></i>
+                </div>
+            </div>
+        </div>
+        <?php else: ?>
+        <!-- Normal registration card when user can register -->
+        <a href="rpt_registration/rpt_registration.php" 
+           class="service-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+            <div class="h-48 overflow-hidden relative">
+                <?php 
+                $reg_image = 'images/rpt-registration.png';
+                if (file_exists($reg_image)): ?>
+                    <img src="<?php echo $reg_image; ?>" alt="Property Registration" 
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                 <?php else: ?>
                     <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(74, 144, 226, 0.1);">
                         <i class="fas fa-file-alt text-6xl" style="color: rgba(74, 144, 226, 0.3);"></i>
                     </div>
                 <?php endif; ?>
-                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
-                    <span class="text-xs font-semibold uppercase" style="color: #4a90e2;">Registration</span>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(74, 144, 226, 0.95);">
+                    <span class="text-xs font-semibold uppercase text-white">Available</span>
                 </div>
             </div>
+            
             <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: #4a90e2;">
@@ -312,23 +378,21 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                     </div>
                     <h3 class="text-xl font-bold text-gray-800">Property Registration</h3>
                 </div>
+                
                 <p class="text-gray-600 leading-relaxed mb-6 flex-grow">
                     Register new properties or update existing records for assessment.
                 </p>
+                
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <?php if ($has_active_property): ?>
-                        <span class="font-semibold text-gray-400">Already Registered</span>
-                        <i class="fas fa-arrow-right service-arrow text-gray-400"></i>
-                    <?php else: ?>
-                        <span class="font-semibold" style="color: #4a90e2;">Start Registration</span>
-                        <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
-                    <?php endif; ?>
+                    <span class="font-semibold" style="color: #4a90e2;">Start Registration</span>
+                    <i class="fas fa-arrow-right service-arrow" style="color: #4a90e2;"></i>
                 </div>
             </div>
         </a>
+        <?php endif; ?>
 
         <!-- STATUS CARD -->
-        <div class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="service-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $status_image = 'images/application-status.png';
@@ -391,7 +455,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         </div>
 
         <!-- PAYMENT CARD -->
-        <a href="rpt_tax_payment/rpt_tax_payment.php" class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <a href="rpt_tax_payment/rpt_tax_payment.php" class="service-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $payment_image = 'images/rpt-payment.png';

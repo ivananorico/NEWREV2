@@ -366,6 +366,8 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             --primary: #4a90e2;
             --secondary: #9aa5b1;
             --accent: #4caf50;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --background: #fbfbfb;
         }
 
@@ -374,10 +376,12 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             position: relative;
             overflow-x: hidden;
             min-height: 100vh;
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Background image with blur - same as login */
+        /* Background image with blur */
         body::after {
             content: '';
             position: fixed;
@@ -392,7 +396,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             filter: blur(1px);
         }
         
-        /* Animated background particles - same as login */
+        /* Animated background particles */
         body::before {
             content: '';
             position: fixed;
@@ -414,7 +418,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             66% { transform: translateY(10px) rotate(-1deg); }
         }
 
-        /* Header box styles */
         .header-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -424,693 +427,1112 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             padding: 1.5rem;
         }
 
-        /* Form card styling */
         .form-card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .form-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(74, 144, 226, 0.12);
         }
 
-        /* Small file upload area styling */
-        .file-upload-small {
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            background: rgba(74, 144, 226, 0.1);
+        }
+
+        .back-button:hover {
+            background: rgba(74, 144, 226, 0.2);
+            transform: translateX(-2px);
+        }
+
+        .section-header {
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .input-field {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        /* Simple file input styling */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-button {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #374151;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .file-input-button:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e0;
+        }
+        
+        .file-input-button i {
+            color: #6b7280;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-display {
+            margin-top: 8px;
+            padding: 0.5rem 0.75rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #374151;
+            display: none;
+        }
+        
+        .file-display.show {
+            display: block;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .file-size {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .file-action-btn {
+            padding: 4px 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .file-action-btn:hover {
+            background: #f8fafc;
+        }
+        
+        .file-action-btn.preview:hover {
+            border-color: #4a90e2;
+            color: #4a90e2;
+        }
+        
+        .file-action-btn.remove:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #3a7bd5);
+            color: white;
+            padding: 12px 32px;
+            border-radius: 10px;
+            font-weight: 600;
             transition: all 0.3s ease;
-            border: 2px dashed #d1d5db;
-            padding: 1rem;
-            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #3a7bd5, #2a6bc4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #cbd5e0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        
+        .custom-checkbox.checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .custom-checkbox i {
+            color: white;
+            font-size: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .custom-checkbox.checked i {
+            opacity: 1;
+        }
+
+        .checkbox-label {
+            font-size: 0.875rem;
+            color: #4b5563;
+            line-height: 1.4;
             cursor: pointer;
         }
 
-        .file-upload-small:hover {
-            border-color: #4a90e2;
-            background-color: rgba(74, 144, 226, 0.05);
+        .main-content-wrapper {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 200px);
         }
 
-        .file-upload-small.drag-over {
-            border-color: #4a90e2;
-            background-color: rgba(74, 144, 226, 0.1);
+        .form-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
         }
         
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
+        .modal-overlay.show {
+            display: flex;
         }
         
-        ::-webkit-scrollbar-thumb {
-            background: #4a90e2;
-            border-radius: 4px;
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
         }
         
-        ::-webkit-scrollbar-thumb:hover {
-            background: #357ABD;
+        .modal-image {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .header-box .flex {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .form-actions a, .form-actions button {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="bg-gray-50">
     <?php include '../../navbar.php'; ?>
     
-    <main class="container mx-auto px-4 md:px-6 py-8">
-        <!-- Header in Box -->
-        <div class="header-box mb-8">
-            <div class="flex items-center">
-                <a href="../rpt_services.php" 
-                   class="inline-flex items-center text-gray-600 hover:text-[var(--primary)] mr-4">
-                    <i class="fas fa-arrow-left text-xl"></i>
-                </a>
-                <div class="flex-1">
-                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Property Registration</h1>
-                    <p class="text-gray-600">Register your property for Real Property Tax assessment</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Registration Form -->
-        <div class="form-card p-6 md:p-8">
-            <?php if ($message): ?>
-                <div class="mb-6 p-4 rounded-lg <?php echo $message_type == 'success' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'; ?>">
-                    <div class="flex items-start">
-                        <i class="fas <?php echo $message_type == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?> mr-2 mt-1"></i>
-                        <div class="text-sm"><?php echo $message; ?></div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <form method="POST" enctype="multipart/form-data" class="space-y-8">
-                <!-- CSRF Protection -->
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                <input type="hidden" name="MAX_FILE_SIZE" value="5242880"> <!-- 5MB max -->
-                
-                <!-- Personal Information Section -->
-                <div class="border-b border-gray-200 pb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-user text-blue-500 mr-3 text-xl"></i>
-                        Personal Information
-                        <span class="ml-2 text-xs font-normal bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Required</span>
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                First Name <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="first_name" required 
-                                value="<?php echo htmlspecialchars($form_data['first_name']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter your first name">
+    <div class="main-content-wrapper">
+        <main class="flex-1 py-8">
+            <div class="form-container mx-auto px-4">
+                <!-- Page Header -->
+                <div class="header-box mb-8">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                        <a href="../rpt_services.php" class="back-button self-start">
+                            <i class="fas fa-arrow-left"></i> Back to RPT Services
+                        </a>
+                        
+                        <div class="text-center">
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">Property Registration</h1>
+                            <p class="text-gray-600">Register your property for Real Property Tax assessment</p>
                         </div>
                         
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Last Name <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="last_name" required 
-                                value="<?php echo htmlspecialchars($form_data['last_name']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter your last name">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Middle Name</label>
-                            <input type="text" name="middle_name"
-                                value="<?php echo htmlspecialchars($form_data['middle_name']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter middle name (optional)">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Suffix</label>
-                            <select name="suffix"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white">
-                                <option value="">Select Suffix</option>
-                                <option value="Jr." <?php echo ($form_data['suffix'] ?? '') == 'Jr.' ? 'selected' : ''; ?>>Jr.</option>
-                                <option value="Sr." <?php echo ($form_data['suffix'] ?? '') == 'Sr.' ? 'selected' : ''; ?>>Sr.</option>
-                                <option value="II" <?php echo ($form_data['suffix'] ?? '') == 'II' ? 'selected' : ''; ?>>II</option>
-                                <option value="III" <?php echo ($form_data['suffix'] ?? '') == 'III' ? 'selected' : ''; ?>>III</option>
-                                <option value="IV" <?php echo ($form_data['suffix'] ?? '') == 'IV' ? 'selected' : ''; ?>>IV</option>
-                            </select>
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Birthdate</label>
-                            <input type="date" name="birthdate"
-                                value="<?php echo htmlspecialchars($form_data['birthdate']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Sex</label>
-                            <select name="sex"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white">
-                                <option value="">Select Sex</option>
-                                <option value="male" <?php echo ($form_data['sex'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo ($form_data['sex'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="other" <?php echo ($form_data['sex'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
-                            </select>
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Marital Status</label>
-                            <select name="marital_status"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white">
-                                <option value="">Select Marital Status</option>
-                                <option value="single" <?php echo ($form_data['marital_status'] ?? '') == 'single' ? 'selected' : ''; ?>>Single</option>
-                                <option value="married" <?php echo ($form_data['marital_status'] ?? '') == 'married' ? 'selected' : ''; ?>>Married</option>
-                                <option value="divorced" <?php echo ($form_data['marital_status'] ?? '') == 'divorced' ? 'selected' : ''; ?>>Divorced</option>
-                                <option value="widowed" <?php echo ($form_data['marital_status'] ?? '') == 'widowed' ? 'selected' : ''; ?>>Widowed</option>
-                            </select>
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Email Address <span class="text-red-500">*</span>
-                            </label>
-                            <input type="email" name="email" required 
-                                value="<?php echo htmlspecialchars($form_data['email']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter your email">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Phone Number <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="phone" required 
-                                value="<?php echo htmlspecialchars($form_data['phone']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter your phone number">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">TIN Number</label>
-                            <input type="text" name="tin_number" 
-                                value="<?php echo htmlspecialchars($form_data['tin_number'] ?? ''); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Enter TIN (optional)">
+                        <div class="text-right">
+                            <div class="stall-badge inline-block" style="background: linear-gradient(135deg, var(--primary), #3a7bd5); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem;">
+                                <i class="fas fa-home mr-1"></i>
+                                New Registration
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Address Information Section -->
-                <div class="border-b border-gray-200 pb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-home text-green-500 mr-3 text-xl"></i>
-                        Home Address
-                        <span class="ml-2 text-xs font-normal bg-green-100 text-green-700 px-2 py-1 rounded-full">Required</span>
-                    </h3>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                House Number <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="house_number" required 
-                                value="<?php echo htmlspecialchars($form_data['house_number']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                                placeholder="123">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Street <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="street" required 
-                                value="<?php echo htmlspecialchars($form_data['street']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Main Street">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Barangay <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="barangay" required 
-                                value="<?php echo htmlspecialchars($form_data['barangay']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Barangay Name">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                District <span class="text-red-500">*</span>
-                            </label>
-                            <select name="district" required 
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white">
-                                <option value="">Select District</option>
-                                <?php for ($i = 1; $i <= 6; $i++): ?>
-                                    <option value="<?php echo $i; ?>" <?php echo ($form_data['district'] ?? '') == $i ? 'selected' : ''; ?>>
-                                        District <?php echo $i; ?>
-                                    </option>
-                                <?php endfor; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                City <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="city" value="Quezon City" required readonly
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Province <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="province" value="Metro Manila" required readonly
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                ZIP Code <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="zip_code" required 
-                                value="<?php echo htmlspecialchars($form_data['zip_code']); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                                placeholder="1100">
+                <?php if ($message): ?>
+                    <div class="form-card mb-6 p-6 <?php echo $message_type == 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'; ?>">
+                        <div class="flex items-start">
+                            <i class="fas <?php echo $message_type == 'success' ? 'fa-check-circle text-green-600' : 'fa-exclamation-circle text-red-600'; ?> mr-3 mt-1 text-lg"></i>
+                            <div class="text-sm <?php echo $message_type == 'success' ? 'text-green-700' : 'text-red-700'; ?>">
+                                <?php echo $message; ?>
+                            </div>
                         </div>
                     </div>
-                </div>
+                <?php endif; ?>
 
-                <!-- Property Information Section -->
-                <div class="border-b border-gray-200 pb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-map-marker-alt text-orange-500 mr-3 text-xl"></i>
-                        Property Location
-                        <span class="ml-2 text-xs font-normal bg-orange-100 text-orange-700 px-2 py-1 rounded-full">Required</span>
-                    </h3>
-                    
-                    <div class="space-y-6">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">
-                                Lot Location <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="property_lot_location" required 
-                                value="<?php echo htmlspecialchars($form_data['property_lot_location'] ?? ''); ?>"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                                placeholder="e.g., Lot 5, Block 2 or specific location">
-                            <p class="text-xs text-gray-500 mt-2">The physical location identifier of your property</p>
+                <!-- Application Form -->
+                <div class="form-card p-6 mb-8">
+                    <form method="POST" enctype="multipart/form-data" class="space-y-8" id="propertyForm">
+                        <!-- CSRF Protection -->
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <input type="hidden" name="MAX_FILE_SIZE" value="5242880">
+                        
+                        <!-- Personal Information Section -->
+                        <div class="section-header">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-user-circle mr-3 text-primary"></i>
+                                Personal Information
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Fill in your personal details</p>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    Property Barangay <span class="text-red-500">*</span>
+                            <!-- First Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    First Name <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="property_barangay" required 
-                                    value="<?php echo htmlspecialchars($form_data['property_barangay'] ?? ''); ?>"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                                    placeholder="Enter property barangay">
+                                <input type="text" name="first_name" required 
+                                    value="<?php echo htmlspecialchars($form_data['first_name']); ?>"
+                                    class="input-field" placeholder="Enter first name">
                             </div>
                             
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    Property District <span class="text-red-500">*</span>
+                            <!-- Last Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Last Name <span class="text-red-500">*</span>
                                 </label>
-                                <select name="property_district" required 
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white">
+                                <input type="text" name="last_name" required 
+                                    value="<?php echo htmlspecialchars($form_data['last_name']); ?>"
+                                    class="input-field" placeholder="Enter last name">
+                            </div>
+                            
+                            <!-- Middle Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Middle Name
+                                </label>
+                                <input type="text" name="middle_name"
+                                    value="<?php echo htmlspecialchars($form_data['middle_name']); ?>"
+                                    class="input-field" placeholder="Enter middle name">
+                            </div>
+                            
+                            <!-- Suffix -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Suffix
+                                </label>
+                                <select name="suffix" class="input-field">
+                                    <option value="">Select Suffix</option>
+                                    <option value="Jr." <?php echo ($form_data['suffix'] ?? '') == 'Jr.' ? 'selected' : ''; ?>>Jr.</option>
+                                    <option value="Sr." <?php echo ($form_data['suffix'] ?? '') == 'Sr.' ? 'selected' : ''; ?>>Sr.</option>
+                                    <option value="II" <?php echo ($form_data['suffix'] ?? '') == 'II' ? 'selected' : ''; ?>>II</option>
+                                    <option value="III" <?php echo ($form_data['suffix'] ?? '') == 'III' ? 'selected' : ''; ?>>III</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Birthdate -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Birthdate
+                                </label>
+                                <input type="date" name="birthdate"
+                                    value="<?php echo htmlspecialchars($form_data['birthdate']); ?>"
+                                    class="input-field">
+                            </div>
+                            
+                            <!-- Sex -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Sex
+                                </label>
+                                <select name="sex" class="input-field">
+                                    <option value="">Select Sex</option>
+                                    <option value="male" <?php echo ($form_data['sex'] ?? '') == 'male' ? 'selected' : ''; ?>>Male</option>
+                                    <option value="female" <?php echo ($form_data['sex'] ?? '') == 'female' ? 'selected' : ''; ?>>Female</option>
+                                    <option value="other" <?php echo ($form_data['sex'] ?? '') == 'other' ? 'selected' : ''; ?>>Other</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Marital Status -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Marital Status
+                                </label>
+                                <select name="marital_status" class="input-field">
+                                    <option value="">Select Marital Status</option>
+                                    <option value="single" <?php echo ($form_data['marital_status'] ?? '') == 'single' ? 'selected' : ''; ?>>Single</option>
+                                    <option value="married" <?php echo ($form_data['marital_status'] ?? '') == 'married' ? 'selected' : ''; ?>>Married</option>
+                                    <option value="divorced" <?php echo ($form_data['marital_status'] ?? '') == 'divorced' ? 'selected' : ''; ?>>Divorced</option>
+                                    <option value="widowed" <?php echo ($form_data['marital_status'] ?? '') == 'widowed' ? 'selected' : ''; ?>>Widowed</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Email -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Email Address <span class="text-red-500">*</span>
+                                </label>
+                                <input type="email" name="email" required 
+                                    value="<?php echo htmlspecialchars($form_data['email']); ?>"
+                                    class="input-field" placeholder="your@email.com">
+                            </div>
+                            
+                            <!-- Phone -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Phone Number <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="phone" required 
+                                    value="<?php echo htmlspecialchars($form_data['phone']); ?>"
+                                    class="input-field" placeholder="09171234567">
+                            </div>
+                            
+                            <!-- TIN Number -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    TIN Number
+                                </label>
+                                <input type="text" name="tin_number"
+                                    value="<?php echo htmlspecialchars($form_data['tin_number'] ?? ''); ?>"
+                                    class="input-field" placeholder="Enter TIN (optional)">
+                            </div>
+                        </div>
+
+                        <!-- Address Information -->
+                        <div class="section-header mt-8">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-home mr-3 text-primary"></i>
+                                Home Address
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Your complete home address</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- House Number -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    House Number <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="house_number" required
+                                    value="<?php echo htmlspecialchars($form_data['house_number']); ?>"
+                                    class="input-field" placeholder="123">
+                            </div>
+                            
+                            <!-- Street -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Street <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="street" required
+                                    value="<?php echo htmlspecialchars($form_data['street']); ?>"
+                                    class="input-field" placeholder="Street name">
+                            </div>
+                            
+                            <!-- Barangay -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Barangay <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="barangay" required
+                                    value="<?php echo htmlspecialchars($form_data['barangay']); ?>"
+                                    class="input-field" placeholder="Barangay name">
+                            </div>
+                            
+                            <!-- District -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    District <span class="text-red-500">*</span>
+                                </label>
+                                <select name="district" required class="input-field">
                                     <option value="">Select District</option>
                                     <?php for ($i = 1; $i <= 6; $i++): ?>
-                                        <option value="<?php echo $i; ?>" <?php echo ($form_data['property_district'] ?? '') == $i ? 'selected' : ''; ?>>
+                                        <option value="<?php echo $i; ?>" <?php echo ($form_data['district'] ?? '') == $i ? 'selected' : ''; ?>>
                                             District <?php echo $i; ?>
                                         </option>
                                     <?php endfor; ?>
                                 </select>
                             </div>
                             
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    Property City <span class="text-red-500">*</span>
+                            <!-- City -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    City <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="property_city" value="Quezon City" required readonly
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                                <input type="text" name="city" required 
+                                    value="<?php echo htmlspecialchars($form_data['city']); ?>"
+                                    class="input-field" placeholder="City name">
                             </div>
                             
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    Property Province <span class="text-red-500">*</span>
+                            <!-- ZIP Code -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    ZIP Code <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="property_province" value="Metro Manila" required readonly
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                            </div>
-                            
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    Property ZIP Code <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="property_zip_code" required 
-                                    value="<?php echo htmlspecialchars($form_data['property_zip_code'] ?? ''); ?>"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                                    placeholder="1100">
+                                <input type="text" name="zip_code" required
+                                    value="<?php echo htmlspecialchars($form_data['zip_code']); ?>"
+                                    class="input-field" placeholder="1100">
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Documents Upload Section - Made Smaller -->
-                <div class="border-b border-gray-200 pb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-file-upload text-red-500 mr-3 text-xl"></i>
-                        Required Documents Upload
-                        <span class="ml-2 text-xs font-normal bg-red-100 text-red-700 px-2 py-1 rounded-full">Required</span>
-                    </h3>
-                    
-                    <div class="space-y-6">
-                        <!-- Important Notes -->
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                            <h4 class="font-semibold text-yellow-800 mb-2 flex items-center text-sm">
-                                <i class="fas fa-exclamation-triangle mr-2 text-sm"></i>
-                                Important Notes:
-                            </h4>
-                            <ul class="text-yellow-700 text-xs space-y-1 ml-4 list-disc">
-                                <li>All documents must be clear and readable images</li>
-                                <li>Accepted formats: JPG, JPEG, PNG only</li>
-                                <li>Maximum file size: 5MB per file</li>
-                                <li>Make sure documents are not expired</li>
-                            </ul>
-                        </div>
-
-                        <!-- Document Upload Grid - Smaller -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <?php
-                            $documents = [
-                                'barangay_certificate' => [
-                                    'label' => 'Barangay Certificate',
-                                    'description' => 'Issued by the barangay where the property is located'
-                                ],
-                                'ownership_proof' => [
-                                    'label' => 'Proof of Ownership',
-                                    'description' => 'Deed of Sale, Tax Declaration, Title, etc.'
-                                ],
-                                'valid_id' => [
-                                    'label' => 'Valid ID',
-                                    'description' => 'Government-issued ID (Driver\'s License, Passport, etc.)'
-                                ],
-                                'survey_plan' => [
-                                    'label' => 'Survey Plan',
-                                    'description' => 'Property sketch or survey plan'
-                                ]
-                            ];
-                            
-                            foreach ($documents as $field_name => $doc_info):
-                            ?>
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">
-                                    <span class="text-red-500">*</span> <?php echo $doc_info['label']; ?>
-                                </label>
-                                
-                                <div class="file-upload-small"
-                                     id="<?php echo $field_name; ?>_dropzone"
-                                     onclick="document.getElementById('<?php echo $field_name; ?>').click()">
-                                    <input type="file" 
-                                           name="<?php echo $field_name; ?>" 
-                                           accept=".jpg,.jpeg,.png,image/jpeg,image/jpg,image/png"
-                                           required
-                                           class="hidden" 
-                                           id="<?php echo $field_name; ?>"
-                                           onchange="showFileName(this, '<?php echo $field_name; ?>_filename')">
-                                    
-                                    <div class="flex items-center">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 mr-3 text-lg"></i>
-                                        <div class="flex-1">
-                                            <div class="text-xs text-gray-600">Click to upload</div>
-                                            <div class="text-xs text-gray-500">JPG, JPEG, PNG up to 5MB</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div id="<?php echo $field_name; ?>_filename" class="mt-2"></div>
-                                </div>
-                                
-                                <p class="text-xs text-gray-500"><?php echo $doc_info['description']; ?></p>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Building Information Section -->
-                <div class="pb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-                        <i class="fas fa-building text-purple-500 mr-3 text-xl"></i>
-                        Building Information
-                        <span class="ml-2 text-xs font-normal bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Required</span>
-                    </h3>
-                    
-                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                        <label class="block text-sm font-medium text-gray-700 mb-4">
-                            Does this property have any buildings? <span class="text-red-500">*</span>
-                        </label>
-                        
-                        <div class="flex space-x-8">
-                            <label class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="radio" name="has_building" value="yes" required 
-                                        class="sr-only"
-                                        <?php echo (isset($form_data['has_building']) && $form_data['has_building'] == 'yes') ? 'checked' : ''; ?>>
-                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                                        <div class="w-3 h-3 rounded-full bg-purple-600 hidden"></div>
-                                    </div>
-                                </div>
-                                <span class="ml-3 text-gray-700">Yes, there is a building/house</span>
-                            </label>
-                            
-                            <label class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="radio" name="has_building" value="no" 
-                                        class="sr-only"
-                                        <?php echo (isset($form_data['has_building']) && $form_data['has_building'] == 'no') ? 'checked' : ''; ?>>
-                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                                        <div class="w-3 h-3 rounded-full bg-purple-600 hidden"></div>
-                                    </div>
-                                </div>
-                                <span class="ml-3 text-gray-700">No, it's vacant land</span>
-                            </label>
+                        <!-- Property Location -->
+                        <div class="section-header mt-8">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-map-marker-alt mr-3 text-primary"></i>
+                                Property Location
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Details about your property</p>
                         </div>
                         
-                        <p class="text-sm text-gray-500 mt-4">
-                            <i class="fas fa-info-circle text-blue-500 mr-1"></i>
-                            Our assessor will visit to verify property details and calculate taxes based on actual inspection.
-                        </p>
-                    </div>
-                </div>
+                        <div class="space-y-4">
+                            <!-- Lot Location -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Lot Location <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="property_lot_location" required
+                                    value="<?php echo htmlspecialchars($form_data['property_lot_location'] ?? ''); ?>"
+                                    class="input-field" placeholder="Lot 5, Block 2">
+                                <p class="text-gray-500 text-xs mt-1">Physical location identifier of your property</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Property Barangay -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Property Barangay <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="property_barangay" required
+                                        value="<?php echo htmlspecialchars($form_data['property_barangay'] ?? ''); ?>"
+                                        class="input-field" placeholder="Barangay name">
+                                </div>
+                                
+                                <!-- Property District -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Property District <span class="text-red-500">*</span>
+                                    </label>
+                                    <select name="property_district" required class="input-field">
+                                        <option value="">Select District</option>
+                                        <?php for ($i = 1; $i <= 6; $i++): ?>
+                                            <option value="<?php echo $i; ?>" <?php echo ($form_data['property_district'] ?? '') == $i ? 'selected' : ''; ?>>
+                                                District <?php echo $i; ?>
+                                            </option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                
+                                <!-- Property ZIP Code -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Property ZIP Code <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="property_zip_code" required
+                                        value="<?php echo htmlspecialchars($form_data['property_zip_code'] ?? ''); ?>"
+                                        class="input-field" placeholder="1100">
+                                </div>
+                                
+                                <!-- Has Building -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Has Building? <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="flex gap-4 mt-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="has_building" value="yes" required 
+                                                <?php echo (isset($form_data['has_building']) && $form_data['has_building'] == 'yes') ? 'checked' : ''; ?>
+                                                class="mr-2">
+                                            <span>Yes</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="has_building" value="no"
+                                                <?php echo (isset($form_data['has_building']) && $form_data['has_building'] == 'no') ? 'checked' : ''; ?>
+                                                class="mr-2">
+                                            <span>No</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                <!-- Submit Button -->
-                <div class="flex justify-end">
-                    <button type="submit" 
-                        class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-10 rounded-xl transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                        <i class="fas fa-paper-plane mr-3"></i>
-                        Submit Registration
-                    </button>
+                        <!-- Required Documents -->
+                        <div class="section-header mt-8">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-file-upload mr-3 text-primary"></i>
+                                Required Documents
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Upload clear images of the following documents (Max 5MB each)</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Barangay Certificate -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Barangay Certificate <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="barangay_certificate" id="barangay_certificate" 
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'barangay-certificate-display')">
+                                </div>
+                                <div id="barangay-certificate-display" class="file-display">
+                                    <div class="file-name" id="barangay-certificate-name"></div>
+                                    <div class="file-size" id="barangay-certificate-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('barangay_certificate')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('barangay_certificate', 'barangay-certificate-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Proof of Ownership -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Proof of Ownership <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="ownership_proof" id="ownership_proof"
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'ownership-proof-display')">
+                                </div>
+                                <div id="ownership-proof-display" class="file-display">
+                                    <div class="file-name" id="ownership-proof-name"></div>
+                                    <div class="file-size" id="ownership-proof-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('ownership_proof')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('ownership_proof', 'ownership-proof-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Valid ID -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Valid ID <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="valid_id" id="valid_id"
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'valid-id-display')">
+                                </div>
+                                <div id="valid-id-display" class="file-display">
+                                    <div class="file-name" id="valid-id-name"></div>
+                                    <div class="file-size" id="valid-id-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('valid_id')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('valid_id', 'valid-id-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Survey Plan -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Survey Plan <span class="text-red-500">*</span>
+                                </label>
+                                <div class="file-input-wrapper">
+                                    <div class="file-input-button">
+                                        <span>Choose File</span>
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <input type="file" name="survey_plan" id="survey_plan"
+                                           accept="image/jpeg,image/jpg,image/png" 
+                                           class="file-input" required
+                                           onchange="handleFileSelect(this, 'survey-plan-display')">
+                                </div>
+                                <div id="survey-plan-display" class="file-display">
+                                    <div class="file-name" id="survey-plan-name"></div>
+                                    <div class="file-size" id="survey-plan-size"></div>
+                                    <div class="file-actions">
+                                        <button type="button" class="file-action-btn preview" onclick="previewFile('survey_plan')">Preview</button>
+                                        <button type="button" class="file-action-btn remove" onclick="removeFile('survey_plan', 'survey-plan-display')">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Terms and Conditions -->
+                        <div class="section-header mt-8">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-clipboard-check mr-3 text-primary"></i>
+                                Terms and Conditions
+                            </h2>
+                            <p class="text-gray-600 text-sm mt-1">Please read and accept the terms</p>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <div class="space-y-3 mb-4">
+                                <div class="checkbox-container">
+                                    <div class="custom-checkbox" onclick="toggleCheckbox(this)">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <label class="checkbox-label">
+                                        I hereby declare that all information provided in this application is true and correct to the best of my knowledge.
+                                    </label>
+                                    <input type="checkbox" name="terms_truthful" required class="hidden">
+                                </div>
+                                
+                                <div class="checkbox-container">
+                                    <div class="custom-checkbox" onclick="toggleCheckbox(this)">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <label class="checkbox-label">
+                                        I agree to allow property inspection by authorized assessors.
+                                    </label>
+                                    <input type="checkbox" name="terms_inspection" required class="hidden">
+                                </div>
+                                
+                                <div class="checkbox-container">
+                                    <div class="custom-checkbox" onclick="toggleCheckbox(this)">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <label class="checkbox-label">
+                                        I understand that property tax will be calculated based on assessment results.
+                                    </label>
+                                    <input type="checkbox" name="terms_tax" required class="hidden">
+                                </div>
+                                
+                                <div class="checkbox-container">
+                                    <div class="custom-checkbox" onclick="toggleCheckbox(this)">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <label class="checkbox-label">
+                                        I understand that this application is subject to approval and verification.
+                                    </label>
+                                    <input type="checkbox" name="terms_approval" required class="hidden">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t border-gray-200">
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Inspection will be scheduled within 7 days after submission
+                            </div>
+                            
+                            <div class="flex gap-4 form-actions">
+                                <a href="../rpt_services.php" 
+                                   class="btn-secondary flex items-center justify-center" style="background: linear-gradient(135deg, var(--secondary), #8a949f); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; transition: all 0.3s ease; border: none; cursor: pointer;">
+                                    <i class="fas fa-times mr-2"></i> Cancel
+                                </a>
+                                
+                                <button type="submit" class="btn-primary flex items-center justify-center">
+                                    <i class="fas fa-paper-plane mr-2"></i> Submit Registration
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="modal-overlay" id="imageModal" onclick="closeModal()">
+        <div class="modal-content">
+            <img id="modalImage" class="modal-image" alt="Preview">
         </div>
+    </div>
 
-        <!-- Compact Status Information Box -->
-        <div class="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-            <h4 class="font-semibold text-blue-800 mb-3 flex items-center">
-                <i class="fas fa-info-circle mr-2 text-lg"></i>
-                Application Status
-            </h4>
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Step 1 -->
-                <div class="bg-white rounded-lg p-4 border border-blue-200">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-blue-100 border-2 border-blue-500 flex items-center justify-center mr-2">
-                            <span class="text-blue-700 font-bold text-xs">1</span>
-                        </div>
-                        <span class="font-medium text-blue-700 text-sm">Pending</span>
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-16">
+        <div class="container mx-auto px-6 py-12 max-w-7xl">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+                <!-- Brand -->
+                <div class="col-span-1">
+                    <div class="flex items-center mb-4 text-2xl font-bold">
+                        <span style="color: #4a90e2;">Go</span><span style="color: #4caf50;">Serve</span><span style="color: #4a90e2;">PH</span>
                     </div>
-                    <p class="text-xs text-blue-600">Application submitted for review</p>
+                    <p class="text-gray-600 leading-relaxed">
+                        The official digital gateway of your Local Government Unit, providing efficient and transparent government services.
+                    </p>
                 </div>
                 
-                <!-- Step 2 -->
-                <div class="bg-white rounded-lg p-4 border border-blue-200">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-blue-100 border-2 border-blue-300 flex items-center justify-center mr-2">
-                            <span class="text-blue-500 font-bold text-xs">2</span>
-                        </div>
-                        <span class="font-medium text-blue-600 text-sm">Inspection</span>
-                    </div>
-                    <p class="text-xs text-blue-500">Property verification by assessor</p>
+                <!-- Portal Links -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Services</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">My Applications</a></li>
+                        <li><a href="#" class="hover:text-[#4a90e2] transition-colors">Settings</a></li>
+                    </ul>
                 </div>
-                
-                <!-- Step 3 -->
-                <div class="bg-white rounded-lg p-4 border border-blue-200">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-blue-100 border-2 border-blue-300 flex items-center justify-center mr-2">
-                            <span class="text-blue-500 font-bold text-xs">3</span>
-                        </div>
-                        <span class="font-medium text-blue-600 text-sm">Assessed</span>
-                    </div>
-                    <p class="text-xs text-blue-500">Valuation completed</p>
+
+                <!-- Contact -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
+                    <ul class="space-y-3 text-gray-600">
+                        <li><i class="fas fa-phone mr-2 text-gray-400"></i> (02) 8123 4567</li>
+                        <li><i class="fas fa-envelope mr-2 text-gray-400"></i> support@goserveph.gov.ph</li>
+                        <li><i class="fas fa-clock mr-2 text-gray-400"></i> Mon-Fri: 8AM - 5PM</li>
+                    </ul>
                 </div>
-                
-                <!-- Step 4 -->
-                <div class="bg-white rounded-lg p-4 border border-blue-200">
-                    <div class="flex items-center mb-2">
-                        <div class="w-6 h-6 rounded-full bg-blue-100 border-2 border-blue-300 flex items-center justify-center mr-2">
-                            <span class="text-blue-500 font-bold text-xs">4</span>
-                        </div>
-                        <span class="font-medium text-blue-600 text-sm">Approved</span>
+
+                <!-- Social -->
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
+                    <div class="flex space-x-4 text-2xl">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 transition-colors">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
                     </div>
-                    <p class="text-xs text-blue-500">TDN issued, ready for payment</p>
                 </div>
             </div>
             
-            <p class="mt-4 text-blue-600 text-sm flex items-center">
-                <i class="fas fa-clock mr-2"></i>
-                All registrations start as "Pending" and will be updated by the assessor.
-            </p>
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-10 pt-8">
+                <p class="text-sm text-gray-500 text-center">
+                    &copy; 2026 GoServePH Local Government Unit. Republic of the Philippines.
+                </p>
+            </div>
         </div>
-    </main>
+    </footer>
 
     <script>
-function showFileName(input, displayId) {
-    const display = document.getElementById(displayId);
-    const file = input.files[0];
-    
-    if (file) {
-        // Check file type
-        if (file.type.startsWith('image/')) {
-            // Format file size
-            let fileSize = '';
-            if (file.size < 1024 * 1024) { // Less than 1MB
-                fileSize = (file.size / 1024).toFixed(0) + ' KB';
-            } else {
-                fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+    // File selection handler
+    function handleFileSelect(input, displayId) {
+        const file = input.files[0];
+        const displayDiv = document.getElementById(displayId);
+        const fileNameDiv = document.getElementById(displayId.replace('-display', '-name'));
+        const fileSizeDiv = document.getElementById(displayId.replace('-display', '-size'));
+        
+        if (file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Invalid file type. Please upload JPG, JPEG or PNG images only.');
+                input.value = '';
+                return;
             }
             
-            // Get short file name (max 20 chars)
-            let shortName = file.name;
-            if (shortName.length > 20) {
-                shortName = shortName.substring(0, 17) + '...';
+            // Validate file size (5MB)
+            const maxSize = 5 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert('File is too large. Maximum size is 5MB.');
+                input.value = '';
+                return;
             }
             
-            // Show file name in a compact format
-            display.innerHTML = `
-                <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded px-2 py-1 text-xs">
-                    <div class="flex items-center truncate">
-                        <i class="fas fa-file-image text-blue-500 mr-1 text-xs"></i>
-                        <span class="text-blue-700 truncate" title="${file.name}">${shortName}</span>
-                    </div>
-                    <div class="flex items-center space-x-2 ml-2">
-                        <span class="text-xs text-blue-500 text-xs">${fileSize}</span>
-                        <button type="button" onclick="removeFile(this, '${input.id}', '${displayId}')" 
-                                class="text-blue-400 hover:text-red-500 transition-colors text-xs">
-                            <i class="fas fa-times text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            // Show file display
+            displayDiv.classList.add('show');
+            fileNameDiv.textContent = file.name;
+            fileSizeDiv.textContent = formatFileSize(file.size);
         } else {
-            display.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded px-2 py-1 text-xs text-red-600">
-                    <i class="fas fa-exclamation-circle mr-1"></i>
-                    Invalid file type. Use JPG, JPEG, or PNG
-                </div>
-            `;
-            input.value = ''; // Clear the input
+            displayDiv.classList.remove('show');
         }
-    } else {
-        display.innerHTML = '';
     }
-}
-
-function removeFile(button, inputId, displayId) {
-    const input = document.getElementById(inputId);
-    const display = document.getElementById(displayId);
     
-    input.value = '';
-    display.innerHTML = '';
-}
-
-// Add drag and drop functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const fileInputs = document.querySelectorAll('input[type="file"]');
+    // Remove file
+    function removeFile(inputId, displayId) {
+        const input = document.getElementById(inputId);
+        const displayDiv = document.getElementById(displayId);
+        
+        if (input && displayDiv) {
+            input.value = '';
+            displayDiv.classList.remove('show');
+        }
+    }
     
-    fileInputs.forEach(input => {
-        const dropzoneId = input.id + '_dropzone';
-        const dropzone = document.getElementById(dropzoneId);
+    // Preview file in modal
+    function previewFile(inputId) {
+        const input = document.getElementById(inputId);
         
-        if (!dropzone) return;
+        if (!input) {
+            console.error('Input element not found:', inputId);
+            alert('File input not found.');
+            return;
+        }
         
-        // Highlight on drag over
-        dropzone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('drag-over', 'border-blue-500', 'bg-blue-50');
-        });
+        if (!input.files || input.files.length === 0) {
+            alert('No file selected. Please upload a file first.');
+            return;
+        }
         
-        dropzone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('drag-over', 'border-blue-500', 'bg-blue-50');
-        });
+        const file = input.files[0];
+        const reader = new FileReader();
         
-        dropzone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('drag-over', 'border-blue-500', 'bg-blue-50');
+        reader.onload = function(e) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
             
-            if (e.dataTransfer.files.length) {
-                input.files = e.dataTransfer.files;
-                const event = new Event('change', { bubbles: true });
-                input.dispatchEvent(event);
+            if (!modalImage) {
+                console.error('Modal image element not found');
+                alert('Preview feature not available.');
+                return;
             }
-        });
+            
+            modalImage.src = e.target.result;
+            modalImage.alt = file.name;
+            
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        };
+        
+        reader.onerror = function() {
+            alert('Error reading file. Please try again.');
+        };
+        
+        reader.readAsDataURL(file);
+    }
+    
+    // Close modal
+    function closeModal() {
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // Close modal on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
     });
     
-    // Style radio buttons
-    const radioButtons = document.querySelectorAll('input[type="radio"]');
-    radioButtons.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const allRadios = document.querySelectorAll(`input[name="${this.name}"]`);
-            allRadios.forEach(r => {
-                const radioDiv = r.parentElement.querySelector('div');
-                const innerCircle = radioDiv.querySelector('div');
-                if (r.checked) {
-                    innerCircle.classList.remove('hidden');
-                    radioDiv.classList.add('border-purple-600');
-                } else {
-                    innerCircle.classList.add('hidden');
-                    radioDiv.classList.remove('border-purple-600');
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    
+    // Checkbox toggle function
+    function toggleCheckbox(checkboxDiv) {
+        const checkbox = checkboxDiv.nextElementSibling.nextElementSibling;
+        checkboxDiv.classList.toggle('checked');
+        checkbox.checked = !checkbox.checked;
+    }
+    
+    // Form validation and submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('propertyForm');
+        const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+        
+        if (form && submitButton) {
+            // Store original button content
+            const originalButtonHTML = submitButton.innerHTML;
+            let isSubmitting = false;
+            
+            form.addEventListener('submit', function(e) {
+                // If already submitting, prevent duplicate submission
+                if (isSubmitting) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                let isValid = true;
+                
+                // Check checkboxes
+                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                let allChecked = true;
+                
+                checkboxes.forEach(cb => {
+                    if (!cb.checked) {
+                        allChecked = false;
+                        const parent = cb.previousElementSibling.previousElementSibling;
+                        if (parent) {
+                            parent.style.borderColor = '#ef4444';
+                            parent.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                        }
+                    }
+                });
+                
+                if (!allChecked) {
+                    e.preventDefault();
+                    alert('Please accept all terms and conditions.');
+                    isValid = false;
+                    return;
+                }
+                
+                // Check file uploads
+                const fileInputs = document.querySelectorAll('input[type="file"]');
+                fileInputs.forEach(input => {
+                    if (!input.files || input.files.length === 0) {
+                        isValid = false;
+                        const wrapper = input.closest('.file-input-wrapper');
+                        if (wrapper) {
+                            const button = wrapper.querySelector('.file-input-button');
+                            if (button) {
+                                button.style.borderColor = '#ef4444';
+                                button.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                            }
+                        }
+                    }
+                });
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    alert('Please complete all required fields and upload all documents.');
+                    return;
+                }
+                
+                // If validation passes, show loading state
+                isSubmitting = true;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `
+                    <div class="flex items-center justify-center">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                    </div>
+                `;
+                submitButton.style.opacity = '0.8';
+                submitButton.style.cursor = 'not-allowed';
+            });
+        }
+        
+        // Reset checkbox styling when clicked
+        document.querySelectorAll('.custom-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', function() {
+                setTimeout(() => {
+                    if (this.classList.contains('checked')) {
+                        this.style.borderColor = '';
+                        this.style.backgroundColor = '';
+                    }
+                }, 100);
+            });
+        });
+
+        // Reset file button styling on file input
+        document.querySelectorAll('.file-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const wrapper = this.closest('.file-input-wrapper');
+                if (wrapper) {
+                    const button = wrapper.querySelector('.file-input-button');
+                    if (button) {
+                        button.style.borderColor = '';
+                        button.style.backgroundColor = '';
+                    }
                 }
             });
         });
         
-        // Initialize checked state
-        if (radio.checked) {
-            const radioDiv = radio.parentElement.querySelector('div');
-            const innerCircle = radioDiv.querySelector('div');
-            innerCircle.classList.remove('hidden');
-            radioDiv.classList.add('border-purple-600');
+        // Make sure modal close works properly
+        const modal = document.getElementById('imageModal');
+        if (modal) {
+            // Close modal when clicking on the overlay (not the image)
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+            
+            // Prevent clicks inside modal from closing it
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
         }
+        
+        // Add click handlers to file input buttons for better UX
+        document.querySelectorAll('.file-input-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const wrapper = this.closest('.file-input-wrapper');
+                if (wrapper) {
+                    const fileInput = wrapper.querySelector('.file-input');
+                    if (fileInput) {
+                        fileInput.click();
+                    }
+                }
+            });
+        });
     });
-});
-
-// Form validation
-document.querySelector('form').addEventListener('submit', function(e) {
-    const requiredFields = this.querySelectorAll('[required]');
-    let isValid = true;
-    
-    requiredFields.forEach(field => {
-        if (!field.value.trim()) {
-            isValid = false;
-            field.classList.add('border-red-500');
-        } else {
-            field.classList.remove('border-red-500');
-        }
-    });
-    
-    if (!isValid) {
-        e.preventDefault();
-        alert('Please fill in all required fields marked with *');
-    }
-});
-</script>
+</script> 
 </body>
 </html>
