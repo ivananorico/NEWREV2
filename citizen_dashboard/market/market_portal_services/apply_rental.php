@@ -1,11 +1,14 @@
 <?php
 // revenue2/citizen_dashboard/market/market_portal_services/apply_rental.php
-session_start();
 
-// Check if user is logged in
+// Remove session_start() and replace with navbar include
+// The navbar will handle session checking and logout functionality
+require_once '../../../citizen_dashboard/navbar.php';
+
+// Check if user is logged in (already handled in navbar.php, but double-check)
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
-    exit();
+    // This should not happen if navbar.php is included properly
+    exit('Session error. Please try logging in again.');
 }
 
 if (!isset($_GET['map_id'])) {
@@ -596,9 +599,8 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <?php include '../../navbar.php'; ?>
-    
+    <!-- No need to include navbar.php again since it's already included at the top -->
+
     <!-- Modal -->
     <div id="stallModal" class="modal-overlay">
         <div class="modal-content">
@@ -1049,6 +1051,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 }
             }
         });
-    </script>
+    </script> 
 </body>
 </html>

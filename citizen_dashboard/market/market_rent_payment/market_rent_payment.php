@@ -1,11 +1,9 @@
 <?php
 // revenue2/citizen_dashboard/market/market_rent_payment/market_rent_payment.php
-session_start();
 
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
-    exit();
-}
+// Remove session_start() and include navbar.php directly
+// The navbar.php already handles session checking
+require_once '../../../citizen_dashboard/navbar.php';
 
 $user_id = $_SESSION['user_id'];
 
@@ -321,7 +319,8 @@ $current_month_name = date('F');
     </style>
 </head>
 <body>
-    <?php include '../../navbar.php'; ?>
+    <!-- No need to include navbar.php again since it's already included at the top -->
+    <!-- The navbar will be displayed automatically -->
     
     <div class="max-w-6xl mx-auto px-4 py-6">
         <!-- Page Header with Simple Title Only -->
