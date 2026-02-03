@@ -22,10 +22,25 @@ if (!$pdo) {
 try {
     // Get query parameters with default values
     $year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
-    $quarter = isset($_GET['quarter']) ? $_GET['quarter'] : null; // Q1, Q2, Q3, Q4
+    $quarter = isset($_GET['quarter']) ? $_GET['quarter'] : null; // Should be Q1, Q2, Q3, Q4
     $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : null;
     $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : null;
     $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+    
+    // Validate quarter parameter if provided
+    if ($quarter) {
+        // Remove any leading Qs to handle potential QQ1, QQ2, etc
+        $quarter_num = preg_replace('/^Q+/i', '', $quarter);
+        
+        // Check if it's a valid quarter (1, 2, 3, or 4)
+        if (!in_array($quarter_num, ['1', '2', '3', '4'])) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid quarter parameter. Must be Q1, Q2, Q3, or Q4'
+            ]);
+            exit();
+        }
+    }
     
     // Build query for quarterly tax payments
     $sql = "
@@ -47,7 +62,13 @@ try {
                 END
             ) as owner_name,
             'Quarterly Tax' as payment_type,
-            CONCAT('Q', qt.quarter, ' ', qt.year) as period,
+            CONCAT('Q', 
+                CASE 
+                    WHEN qt.quarter REGEXP '^Q+[1-4]$' 
+                    THEN SUBSTRING(qt.quarter, -1)  -- Get last character if it starts with Q
+                    ELSE qt.quarter 
+                END, 
+                ' ', qt.year) as period,
             qt.total_quarterly_tax as amount,
             qt.receipt_number,
             qt.payment_status as status
@@ -61,9 +82,14 @@ try {
     $params = [':year' => $year];
     
     // Add quarter filter if specified
-    if ($quarter && in_array($quarter, ['Q1', 'Q2', 'Q3', 'Q4'])) {
-        $sql .= " AND qt.quarter = :quarter";
-        $params[':quarter'] = substr($quarter, 1); // Remove 'Q' prefix
+    if ($quarter) {
+        $quarter_num = preg_replace('/^Q+/i', '', $quarter);
+        $sql .= " AND (
+            qt.quarter = :quarter OR 
+            qt.quarter = CONCAT('Q', :quarter) OR 
+            qt.quarter = CONCAT('QQ', :quarter)
+        )";
+        $params[':quarter'] = $quarter_num; // Store just the number (1, 2, 3, 4)
     }
     
     // Add date range filter
