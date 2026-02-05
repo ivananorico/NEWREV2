@@ -54,6 +54,41 @@ const MarketValidationInfo = () => {
     }
   };
 
+  // FIXED: Get document URL - Proper URL construction
+  const getDocumentUrl = (filePath) => {
+    if (!filePath || filePath === 'null' || filePath === 'undefined') {
+      console.log('No file path provided');
+      return null;
+    }
+    
+    console.log('File path from DB:', filePath);
+    
+    // If it's already a full URL, return it
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+    
+    // Get the current protocol and hostname
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    
+    // Check if file path is relative or absolute
+    if (filePath.startsWith('uploads/')) {
+      // It's already relative from root
+      return `${protocol}//${host}/${filePath}`;
+    } else if (filePath.startsWith('/uploads/')) {
+      // Absolute path
+      return `${protocol}//${host}${filePath}`;
+    } else if (filePath.includes('market/documents/')) {
+      // Contains market documents path
+      return `${protocol}//${host}/uploads/market/documents/${filePath.split('market/documents/')[1]}`;
+    } else {
+      // Assume it's a relative path, prepend with base URL
+      const API_BASE = getApiBaseUrl();
+      return `${API_BASE}/${filePath.replace(/^\//, '')}`;
+    }
+  };
+
   // Fetch application data
   const fetchData = async () => {
     if (!id || id === "undefined") {
@@ -287,37 +322,7 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Get document URL - FIXED VERSION
-  const getDocumentUrl = (filePath) => {
-    if (!filePath || filePath === 'null' || filePath === 'undefined') {
-      console.log('No file path provided');
-      return null;
-    }
-    
-    console.log('File path:', filePath);
-    
-    // If it's already a full URL, return it
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath;
-    }
-    
-    // If it starts with 'uploads/' or similar, handle it properly
-    const API_BASE = getApiBaseUrl();
-    
-    // Check if the filePath is an absolute path or relative path
-    if (filePath.startsWith('/')) {
-      // Already absolute path, append to base URL
-      return `${API_BASE}${filePath}`;
-    } else if (filePath.includes('uploads/')) {
-      // Already includes uploads directory
-      return `${API_BASE}/${filePath}`;
-    } else {
-      // Assume it's a filename, prepend with uploads directory
-      return `${API_BASE}/uploads/${filePath}`;
-    }
-  };
-
-  // Handle document preview - FIXED VERSION
+  // FIXED: Handle document preview
   const handleDocumentPreview = (docType, filePath) => {
     console.log('Document preview clicked:', { docType, filePath });
     
@@ -333,7 +338,7 @@ const MarketValidationInfo = () => {
       return;
     }
     
-    console.log('Generated URL:', url);
+    console.log('Generated URL for preview:', url);
     setPreviewUrl(url);
     setShowDocumentPreview(docType);
   };
@@ -1226,7 +1231,7 @@ const MarketValidationInfo = () => {
         </div>
       </div>
 
-      {/* Document Preview Modal */}
+      {/* Document Preview Modal - FIXED */}
       {showDocumentPreview && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
@@ -1241,29 +1246,40 @@ const MarketValidationInfo = () => {
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <div className="h-[60vh] flex items-center justify-center bg-gray-100 rounded-lg">
-                {previewUrl && previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                  <img 
-                    src={previewUrl} 
-                    alt="Document" 
-                    className="max-h-full max-w-full object-contain rounded"
-                    onError={(e) => {
-                      console.error('Image failed to load:', previewUrl);
-                      e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjNmMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
-                    }}
-                  />
+                {previewUrl ? (
+                  <>
+                    {previewUrl.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i) ? (
+                      <img 
+                        src={previewUrl} 
+                        alt="Document" 
+                        className="max-h-full max-w-full object-contain rounded"
+                        onError={(e) => {
+                          console.error('Image failed to load:', previewUrl);
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjNmMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIiBmaWxsPSIjOTk5Ij5JbWFnZSBub3QgZm91bmQ8L3RleHQ+PC9zdmc+';
+                        }}
+                      />
+                    ) : (
+                      <div className="text-center">
+                        <i className="fas fa-file-pdf text-6xl text-red-500 mb-4"></i>
+                        <p className="text-gray-600 mb-4 text-lg">Document preview</p>
+                        <p className="text-sm text-gray-500 mb-2">URL: {previewUrl}</p>
+                        <a 
+                          href={previewUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium inline-flex items-center gap-2"
+                        >
+                          <i className="fas fa-download"></i> View/Download Document
+                        </a>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center">
-                    <i className="fas fa-file-pdf text-6xl text-red-500 mb-4"></i>
-                    <p className="text-gray-600 mb-4 text-lg">PDF document preview not available in browser</p>
-                    <a 
-                      href={previewUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium inline-flex items-center gap-2"
-                    >
-                      <i className="fas fa-download"></i> Download PDF
-                    </a>
+                    <i className="fas fa-exclamation-triangle text-6xl text-yellow-500 mb-4"></i>
+                    <p className="text-gray-600 mb-4 text-lg">Unable to load document</p>
+                    <p className="text-sm text-gray-500">No URL generated</p>
                   </div>
                 )}
               </div>
@@ -1277,14 +1293,16 @@ const MarketValidationInfo = () => {
                 >
                   Close
                 </button>
-                <a 
-                  href={previewUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium inline-flex items-center gap-2"
-                >
-                  <i className="fas fa-external-link-alt"></i> Open in New Tab
-                </a>
+                {previewUrl && (
+                  <a 
+                    href={previewUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium inline-flex items-center gap-2"
+                  >
+                    <i className="fas fa-external-link-alt"></i> Open in New Tab
+                  </a>
+                )}
               </div>
             </div>
           </div>

@@ -106,7 +106,76 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Start transaction
             $pdo->beginTransaction();
             
-            // 1. Insert into rental_registration
+            // 1. Handle file uploads first
+            $upload_paths = [
+                'barangay_clearance' => '',
+                'id_photo_2x2' => '',
+                'valid_id' => ''
+            ];
+            
+            // Define upload paths - FIXED to use uploads/market/documents/
+            $base_upload_path = '../../../uploads/market/documents/';
+            
+            // Create directory structure
+            $year = date('Y');
+            $month = date('m');
+            $upload_dir = $base_upload_path . $year . '/' . $month . '/' . $stall_rights_no . '/';
+            
+            // Create upload directory if it doesn't exist
+            if (!file_exists($upload_dir)) {
+                if (!mkdir($upload_dir, 0777, true)) {
+                    throw new Exception("Failed to create upload directory");
+                }
+            }
+            
+            // Upload each required document
+            $document_types = [
+                'barangay_clearance' => 'Barangay Clearance',
+                'id_photo_2x2' => '2x2 ID Photo',
+                'valid_id' => 'Valid ID'
+            ];
+            
+            $uploaded_files = [];
+            
+            foreach ($document_types as $field_name => $document_type) {
+                if (!isset($_FILES[$field_name]) || $_FILES[$field_name]['error'] !== UPLOAD_ERR_OK) {
+                    throw new Exception("$document_type is required");
+                }
+                
+                $file = $_FILES[$field_name];
+                
+                // Validate file type
+                $allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
+                $file_type = mime_content_type($file['tmp_name']);
+                
+                if (!in_array($file_type, $allowed_types)) {
+                    throw new Exception("$document_type must be an image (JPG, JPEG, PNG)");
+                }
+                
+                // Validate file size (5MB)
+                $max_size = 5 * 1024 * 1024; // 5MB
+                if ($file['size'] > $max_size) {
+                    throw new Exception("$document_type is too large. Maximum size is 5MB");
+                }
+                
+                // Generate unique filename
+                $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $clean_ref = preg_replace('/[^A-Za-z0-9\-]/', '_', $stall_rights_no);
+                $unique_filename = $field_name . '_' . $clean_ref . '_' . time() . '.' . strtolower($file_extension);
+                $file_destination = $upload_dir . $unique_filename;
+                
+                // Move uploaded file
+                if (!move_uploaded_file($file['tmp_name'], $file_destination)) {
+                    throw new Exception("Failed to upload $document_type");
+                }
+                
+                // Store relative path for database (without the ../../../)
+                $relative_path = 'uploads/market/documents/' . $year . '/' . $month . '/' . $stall_rights_no . '/' . $unique_filename;
+                $upload_paths[$field_name] = $relative_path;
+                $uploaded_files[] = $document_type;
+            }
+            
+            // 2. Insert into rental_registration
             $registration_stmt = $pdo->prepare("
                 INSERT INTO rental_registration (
                     user_id, stall_id, map_id, stall_name, stall_class,
@@ -116,70 +185,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
             ");
             
-            // 2. Handle file uploads
-            $uploaded_files = [];
-            $base_path = '../../../documents/market/';
-            
-            $year = date('Y');
-            $month = date('m');
-            $year_folder = $base_path . $year . '/';
-            $month_folder = $year_folder . $month . '/';
-            
-            if (!file_exists($year_folder)) {
-                mkdir($year_folder, 0777, true);
-            }
-            if (!file_exists($month_folder)) {
-                mkdir($month_folder, 0777, true);
-            }
-            
-            $registration_folder = $month_folder . $stall_rights_no . '/';
-            if (!file_exists($registration_folder)) {
-                mkdir($registration_folder, 0777, true);
-            }
-            
-            $document_types = [
-                'barangay_clearance' => 'Barangay Clearance',
-                'id_photo_2x2' => '2x2 ID Photo',
-                'valid_id' => 'Valid ID'
-            ];
-            
-            $upload_paths = [];
-            
-            foreach ($document_types as $field_name => $document_type) {
-                if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] == UPLOAD_ERR_OK) {
-                    $file = $_FILES[$field_name];
-                    
-                    $allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
-                    $file_type = mime_content_type($file['tmp_name']);
-                    
-                    if (!in_array($file_type, $allowed_types)) {
-                        throw new Exception("$document_type must be an image (JPG, JPEG, PNG)");
-                    }
-                    
-                    $max_size = 5 * 1024 * 1024;
-                    if ($file['size'] > $max_size) {
-                        throw new Exception("$document_type is too large. Maximum size is 5MB");
-                    }
-                    
-                    $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                    $clean_ref = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $stall_rights_no);
-                    $unique_filename = $field_name . '_' . $clean_ref . '_' . time() . '.' . $file_extension;
-                    $file_path = $registration_folder . $unique_filename;
-                    
-                    $relative_path = 'documents/market/' . $year . '/' . $month . '/' . $stall_rights_no . '/' . $unique_filename;
-                    
-                    if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                        $upload_paths[$field_name] = $relative_path;
-                        $uploaded_files[] = $document_type;
-                    } else {
-                        throw new Exception("Failed to upload $document_type");
-                    }
-                } else {
-                    throw new Exception("$document_type is required");
-                }
-            }
-            
-            // Execute rental registration insert
             $registration_stmt->execute([
                 $user_id,
                 $stall_id,
@@ -198,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             $registration_id = $pdo->lastInsertId();
             
-            // 3. Insert into renter_owner - FIXED: Gender validation added
+            // 3. Insert into renter_owner
             $owner_stmt = $pdo->prepare("
                 INSERT INTO renter_owner (
                     registration_id, user_id,
@@ -238,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $province,
                 $_POST['zip_code'] ?? null,
                 $_POST['birthdate'],
-                $gender, // Use validated gender
+                $gender,
                 $_POST['emergency_name'] ?? null,
                 $_POST['emergency_contact'] ?? null,
                 $renter_code
@@ -1515,4 +1520,4 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     });
 </script> 
 </body>
-</html> 
+</html>
