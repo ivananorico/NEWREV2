@@ -48,6 +48,7 @@ const sidebarItems = [
     subItems: [
       { id: "RevenueCollection", label: "Revenue Collection", path: "/TREASURY/RevenueCollection" },
       { id: "Anomaly", label: "Anomaly Detection", path: "/TREASURY/Anomaly" },
+      { id: "FundAllocation", label: "Fund Allocation", path: "/TREASURY/FundAllocation" },
     ]
   },
 
