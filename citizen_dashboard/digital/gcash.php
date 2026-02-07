@@ -8,9 +8,58 @@ if (!isset($_SESSION['payment_data'])) {
     exit();
 }
 
-// Use absolute path that works on both localhost and server
-$baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
-require_once $baseDir . '/db/Digital/digital_db.php';
+// =====================================================
+// FIXED: DATABASE PATH - WORKS FOR BOTH LOCALHOST AND DOMAIN
+// =====================================================
+$database_loaded = false;
+$db_error = '';
+
+// Try multiple paths until one works
+$possible_paths = [
+    // Path 1: Localhost (2 levels up)
+    __DIR__ . '/../../db/Digital/digital_db.php',
+    
+    // Path 2: Domain (3 levels up)
+    __DIR__ . '/../../../db/Digital/digital_db.php',
+    
+    // Path 3: Using dirname function (2 levels)
+    dirname(__DIR__, 2) . '/db/Digital/digital_db.php',
+    
+    // Path 4: Using dirname function (3 levels)
+    dirname(__DIR__, 3) . '/db/Digital/digital_db.php',
+    
+    // Path 5: Document root approach
+    $_SERVER['DOCUMENT_ROOT'] . '/db/Digital/digital_db.php',
+    
+    // Path 6: Alternative document root (for domain)
+    isset($_SERVER['CONTEXT_DOCUMENT_ROOT']) ? $_SERVER['CONTEXT_DOCUMENT_ROOT'] . '/db/Digital/digital_db.php' : null,
+];
+
+foreach ($possible_paths as $path) {
+    if ($path && file_exists($path)) {
+        try {
+            require_once $path;
+            $database_loaded = true;
+            break;
+        } catch (Exception $e) {
+            $db_error = $e->getMessage();
+        }
+    }
+}
+
+if (!$database_loaded) {
+    die("
+        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
+            <i class='fas fa-exclamation-triangle' style='font-size: 48px; color: #f59e0b;'></i>
+            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Database Configuration Error</h2>
+            <p style='color: #6b7280; margin-bottom: 10px;'>Unable to locate database configuration file.</p>
+            <p style='color: #6b7280; margin-bottom: 20px; font-size: 12px;'>Please check file permissions and paths.</p>
+            <a href='index.php' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
+                <i class='fas fa-arrow-left'></i> Go Back
+            </a>
+        </div>
+    ");
+}
 
 $payment_data = $_SESSION['payment_data'];
 $client_system = $payment_data['client_system'];
