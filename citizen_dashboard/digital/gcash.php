@@ -10,7 +10,7 @@ if (!isset($_SESSION['payment_data'])) {
 
 // Use absolute path that works on both localhost and server
 $baseDir = dirname(__DIR__, 2); // Go up 2 levels from current directory
-require_once $baseDir . '/db/Digital/digital_db.php';
+require_once $baseDir . '../../db/Digital/digital_db.php';
 
 $payment_data = $_SESSION['payment_data'];
 $client_system = $payment_data['client_system'];
