@@ -45,165 +45,15 @@ if (!$pdo) {
 }
 
 // =====================================================
-// IPROGSMS API CONFIGURATION
-// =====================================================
-$sms_api_url = 'https://www.iprogsms.com/api/v1/sms_messages';
-// REPLACE THIS WITH YOUR ACTUAL IPROGSMS API TOKEN FROM YOUR DASHBOARD
-$sms_api_token = 'test'; // Example - USE YOUR OWN TOKEN        
-
-// Function to send SMS via iProgSMS API
-function sendOTPviaSMS($phone, $otp, $amount, $reference_id) {
-    global $sms_api_url, $sms_api_token;
-    
-    // Format phone number - iProgSMS expects 639XXXXXXXXX format
-    $formatted_phone = preg_replace('/[^0-9]/', '', $phone);
-    
-    // Convert to 639 format if needed
-    if (strlen($formatted_phone) === 11 && substr($formatted_phone, 0, 2) === '09') {
-        // 09171234567 -> 639171234567
-        $formatted_phone = '63' . substr($formatted_phone, 1);
-    } elseif (strlen($formatted_phone) === 10 && substr($formatted_phone, 0, 1) === '9') {
-        // 9171234567 -> 639171234567
-        $formatted_phone = '63' . $formatted_phone;
-    } elseif (strlen($formatted_phone) === 13 && substr($formatted_phone, 0, 4) === '+639') {
-        // +639171234567 -> 639171234567
-        $formatted_phone = substr($formatted_phone, 1);
-    }
-    
-    // Verify phone format is correct
-    if (strlen($formatted_phone) !== 12 || substr($formatted_phone, 0, 3) !== '639') {
-        return [
-            'success' => false,
-            'error' => "Invalid phone format. Expected 639XXXXXXXXX, got $formatted_phone"
-        ];
-    }
-    
-    // Prepare message - AVOID TRIGGER WORDS LIKE "OTP", "PAYMENT", "BANK", "VERIFICATION"
-    $message = "Your LGU payment code: $otp\n";
-    $message .= "Use within 2 minutes\n"; // CHANGED TO 2 MINUTES
-    $message .= "Amt: ₱" . number_format($amount, 2) . "\n";
-    $message .= "ID: $reference_id\n";
-    $message .= "Do not share";
-    
-    // Prepare API data exactly as shown in iProgSMS documentation
-    $data = [
-        'api_token' => $sms_api_token,
-        'message' => $message,
-        'phone_number' => $formatted_phone
-    ];
-    
-    // Send SMS via cURL
-    $ch = curl_init($sms_api_url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/x-www-form-urlencoded'
-    ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    curl_close($ch);
-    
-    // Debug: Log what happened
-    error_log("iProgSMS API Response: HTTP $http_code - " . substr($response, 0, 200));
-    
-    // Check for cURL errors
-    if ($curl_error) {
-        return [
-            'success' => false,
-            'error' => "Network error: $curl_error",
-            'http_code' => $http_code,
-            'raw_response' => $response
-        ];
-    }
-    
-    // Try to parse JSON response
-    $response_data = json_decode($response, true);
-    
-    if ($http_code === 200) {
-        if (is_array($response_data)) {
-            // Check for success
-            if (isset($response_data['status']) && $response_data['status'] === 'success') {
-                return [
-                    'success' => true,
-                    'response' => $response_data,
-                    'formatted_phone' => $formatted_phone,
-                    'message_sent' => $message
-                ];
-            } elseif (isset($response_data['success']) && $response_data['success'] === true) {
-                return [
-                    'success' => true,
-                    'response' => $response_data,
-                    'formatted_phone' => $formatted_phone,
-                    'message_sent' => $message
-                ];
-            } elseif (isset($response_data['message_id'])) {
-                return [
-                    'success' => true,
-                    'response' => $response_data,
-                    'formatted_phone' => $formatted_phone,
-                    'message_sent' => $message
-                ];
-            } else {
-                // Check for error messages
-                $error_msg = "API Error";
-                if (isset($response_data['message'])) {
-                    if (is_array($response_data['message'])) {
-                        $error_msg .= ": " . implode(', ', $response_data['message']);
-                    } else {
-                        $error_msg .= ": " . $response_data['message'];
-                    }
-                }
-                return [
-                    'success' => false,
-                    'error' => $error_msg,
-                    'http_code' => $http_code,
-                    'response' => $response_data,
-                    'formatted_phone' => $formatted_phone
-                ];
-            }
-        } else {
-            // If response is not JSON but HTTP 200, assume success
-            return [
-                'success' => true,
-                'response' => $response,
-                'formatted_phone' => $formatted_phone,
-                'message_sent' => $message
-            ];
-        }
-    } else {
-        // HTTP error
-        $error_msg = "HTTP Error $http_code";
-        if (is_array($response_data) && isset($response_data['message'])) {
-            if (is_array($response_data['message'])) {
-                $error_msg .= ": " . implode(', ', $response_data['message']);
-            } else {
-                $error_msg .= ": " . $response_data['message'];
-            }
-        }
-        return [
-            'success' => false,
-            'error' => $error_msg,
-            'http_code' => $http_code,
-            'response' => $response_data ?? $response,
-            'formatted_phone' => $formatted_phone
-        ];
-    }
-}
-
-// =====================================================
-// GET OTP FROM DATABASE AND SEND SMS
+// GET OTP FROM DATABASE AND CHECK SMS STATUS
 // =====================================================
 $generated_otp = '';
 $otp_expires = $_SESSION['otp_expires'] ?? 0;
-$otp_sent_status = false;
+$sms_message = $_SESSION['sms_message'] ?? '';
 
 if ($pending_payment_id) {
     try {
-        $query = "SELECT otp_code, created_at, sms_sent FROM payment_transactions WHERE payment_id = :payment_id";
+        $query = "SELECT otp_code, created_at, sms_sent, sms_response FROM payment_transactions WHERE payment_id = :payment_id";
         $stmt = $pdo->prepare($query);
         $stmt->execute([':payment_id' => $pending_payment_id]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -212,41 +62,16 @@ if ($pending_payment_id) {
             $generated_otp = $result['otp_code'];
             $_SESSION['generated_otp'] = $generated_otp;
             
-            // FIX: Always reset OTP expiry to 2 minutes from NOW when page loads
+            // Reset OTP expiry to 2 minutes from NOW when page loads
             $otp_expires = time() + (2 * 60); // 2 minutes from current time
             $_SESSION['otp_expires'] = $otp_expires;
             
-            // Send SMS if not already sent
-            if (empty($result['sms_sent'])) {
-                $sms_result = sendOTPviaSMS($phone, $generated_otp, $amount, $reference_id);
-                $otp_sent_status = $sms_result['success'];
-                
-                // Update SMS status in database
-                $update_sms = "
-                    UPDATE payment_transactions 
-                    SET sms_sent = :sms_sent,
-                        sms_response = :sms_response,
-                        callback_response = CONCAT(COALESCE(callback_response, ''), ' | SMS sent at " . date('Y-m-d H:i:s') . " - Status: ', :sms_status)
-                    WHERE payment_id = :payment_id
-                ";
-                
-                $sms_status = $sms_result['success'] ? 'sent' : 'failed';
-                $stmt_sms = $pdo->prepare($update_sms);
-                $stmt_sms->execute([
-                    ':payment_id' => $pending_payment_id,
-                    ':sms_sent' => $sms_result['success'] ? 1 : 0,
-                    ':sms_response' => json_encode($sms_result),
-                    ':sms_status' => $sms_status
-                ]);
-                
-                // Store SMS result in session for display
-                if ($sms_result['success']) {
-                    $_SESSION['sms_message'] = 'Verification code sent to ' . $phone;
-                }
-                // No error message shown for failed SMS
-            } else {
-                $otp_sent_status = true;
-            }
+            // Check SMS status from database
+            $sms_sent = $result['sms_sent'] ?? 0;
+            
+            // Clear SMS message from session after displaying
+            unset($_SESSION['sms_message']);
+            
         } else {
             header('Location: gcash.php');
             exit();
@@ -478,10 +303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $remaining_time = max(0, $otp_expires - time());
 $minutes = floor($remaining_time / 60);
 $seconds = $remaining_time % 60;
-
-// Check for SMS messages
-$sms_message = $_SESSION['sms_message'] ?? '';
-unset($_SESSION['sms_message']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -576,6 +397,17 @@ unset($_SESSION['sms_message']);
             opacity: 0.5;
             cursor: not-allowed;
         }
+        
+        /* OTP input validation */
+        .otp-valid {
+            border-color: #10b981 !important;
+            background-color: #f0fdf4 !important;
+        }
+        
+        .otp-invalid {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -639,13 +471,22 @@ unset($_SESSION['sms_message']);
                 </div>
             </div>
 
-            <!-- SMS Status - Always show success message -->
-            <div class="mt-4 bg-blue-900/30 rounded-lg p-3">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle mr-2 text-blue-300"></i>
-                    <span class="text-blue-100">Enter the 6-digit verification code</span>
+            <!-- SMS Status - Show success message if available -->
+            <?php if ($sms_message): ?>
+                <div class="mt-4 bg-blue-900/30 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2 text-blue-300"></i>
+                        <span class="text-blue-100"><?php echo $sms_message; ?></span>
+                    </div>
                 </div>
-            </div>
+            <?php else: ?>
+                <div class="mt-4 bg-blue-900/30 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2 text-blue-300"></i>
+                        <span class="text-blue-100">Enter the 6-digit verification code</span>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- CONTENT CARD -->
@@ -680,23 +521,13 @@ unset($_SESSION['sms_message']);
                 </div>
             </div>
 
-            <!-- SMS MESSAGES - Only show success -->
-            <?php if ($sms_message): ?>
-                <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-                    <div class="flex items-center">
-                        <i class="fas fa-check-circle text-green-600 mr-3"></i>
-                        <p class="text-green-700"><?php echo $sms_message; ?></p>
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <!-- OTP TIMER -->
             <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
                 <p class="text-sm text-gray-600 mb-2">
                     <i class="fas fa-clock mr-1"></i>
                     Code expires in: <span id="otp-timer" class="font-medium text-blue-600"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span>
                 </p>
-                <p class="text-xs text-gray-500">Code valid for 2 minutes only</p> <!-- CHANGED TO 2 MINUTES -->
+                <p class="text-xs text-gray-500">Code valid for 2 minutes only</p>
             </div>
 
             <!-- ERROR -->
@@ -738,7 +569,6 @@ unset($_SESSION['sms_message']);
                     </button>
                     
                     <div class="flex space-x-3">
-                        <!-- No Resend button - removed -->
                         <button type="submit" name="action" value="cancel" id="cancelBtn" class="w-full border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg">
                             <i class="fas fa-times mr-2"></i> Cancel Payment
                         </button>
@@ -797,17 +627,25 @@ unset($_SESSION['sms_message']);
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('otp').focus();
         });
-        
-        // Auto-submit when 6 digits entered
-        document.getElementById('otp').addEventListener('input', function(e) {
-            if (this.value.length === 6) {
-                document.getElementById('submitBtn').click();
-            }
-        });
 
         // Format OTP input (numbers only)
         document.getElementById('otp').addEventListener('input', function(e) {
+            // Remove non-numeric characters
             this.value = this.value.replace(/\D/g, '');
+            
+            // Limit to 6 digits
+            if (this.value.length > 6) {
+                this.value = this.value.substring(0, 6);
+            }
+            
+            // Visual feedback when complete
+            if (this.value.length === 6) {
+                this.classList.remove('otp-invalid');
+                this.classList.add('otp-valid');
+            } else {
+                this.classList.remove('otp-valid');
+                this.classList.remove('otp-invalid');
+            }
         });
         
         // ============================================
@@ -868,10 +706,14 @@ unset($_SESSION['sms_message']);
                     const otpInput = document.getElementById('otp');
                     if (otpInput) {
                         otpInput.value = otpCode;
-                        // Auto-focus on OTP input after copying
+                        otpInput.classList.remove('otp-invalid');
+                        otpInput.classList.add('otp-valid');
+                        
+                        // Focus on OTP input after copying
                         setTimeout(() => {
                             otpInput.focus();
-                            otpInput.select();
+                            // Move cursor to end
+                            otpInput.setSelectionRange(otpInput.value.length, otpInput.value.length);
                         }, 100);
                     }
                     
@@ -916,19 +758,36 @@ unset($_SESSION['sms_message']);
             }
         });
         
-        // Auto-fill OTP from modal when opened
+        // Auto-focus OTP input when modal opens
         if (otpMiniBtn) {
             otpMiniBtn.addEventListener('click', function() {
                 setTimeout(() => {
                     const otpInput = document.getElementById('otp');
                     if (otpInput) {
-                        // Don't auto-fill, but focus on input
                         otpInput.focus();
                         otpInput.select();
                     }
                 }, 300);
             });
         }
+        
+        // Validate OTP on form submission
+        document.getElementById('otpForm').addEventListener('submit', function(e) {
+            const otpInput = document.getElementById('otp');
+            const otpValue = otpInput.value.trim();
+            
+            // Check if OTP is 6 digits
+            if (otpValue.length !== 6 || !/^\d+$/.test(otpValue)) {
+                e.preventDefault();
+                otpInput.classList.remove('otp-valid');
+                otpInput.classList.add('otp-invalid');
+                otpInput.focus();
+                return false;
+            }
+            
+            // All good, allow form submission
+            return true;
+        });
     </script>
 </body>
 </html>

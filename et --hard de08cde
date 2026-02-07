@@ -1,0 +1,132 @@
+[33mde08cde[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m try
+[33m3343e8f[m temp remove api in otp
+[33md8c216f[m Improve UI gcash
+[33m25fe09b[m delinquent market
+[33m9c03e69[m otp and allocataion
+[33m90adcb7[m fix fecth business
+[33mddb9782[m api fetch paid business
+[33m83bafcb[m business tax ui imporve
+[33mdf983f5[m rpt improve ui2
+[33md14f096[m rpt improve UI
+[33m539a044[m delinqent
+[33m8678c56[m get deliqnuent
+[33m60f7586[m dashboad_data.php
+[33mdb7b9f4[m market dashboard
+[33m366c5ef[m market valid
+[33ma54ee56[m padi.pph
+[33mc39d686[m market app
+[33md44bf9a[m market valid info
+[33mf605374[m final rpt status
+[33m33dc893[m rpt status
+[33m51e11dc[m rpt statss
+[33m5616997[m rpt status 3
+[33mf9ebfc9[m rpt status2
+[33md063589[m rpt status
+[33m2fb4b99[m application form
+[33m90fb93f[m market services
+[33m410f0e2[m fix try
+[33m01484bc[m insectio fix
+[33mff28049[m business billing fix
+[33mc781561[m rpt registration
+[33m4af5006[m fix db
+[33mffbcbd7[m rpt services fix
+[33m0c5818b[m db fix
+[33m97fb272[m business db
+[33m9a34669[m delinquent
+[33m2efce33[m business tax summary finish
+[33mc1488a2[m anomaly2
+[33m4fb86ac[m anomaly
+[33me42439a[m certificate UI imporve
+[33m8553a77[m billing
+[33m1dacc59[m trying fix the digital
+[33m5908616[m test api business with login 16
+[33m8da6884[m test api business 13
+[33m293fa8e[m test api business 12
+[33md531971[m test api business 11
+[33mb176761[m test api business 10
+[33m9f42e97[m test api business 9
+[33m24c5384[m test api business 8
+[33mc1cca62[m test api business 7
+[33m02a89c9[m test api business 6
+[33mea19350[m test api business 4
+[33md45e719[m test api business 3
+[33m310dfc5[m test api business 2
+[33mf7eff57[m test api business
+[33m0a00e1b[m work failed otp
+[33m3b8b577[m login with otp fix
+[33md39079e[m fix services
+[33m0c078df[m remove expired button
+[33me545e20[m all ui revise
+[33m35cf325[m Business finish
+[33m06aaf9c[m RPT UI GOOD
+[33m0f80fc7[m citizen rpt improve and admin lack status
+[33ma05d056[m services UI improve
+[33m604b07c[m start 4
+[33m2c9804f[m start 3
+[33m7c3584a[m start 2
+[33m9adc1d9[m start
+[33m92f8fce[m[33m ([m[1;32mlogout-fixes[m[33m)[m i put s to see if push
+[33m653324c[m fix not pushing
+[33mef003fc[m logout fix 2
+[33m42151f9[m log out fix
+[33m4f96cd5[m market
+[33m656d4e4[m annual payment work
+[33m3f90694[m clearance issue
+[33m05c703c[m payment api trying to fix
+[33mcc7e1c9[m gcash success make mainteance
+[33m4b7719e[m remove not necessary in api payment
+[33mc6d2d03[m test post payment
+[33m7823a27[m workin otp domain
+[33m18943b7[m domain otp test 4
+[33m036d47f[m domain otp test 2
+[33m9a032a4[m domain test otp 2
+[33m7995565[m test domain otp 1
+[33m7579564[m treasury api collection
+[33m8bc4a7c[m market db domain
+[33m2bf3fe7[m user db domain
+[33m0e8f5aa[m market db domain
+[33mb2a37c4[m db push to domain
+[33mcfe16d8[m 4.1
+[33m49caacd[m digital function
+[33mcefbe78[m market reg
+[33me1977e6[m update business status info
+[33m31bc692[m business rpt db update
+[33m970e3b3[m digital works 2.2
+[33mdf91dcf[m digital work 2.1
+[33mad081f1[m digital works2
+[33m205a5b5[m  working digital
+[33m336dcfb[m market admin design finish
+[33ma89f8ec[m final business
+[33mcccaec4[m business dashboard remain
+[33mccf89d2[m rpt design complete
+[33m5469c94[m fixing design
+[33md9cb01a[m business tax payment
+[33m36cbe02[m rpt valid info
+[33m158ae54[m pending
+[33m00b43c8[m digtal payment
+[33m4134764[m Business tax finish
+[33m2a6b3b5[m Buisness status
+[33mfe36adf[m rpt dashboard
+[33m08a470a[m rpt enhance
+[33m85b7441[m fix login
+[33mfedde8d[m rpt
+[33m890b7b2[m business validation inmprove
+[33m6ce4a84[m business validation
+[33m3d96a3d[m new business db
+[33m73d20d6[m business tax2
+[33mf589023[m business tax
+[33mf5a68c7[m dashboard and chart
+[33mfb053ea[m tax conifg
+[33mc7013bb[m remove sef id
+[33mc6c72bf[m chart
+[33mf6e4e90[m rpt status imporve
+[33m405e496[m progress rpt
+[33m96891d5[m status info
+[33mace41f1[m status
+[33m82bbf96[m rptvalidationtable
+[33m4978a0d[m validation
+[33m9335c25[m configurations
+[33mc314971[m penalty
+[33m62caede[m config revise
+[33m690ae08[m property config
+[33m0106abd[m conifg
