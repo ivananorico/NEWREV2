@@ -492,7 +492,7 @@ $seconds = $remaining_time % 60;
         <!-- CONTENT CARD -->
         <div class="bg-white rounded-b-2xl shadow-lg p-6">
             <!-- PAYMENT DETAILS -->
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment Details</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">PaymentS Details</h2>
 
             <div class="space-y-3 text-sm mb-6">
                 <div class="flex justify-between">
