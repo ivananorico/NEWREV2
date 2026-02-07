@@ -258,7 +258,7 @@ $badge_class = getBadgeColor($client_system);
                         
                         <div class="flex items-center text-gray-600 mb-1">
                             <i class="fas fa-hashtag text-[#4a90e2] mr-2"></i>
-                            <span class="font-mono font-medium">References: </span>
+                            <span class="font-mono font-medium">Reference: </span>
                             <span class="font-mono font-bold text-gray-800 ml-1"><?php echo htmlspecialchars($reference_id); ?></span>
                         </div>
                         
