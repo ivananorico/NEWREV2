@@ -65,7 +65,7 @@ if (!isset($input['initial_balance']) || $input['initial_balance'] === '') {
 }
 
 // Include database connection
-require_once '../../../db/treasury/treasury_db.php';
+require_once '../../../db/Treasury/treasury_db.php';
 
 try {
     $pdo = getTreasuryDB();

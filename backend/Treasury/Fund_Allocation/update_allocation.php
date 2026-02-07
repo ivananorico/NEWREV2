@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // Include your database config
-require_once __DIR__ . '/../../../db/treasury/treasury_db.php';
+require_once __DIR__ . '/../../../db/Treasury/treasury_db.php';
 
 function updateAllocation($data) {
     $pdo = getTreasuryDB();

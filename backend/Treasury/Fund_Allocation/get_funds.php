@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once '../../../db/treasury/treasury_db.php';
+require_once '../../../db/Treasury/treasury_db.php';
 
 try {
     $pdo = getTreasuryDB();
