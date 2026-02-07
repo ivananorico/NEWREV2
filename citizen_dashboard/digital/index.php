@@ -396,7 +396,7 @@ $badge_class = getBadgeColor($client_system);
                 <button id="continue-btn" onclick="proceedToPayment()" 
                         class="btn-primary text-base inline-flex items-center justify-center px-12 py-3.5 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                     <i class="fas fa-arrow-right mr-3"></i> 
-                    <span id="btn-text">Select Payment Method to Continue</span>
+                    <span id="btn-text">Select Payment Method to Continue </span>
                 </button>
                 <p class="text-gray-500 text-sm mt-3">
                     <i class="fas fa-info-circle mr-1"></i>
