@@ -49,7 +49,7 @@ if (!$pdo) {
 // =====================================================
 $sms_api_url = 'https://www.iprogsms.com/api/v1/sms_messages';
 // REPLACE THIS WITH YOUR ACTUAL IPROGSMS API TOKEN FROM YOUR DASHBOARD
-$sms_api_token = '6385447a579621033dea98f3667fb6d2eeba8cb0'; // Example - USE YOUR OWN TOKEN        
+$sms_api_token = 'test'; // Example - USE YOUR OWN TOKEN        
 
 // Function to send SMS via iProgSMS API
 function sendOTPviaSMS($phone, $otp, $amount, $reference_id) {
