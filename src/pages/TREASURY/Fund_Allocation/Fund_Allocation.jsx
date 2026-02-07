@@ -1,3 +1,4 @@
+// Fund_Allocation.js
 import React, { useState, useEffect } from 'react';
 
 export default function Fund_Allocation() {
@@ -59,8 +60,29 @@ export default function Fund_Allocation() {
     purple: '#8b5cf6',      // Purple for allocations
   };
 
-  // API Base
-  const API_BASE = 'http://localhost/revenue2/backend/Treasury/Fund_Allocation';
+  // API Base - Dynamic for local and production
+  const getApiBase = () => {
+    const { hostname, port, protocol } = window.location;
+    
+    // Check if we're in local development
+    const isLocalhost = hostname === 'localhost' || 
+                       hostname === '127.0.0.1' ||
+                       port === '3000' ||
+                       port === '5173' || // Vite default
+                       port === '8080';
+    
+    if (isLocalhost) {
+      return 'http://localhost/revenue2/backend/Treasury/Fund_Allocation';
+    } else {
+      // Use the current domain for production
+      const domain = hostname;
+      const isHttps = protocol === 'https:';
+      const baseUrl = `${isHttps ? 'https' : 'http'}://${domain}`;
+      return `${baseUrl}/backend/Treasury/Fund_Allocation`;
+    }
+  };
+
+  const API_BASE = getApiBase();
 
   useEffect(() => {
     loadData();
@@ -71,9 +93,22 @@ export default function Fund_Allocation() {
       setLoading(true);
       setErrors([]);
       
+      console.log('API Base URL:', API_BASE); // Debug log
+      
       // Load bank account
       try {
-        const response = await fetch(`${API_BASE}/get_bank_account.php`);
+        console.log('Fetching bank account from:', `${API_BASE}/get_bank_account.php`);
+        const response = await fetch(`${API_BASE}/get_bank_account.php`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         if (data.status === 'success') {
@@ -88,7 +123,17 @@ export default function Fund_Allocation() {
       
       // Load funds
       try {
-        const response = await fetch(`${API_BASE}/get_funds.php`);
+        const response = await fetch(`${API_BASE}/get_funds.php`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         if (data.status === 'success') {
@@ -103,7 +148,17 @@ export default function Fund_Allocation() {
       
       // Load allocations
       try {
-        const response = await fetch(`${API_BASE}/get_allocations.php`);
+        const response = await fetch(`${API_BASE}/get_allocations.php`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         if (data.status === 'success') {
@@ -166,6 +221,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(fundData)
       });
@@ -216,6 +272,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(allocationData)
       });
@@ -282,6 +339,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(fundData)
       });
@@ -319,6 +377,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ id: fundId })
       });
@@ -387,6 +446,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(allocationData)
       });
@@ -416,6 +476,7 @@ export default function Fund_Allocation() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ id: allocationId })
       });
@@ -472,6 +533,30 @@ export default function Fund_Allocation() {
     <div className="p-6 min-h-screen" style={{ backgroundColor: colors.background }}>
       <h1 className="text-2xl font-bold mb-6" style={{ color: colors.textDark }}>Treasury Fund Management</h1>
       
+      {/* Error Display */}
+      {errors.length > 0 && (
+        <div className="mb-6 p-4 rounded-lg border" style={{ backgroundColor: '#fee2e2', borderColor: colors.danger }}>
+          <div className="flex items-center mb-2">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.danger }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium" style={{ color: colors.danger }}>Some data failed to load</span>
+          </div>
+          <ul className="text-sm space-y-1">
+            {errors.map((error, index) => (
+              <li key={index} style={{ color: colors.danger }}>• {error}</li>
+            ))}
+          </ul>
+          <button
+            onClick={loadData}
+            className="mt-3 px-3 py-1 text-xs rounded border"
+            style={{ borderColor: colors.danger, color: colors.danger }}
+          >
+            Retry Loading
+          </button>
+        </div>
+      )}
+      
       {/* BANK ACCOUNT */}
       <div className="rounded-xl p-6 mb-6 shadow-lg" style={{ 
         background: `linear-gradient(135deg, ${colors.primary}, #357abd)`,
@@ -487,6 +572,11 @@ export default function Fund_Allocation() {
             <p className="opacity-75 text-xs mt-2">
               Updated: {bankAccount ? formatDate(bankAccount.updated_at) : 'Never'}
             </p>
+          </div>
+          <div className="opacity-75">
+            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
           </div>
         </div>
       </div>
