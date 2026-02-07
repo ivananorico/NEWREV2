@@ -49,44 +49,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (strlen($clean_phone) === 11 && strpos($clean_phone, '09') === 0) {
             try {
-                // =====================================================
-                // DEBUG LOGGING START
-                // =====================================================
                 error_log("========================================");
                 error_log("GCASH.PHP DEBUG START");
-                error_log("Time: " . date('Y-m-d H:i:s'));
                 error_log("Phone submitted: " . $clean_phone);
-                error_log("Payment data: " . print_r($payment_data, true));
-                // =====================================================
-                
+
                 // Generate OTP
                 $generated_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-                error_log("Generated OTP: " . $generated_otp);
-                
+
                 // Generate payment ID
                 $payment_id = 'GCASH-' . date('YmdHis') . '-' . rand(1000, 9999);
                 $created_at = date('Y-m-d H:i:s');
-                error_log("Payment ID: " . $payment_id);
-                
-                // =====================================================
-                // CREATE PENDING TRANSACTION WITH OTP IN DATABASE
-                // =====================================================
+
+                // INSERT PENDING TRANSACTION
                 $insert_query = "
                     INSERT INTO payment_transactions 
                     (payment_id, client_system, client_reference, purpose, amount, phone, 
-                     payment_method, payment_status, otp_code, otp_verified, receipt_number, 
-                     created_at, callback_url, callback_sent)
+                    payment_method, payment_status, otp_code, otp_verified, receipt_number, 
+                    created_at, callback_url, callback_sent)
                     VALUES 
                     (:payment_id, :client_system, :client_reference, :purpose, :amount, :phone,
-                     :payment_method, :payment_status, :otp_code, :otp_verified, :receipt_number,
-                     :created_at, :callback_url, :callback_sent)
+                    :payment_method, :payment_status, :otp_code, :otp_verified, :receipt_number,
+                    :created_at, :callback_url, :callback_sent)
                 ";
                 
-                error_log("Preparing query: " . $insert_query);
-                
                 $stmt = $pdo->prepare($insert_query);
-                
-                // Bind parameters
+
                 $params = [
                     ':payment_id' => $payment_id,
                     ':client_system' => $client_system,
@@ -96,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':phone' => $clean_phone,
                     ':payment_method' => 'gcash',
                     ':payment_status' => 'pending',
-                    ':otp_code' => $generated_otp, // STORE OTP IN DATABASE
+                    ':otp_code' => $generated_otp, 
                     ':otp_verified' => 0,
                     ':receipt_number' => NULL,
                     ':created_at' => $created_at,
@@ -104,74 +91,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':callback_sent' => 0
                 ];
                 
-                error_log("Parameters: " . print_r($params, true));
-                
                 $result = $stmt->execute($params);
-                
-                if (!$result) {
-                    error_log("INSERT FAILED!");
-                    $errorInfo = $stmt->errorInfo();
-                    error_log("PDO Error: " . print_r($errorInfo, true));
-                    throw new Exception("Failed to insert payment transaction: " . $errorInfo[2]);
-                }
-                
-                $rowCount = $stmt->rowCount();
-                error_log("Rows affected: " . $rowCount);
-                
-                // Verify OTP was stored
+
+                // Verify stored OTP
                 $check_query = "SELECT otp_code FROM payment_transactions WHERE payment_id = :payment_id";
                 $check_stmt = $pdo->prepare($check_query);
                 $check_stmt->execute([':payment_id' => $payment_id]);
                 $check_result = $check_stmt->fetch(PDO::FETCH_ASSOC);
-                
-                error_log("Checking stored OTP - Query result: " . print_r($check_result, true));
-                
-                if (!$check_result) {
-                    error_log("ERROR: No record found after insert!");
-                    throw new Exception("No record found after insert");
-                }
-                
-                if (!isset($check_result['otp_code'])) {
-                    error_log("ERROR: otp_code column not in result!");
-                    throw new Exception("otp_code column not found");
-                }
-                
-                if (empty($check_result['otp_code'])) {
-                    error_log("ERROR: OTP is empty in database!");
-                    throw new Exception("OTP was not stored in database (empty)");
-                }
-                
-                error_log("SUCCESS: OTP stored in database: " . $check_result['otp_code']);
-                
-                // Store in session
+
+                // Store session data
                 $_SESSION['phone'] = $clean_phone;
                 $_SESSION['generated_otp'] = $generated_otp;
                 $_SESSION['otp_expires'] = time() + (5 * 60);
                 $_SESSION['otp_attempts'] = 0;
                 $_SESSION['pending_payment_id'] = $payment_id;
-                
-                error_log("Session data set:");
-                error_log("- phone: " . $clean_phone);
-                error_log("- generated_otp: " . $generated_otp);
-                error_log("- pending_payment_id: " . $payment_id);
-                
-                // =====================================================
-                // DEBUG LOGGING END
-                // =====================================================
-                error_log("GCASH.PHP DEBUG END");
-                error_log("========================================");
-                // =====================================================
-                
-                // Redirect to OTP page
+
                 header('Location: gcash_otp.php');
                 exit();
                 
             } catch (Exception $e) {
-                error_log("EXCEPTION: " . $e->getMessage());
                 $error = 'System error. Please try again. Error: ' . $e->getMessage();
             }
         } else {
-            error_log("VALIDATION FAILED: Invalid phone - " . $phone);
             $error = 'Please enter a valid 11-digit mobile number starting with 09';
         }
     }
@@ -185,149 +126,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>GCash Payment - LGU Digital Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <style>
-        .gcash-bg { background: linear-gradient(135deg, #00a859 0%, #00b894 100%); }
+        .gcash-header {
+            background: linear-gradient(135deg, #0074E4 0%, #00A9FF 100%);
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-md mx-auto p-4">
-        <!-- Back Button -->
-        <a href="index.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Payment Methods
-        </a>
 
-        <!-- GCash Header -->
-        <div class="gcash-bg text-white rounded-t-xl p-6">
-            <div class="flex items-center mb-4">
-                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center mr-4">
-                    <i class="fas fa-mobile-alt text-green-600 text-2xl"></i>
-                </div>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-md mx-auto p-4">
+
+        <!-- HEADER TOP -->
+        <div class="gcash-header text-white rounded-t-2xl p-6 shadow-lg">
+            <div class="flex items-center gap-3">
+                <img src="images/gcash_img.jpg" class="w-14 h-14 rounded-lg shadow-md bg-white p-1" />
                 <div>
-                    <h1 class="text-2xl font-bold">GCash Payment</h1>
-                    <p class="text-green-100">Step 1: Enter mobile number</p>
+                    <h1 class="text-2xl font-bold">Pay with GCash</h1>
+                    <p class="text-blue-100 text-sm">Step 1: Enter your mobile number</p>
                 </div>
             </div>
         </div>
 
-        <!-- Payment Details -->
-        <div class="bg-white rounded-b-xl shadow-lg p-6 mb-6">
-            <div class="mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Details</h2>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">System:</span>
-                        <span class="font-bold text-blue-600"><?php echo strtoupper(htmlspecialchars($client_system)); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Reference:</span>
-                        <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Amount:</span>
-                        <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Purpose:</span>
-                        <span class="font-medium text-right"><?php echo htmlspecialchars($purpose); ?></span>
-                    </div>
+        <!-- CONTENT CARD -->
+        <div class="bg-white rounded-b-2xl shadow-lg p-6">
+
+            <!-- PAYMENT DETAILS -->
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment Details</h2>
+
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">System:</span>
+                    <span class="font-bold text-blue-600"><?php echo strtoupper(htmlspecialchars($client_system)); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Reference:</span>
+                    <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Amount:</span>
+                    <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Purpose:</span>
+                    <span class="font-medium text-right"><?php echo htmlspecialchars($purpose); ?></span>
                 </div>
             </div>
 
+            <!-- ERROR -->
             <?php if ($error): ?>
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
-                    <p class="text-red-700"><?php echo $error; ?></p>
+                <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i> <?php echo $error; ?>
                 </div>
-            </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <!-- FORM -->
+            <form method="POST" class="mt-6">
                 <input type="hidden" name="action" value="verify_phone">
-                
-                <!-- Phone Input -->
-                <div class="mb-6">
-                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-mobile-alt mr-2"></i>GCash Mobile Number
-                    </label>
-                    <div class="relative">
-                        <input type="tel" 
-                               id="phone" 
-                               name="phone" 
-                               value="<?php echo htmlspecialchars($phone); ?>"
-                               placeholder="09123456789"
-                               required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                               oninput="formatPhoneNumber(this)">
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Enter your 11-digit GCash mobile number
-                    </p>
-                </div>
 
-                <!-- Continue Button -->
-                <button type="submit" 
-                        class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg transition-all duration-300">
-                    <i class="fas fa-arrow-right mr-2"></i> Continue to OTP Verification
+                <label for="phone" class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-mobile-alt mr-1"></i> GCash Mobile Number
+                </label>
+
+                <input type="tel"
+                       id="phone"
+                       name="phone"
+                       value="<?php echo htmlspecialchars($phone); ?>"
+                       placeholder="09123456789"
+                       required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                       oninput="formatPhoneNumber(this)">
+
+                <button type="submit"
+                        class="w-full mt-5 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-lg shadow-md transition">
+                    <i class="fas fa-arrow-right mr-2"></i> Continue to OTP
                 </button>
             </form>
-            
-            <!-- Demo Info -->
-            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <div class="flex items-start">
-                    <i class="fas fa-info-circle text-blue-600 mr-3 mt-1"></i>
-                    <div>
-                        <p class="text-sm text-blue-700">
-                            <strong>For demo:</strong> Enter <span class="font-bold">09123456789</span> or any 11-digit number starting with 09
-                        </p>
-                    </div>
-                </div>
+
+            <!-- DEMO INFO -->
+            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm">
+                <i class="fas fa-info-circle mr-2"></i>
+                Use your real phone number to receive OTP at sms
             </div>
-            
-            <!-- Security Notice -->
-            <div class="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-                <div class="flex items-start">
-                    <i class="fas fa-shield-alt text-green-600 mr-3 mt-1"></i>
-                    <div>
-                        <p class="text-sm text-green-700">
-                            <strong>Secure Payment:</strong> Your phone number is only used for OTP verification and is not stored permanently.
-                        </p>
-                    </div>
-                </div>
+
+            <!-- SECURITY -->
+            <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm">
+                <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                Your number is used for OTP verification only.
             </div>
         </div>
+
     </div>
 
-    <script>
-        function formatPhoneNumber(input) {
-            let value = input.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.substring(0, 11);
-            input.value = value;
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const phoneInput = document.getElementById('phone');
-            if (phoneInput.value === '') {
-                phoneInput.value = '09';
-                phoneInput.focus();
-            }
-            
-            // Form submission handling
-            const form = document.querySelector('form');
-            form.addEventListener('submit', function(e) {
-                const submitBtn = this.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
-                submitBtn.disabled = true;
-                
-                // Auto-enable after 5 seconds in case of error
-                setTimeout(() => {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }, 5000);
-            });
-        });
-    </script>
+<script>
+    function formatPhoneNumber(input) {
+        let value = input.value.replace(/\D/g, '');
+        if (value.length > 11) value = value.substring(0, 11);
+        input.value = value;
+    }
+</script>
+
 </body>
 </html>

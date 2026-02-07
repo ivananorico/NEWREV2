@@ -32,7 +32,16 @@ $otp_attempts = $_SESSION['otp_attempts'] ?? 0;
 // Get Digital DB connection
 $pdo = getDigitalDB();
 if (!$pdo) {
-    die("Database connection error");
+    die("
+        <div style='padding: 20px; text-align: center; background: white; border-radius: 10px; max-width: 500px; margin: 50px auto;'>
+            <i class='fas fa-exclamation-triangle' style='font-size: 48px; color: #f59e0b;'></i>
+            <h2 style='color: #1f2937; margin: 20px 0 10px;'>Database Connection Error</h2>
+            <p style='color: #6b7280; margin-bottom: 20px;'>Please try again in a few minutes.</p>
+            <a href='index.php' style='display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;'>
+                <i class='fas fa-arrow-left'></i> Go Back
+            </a>
+        </div>
+    ");
 }
 
 // =====================================================
@@ -40,7 +49,7 @@ if (!$pdo) {
 // =====================================================
 $sms_api_url = 'https://www.iprogsms.com/api/v1/sms_messages';
 // REPLACE THIS WITH YOUR ACTUAL IPROGSMS API TOKEN FROM YOUR DASHBOARD
-$sms_api_token = 'test'; // Example - USE YOUR OWN TOKEN        
+$sms_api_token = '6385447a579621033dea98f3667fb6d2eeba8cb0'; // Example - USE YOUR OWN TOKEN        
 
 // Function to send SMS via iProgSMS API
 function sendOTPviaSMS($phone, $otp, $amount, $reference_id) {
@@ -70,17 +79,11 @@ function sendOTPviaSMS($phone, $otp, $amount, $reference_id) {
     }
     
     // Prepare message - AVOID TRIGGER WORDS LIKE "OTP", "PAYMENT", "BANK", "VERIFICATION"
-    // Use creative alternatives that won't trigger spam filters
     $message = "Your LGU payment code: $otp\n";
-    $message .= "Use within 5 minutes\n";
+    $message .= "Use within 2 minutes\n"; // CHANGED TO 2 MINUTES
     $message .= "Amt: ₱" . number_format($amount, 2) . "\n";
     $message .= "ID: $reference_id\n";
     $message .= "Do not share";
-    
-    // Alternative message if above still gets flagged
-    // $message = "LGU Transaction: $otp\n";
-    // $message .= "Valid 5 min | ₱" . number_format($amount, 2) . "\n";
-    // $message .= "Ref: $reference_id";
     
     // Prepare API data exactly as shown in iProgSMS documentation
     $data = [
@@ -191,8 +194,6 @@ function sendOTPviaSMS($phone, $otp, $amount, $reference_id) {
     }
 }
 
-// REST OF THE CODE REMAINS THE SAME FROM THE PREVIOUS VERSION...
-// [KEEP ALL THE DATABASE AND SESSION HANDLING CODE FROM THE PREVIOUS VERSION]
 // =====================================================
 // GET OTP FROM DATABASE AND SEND SMS
 // =====================================================
@@ -209,12 +210,11 @@ if ($pending_payment_id) {
         
         if ($result && isset($result['otp_code'])) {
             $generated_otp = $result['otp_code'];
-            $created_at = strtotime($result['created_at']);
-            if (!$otp_expires) {
-                $otp_expires = $created_at + (5 * 60);
-                $_SESSION['otp_expires'] = $otp_expires;
-            }
             $_SESSION['generated_otp'] = $generated_otp;
+            
+            // FIX: Always reset OTP expiry to 2 minutes from NOW when page loads
+            $otp_expires = time() + (2 * 60); // 2 minutes from current time
+            $_SESSION['otp_expires'] = $otp_expires;
             
             // Send SMS if not already sent
             if (empty($result['sms_sent'])) {
@@ -242,10 +242,8 @@ if ($pending_payment_id) {
                 // Store SMS result in session for display
                 if ($sms_result['success']) {
                     $_SESSION['sms_message'] = 'Verification code sent to ' . $phone;
-                } else {
-                    $_SESSION['sms_error'] = 'Failed to send verification code. ' . 
-                        (isset($sms_result['error']) ? $sms_result['error'] : 'Please try resending.');
                 }
+                // No error message shown for failed SMS
             } else {
                 $otp_sent_status = true;
             }
@@ -447,55 +445,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-    } elseif ($action === 'resend_otp') {
-        $new_otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        $_SESSION['generated_otp'] = $new_otp;
-        $_SESSION['otp_expires'] = time() + (5 * 60);
-        $_SESSION['otp_attempts'] = 0;
-        $generated_otp = $new_otp;
-        $otp_expires = $_SESSION['otp_expires'];
-        
-        // Send new OTP via SMS
-        $sms_result = sendOTPviaSMS($phone, $new_otp, $amount, $reference_id);
-        
-        try {
-            $update_query = "
-                UPDATE payment_transactions 
-                SET otp_code = :otp_code,
-                    sms_sent = :sms_sent,
-                    sms_response = :sms_response,
-                    callback_response = CONCAT(COALESCE(callback_response, ''), ' | Verification code resent at " . date('Y-m-d H:i:s') . " - SMS: ', :sms_status)
-                WHERE payment_id = :payment_id
-            ";
-            
-            $sms_status = $sms_result['success'] ? 'resent' : 'failed to resend';
-            $stmt = $pdo->prepare($update_query);
-            $stmt->execute([
-                ':payment_id' => $pending_payment_id,
-                ':otp_code' => $new_otp,
-                ':sms_sent' => $sms_result['success'] ? 1 : 0,
-                ':sms_response' => json_encode($sms_result),
-                ':sms_status' => $sms_status
-            ]);
-        } catch (PDOException $e) {
-            // Silent fail
-        }
-        
-        // Show success message for SMS resend
-        if ($sms_result['success']) {
-            $_SESSION['sms_message'] = 'New verification code sent to ' . $phone;
-        } else {
-            $error_msg = 'Failed to resend code. ';
-            if (isset($sms_result['error'])) {
-                $error_msg .= $sms_result['error'];
-            } else {
-                $error_msg .= 'Please try again.';
-            }
-            $_SESSION['sms_error'] = $error_msg;
-        }
-        
-        header('Location: gcash_otp.php');
-        exit();
     } elseif ($action === 'cancel') {
         try {
             $update_query = "
@@ -530,24 +479,22 @@ $remaining_time = max(0, $otp_expires - time());
 $minutes = floor($remaining_time / 60);
 $seconds = $remaining_time % 60;
 
-$abandoned_url = $base_url . '/citizen_dashboard/digital/mark_abandoned.php';
-
 // Check for SMS messages
 $sms_message = $_SESSION['sms_message'] ?? '';
-$sms_error = $_SESSION['sms_error'] ?? '';
 unset($_SESSION['sms_message']);
-unset($_SESSION['sms_error']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GCash Verification - LGU Digital Payment</title>
+    <title>GCash Payment - LGU Digital Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .gcash-bg { background: linear-gradient(135deg, #00a859 0%, #00b894 100%); }
+        .gcash-header {
+            background: linear-gradient(135deg, #0074E4 0%, #00A9FF 100%);
+        }
         .otp-input { 
             letter-spacing: 10px; 
             font-size: 24px; 
@@ -555,47 +502,185 @@ unset($_SESSION['sms_error']);
             font-family: monospace;
         }
         .timer-expired { color: #ef4444; font-weight: bold; }
+        
+        /* Minimal OTP button styles */
+        .otp-mini-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .otp-mini-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .otp-mini-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* OTP Modal Styles */
+        .otp-modal-container {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .otp-modal-content {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 28rem;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Animation for modal */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .otp-modal-content {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        /* Disabled button style */
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-md mx-auto p-4">
-        <!-- Back Button -->
-        <a href="gcash.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Phone Entry
-        </a>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Minimal OTP Button (Small circle, no text) -->
+    <div id="otpMiniBtn" class="otp-mini-btn" title="Show OTP">
+        <i class="fas fa-key"></i>
+    </div>
 
-        <!-- GCash Header -->
-        <div class="gcash-bg text-white rounded-t-xl p-6">
-            <div class="flex items-center mb-4">
-                <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center mr-4">
-                    <i class="fas fa-key text-green-600 text-2xl"></i>
+    <!-- OTP Modal -->
+    <div id="otpModal" class="otp-modal-container hidden">
+        <div class="otp-modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">
+                        <i class="fas fa-key mr-2 text-blue-600"></i> Verification Code
+                    </h2>
+                    <button type="button" id="closeOtpModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
                 </div>
-                <div>
-                    <h1 class="text-2xl font-bold">GCash Payment</h1>
-                    <p class="text-green-100">Step 2: Verification</p>
+                
+                <div class="text-center mb-6">
+                    <div class="text-4xl font-bold text-blue-600 tracking-widest mb-4 p-4 bg-blue-50 rounded-lg">
+                        <?php echo $generated_otp; ?>
+                    </div>
+                    
+                    <!-- Copy Button -->
+                    <button id="copyOtpBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium mb-4 transition">
+                        <i class="far fa-copy mr-2"></i> Copy OTP to Clipboard
+                    </button>
+                    
+                    <!-- Timer -->
+                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-gray-600">
+                            <i class="fas fa-clock mr-1"></i>
+                            Code expires in: <span id="modal-otp-timer" class="font-medium text-blue-600"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-lightbulb text-blue-600 mt-1 mr-2"></i>
+                        <div class="text-sm text-blue-700">
+                            <p>This OTP is for testing purposes. Copy and paste it into the verification field.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- SMS Status -->
-            <?php if ($otp_sent_status): ?>
-                <div class="bg-green-900/30 rounded-lg p-3 mb-2">
-                    <div class="flex items-center">
-                        <i class="fas fa-check-circle mr-2 text-green-300"></i>
-                        <span class="text-green-100">Verification code sent to <?php echo htmlspecialchars($phone); ?></span>
-                    </div>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto p-4">
+        <!-- GCASH HEADER -->
+        <div class="gcash-header text-white rounded-t-2xl p-6 shadow-lg">
+            <div class="flex items-center gap-3">
+                <img src="images/gcash_img.jpg" class="w-14 h-14 rounded-lg shadow-md bg-white p-1" />
+                <div>
+                    <h1 class="text-2xl font-bold">Pay with GCash</h1>
+                    <p class="text-blue-100 text-sm">Step 2: Enter Verification Code</p>
                 </div>
-            <?php else: ?>
-                <div class="bg-yellow-900/30 rounded-lg p-3 mb-2">
-                    <div class="flex items-center">
-                        <i class="fas fa-exclamation-triangle mr-2 text-yellow-300"></i>
-                        <span class="text-yellow-100">SMS not sent. Please resend code.</span>
-                    </div>
+            </div>
+
+            <!-- SMS Status - Always show success message -->
+            <div class="mt-4 bg-blue-900/30 rounded-lg p-3">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-2 text-blue-300"></i>
+                    <span class="text-blue-100">Enter the 6-digit verification code</span>
                 </div>
-            <?php endif; ?>
+            </div>
         </div>
 
-        <!-- OTP Section -->
-        <div class="bg-white rounded-b-xl shadow-lg p-6">
+        <!-- CONTENT CARD -->
+        <div class="bg-white rounded-b-2xl shadow-lg p-6">
+            <!-- PAYMENT DETAILS -->
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment Details</h2>
+
+            <div class="space-y-3 text-sm mb-6">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">System:</span>
+                    <span class="font-bold text-blue-600"><?php echo strtoupper(htmlspecialchars($client_system)); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Reference:</span>
+                    <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Amount:</span>
+                    <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Mobile:</span>
+                    <span class="font-medium"><?php echo htmlspecialchars($phone); ?></span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Purpose:</span>
+                    <span class="font-medium text-right"><?php echo htmlspecialchars($purpose); ?></span>
+                </div>
+            </div>
+
+            <!-- SMS MESSAGES - Only show success -->
             <?php if ($sms_message): ?>
                 <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
                     <div class="flex items-center">
@@ -604,130 +689,86 @@ unset($_SESSION['sms_error']);
                     </div>
                 </div>
             <?php endif; ?>
-            
-            <?php if ($sms_error): ?>
-                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <div class="flex items-center">
-                        <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
-                        <p class="text-red-700"><?php echo $sms_error; ?></p>
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <div class="mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Payment Details</h2>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">System:</span>
-                        <span class="font-bold text-blue-600"><?php echo strtoupper($client_system); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Reference:</span>
-                        <span class="font-medium"><?php echo htmlspecialchars($reference_id); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Amount:</span>
-                        <span class="font-bold text-green-600">₱<?php echo number_format($amount, 2); ?></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Mobile:</span>
-                        <span class="font-medium"><?php echo htmlspecialchars($phone); ?></span>
-                    </div>
-                </div>
+
+            <!-- OTP TIMER -->
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
+                <p class="text-sm text-gray-600 mb-2">
+                    <i class="fas fa-clock mr-1"></i>
+                    Code expires in: <span id="otp-timer" class="font-medium text-blue-600"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span>
+                </p>
+                <p class="text-xs text-gray-500">Code valid for 2 minutes only</p> <!-- CHANGED TO 2 MINUTES -->
             </div>
 
-            <!-- For testing/demo purposes only -->
-            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <div class="text-center">
-                    <p class="text-sm text-gray-600 mb-2"><i class="fas fa-info-circle mr-1"></i> For testing, use this verification code:</p>
-                    <div class="text-3xl font-bold text-blue-600 tracking-widest mb-2">
-                        <?php echo $generated_otp; ?>
-                    </div>
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-clock mr-1"></i>
-                        Expires in: <span id="otp-timer" class="font-medium"><?php echo sprintf('%02d:%02d', $minutes, $seconds); ?></span>
-                    </p>
-                </div>
-            </div>
-
+            <!-- ERROR -->
             <?php if ($error): ?>
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-circle text-red-600 mr-3"></i>
-                    <p class="text-red-700"><?php echo $error; ?></p>
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i> <?php echo $error; ?>
                 </div>
-            </div>
             <?php endif; ?>
 
+            <!-- OTP FORM -->
             <form method="POST" action="" id="otpForm">
                 <input type="hidden" name="action" value="verify_otp">
                 
                 <!-- OTP Input -->
-                <div class="mb-6">
-                    <label for="otp" class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-key mr-2"></i>Enter 6-digit Verification Code
-                    </label>
-                    <input type="text" 
-                           id="otp" 
-                           name="otp" 
-                           placeholder="000000" 
-                           maxlength="6"
-                           pattern="[0-9]{6}"
-                           required
-                           autocomplete="off"
-                           inputmode="numeric"
-                           class="otp-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200">
-                    <p class="text-xs text-gray-500 mt-2">
-                        <i class="fas fa-mobile-alt mr-1"></i>
-                        Verification code sent to <?php echo htmlspecialchars($phone); ?> via SMS
-                    </p>
-                </div>
+                <label for="otp" class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-key mr-1"></i> Enter 6-digit Verification Code
+                </label>
+
+                <input type="text" 
+                       id="otp" 
+                       name="otp" 
+                       placeholder="000000" 
+                       maxlength="6"
+                       pattern="[0-9]{6}"
+                       required
+                       autocomplete="off"
+                       inputmode="numeric"
+                       class="otp-input w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2">
+                
+                <p class="text-xs text-gray-500 mb-6">
+                    <i class="fas fa-mobile-alt mr-1"></i>
+                    Enter the verification code
+                </p>
 
                 <!-- Buttons -->
                 <div class="space-y-3">
-                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-bold text-lg transition-all duration-300">
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-lg shadow-md transition">
                         <i class="fas fa-check-circle mr-2"></i> Complete Payment
                     </button>
                     
                     <div class="flex space-x-3">
-                        <button type="submit" name="action" value="resend_otp" id="resendBtn" class="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-800 py-3 rounded-lg">
-                            <i class="fas fa-redo mr-2"></i> Resend Code
-                        </button>
-                        
-                        <button type="submit" name="action" value="cancel" id="cancelBtn" class="flex-1 border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg">
-                            <i class="fas fa-times mr-2"></i> Cancel
+                        <!-- No Resend button - removed -->
+                        <button type="submit" name="action" value="cancel" id="cancelBtn" class="w-full border border-red-300 hover:bg-red-50 text-red-600 py-3 rounded-lg">
+                            <i class="fas fa-times mr-2"></i> Cancel Payment
                         </button>
                     </div>
                 </div>
             </form>
-            
-            <!-- Troubleshooting Info -->
-            <div class="mt-4 p-3 bg-gray-100 border border-gray-300 rounded text-xs">
-                <p><strong>Note:</strong> SMS providers often block messages containing words like "OTP", "payment", "bank", etc.</p>
-                <p>If SMS still fails, try these alternative message formats:</p>
-                <ol class="ml-4 mt-1 list-decimal">
-                    <li>Use "verification code" instead of "OTP"</li>
-                    <li>Avoid mentioning payment/bank details</li>
-                    <li>Keep message simple and generic</li>
-                    <li>Contact iProgSMS support for whitelisting</li>
-                </ol>
+
+            <!-- SECURITY -->
+            <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-sm">
+                <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                Do not share this code with anyone. GCash will never ask for this code.
             </div>
         </div>
     </div>
 
     <script>
-        // Timer functionality
-        let totalSeconds = <?php echo $remaining_time; ?>;
+        // Timer functionality - ALWAYS START FROM 2:00
+        let totalSeconds = 120; // Fixed 2 minutes (120 seconds)
         const otpTimer = document.getElementById('otp-timer');
+        const modalOtpTimer = document.getElementById('modal-otp-timer');
         
         function updateTimer() {
             if (totalSeconds <= 0) {
                 otpTimer.textContent = "00:00";
                 otpTimer.classList.add('timer-expired');
+                if (modalOtpTimer) modalOtpTimer.textContent = "00:00";
                 document.getElementById('otp').disabled = true;
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('submitBtn').textContent = 'Code Expired';
-                document.getElementById('submitBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
+                document.getElementById('submitBtn').classList.add('bg-gray-400', 'cursor-not-allowed', 'btn-disabled');
                 
                 setTimeout(() => {
                     window.location.href = 'gcash.php?expired=1';
@@ -737,7 +778,10 @@ unset($_SESSION['sms_error']);
             
             const min = Math.floor(totalSeconds / 60);
             const sec = totalSeconds % 60;
-            otpTimer.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+            const timerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+            
+            otpTimer.textContent = timerText;
+            if (modalOtpTimer) modalOtpTimer.textContent = timerText;
             
             if (totalSeconds < 60) {
                 otpTimer.classList.add('timer-expired');
@@ -760,12 +804,131 @@ unset($_SESSION['sms_error']);
                 document.getElementById('submitBtn').click();
             }
         });
-        
-        // Add loading state to resend button
-        document.getElementById('resendBtn').addEventListener('click', function() {
-            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sending...';
-            this.disabled = true;
+
+        // Format OTP input (numbers only)
+        document.getElementById('otp').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
         });
+        
+        // ============================================
+        // OTP MODAL FUNCTIONS
+        // ============================================
+        const otpMiniBtn = document.getElementById('otpMiniBtn');
+        const otpModal = document.getElementById('otpModal');
+        const closeOtpModalBtn = document.getElementById('closeOtpModal');
+        const copyOtpBtn = document.getElementById('copyOtpBtn');
+        
+        if (otpMiniBtn) {
+            otpMiniBtn.addEventListener('click', function() {
+                if (otpModal) {
+                    otpModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        }
+        
+        if (closeOtpModalBtn) {
+            closeOtpModalBtn.addEventListener('click', function() {
+                if (otpModal) {
+                    otpModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Close modal when clicking outside
+        if (otpModal) {
+            otpModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Copy OTP to clipboard
+        if (copyOtpBtn) {
+            copyOtpBtn.addEventListener('click', function() {
+                const otpCode = '<?php echo $generated_otp; ?>';
+                
+                navigator.clipboard.writeText(otpCode).then(function() {
+                    // Show success message
+                    const originalText = copyOtpBtn.innerHTML;
+                    copyOtpBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
+                    copyOtpBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    copyOtpBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    
+                    setTimeout(function() {
+                        copyOtpBtn.innerHTML = originalText;
+                        copyOtpBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        copyOtpBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    }, 2000);
+                    
+                    // Auto-fill OTP input
+                    const otpInput = document.getElementById('otp');
+                    if (otpInput) {
+                        otpInput.value = otpCode;
+                        // Auto-focus on OTP input after copying
+                        setTimeout(() => {
+                            otpInput.focus();
+                            otpInput.select();
+                        }, 100);
+                    }
+                    
+                    // Auto-close modal after 1 second
+                    setTimeout(() => {
+                        if (otpModal && !otpModal.classList.contains('hidden')) {
+                            otpModal.classList.add('hidden');
+                            document.body.style.overflow = '';
+                        }
+                    }, 1000);
+                    
+                }).catch(function(err) {
+                    console.error('Failed to copy OTP: ', err);
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = otpCode;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    // Show copied message anyway
+                    const originalText = copyOtpBtn.innerHTML;
+                    copyOtpBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
+                    copyOtpBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    copyOtpBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    
+                    setTimeout(function() {
+                        copyOtpBtn.innerHTML = originalText;
+                        copyOtpBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        copyOtpBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    }, 2000);
+                });
+            });
+        }
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && otpModal && !otpModal.classList.contains('hidden')) {
+                otpModal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // Auto-fill OTP from modal when opened
+        if (otpMiniBtn) {
+            otpMiniBtn.addEventListener('click', function() {
+                setTimeout(() => {
+                    const otpInput = document.getElementById('otp');
+                    if (otpInput) {
+                        // Don't auto-fill, but focus on input
+                        otpInput.focus();
+                        otpInput.select();
+                    }
+                }, 300);
+            });
+        }
     </script>
 </body>
 </html>
