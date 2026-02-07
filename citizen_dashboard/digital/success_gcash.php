@@ -331,7 +331,7 @@ unset($_SESSION['otp_attempts']);
                     class="action-btn w-full py-3 rounded-xl text-white font-medium 
                     bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 flex items-center justify-center gap-2">
                     <i class="fas fa-times"></i>
-                    Close Window
+                    Close Windows
                 </button>
             </div>
 
