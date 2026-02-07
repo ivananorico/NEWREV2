@@ -12,7 +12,7 @@ function getTreasuryConfig() {
             'port' => 3306,
             'dbname' => 'reve_treasury',
             'user' => 'reve_treasury',
-            'pass' => 'YOUR_PRODUCTION_PASSWORD'  // CHANGE THIS!
+            'pass' => '0P9d10nosJ*tG2C6'  // CHANGE THIS!
         ];
     } else {
         // LOCALHOST SETTINGS

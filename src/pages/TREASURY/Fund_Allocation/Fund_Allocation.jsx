@@ -60,29 +60,15 @@ export default function Fund_Allocation() {
     purple: '#8b5cf6',      // Purple for allocations
   };
 
-  // API Base - Dynamic for local and production
-  const getApiBase = () => {
-    const { hostname, port, protocol } = window.location;
-    
-    // Check if we're in local development
-    const isLocalhost = hostname === 'localhost' || 
-                       hostname === '127.0.0.1' ||
-                       port === '3000' ||
-                       port === '5173' || // Vite default
-                       port === '8080';
-    
-    if (isLocalhost) {
-      return 'http://localhost/revenue2/backend/Treasury/Fund_Allocation';
-    } else {
-      // Use the current domain for production
-      const domain = hostname;
-      const isHttps = protocol === 'https:';
-      const baseUrl = `${isHttps ? 'https' : 'http'}://${domain}`;
-      return `${baseUrl}/backend/Treasury/Fund_Allocation`;
-    }
-  };
+  // API Base - Fixed according to your structure
+  const API_BASE = window.location.hostname === "localhost"
+    ? "http://localhost/revenue2/backend/Treasury"
+    : "https://revenuetreasury.goserveph.com/backend/Treasury";
 
-  const API_BASE = getApiBase();
+  // Helper function to construct full API URLs
+  const getApiUrl = (endpoint) => {
+    return `${API_BASE}/Fund_Allocation/${endpoint}`;
+  };
 
   useEffect(() => {
     loadData();
@@ -97,8 +83,9 @@ export default function Fund_Allocation() {
       
       // Load bank account
       try {
-        console.log('Fetching bank account from:', `${API_BASE}/get_bank_account.php`);
-        const response = await fetch(`${API_BASE}/get_bank_account.php`, {
+        const bankUrl = getApiUrl('get_bank_account.php');
+        console.log('Fetching bank account from:', bankUrl);
+        const response = await fetch(bankUrl, {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -123,7 +110,8 @@ export default function Fund_Allocation() {
       
       // Load funds
       try {
-        const response = await fetch(`${API_BASE}/get_funds.php`, {
+        const fundsUrl = getApiUrl('get_funds.php');
+        const response = await fetch(fundsUrl, {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -148,7 +136,8 @@ export default function Fund_Allocation() {
       
       // Load allocations
       try {
-        const response = await fetch(`${API_BASE}/get_allocations.php`, {
+        const allocUrl = getApiUrl('get_allocations.php');
+        const response = await fetch(allocUrl, {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -217,7 +206,7 @@ export default function Fund_Allocation() {
         fiscal_year: parseInt(newFund.fiscal_year)
       };
       
-      const response = await fetch(`${API_BASE}/create_fund.php`, {
+      const response = await fetch(getApiUrl('create_fund.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,7 +257,7 @@ export default function Fund_Allocation() {
         allocated_date: newAllocation.allocated_date
       };
       
-      const response = await fetch(`${API_BASE}/create_allocation.php`, {
+      const response = await fetch(getApiUrl('create_allocation.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -335,7 +324,7 @@ export default function Fund_Allocation() {
         fiscal_year: parseInt(editFund.fiscal_year)
       };
       
-      const response = await fetch(`${API_BASE}/update_fund.php`, {
+      const response = await fetch(getApiUrl('update_fund.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -373,7 +362,7 @@ export default function Fund_Allocation() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/delete_fund.php`, {
+      const response = await fetch(getApiUrl('delete_fund.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -442,7 +431,7 @@ export default function Fund_Allocation() {
         allocated_date: editAllocation.allocated_date
       };
       
-      const response = await fetch(`${API_BASE}/update_allocation.php`, {
+      const response = await fetch(getApiUrl('update_allocation.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -472,7 +461,7 @@ export default function Fund_Allocation() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/delete_allocation.php`, {
+      const response = await fetch(getApiUrl('delete_allocation.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
