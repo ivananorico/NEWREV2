@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Building2, Search, Filter, RefreshCw, Database, Download,
+  Eye, Calendar, User, MapPin, DollarSign, AlertCircle, 
+  CheckCircle, FileText, Clock, TrendingUp, AlertTriangle,
+  FileCheck, Home, Users, Shield, CheckSquare, CreditCard,
+  Percent, Store, Receipt, Coins, FileSearch, Archive
+} from 'lucide-react';
+
+// Custom colors from the dashboard
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 const BusinessValidation = () => {
   const [activeTab, setActiveTab] = useState('myData');
@@ -24,7 +43,6 @@ const BusinessValidation = () => {
     ? "http://localhost/revenue2/backend/Business/BusinessValidation"
     : "/backend/Business/BusinessValidation";
 
-  // Use proxy for external API
   const EXTERNAL_API_URL = `${API_BASE}/fetch_external_proxy.php`;
 
   // Fetch data from YOUR database
@@ -50,13 +68,8 @@ const BusinessValidation = () => {
       
       if (data.status === 'success') {
         setMyPermits(data.permits || []);
-        console.log(`Loaded ${data.permits?.length || 0} permits from database`);
-        console.log('First permit:', data.permits?.[0]);
-        
-        // Extract already imported IDs for filtering external data
         const importedIds = data.permits?.map(p => p.applicant_id) || [];
         setAlreadyImportedIds(importedIds);
-        console.log('Already imported IDs:', importedIds);
       } else {
         throw new Error(data.message || 'Failed to fetch permits');
       }
@@ -75,8 +88,6 @@ const BusinessValidation = () => {
       setLoadingExternal(true);
       setError('');
       
-      console.log('Fetching from proxy URL:', EXTERNAL_API_URL);
-      
       const response = await fetch(EXTERNAL_API_URL);
       
       if (!response.ok) {
@@ -86,10 +97,8 @@ const BusinessValidation = () => {
       }
       
       const data = await response.json();
-      console.log('External data received:', data);
       
       if (data.success) {
-        // Filter out already imported permits BEFORE setting state
         const externalData = data.data || [];
         const filteredData = externalData.filter(permit => {
           const permitId = permit.applicant_id || permit.permit_id;
@@ -98,7 +107,6 @@ const BusinessValidation = () => {
         
         setExternalPermits(filteredData);
         setSelectedPermits([]);
-        console.log(`Fetched ${externalData.length} permits, filtered to ${filteredData.length} (removed ${externalData.length - filteredData.length} already imported)`);
       } else {
         throw new Error(data.message || 'Failed to fetch data from permit system');
       }
@@ -129,16 +137,11 @@ const BusinessValidation = () => {
     setError('');
     
     try {
-      // Get the selected permits
       const permitsToImport = externalPermits.filter(permit => {
         const permitId = permit.applicant_id || permit.permit_id;
         return selectedPermits.includes(permitId);
       });
       
-      console.log('Selected permits for import:', permitsToImport.length);
-      console.log('First selected permit:', permitsToImport[0]);
-      
-      // Transform the data to match backend expectations
       const transformedPermits = permitsToImport.map(permit => ({
         applicant_id: permit.applicant_id || permit.permit_id || `EXT-${Date.now()}`,
         business_name: permit.business_name || '',
@@ -162,8 +165,6 @@ const BusinessValidation = () => {
         status: permit.status || 'PENDING'
       }));
       
-      console.log('Transformed permits ready for import:', transformedPermits);
-      
       const importResponse = await fetch(`${API_BASE}/import_external_permits.php`, {
         method: 'POST',
         headers: {
@@ -177,30 +178,25 @@ const BusinessValidation = () => {
       });
       
       const importData = await importResponse.json();
-      console.log('Import response:', importData);
       
       if (importData.status === 'success') {
         setImportResult({
           success: true,
           message: `Successfully imported ${importData.imported_count || 0} business permits. ${importData.skipped_count || 0} were already in database.`,
-          details: importData.details || '',
           imported_count: importData.imported_count || 0,
           skipped_count: importData.skipped_count || 0,
           error_count: importData.error_count || 0
         });
         
-        // Update already imported IDs
         const newlyImportedIds = permitsToImport.map(p => p.applicant_id || p.permit_id);
         setAlreadyImportedIds(prev => [...prev, ...newlyImportedIds]);
         
-        // Remove imported permits from external view
         setExternalPermits(prev => 
           prev.filter(permit => !selectedPermits.includes(permit.applicant_id || permit.permit_id))
         );
         
         setSelectedPermits([]);
         
-        // Auto-switch to my data tab after 1.5 seconds
         setTimeout(() => {
           setActiveTab('myData');
           fetchMyPermits();
@@ -213,8 +209,7 @@ const BusinessValidation = () => {
       setError('Import failed: ' + err.message);
       setImportResult({
         success: false,
-        message: err.message || 'Failed to import permits',
-        error_details: err.toString()
+        message: err.message || 'Failed to import permits'
       });
     } finally {
       setIsImporting(false);
@@ -235,7 +230,7 @@ const BusinessValidation = () => {
   const selectAllPermits = () => {
     const allIds = externalPermits
       .map(permit => permit.applicant_id || permit.permit_id)
-      .filter(id => id); // Remove undefined/null IDs
+      .filter(id => id);
     setSelectedPermits(allIds);
   };
 
@@ -268,22 +263,63 @@ const BusinessValidation = () => {
     setCurrentPage(page);
   };
 
-  // Fix: Use permit_status from database (your data has permit_status, not status)
-  const getStatusColor = (status) => {
+  const getStatusInfo = (status) => {
     const statusValue = status || 'PENDING';
     switch (statusValue.toUpperCase()) {
       case 'ACTIVE':
-        return 'bg-green-100 text-green-800 border border-green-200';
+        return {
+          label: 'Active',
+          color: 'text-green-700',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-100',
+          icon: CheckCircle,
+          dotColor: COLORS.success
+        };
       case 'APPROVED':
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+        return {
+          label: 'Approved',
+          color: 'text-blue-700',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-100',
+          icon: FileCheck,
+          dotColor: COLORS.primary
+        };
       case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+        return {
+          label: 'Pending Review',
+          color: 'text-yellow-700',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-100',
+          icon: Clock,
+          dotColor: COLORS.warning
+        };
       case 'EXPIRED':
-        return 'bg-red-100 text-red-800 border border-red-200';
+        return {
+          label: 'Expired',
+          color: 'text-red-700',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-100',
+          icon: AlertTriangle,
+          dotColor: COLORS.danger
+        };
       case 'RENEWED':
-        return 'bg-purple-100 text-purple-800 border border-purple-200';
+        return {
+          label: 'Renewed',
+          color: 'text-purple-700',
+          bgColor: 'bg-purple-50',
+          borderColor: 'border-purple-100',
+          icon: RefreshCw,
+          dotColor: '#8b5cf6'
+        };
       default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
+        return {
+          label: statusValue.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          color: 'text-gray-700',
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-100',
+          icon: FileText,
+          dotColor: COLORS.secondary
+        };
     }
   };
 
@@ -317,15 +353,13 @@ const BusinessValidation = () => {
       return {
         label: 'Capital Investment',
         amount: amount,
-        icon: '💼',
-        color: 'text-purple-600'
+        color: COLORS.purple
       };
     } else {
       return {
         label: 'Gross Sales',
         amount: amount,
-        icon: '📈',
-        color: 'text-green-600'
+        color: COLORS.success
       };
     }
   };
@@ -338,40 +372,70 @@ const BusinessValidation = () => {
     total: myPermits.length
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      {/* Header with Tabs */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Business Permit Management</h1>
-            <p className="text-gray-600 mt-1">Manage business permits and tax calculations</p>
-          </div>
-          
-          <button
-            onClick={activeTab === 'myData' ? fetchMyPermits : fetchExternalPermits}
-            disabled={loading || (activeTab === 'fetchData' && loadingExternal)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-            </svg>
-            Refresh {activeTab === 'myData' ? 'My Data' : 'External Data'}
-          </button>
+  // Loading state
+  if (loading && activeTab === 'myData') {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="flex flex-col justify-center items-center h-screen bg-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mb-4" style={{ borderColor: COLORS.primary }}></div>
+          <p style={{ color: COLORS.dark }}>Loading Business Applications...</p>
+          <p className="text-sm mt-2" style={{ color: COLORS.secondary }}>Fetching business permit data</p>
         </div>
+      </div>
+    );
+  }
 
-        {/* Import Result Alert */}
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      {/* Header */}
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Business Permit Validation
+              </h1>
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Active Applications • {new Date().toLocaleDateString('en-PH')}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 items-center">
+              <button
+                onClick={activeTab === 'myData' ? fetchMyPermits : fetchExternalPermits}
+                disabled={loading || (activeTab === 'fetchData' && loadingExternal)}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
+              >
+                <Database className="w-4 h-4" />
+                Export Report
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Success/Error Messages */}
         {importResult && (
-          <div className={`mb-4 p-4 rounded-lg ${importResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-            <div className="flex items-start">
+          <div className={`border rounded-xl p-4 ${importResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+            <div className="flex items-center gap-3">
               {importResult.success ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+                <CheckCircle className="w-5 h-5 text-green-600" />
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+                <AlertCircle className="w-5 h-5 text-red-600" />
               )}
               <div className="flex-1">
                 <p className={`font-medium ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
@@ -380,682 +444,851 @@ const BusinessValidation = () => {
                 <p className={`text-sm ${importResult.success ? 'text-green-700' : 'text-red-700'}`}>
                   {importResult.message}
                 </p>
-                {importResult.imported_count >= 0 && (
-                  <div className="mt-2 text-xs text-gray-600">
-                    <span className="font-medium">Details:</span> Imported: {importResult.imported_count || 0}, 
-                    Skipped: {importResult.skipped_count || 0}, 
-                    Errors: {importResult.error_count || 0}
-                  </div>
-                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+          <div className="border rounded-xl p-4" style={{ backgroundColor: `${COLORS.danger}10`, borderColor: `${COLORS.danger}20` }}>
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5" style={{ color: COLORS.danger }} />
               <div>
-                <p className="text-red-800 font-medium">Error</p>
-                <p className="text-red-700 text-sm">{error}</p>
+                <p className="font-medium" style={{ color: COLORS.danger }}>Error</p>
+                <p className="text-sm" style={{ color: COLORS.dark }}>{error}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="mb-6">
-          <div className="flex space-x-2 border-b border-gray-200">
-            <button
-              onClick={() => {
-                setActiveTab('myData');
-                setSearchTerm('');
-                setCurrentPage(1);
-              }}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === 'myData'
-                  ? 'bg-white border border-gray-200 border-b-0 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                </svg>
-                My Database ({stats.total})
-              </div>
-            </button>
-            
-            <button
-              onClick={() => {
-                setActiveTab('fetchData');
-                setSearchTerm('');
-                if (externalPermits.length === 0 && !loadingExternal) {
-                  fetchExternalPermits();
-                }
-              }}
-              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === 'fetchData'
-                  ? 'bg-white border border-gray-200 border-b-0 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Fetch from Permit System ({externalPermits.length})
-              </div>
-            </button>
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+            <div className="flex space-x-1">
+              <button
+                onClick={() => {
+                  setActiveTab('myData');
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'myData' 
+                    ? 'text-white shadow-sm' 
+                    : 'hover:bg-gray-50'
+                }`}
+                style={{
+                  backgroundColor: activeTab === 'myData' ? COLORS.primary : 'transparent',
+                  color: activeTab === 'myData' ? 'white' : COLORS.dark
+                }}
+              >
+                <Database className="w-5 h-5" />
+                My Database
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/20">
+                  {stats.total}
+                </span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setActiveTab('fetchData');
+                  setSearchTerm('');
+                  if (externalPermits.length === 0 && !loadingExternal) {
+                    fetchExternalPermits();
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'fetchData'
+                    ? 'text-white shadow-sm'
+                    : 'hover:bg-gray-50'
+                }`}
+                style={{
+                  backgroundColor: activeTab === 'fetchData' ? COLORS.info : 'transparent',
+                  color: activeTab === 'fetchData' ? 'white' : COLORS.dark
+                }}
+              >
+                <Download className="w-5 h-5" />
+                Fetch from Permit System
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/20">
+                  {externalPermits.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === 'myData' ? (
+              /* MY DATA TAB CONTENT */
+              <>
+                {/* Statistics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+                  {/* Total Applications */}
+                  <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                        <Building2 className="w-6 h-6" style={{ color: COLORS.primary }} />
+                      </div>
+                      <span className="text-sm px-3 py-1 rounded-full" 
+                            style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                        Total
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                      Business Permits
+                    </h3>
+                    <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.total}</p>
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      <div className="flex justify-between">
+                        <span>In system</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${stats.total > 0 ? 100 : 0}%`,
+                            backgroundColor: COLORS.primary
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pending Review */}
+                  <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                        <Clock className="w-6 h-6" style={{ color: COLORS.warning }} />
+                      </div>
+                      <span className="text-sm px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                        {stats.pending}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                      Pending Review
+                    </h3>
+                    <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.pending}</p>
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      <div className="flex justify-between">
+                        <span>Awaiting review</span>
+                        <span className="font-medium">{Math.round((stats.pending / Math.max(stats.total, 1)) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${stats.total > 0 ? (stats.pending / stats.total) * 100 : 0}%`,
+                            backgroundColor: COLORS.warning
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Approved */}
+                  <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                        <CheckCircle className="w-6 h-6" style={{ color: COLORS.success }} />
+                      </div>
+                      <span className="text-sm px-3 py-1 rounded-full bg-green-100 text-green-800">
+                        {stats.approved}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                      Approved
+                    </h3>
+                    <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.approved}</p>
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      <div className="flex justify-between">
+                        <span>Recently approved</span>
+                        <span className="font-medium">{Math.round((stats.approved / Math.max(stats.total, 1)) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${stats.total > 0 ? (stats.approved / stats.total) * 100 : 0}%`,
+                            backgroundColor: COLORS.success
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active */}
+                  <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                        <Store className="w-6 h-6" style={{ color: COLORS.info }} />
+                      </div>
+                      <span className="text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800">
+                        {stats.active}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                      Active
+                    </h3>
+                    <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.active}</p>
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      <div className="flex justify-between">
+                        <span>Current businesses</span>
+                        <span className="font-medium">{Math.round((stats.active / Math.max(stats.total, 1)) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${stats.total > 0 ? (stats.active / stats.total) * 100 : 0}%`,
+                            backgroundColor: COLORS.info
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expired */}
+                  <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                        <AlertTriangle className="w-6 h-6" style={{ color: COLORS.danger }} />
+                      </div>
+                      <span className="text-sm px-3 py-1 rounded-full bg-red-100 text-red-800">
+                        {stats.expired}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                      Expired
+                    </h3>
+                    <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.expired}</p>
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      <div className="flex justify-between">
+                        <span>Needs renewal</span>
+                        <span className="font-medium">{Math.round((stats.expired / Math.max(stats.total, 1)) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${stats.total > 0 ? (stats.expired / stats.total) * 100 : 0}%`,
+                            backgroundColor: COLORS.danger
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter Section */}
+                <div className="bg-white border rounded-xl p-6 shadow-sm mb-6" style={{ borderColor: COLORS.secondary }}>
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: COLORS.secondary }} />
+                        <input
+                          type="text"
+                          placeholder="Search by business name, owner, ID, or location..."
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: COLORS.secondary }} />
+                        <select
+                          value={filterStatus}
+                          onChange={(e) => {
+                            setFilterStatus(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="pl-10 pr-8 py-2 border rounded-lg appearance-none bg-white"
+                          style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                        >
+                          <option value="PENDING">Pending Review</option>
+                          <option value="all">All Statuses</option>
+                          <option value="APPROVED">Approved</option>
+                          <option value="ACTIVE">Active</option>
+                          <option value="EXPIRED">Expired</option>
+                          <option value="RENEWED">Renewed</option>
+                        </select>
+                      </div>
+                      
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(parseInt(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-3 py-2 border rounded-lg bg-white"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        <option value="10">10 per page</option>
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Search Stats */}
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <div style={{ color: COLORS.secondary }}>
+                      {searchTerm ? (
+                        <span>
+                          Searching for: <span className="font-medium" style={{ color: COLORS.dark }}>"{searchTerm}"</span>
+                        </span>
+                      ) : (
+                        <span>Showing all business applications</span>
+                      )}
+                    </div>
+                    <div className="font-medium" style={{ color: COLORS.dark }}>
+                      Showing {startIndex + 1}-{Math.min(endIndex, filteredMyPermits.length)} of {filteredMyPermits.length}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Permits Table */}
+                <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+                  <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                        <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                          <FileText className="w-5 h-5" style={{ color: COLORS.primary }} />
+                          Business Applications ({filteredMyPermits.length})
+                        </h3>
+                        <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                          Filter: {filterStatus === 'all' ? 'All Statuses' : filterStatus}
+                        </p>
+                      </div>
+                      
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm"
+                          style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+                        <Archive className="w-4 h-4" />
+                        <span>{stats.total} total applications</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {paginatedPermits.length === 0 ? (
+                    <div className="text-center py-12" style={{ color: COLORS.secondary }}>
+                      <FileSearch className="w-12 h-12 mx-auto mb-2" />
+                      <p className="text-sm font-medium" style={{ color: COLORS.dark }}>
+                        {searchTerm || filterStatus !== 'PENDING' 
+                          ? "No matching applications found" 
+                          : "No business applications found"}
+                      </p>
+                      <p className="text-sm mt-1 max-w-xs mx-auto">
+                        {searchTerm 
+                          ? "Try adjusting your search terms or clear filters"
+                          : "Switch to the Fetch tab to import applications"}
+                      </p>
+                      {(searchTerm || filterStatus !== 'PENDING') && (
+                        <button
+                          onClick={() => {
+                            setSearchTerm("");
+                            setFilterStatus("PENDING");
+                          }}
+                          className="mt-4 text-sm font-medium px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                          style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                        >
+                          Clear filters
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Application ID
+                              </th>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Business Information
+                              </th>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Owner
+                              </th>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Tax Information
+                              </th>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Status
+                              </th>
+                              <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedPermits.map((permit) => {
+                              const statusInfo = getStatusInfo(permit.permit_status || permit.status);
+                              const StatusIcon = statusInfo.icon;
+                              const taxInfo = getTaxTypeDisplay(permit);
+                              const ownerName = permit.owner_name || permit.owner_full_name || 'Unknown';
+                              const businessType = permit.business_type || permit.business_nature || 'Unknown';
+                              const barangay = permit.barangay || permit.business_barangay || '';
+                              const city = permit.city || permit.business_city || '';
+                              
+                              return (
+                                <tr key={permit.id} className="hover:bg-gray-50 transition-colors" 
+                                    style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                                  <td className="p-4">
+                                    <div className="font-mono font-medium" style={{ color: COLORS.dark }}>
+                                      {permit.applicant_id || 'No ID'}
+                                    </div>
+                                    <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>ID: {permit.id}</div>
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="font-medium" style={{ color: COLORS.dark }}>{permit.business_name || 'Unknown Business'}</div>
+                                    <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                                      {businessType}
+                                    </div>
+                                    <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
+                                      {barangay}, {city}
+                                    </div>
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="font-medium" style={{ color: COLORS.dark }}>{ownerName}</div>
+                                    <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                                      {permit.contact_number || 'No contact'}
+                                    </div>
+                                    {permit.owner_email && (
+                                      <div className="text-xs mt-0.5" style={{ color: COLORS.secondary }}>
+                                        {permit.owner_email}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="font-medium" style={{ color: taxInfo.color }}>
+                                      {formatCurrency(taxInfo.amount)}
+                                    </div>
+                                    <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                                      {taxInfo.label}
+                                    </div>
+                                    {permit.tax_rate > 0 && (
+                                      <div className="text-xs mt-1" style={{ color: COLORS.success }}>
+                                        Tax Rate: {permit.tax_rate}%
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`p-2 rounded-lg ${statusInfo.bgColor}`}>
+                                        <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
+                                      </div>
+                                      <div>
+                                        <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor}`}>
+                                          {statusInfo.label}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-4">
+                                    <Link
+                                      to={`/business/businessvalidationinfo/${permit.id}`}
+                                      className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                                      style={{ backgroundColor: COLORS.primary, color: 'white' }}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                      Review
+                                    </Link>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {/* Table Footer */}
+                      <div className="p-4 border-t" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="text-sm" style={{ color: COLORS.secondary }}>
+                            Showing {startIndex + 1}-{Math.min(endIndex, filteredMyPermits.length)} of {filteredMyPermits.length} applications
+                          </div>
+                          <div className="text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium" style={{ color: COLORS.dark }}>Status Summary:</span>
+                              {stats.pending > 0 && (
+                                <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+                                  {stats.pending} pending
+                                </span>
+                              )}
+                              {stats.approved > 0 && (
+                                <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                  {stats.approved} approved
+                                </span>
+                              )}
+                              {stats.active > 0 && (
+                                <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                                  {stats.active} active
+                                </span>
+                              )}
+                              {stats.expired > 0 && (
+                                <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+                                  {stats.expired} expired
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="text-sm" style={{ color: COLORS.secondary }}>
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <button
+                              key={pageNumber}
+                              onClick={() => handlePageChange(pageNumber)}
+                              className={`px-3 py-1 text-sm rounded transition-colors ${
+                                currentPage === pageNumber
+                                  ? 'text-white'
+                                  : 'border hover:bg-gray-50'
+                              }`}
+                              style={{
+                                backgroundColor: currentPage === pageNumber ? COLORS.primary : 'transparent',
+                                borderColor: currentPage === pageNumber ? COLORS.primary : COLORS.secondary,
+                                color: currentPage === pageNumber ? 'white' : COLORS.dark
+                              }}
+                            >
+                              {pageNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* FETCH DATA TAB CONTENT */
+              <>
+                {/* Action Bar */}
+                <div className="bg-white border rounded-xl p-6 shadow-sm mb-6" style={{ borderColor: COLORS.secondary }}>
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                      <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                        <Download className="w-5 h-5" style={{ color: COLORS.info }} />
+                        Available Permits from External System
+                      </h3>
+                      <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                        {alreadyImportedIds.length > 0 ? (
+                          <span style={{ color: COLORS.primary }}>
+                            Already imported {alreadyImportedIds.length} permits. Only new permits are shown below.
+                          </span>
+                        ) : (
+                          'Select permits to import into your database.'
+                        )}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPermits.length > 0 && (
+                        <>
+                          <button
+                            onClick={importSelectedPermits}
+                            disabled={isImporting}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:shadow-sm disabled:opacity-50"
+                            style={{ 
+                              backgroundColor: COLORS.success, 
+                              color: 'white',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                          >
+                            {isImporting ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Importing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4" />
+                                Import Selected ({selectedPermits.length})
+                              </>
+                            )}
+                          </button>
+                          
+                          <button
+                            onClick={deselectAllPermits}
+                            className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                          >
+                            Deselect All
+                          </button>
+                        </>
+                      )}
+                      
+                      {externalPermits.length > 0 && (
+                        <button
+                          onClick={selectAllPermits}
+                          className="px-4 py-2 border rounded-lg hover:bg-blue-50 transition-colors"
+                          style={{ borderColor: COLORS.primary, color: COLORS.primary }}
+                        >
+                          Select All ({externalPermits.length})
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={fetchExternalPermits}
+                        disabled={loadingExternal}
+                        className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${loadingExternal ? 'animate-spin' : ''}`} />
+                        Refresh External Data
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Selection Summary */}
+                  {selectedPermits.length > 0 && (
+                    <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}10`, border: `1px solid ${COLORS.primary}20` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm flex items-center gap-2" style={{ color: COLORS.primary }}>
+                          <CheckSquare className="w-4 h-4" />
+                          <span className="font-medium">{selectedPermits.length}</span> permit(s) selected for import
+                        </div>
+                        <div className="text-xs" style={{ color: COLORS.secondary }}>
+                          Click "Import Selected" to add to your database
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Loading State for External Data */}
+                {loadingExternal ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: COLORS.info }}></div>
+                    <p className="mt-4" style={{ color: COLORS.secondary }}>Fetching permits from external system...</p>
+                  </div>
+                ) : externalPermits.length > 0 ? (
+                  <div className="bg-white border rounded-xl shadow-sm overflow-hidden" style={{ borderColor: COLORS.secondary }}>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead style={{ backgroundColor: '#f9fafb', borderColor: COLORS.secondary, borderBottomWidth: '2px' }}>
+                          <tr>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermits.length === externalPermits.length && externalPermits.length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      selectAllPermits();
+                                    } else {
+                                      deselectAllPermits();
+                                    }
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                                  style={{ borderColor: COLORS.secondary }}
+                                />
+                              </div>
+                            </th>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>Business Info</th>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>Owner</th>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>Business Details</th>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>Capital Investment</th>
+                            <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {externalPermits.map((permit, index) => {
+                            const permitId = permit.applicant_id || permit.permit_id || `ext-${index}`;
+                            const isSelected = selectedPermits.includes(permitId);
+                            
+                            return (
+                              <tr 
+                                key={permitId} 
+                                className={`transition-colors hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                                style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}
+                              >
+                                <td className="p-4">
+                                  <div className="flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleSelectPermit(permitId)}
+                                      className="h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                                      style={{ borderColor: COLORS.secondary }}
+                                    />
+                                  </div>
+                                </td>
+                                
+                                <td className="p-4">
+                                  <div>
+                                    <div className="font-medium flex items-center gap-2" style={{ color: COLORS.dark }}>
+                                      <Building2 className="w-4 h-4" style={{ color: COLORS.primary }} />
+                                      {permit.business_name}
+                                    </div>
+                                    <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                                      <span className="font-mono">{permit.applicant_id || permit.permit_id}</span>
+                                    </div>
+                                    {permit.trade_name && (
+                                      <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
+                                        Trade: {permit.trade_name}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                
+                                <td className="p-4">
+                                  <div>
+                                    <div className="font-medium flex items-center gap-2" style={{ color: COLORS.dark }}>
+                                      <User className="w-4 h-4" style={{ color: COLORS.info }} />
+                                      {permit.full_name || `${permit.first_name || ''} ${permit.last_name || ''}`}
+                                    </div>
+                                    <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>{permit.contact_number}</div>
+                                    <div className="text-xs mt-1 truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
+                                      {permit.email_address}
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                <td className="p-4">
+                                  <div>
+                                    <div className="text-sm" style={{ color: COLORS.dark }}>{permit.business_nature}</div>
+                                    <div className="text-xs mt-1">
+                                      <span className="inline-block px-2 py-1 rounded" style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                                        {permit.owner_type || 'Individual'}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs mt-1 flex items-center gap-1" style={{ color: COLORS.secondary }}>
+                                      <Calendar className="w-3 h-3" />
+                                      Applied: {formatDate(permit.application_date)}
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                <td className="p-4">
+                                  <div className="space-y-1">
+                                    <div className="text-lg font-bold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                                      <DollarSign className="w-4 h-4" />
+                                      {formatCurrency(permit.capital_investment)}
+                                    </div>
+                                    <div className="text-xs" style={{ color: COLORS.secondary }}>
+                                      Area: {permit.business_area || 'N/A'} sqm
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                <td className="p-4">
+                                  <div className="space-y-2">
+                                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                                      (permit.status === 'APPROVED' || permit.status === 'Approved') ? 'bg-green-100 text-green-800 border border-green-200' :
+                                      'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                    }`}>
+                                      {permit.status || 'PENDING'}
+                                    </span>
+                                    <div className="text-xs space-y-0.5" style={{ color: COLORS.secondary }}>
+                                      <div>{permit.barangay}, {permit.city_municipality || permit.city}</div>
+                                      <div>{permit.province}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white p-8 border rounded-xl shadow-sm text-center" style={{ borderColor: COLORS.secondary }}>
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: `${COLORS.success}15` }}>
+                      <CheckCircle className="w-8 h-8" style={{ color: COLORS.success }} />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2" style={{ color: COLORS.dark }}>All permits already imported!</h3>
+                    <p className="max-w-md mx-auto mb-6" style={{ color: COLORS.secondary }}>
+                      You have imported all available permits from the external system.
+                      Switch to "My Database" tab to view and manage them.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => setActiveTab('myData')}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:shadow-sm"
+                        style={{ 
+                          backgroundColor: COLORS.primary, 
+                          color: 'white',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <Database className="w-4 h-4" />
+                        View My Database
+                      </button>
+                      <button
+                        onClick={fetchExternalPermits}
+                        className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        Check for New Permits
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Stats Grid for My Data tab */}
-        {activeTab === 'myData' && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-600">Pending Review</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <div className="text-xs text-gray-500">Awaiting Action</div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-600">Approved</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.approved}</div>
-              <div className="text-xs text-gray-500">Recently Approved</div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-600">Active</div>
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-              <div className="text-xs text-gray-500">Current Businesses</div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-600">Expired</div>
-              <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
-              <div className="text-xs text-gray-500">Needs Renewal</div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-sm text-gray-600">Total</div>
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-              <div className="text-xs text-gray-500">All Applications</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'myData' ? (
-        /* MY DATA TAB CONTENT */
-        <>
-          {/* Search & Controls */}
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search by business name, owner, ID, or location..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="PENDING">Pending Review</option>
-                  <option value="all">All Statuses</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="EXPIRED">Expired</option>
-                  <option value="RENEWED">Renewed</option>
-                </select>
-                
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(parseInt(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="10">10 per page</option>
-                  <option value="25">25 per page</option>
-                  <option value="50">50 per page</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Loading State */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading business permits...</p>
-            </div>
-          ) : (
-            <>
-              {/* Results Summary */}
-              <div className="mb-4 flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1}-{Math.min(endIndex, filteredMyPermits.length)} of {filteredMyPermits.length} applications
-                </div>
-                <div className="text-sm text-gray-500">
-                  Filter: {filterStatus === 'all' ? 'All Statuses' : filterStatus}
-                </div>
-              </div>
-
-              {/* Permits Table - FIXED DATA MAPPING */}
-              {paginatedPermits.length > 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Business Info
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Owner
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Location
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tax Information
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paginatedPermits.map((permit) => {
-                          const taxInfo = getTaxTypeDisplay(permit);
-                          // FIX: Use permit_status from database
-                          const status = permit.permit_status || permit.status || 'PENDING';
-                          const ownerName = permit.owner_name || permit.owner_full_name || 'Unknown';
-                          const businessType = permit.business_type || permit.business_nature || 'Unknown';
-                          const barangay = permit.barangay || permit.business_barangay || '';
-                          const city = permit.city || permit.business_city || '';
-                          const district = permit.district || permit.business_district || '';
-                          
-                          return (
-                            <tr key={permit.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4">
-                                <div>
-                                  <div className="font-medium text-gray-900">{permit.business_name || 'Unknown Business'}</div>
-                                  <div className="text-sm text-gray-500">
-                                    <span className="font-mono">{permit.applicant_id || 'No ID'}</span>
-                                  </div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    {businessType} • Created: {formatDate(permit.created_at)}
-                                  </div>
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <div>
-                                  <div className="font-medium text-gray-900">{ownerName}</div>
-                                  <div className="text-sm text-gray-600">{permit.contact_number || 'No contact'}</div>
-                                  {permit.owner_email && (
-                                    <div className="text-xs text-gray-500 truncate max-w-[180px]">
-                                      {permit.owner_email}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <div>
-                                  <div className="text-sm text-gray-900">{barangay}</div>
-                                  <div className="text-xs text-gray-600">{city}</div>
-                                  {district && (
-                                    <div className="text-xs text-gray-500">{district} District</div>
-                                  )}
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm">{taxInfo.icon}</span>
-                                    <span className={`text-sm font-medium ${taxInfo.color}`}>
-                                      {taxInfo.label}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="text-sm text-gray-900">
-                                    Capital: {formatCurrency(taxInfo.amount)}
-                                  </div>
-                                  
-                                  {permit.tax_rate > 0 && (
-                                    <div className="text-xs text-gray-500">
-                                      Tax Rate: {permit.tax_rate}%
-                                    </div>
-                                  )}
-                                  
-                                  {permit.total_tax > 0 && (
-                                    <div className="text-xs text-green-600 font-medium">
-                                      Total Tax: {formatCurrency(permit.total_tax)}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <div className="space-y-1">
-                                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
-                                    {status}
-                                  </span>
-                                  <div className="text-xs text-gray-500 space-y-0.5">
-                                    {permit.issue_date && (
-                                      <div>Issued: {formatDate(permit.issue_date)}</div>
-                                    )}
-                                    {permit.expiry_date && (
-                                      <div>Expires: {formatDate(permit.expiry_date)}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4">
-                                <Link
-                                  to={`/business/businessvalidationinfo/${permit.id}`}
-                                  className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                  </svg>
-                                  View
-                                </Link>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white p-8 rounded-lg border border-gray-200 shadow-sm text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-yellow-400 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                  </svg>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {searchTerm ? 'No matching applications found' : 'No business permits in your database'}
-                  </h3>
-                  <p className="text-gray-600 max-w-md mx-auto">
-                    {searchTerm 
-                      ? 'Try adjusting your search criteria.'
-                      : 'Switch to the "Fetch from Permit System" tab to import permits.'}
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('fetchData')}
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    Go to Fetch Tab
-                  </button>
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                  <div className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Previous
-                    </button>
-                    
-                    <div className="flex items-center space-x-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNumber;
-                        if (totalPages <= 5) {
-                          pageNumber = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNumber = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNumber = totalPages - 4 + i;
-                        } else {
-                          pageNumber = currentPage - 2 + i;
-                        }
-
-                        return (
-                          <button
-                            key={pageNumber}
-                            onClick={() => handlePageChange(pageNumber)}
-                            className={`px-3 py-1 text-sm rounded ${
-                              currentPage === pageNumber
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {pageNumber}
-                          </button>
-                        );
-                      })}
-                      
-                      {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <>
-                          <span className="px-2 text-gray-500">...</span>
-                          <button
-                            onClick={() => handlePageChange(totalPages)}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
-                          >
-                            {totalPages}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </>
-      ) : (
-        /* FETCH DATA TAB CONTENT */
-        <>
-          {/* Action Bar for Fetch Tab */}
-          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Available Permits from External System</h3>
-                <p className="text-gray-600 text-sm mt-1">
-                  {alreadyImportedIds.length > 0 ? (
-                    <span className="text-blue-600">
-                      Already imported {alreadyImportedIds.length} permits. Only new permits are shown below.
-                    </span>
-                  ) : (
-                    'Select permits to import into your database.'
-                  )}
-                </p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {selectedPermits.length > 0 && (
-                  <>
-                    <button
-                      onClick={importSelectedPermits}
-                      disabled={isImporting}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {isImporting ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                          Import Selected ({selectedPermits.length})
-                        </>
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={deselectAllPermits}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                    >
-                      Deselect All
-                    </button>
-                  </>
-                )}
-                
-                {externalPermits.length > 0 && (
-                  <button
-                    onClick={selectAllPermits}
-                    className="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50"
-                  >
-                    Select All ({externalPermits.length})
-                  </button>
-                )}
-                
-                <button
-                  onClick={fetchExternalPermits}
-                  disabled={loadingExternal}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                  Refresh External Data
-                </button>
-              </div>
-            </div>
-            
-            {/* Selection Summary */}
-            {selectedPermits.length > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-blue-700">
-                    <span className="font-medium">{selectedPermits.length}</span> permit(s) selected for import
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    Click "Import Selected" to add to your database
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Loading State for External Data */}
-          {loadingExternal ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Fetching permits from external system...</p>
-            </div>
-          ) : externalPermits.length > 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                        <input
-                          type="checkbox"
-                          checked={selectedPermits.length === externalPermits.length && externalPermits.length > 0}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              selectAllPermits();
-                            } else {
-                              deselectAllPermits();
-                            }
-                          }}
-                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                        />
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Business Info
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Owner
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Business Details
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Capital Investment
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {externalPermits.map((permit, index) => {
-                      const permitId = permit.applicant_id || permit.permit_id || `ext-${index}`;
-                      const isSelected = selectedPermits.includes(permitId);
-                      
-                      return (
-                        <tr key={permitId} className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
-                          <td className="px-6 py-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelectPermit(permitId)}
-                              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                          </td>
-                          
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{permit.business_name}</div>
-                              <div className="text-sm text-gray-500">
-                                <span className="font-mono">{permit.applicant_id || permit.permit_id}</span>
-                              </div>
-                              {permit.trade_name && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Trade: {permit.trade_name}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{permit.full_name || `${permit.first_name || ''} ${permit.last_name || ''}`}</div>
-                              <div className="text-sm text-gray-600">{permit.contact_number}</div>
-                              <div className="text-xs text-gray-500 truncate max-w-[180px]">
-                                {permit.email_address}
-                              </div>
-                            </div>
-                          </td>
-                          
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="text-sm text-gray-900">{permit.business_nature}</div>
-                              <div className="text-xs text-gray-500">
-                                <span className="inline-block px-2 py-1 bg-gray-100 rounded">
-                                  {permit.owner_type || 'Individual'}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                Applied: {formatDate(permit.application_date)}
-                              </div>
-                            </div>
-                          </td>
-                          
-                          <td className="px-6 py-4">
-                            <div className="space-y-1">
-                              <div className="text-lg font-bold text-gray-900">
-                                {formatCurrency(permit.capital_investment)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Area: {permit.business_area || 'N/A'} sqm
-                              </div>
-                            </div>
-                          </td>
-                          
-                          <td className="px-6 py-4">
-                            <div className="space-y-1">
-                              <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                (permit.status === 'APPROVED' || permit.status === 'Approved') ? 'bg-green-100 text-green-800 border border-green-200' :
-                                'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                              }`}>
-                                {permit.status || 'PENDING'}
-                              </span>
-                              <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>{permit.barangay}, {permit.city_municipality || permit.city}</div>
-                                <div>{permit.province}</div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white p-8 rounded-lg border border-gray-200 shadow-sm text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-green-400 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">All permits already imported!</h3>
-              <p className="text-gray-600 max-w-md mx-auto mb-4">
-                You have imported all available permits from the external system.
-                Switch to "My Database" tab to view and manage them.
-              </p>
-              <div className="flex gap-2 justify-center">
-                <button
-                  onClick={() => setActiveTab('myData')}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                  </svg>
-                  View My Database
-                </button>
-                <button
-                  onClick={fetchExternalPermits}
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Check for New Permits
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Footer */}
-      <div className="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Business Permit Management System • {new Date().toLocaleDateString('en-PH')}</p>
-        <p className="text-xs mt-1">
-          {myPermits.length} permits in database • {alreadyImportedIds.length} imported from external system
-        </p>
+        {/* Footer Summary */}
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
+          <p>Business Permit Validation Portal • {new Date().toLocaleDateString('en-PH')}</p>
+          <p className="text-xs mt-1">
+            Local Government Unit - Business Tax Management System
+          </p>
+        </div>
       </div>
     </div>
   );

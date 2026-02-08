@@ -2,9 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Search, Filter, Eye, Download, RefreshCw, AlertCircle, CheckCircle, 
-  Clock, Building,FileText,Home,MapPin,User,Calendar,Hash,Users,FileCheck,
-  Map,AlertTriangle,FileSearch,Landmark,Archive
+  Clock, Building, FileText, Home, MapPin, User, Calendar, Hash, Users, FileCheck,
+  Map, AlertTriangle, FileSearch, Landmark, Archive, ChevronRight, TrendingUp,
+  BarChart3, Database, Shield, CheckCircle2, Clock3, FileWarning, Eye as EyeIcon
 } from "lucide-react";
+
+// Custom colors from the dashboard
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 export default function RPTValidationTable() {
   const [registrations, setRegistrations] = useState([]);
@@ -12,6 +25,14 @@ export default function RPTValidationTable() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState({
+    pending: 0,
+    for_inspection: 0,
+    needs_correction: 0,
+    assessed: 0,
+    resubmitted: 0,
+    total: 0
+  });
   const navigate = useNavigate();
 
   const API_BASE = window.location.hostname === "localhost" 
@@ -53,7 +74,19 @@ export default function RPTValidationTable() {
       const filteredRegistrations = registrationsData.filter(r => 
         r.status !== "approved" && r.status !== "Approved"
       );
+      
       setRegistrations(filteredRegistrations);
+      
+      // Update statistics
+      const newStats = {
+        pending: filteredRegistrations.filter(r => r.status === 'pending').length,
+        for_inspection: filteredRegistrations.filter(r => r.status === 'for_inspection').length,
+        needs_correction: filteredRegistrations.filter(r => r.status === 'needs_correction').length,
+        assessed: filteredRegistrations.filter(r => r.status === 'assessed').length,
+        resubmitted: filteredRegistrations.filter(r => r.status === 'resubmitted').length,
+        total: filteredRegistrations.length
+      };
+      setStats(newStats);
       
     } catch (err) {
       console.error("Fetch error:", err);
@@ -86,47 +119,53 @@ export default function RPTValidationTable() {
     const statusMap = {
       pending: { 
         label: "Pending Review", 
-        color: "text-yellow-800",
+        color: "text-yellow-700",
         bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200",
-        icon: Clock
+        borderColor: "border-yellow-100",
+        icon: Clock,
+        dotColor: COLORS.warning
       },
       for_inspection: { 
         label: "For Inspection", 
-        color: "text-blue-800",
+        color: "text-blue-700",
         bgColor: "bg-blue-50",
-        borderColor: "border-blue-200",
-        icon: Eye
+        borderColor: "border-blue-100",
+        icon: EyeIcon,
+        dotColor: COLORS.info
       },
       needs_correction: { 
         label: "Needs Correction", 
-        color: "text-orange-800",
+        color: "text-orange-700",
         bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-        icon: AlertTriangle
+        borderColor: "border-orange-100",
+        icon: AlertTriangle,
+        dotColor: COLORS.warning
       },
       assessed: { 
         label: "Assessed", 
-        color: "text-purple-800",
+        color: "text-purple-700",
         bgColor: "bg-purple-50",
-        borderColor: "border-purple-200",
-        icon: FileCheck
+        borderColor: "border-purple-100",
+        icon: FileCheck,
+        dotColor: '#6b46c1'
       },
       resubmitted: { 
         label: "Resubmitted", 
-        color: "text-indigo-800",
+        color: "text-indigo-700",
         bgColor: "bg-indigo-50",
-        borderColor: "border-indigo-200",
-        icon: RefreshCw
+        borderColor: "border-indigo-100",
+        icon: RefreshCw,
+        dotColor: '#4f46e5'
       }
     };
     
     return statusMap[status] || { 
       label: status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()), 
-      color: "text-gray-800",
+      color: "text-gray-700",
       bgColor: "bg-gray-50",
-      borderColor: "border-gray-200",
-      icon: FileText
+      borderColor: "border-gray-100",
+      icon: FileText,
+      dotColor: COLORS.secondary
     };
   };
 
@@ -171,33 +210,22 @@ export default function RPTValidationTable() {
     navigate(`/rpt/rptvalidationinfo/${id}`);
   };
 
-  // Status counts
-  const statusCounts = {
-    pending: registrations.filter(r => r.status === 'pending').length,
-    for_inspection: registrations.filter(r => r.status === 'for_inspection').length,
-    needs_correction: registrations.filter(r => r.status === 'needs_correction').length,
-    assessed: registrations.filter(r => r.status === 'assessed').length,
-    resubmitted: registrations.filter(r => r.status === 'resubmitted').length,
-    total: registrations.length
-  };
-
   const statusOptions = [
     { value: "all", label: "All Status", count: registrations.length },
-    { value: "pending", label: "Pending Review", count: statusCounts.pending },
-    { value: "for_inspection", label: "For Inspection", count: statusCounts.for_inspection },
-    { value: "needs_correction", label: "Needs Correction", count: statusCounts.needs_correction },
-    { value: "assessed", label: "Assessed", count: statusCounts.assessed },
-    { value: "resubmitted", label: "Resubmitted", count: statusCounts.resubmitted }
+    { value: "pending", label: "Pending Review", count: stats.pending },
+    { value: "for_inspection", label: "For Inspection", count: stats.for_inspection },
+    { value: "needs_correction", label: "Needs Correction", count: stats.needs_correction },
+    { value: "assessed", label: "Assessed", count: stats.assessed },
+    { value: "resubmitted", label: "Resubmitted", count: stats.resubmitted }
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="flex items-center justify-center p-4 h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800"></div>
-            <p className="mt-4 font-medium text-gray-600">Loading property applications...</p>
-          </div>
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="flex flex-col justify-center items-center h-screen bg-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mb-4" style={{ borderColor: COLORS.primary }}></div>
+          <p style={{ color: COLORS.dark }}>Loading Property Applications...</p>
+          <p className="text-sm mt-2" style={{ color: COLORS.secondary }}>Fetching application data</p>
         </div>
       </div>
     );
@@ -205,23 +233,24 @@ export default function RPTValidationTable() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="flex items-center justify-center p-4 h-screen">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md w-full">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-50">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="max-w-4xl mx-auto p-6 bg-white">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertCircle className="w-8 h-8" style={{ color: COLORS.danger }} />
+              <div>
+                <h3 className="text-lg font-semibold" style={{ color: COLORS.danger }}>Error Loading Applications</h3>
+                <p style={{ color: COLORS.danger }}>{error}</p>
               </div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">Connection Error</h2>
-              <p className="text-gray-600 text-sm mb-4">{error}</p>
-              <button
-                onClick={fetchRegistrations}
-                className="w-full px-4 py-2.5 rounded-md font-medium text-white bg-gray-900 hover:bg-black transition duration-200"
-              >
-                <RefreshCw className="w-4 h-4 inline-block mr-2" />
-                Retry Connection
-              </button>
             </div>
+            <button 
+              onClick={fetchRegistrations}
+              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+              style={{ backgroundColor: COLORS.primary, color: 'white' }}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
           </div>
         </div>
       </div>
@@ -229,27 +258,39 @@ export default function RPTValidationTable() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header - Clean White Design */}
-      <div className="border-b border-gray-200 bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      {/* Header */}
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Property Tax Applications
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Property Tax Applications Validation
               </h1>
-              <p className="text-sm text-gray-600">
-                Review and validate property registration applications
-              </p>
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Active Applications • {new Date().toLocaleDateString('en-PH')}</span>
+                </div>
+              </div>
             </div>
             
             <div className="flex flex-wrap gap-3 items-center">
               <button
                 onClick={fetchRegistrations}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
+              </button>
+              
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
+              >
+                <Database className="w-4 h-4" />
+                Export Report
               </button>
             </div>
           </div>
@@ -258,112 +299,194 @@ export default function RPTValidationTable() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Stats Cards - Clean Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           {/* Total Applications */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Applications</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{statusCounts.total}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <Landmark className="w-6 h-6" style={{ color: COLORS.primary }} />
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <Landmark className="w-5 h-5 text-gray-700" />
-              </div>
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                Total
+              </span>
             </div>
-            <div className="text-xs text-gray-500">
-              Excluding approved applications
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Applications
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.total}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Pending approval</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${stats.total > 0 ? 100 : 0}%`,
+                    backgroundColor: COLORS.primary
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
           {/* Pending Review */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Review</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">{statusCounts.pending}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <Clock className="w-6 h-6" style={{ color: COLORS.warning }} />
               </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
+              <span className="text-sm px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                {stats.pending}
+              </span>
             </div>
-            <div className="text-xs text-gray-500">
-              Awaiting initial review
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Pending Review
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.pending}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Awaiting review</span>
+                <span className="font-medium">{Math.round((stats.pending / Math.max(stats.total, 1)) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${stats.total > 0 ? (stats.pending / stats.total) * 100 : 0}%`,
+                    backgroundColor: COLORS.warning
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
           {/* For Inspection */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">For Inspection</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{statusCounts.for_inspection}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <EyeIcon className="w-6 h-6" style={{ color: COLORS.info }} />
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Eye className="w-5 h-5 text-blue-600" />
-              </div>
+              <span className="text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800">
+                {stats.for_inspection}
+              </span>
             </div>
-            <div className="text-xs text-gray-500">
-              Scheduled for site visit
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              For Inspection
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.for_inspection}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Site visit needed</span>
+                <span className="font-medium">{Math.round((stats.for_inspection / Math.max(stats.total, 1)) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${stats.total > 0 ? (stats.for_inspection / stats.total) * 100 : 0}%`,
+                    backgroundColor: COLORS.info
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
           {/* Needs Correction */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Needs Correction</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{statusCounts.needs_correction}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertTriangle className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-orange-600" />
-              </div>
+              <span className="text-sm px-3 py-1 rounded-full bg-red-100 text-red-800">
+                {stats.needs_correction}
+              </span>
             </div>
-            <div className="text-xs text-gray-500">
-              Requires owner action
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Needs Correction
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.needs_correction}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Requires updates</span>
+                <span className="font-medium">{Math.round((stats.needs_correction / Math.max(stats.total, 1)) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${stats.total > 0 ? (stats.needs_correction / stats.total) * 100 : 0}%`,
+                    backgroundColor: COLORS.danger
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
 
           {/* Assessed */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Assessed</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{statusCounts.assessed}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: '#6b46c115' }}>
+                <FileCheck className="w-6 h-6" style={{ color: '#6b46c1' }} />
               </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <FileCheck className="w-5 h-5 text-purple-600" />
-              </div>
+              <span className="text-sm px-3 py-1 rounded-full bg-purple-100 text-purple-800">
+                {stats.assessed}
+              </span>
             </div>
-            <div className="text-xs text-gray-500">
-              Ready for final approval
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Assessed
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{stats.assessed}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Ready for approval</span>
+                <span className="font-medium">{Math.round((stats.assessed / Math.max(stats.total, 1)) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${stats.total > 0 ? (stats.assessed / stats.total) * 100 : 0}%`,
+                    backgroundColor: '#6b46c1'
+                  }}
+                ></div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+        {/* Filter Section */}
+        <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: COLORS.secondary }} />
                 <input
                   type="text"
-                  placeholder="Search applications by owner, reference, or location..."
+                  placeholder="Search by owner name, reference number, location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition duration-200"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  style={{ borderColor: COLORS.secondary }}
                 />
               </div>
             </div>
             
             <div className="flex-1">
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: COLORS.secondary }} />
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white transition duration-200"
+                  className="w-full pl-10 pr-10 py-2 border rounded-lg appearance-none bg-white"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   {statusOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -377,51 +500,52 @@ export default function RPTValidationTable() {
           
           {/* Search Stats */}
           <div className="mt-4 flex items-center justify-between text-sm">
-            <div className="text-gray-600">
+            <div style={{ color: COLORS.secondary }}>
               {searchTerm ? (
                 <span>
-                  Searching for: <span className="font-medium text-gray-900">"{searchTerm}"</span>
+                  Searching for: <span className="font-medium" style={{ color: COLORS.dark }}>"{searchTerm}"</span>
                 </span>
               ) : (
                 <span>Showing all pending applications</span>
               )}
             </div>
-            <div className="text-gray-700 font-medium">
+            <div className="font-medium" style={{ color: COLORS.dark }}>
               {filteredRegistrations.length} of {registrations.length} applications
             </div>
           </div>
         </div>
 
         {/* Applications Table */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Applications</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {filteredRegistrations.length} pending application{filteredRegistrations.length !== 1 ? 's' : ''}
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <FileText className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Property Applications ({filteredRegistrations.length})
+                </h3>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  Excluding approved applications
                 </p>
               </div>
-              <div className="mt-2 sm:mt-0">
-                <div className="inline-flex items-center gap-2 text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg">
-                  <Archive className="w-3 h-3" />
-                  <span>Approved applications excluded</span>
-                </div>
+              
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm"
+                   style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+                <Archive className="w-4 h-4" />
+                <span>Approved applications excluded</span>
               </div>
             </div>
           </div>
           
           {filteredRegistrations.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <FileSearch className="w-6 h-6 text-gray-400" />
-              </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
+            <div className="text-center py-12" style={{ color: COLORS.secondary }}>
+              <FileSearch className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm font-medium" style={{ color: COLORS.dark }}>
                 {searchTerm || statusFilter !== "all" 
                   ? "No matching applications found" 
                   : "All applications have been processed"}
-              </h3>
-              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+              </p>
+              <p className="text-sm mt-1 max-w-xs mx-auto">
                 {searchTerm 
                   ? "Try adjusting your search terms or clear filters"
                   : "No pending applications at this time"}
@@ -432,7 +556,8 @@ export default function RPTValidationTable() {
                     setSearchTerm("");
                     setStatusFilter("all");
                   }}
-                  className="mt-4 text-sm font-medium text-gray-900 hover:text-black"
+                  className="mt-4 text-sm font-medium px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   Clear filters
                 </button>
@@ -441,30 +566,30 @@ export default function RPTValidationTable() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Reference No.
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Property Owner
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Property Location
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Status
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Date Submitted
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody>
                     {filteredRegistrations.map((registration) => {
                       const statusInfo = getStatusInfo(registration.status);
                       const StatusIcon = statusInfo.icon;
@@ -474,56 +599,64 @@ export default function RPTValidationTable() {
                           "N/A");
                       
                       return (
-                        <tr key={registration.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="font-mono text-sm font-semibold text-gray-900">
+                        <tr key={registration.id} className="hover:bg-gray-50 transition-colors" 
+                            style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                          <td className="p-4">
+                            <div className="font-mono font-medium" style={{ color: COLORS.dark }}>
                               {registration.reference_number}
                             </div>
-                            <div className="text-xs text-gray-500 mt-0.5">ID: {registration.id}</div>
+                            <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>ID: {registration.id}</div>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="font-medium text-sm text-gray-900">{ownerName}</div>
-                            <div className="text-xs text-gray-500 truncate max-w-[180px]">
+                          <td className="p-4">
+                            <div className="font-medium" style={{ color: COLORS.dark }}>{ownerName}</div>
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               {registration.email || "No email provided"}
                             </div>
-                            <div className="text-xs text-gray-500">{registration.phone || "No phone"}</div>
+                            <div className="text-xs mt-0.5" style={{ color: COLORS.secondary }}>
+                              {registration.phone || "No phone"}
+                            </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="font-medium text-sm text-gray-900">{registration.lot_location || "Not specified"}</div>
-                            <div className="text-xs text-gray-500">
+                          <td className="p-4">
+                            <div className="font-medium" style={{ color: COLORS.dark }}>
+                              {registration.lot_location || "Not specified"}
+                            </div>
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               Brgy. {registration.barangay || "N/A"}, Dist. {registration.district || "N/A"}
                             </div>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className={`p-2 rounded-lg ${statusInfo.bgColor}`}>
-                               <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
+                                <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
                               </div>
                               <div>
                                 <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor}`}>
                                   {statusInfo.label}
                                 </span>
                                 {registration.correction_notes && (
-                                  <div className="text-xs text-orange-600 mt-1 truncate max-w-[150px]" title={registration.correction_notes}>
+                                  <div className="text-xs mt-1" style={{ color: COLORS.warning }} title={registration.correction_notes}>
                                     Note: {registration.correction_notes.substring(0, 30)}...
                                   </div>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="text-sm font-medium text-gray-900">{formatDate(registration.created_at)}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">
+                          <td className="p-4">
+                            <div className="font-medium" style={{ color: COLORS.dark }}>
+                              {formatDate(registration.created_at)}
+                            </div>
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               {formatTimeAgo(registration.created_at)}
                             </div>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="p-4">
                             <button
                               onClick={() => handleViewDetails(registration.id)}
-                              className="text-sm font-medium px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black transition duration-200 flex items-center gap-2"
+                              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                              style={{ backgroundColor: COLORS.primary, color: 'white' }}
                             >
                               <Eye className="w-4 h-4" />
-                              Review Details
+                              Review
                             </button>
                           </td>
                         </tr>
@@ -534,38 +667,38 @@ export default function RPTValidationTable() {
               </div>
               
               {/* Table Footer */}
-              <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="p-4 border-t" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm text-gray-700">
-                    Showing <span className="font-semibold">{filteredRegistrations.length}</span> of{" "}
-                    <span className="font-semibold">{registrations.length}</span> pending applications
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredRegistrations.length}</span> of{" "}
+                    <span className="font-semibold" style={{ color: COLORS.dark }}>{registrations.length}</span> pending applications
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">Status Summary:</span>
-                      {statusCounts.pending > 0 && (
-                        <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800 text-xs">
-                          {statusCounts.pending} pending
+                      <span className="font-medium" style={{ color: COLORS.dark }}>Status Summary:</span>
+                      {stats.pending > 0 && (
+                        <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+                          {stats.pending} pending
                         </span>
                       )}
-                      {statusCounts.for_inspection > 0 && (
-                        <span className="px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs">
-                          {statusCounts.for_inspection} inspection
+                      {stats.for_inspection > 0 && (
+                        <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          {stats.for_inspection} inspection
                         </span>
                       )}
-                      {statusCounts.needs_correction > 0 && (
-                        <span className="px-2 py-1 rounded bg-orange-100 text-orange-800 text-xs">
-                          {statusCounts.needs_correction} correction
+                      {stats.needs_correction > 0 && (
+                        <span className="px-2 py-1 rounded text-xs bg-orange-100 text-orange-800">
+                          {stats.needs_correction} correction
                         </span>
                       )}
-                      {statusCounts.assessed > 0 && (
-                        <span className="px-2 py-1 rounded bg-purple-100 text-purple-800 text-xs">
-                          {statusCounts.assessed} assessed
+                      {stats.assessed > 0 && (
+                        <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                          {stats.assessed} assessed
                         </span>
                       )}
-                      {statusCounts.resubmitted > 0 && (
-                        <span className="px-2 py-1 rounded bg-indigo-100 text-indigo-800 text-xs">
-                          {statusCounts.resubmitted} resubmitted
+                      {stats.resubmitted > 0 && (
+                        <span className="px-2 py-1 rounded text-xs bg-indigo-100 text-indigo-800">
+                          {stats.resubmitted} resubmitted
                         </span>
                       )}
                     </div>
@@ -576,12 +709,12 @@ export default function RPTValidationTable() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Local Government Unit - Property Tax Management System</p>
-            <p className="mt-1">Real Property Tax Application Portal v2.0</p>
-          </div>
+        {/* Footer Summary */}
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
+          <p>Property Tax Application Validation Portal • {new Date().toLocaleDateString('en-PH')}</p>
+          <p className="text-xs mt-1">
+            Local Government Unit - Real Property Tax Management System
+          </p>
         </div>
       </div>
     </div>

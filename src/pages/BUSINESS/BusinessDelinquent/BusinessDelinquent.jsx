@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Search, Filter, Download, RefreshCw, AlertCircle, 
-  Calendar, Building, MapPin, User, DollarSign,
-  TrendingUp, AlertTriangle, CreditCard, Store,
-  FileWarning, Briefcase, Phone, Archive,
-  ChevronRight, Clock
+  Search, Filter, Eye, Download, RefreshCw, AlertCircle, 
+  Calendar, Store, Building, MapPin, User, DollarSign,
+  Clock, TrendingUp, AlertTriangle, CreditCard, Phone,
+  FileWarning, Send, Bell, Mail, ChevronRight, Archive
 } from "lucide-react";
+
+// Custom colors - Same as RPTDelinquent
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 export default function BusinessDelinquent() {
   const [delinquents, setDelinquents] = useState([]);
@@ -15,6 +26,7 @@ export default function BusinessDelinquent() {
   const [quarterFilter, setQuarterFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [businessTypeFilter, setBusinessTypeFilter] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   const API_BASE = window.location.hostname === "localhost" 
     ? "http://localhost/revenue2/backend" 
@@ -42,14 +54,12 @@ export default function BusinessDelinquent() {
       if (data.success && Array.isArray(data.data)) {
         setDelinquents(data.data);
       } else {
-        // If no overdue taxes found, show empty state
         setDelinquents([]);
       }
       
     } catch (err) {
       console.error("Fetch error:", err);
       setError(`Failed to load delinquent business taxes: ${err.message}`);
-      // For demo purposes, show empty state instead of mock data
       setDelinquents([]);
     } finally {
       setLoading(false);
@@ -60,17 +70,13 @@ export default function BusinessDelinquent() {
     fetchDelinquentTaxes();
   }, []);
 
-  // Generate years for filter (current year - 5 years back)
+  // Generate years for filter
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => (currentYear - i).toString());
-
-  // Get unique quarters from data
   const uniqueQuarters = ["Q1", "Q2", "Q3", "Q4"];
-
-  // Get unique business types
   const businessTypes = [...new Set(delinquents.map(d => d.business_nature).filter(Boolean))];
 
-  // Filter delinquents (already filtered to only overdue by API)
+  // Filter delinquents
   const filteredDelinquents = delinquents.filter(delinquent => {
     const matchesSearch = 
       (delinquent.business_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -86,7 +92,7 @@ export default function BusinessDelinquent() {
     return matchesSearch && matchesQuarter && matchesYear && matchesBusinessType;
   });
 
-  // Calculate statistics for OVERDUE taxes only
+  // Calculate statistics
   const calculateStats = () => {
     const stats = {
       totalAmountDue: 0,
@@ -107,14 +113,11 @@ export default function BusinessDelinquent() {
       stats.totalDaysLate += daysLate;
       
       if (d.quarter) stats.byQuarter[d.quarter] = (stats.byQuarter[d.quarter] || 0) + 1;
-      
-      // Count by business type
       if (d.business_nature) {
         stats.byBusinessType[d.business_nature] = (stats.byBusinessType[d.business_nature] || 0) + 1;
       }
     });
 
-    // Calculate average days late
     stats.averageDaysLate = stats.totalBusinesses > 0 ? 
       Math.round(stats.totalDaysLate / stats.totalBusinesses) : 0;
 
@@ -123,40 +126,58 @@ export default function BusinessDelinquent() {
 
   const stats = calculateStats();
 
-  const getOverdueSeverity = (daysLate) => {
-    if (daysLate > 90) {
-      return {
-        label: "Critical Overdue",
-        color: "text-red-800",
-        bgColor: "bg-red-50",
-        borderColor: "border-red-200",
-        daysLabel: `${daysLate}+ days`
+  // Status Info Function - Similar to RPTDelinquent
+  const getStatusInfo = (daysLate, paymentStatus) => {
+    if (paymentStatus === 'overdue' || daysLate > 0) {
+      const severity = daysLate > 90 ? "critical" : 
+                       daysLate > 60 ? "high" : 
+                       daysLate > 30 ? "medium" : "low";
+      
+      const colorMap = {
+        critical: { 
+          text: "text-red-800", 
+          bg: "bg-red-50", 
+          border: "border-red-200",
+          icon: AlertTriangle
+        },
+        high: { 
+          text: "text-orange-800", 
+          bg: "bg-orange-50", 
+          border: "border-orange-200",
+          icon: AlertTriangle
+        },
+        medium: { 
+          text: "text-yellow-800", 
+          bg: "bg-yellow-50", 
+          border: "border-yellow-200",
+          icon: Clock
+        },
+        low: { 
+          text: "text-blue-800", 
+          bg: "bg-blue-50", 
+          border: "border-blue-200",
+          icon: Clock
+        }
       };
-    } else if (daysLate > 60) {
+      
+      const info = colorMap[severity] || colorMap.low;
+      
       return {
-        label: "Severe Overdue",
-        color: "text-orange-800",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-        daysLabel: `${daysLate} days`
-      };
-    } else if (daysLate > 30) {
-      return {
-        label: "High Overdue",
-        color: "text-yellow-800",
-        bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200",
-        daysLabel: `${daysLate} days`
-      };
-    } else {
-      return {
-        label: "Overdue",
-        color: "text-gray-800",
-        bgColor: "bg-gray-50",
-        borderColor: "border-gray-200",
-        daysLabel: `${daysLate} days`
+        label: `Overdue (${daysLate} days)`,
+        severity,
+        ...info,
+        daysLate
       };
     }
+    
+    return {
+      label: paymentStatus?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Unknown",
+      text: "text-gray-800",
+      bg: "bg-gray-50",
+      border: "border-gray-200",
+      icon: FileWarning,
+      severity: "unknown"
+    };
   };
 
   const formatCurrency = (amount) => {
@@ -225,11 +246,13 @@ export default function BusinessDelinquent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
         <div className="flex items-center justify-center p-4 h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800"></div>
-            <p className="mt-4 font-medium text-gray-600">Loading overdue business taxes...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4"
+                 style={{ borderColor: COLORS.primary }}></div>
+            <p className="font-medium" style={{ color: COLORS.dark }}>Loading delinquent business taxes...</p>
+            <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>Fetching data from server</p>
           </div>
         </div>
       </div>
@@ -238,18 +261,21 @@ export default function BusinessDelinquent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
         <div className="flex items-center justify-center p-4 h-screen">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg border p-6 max-w-md w-full" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-50">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" 
+                   style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertCircle className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">Connection Error</h2>
-              <p className="text-gray-600 text-sm mb-4">{error}</p>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: COLORS.dark }}>Connection Error</h2>
+              <p className="text-sm mb-4" style={{ color: COLORS.secondary }}>{error}</p>
               <button
                 onClick={fetchDelinquentTaxes}
-                className="w-full px-4 py-2.5 rounded-md font-medium text-white bg-gray-900 hover:bg-black transition duration-200"
+                className="w-full px-4 py-2.5 rounded-md font-medium text-white transition duration-200"
+                style={{ backgroundColor: COLORS.primary }}
               >
                 <RefreshCw className="w-4 h-4 inline-block mr-2" />
                 Retry Connection
@@ -262,31 +288,39 @@ export default function BusinessDelinquent() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      {/* Header - Same style as RPTDelinquent */}
+      <div className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Overdue Business Taxes
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Delinquent Business Taxes
               </h1>
-              <p className="text-sm text-gray-600">
-                Manage business taxes with overdue payments
+              <p className="text-sm" style={{ color: COLORS.secondary }}>
+                Track and manage overdue business tax payments
               </p>
             </div>
             
             <div className="flex flex-wrap gap-3 items-center">
               <button
                 onClick={handleExportReport}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
               >
                 <Download className="w-4 h-4" />
                 Export Report
               </button>
               <button
                 onClick={fetchDelinquentTaxes}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
@@ -296,210 +330,230 @@ export default function BusinessDelinquent() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Same layout as RPTDelinquent */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Stats Cards - ONLY OVERDUE */}
+        {/* Stats Cards - Same style */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Overdue Businesses */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          {/* Total Delinquent Businesses */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Overdue Businesses</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{stats.totalBusinesses}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Delinquent Businesses</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.danger }}>{stats.totalBusinesses}</p>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertTriangle className="w-5 h-5" style={{ color: COLORS.danger }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               Average {stats.averageDaysLate} days late
             </div>
           </div>
 
           {/* Total Amount Due */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Taxes Due</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(stats.totalAmountDue)}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Taxes Due</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(stats.totalAmountDue)}</p>
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-gray-700" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.dark}08` }}>
+                <DollarSign className="w-5 h-5" style={{ color: COLORS.dark }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               Base taxes only
             </div>
           </div>
 
           {/* Total Penalties */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Accrued Penalties</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{formatCurrency(stats.totalPenalties)}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Accrued Penalties</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.warning }}>{formatCurrency(stats.totalPenalties)}</p>
               </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <TrendingUp className="w-5 h-5" style={{ color: COLORS.warning }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               Additional charges
             </div>
           </div>
 
-          {/* Total Outstanding */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          {/* Average Days Late */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Outstanding</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
-                </p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Average Days Late</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.info }}>{stats.averageDaysLate} days</p>
               </div>
-              <div className="p-3 bg-red-100 rounded-lg">
-                <FileWarning className="w-5 h-5 text-red-700" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <Calendar className="w-5 h-5" style={{ color: COLORS.info }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
-              Including penalties
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              Across all delinquent businesses
             </div>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search Overdue</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search overdue businesses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition duration-200"
-                />
-              </div>
-            </div>
-
-            {/* Quarter Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quarter</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={quarterFilter}
-                  onChange={(e) => setQuarterFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Quarters</option>
-                  {uniqueQuarters.map(quarter => (
-                    <option key={quarter} value={quarter}>{quarter}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Year Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Years</option>
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Business Type Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={businessTypeFilter}
-                  onChange={(e) => setBusinessTypeFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Business Types</option>
-                  {businessTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Clear Filters Button */}
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setQuarterFilter("all");
-                  setYearFilter("all");
-                  setBusinessTypeFilter("all");
-                }}
-                className="w-full py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition duration-200"
-              >
-                Clear Filters
-              </button>
-            </div>
+        {/* Filters Section - Same collapsible design */}
+        <div className="bg-white border rounded-xl p-5 transition-all" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold" style={{ color: COLORS.dark }}>Filter Delinquent Taxes</h3>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm"
+              style={{ color: COLORS.primary }}
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
           </div>
           
-          {/* Search Stats */}
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <div className="text-gray-600">
-              Showing <span className="font-semibold">{filteredDelinquents.length}</span> overdue business{filteredDelinquents.length === 1 ? '' : 'es'}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                         style={{ color: COLORS.secondary }} />
+                  <input
+                    type="text"
+                    placeholder="Search businesses, owners, or location..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Quarter Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Quarter</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={quarterFilter}
+                    onChange={(e) => setQuarterFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Quarters</option>
+                    {uniqueQuarters.map(quarter => (
+                      <option key={quarter} value={quarter}>{quarter}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Year Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Year</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => setYearFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Years</option>
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Business Type Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Business Type</label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={businessTypeFilter}
+                    onChange={(e) => setBusinessTypeFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Business Types</option>
+                    {businessTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="text-gray-700 font-medium">
+          )}
+          
+          {/* Search Stats */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              {filteredDelinquents.length} delinquent business{filteredDelinquents.length === 1 ? '' : 'es'} found
+            </div>
+            <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
               Total outstanding: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
             </div>
           </div>
         </div>
 
-        {/* Overdue Taxes Table */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-gray-200 bg-red-50">
+        {/* Delinquent Taxes Table - Same structure */}
+        <div className="bg-white border rounded-xl overflow-hidden shadow-sm transition-all" 
+             style={{ borderColor: COLORS.secondary }}>
+          <div className="px-5 py-4 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-                <div>
-                  <h2 className="text-sm font-semibold text-red-900 uppercase tracking-wider">Overdue Business Taxes</h2>
-                  <p className="text-sm text-red-700 mt-1">
-                    {filteredDelinquents.length} business{filteredDelinquents.length === 1 ? '' : 'es'} with overdue payments
-                  </p>
-                </div>
-              </div>
-              <div className="mt-2 sm:mt-0">
-                <div className="inline-flex items-center gap-2 text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-lg">
-                  <Clock className="w-3 h-3" />
-                  <span>Only showing overdue payments</span>
-                </div>
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: COLORS.dark }}>
+                  Delinquent Businesses
+                </h2>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  {filteredDelinquents.length} business{filteredDelinquents.length === 1 ? '' : 'es'} with overdue taxes
+                </p>
               </div>
             </div>
           </div>
           
           {filteredDelinquents.length === 0 ? (
             <div className="px-4 py-12 text-center">
-              <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                <AlertTriangle className="w-6 h-6 text-green-600" />
+              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" 
+                   style={{ backgroundColor: `${COLORS.success}15` }}>
+                <AlertTriangle className="w-6 h-6" style={{ color: COLORS.success }} />
               </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
-                No Overdue Business Taxes
+              <h3 className="text-sm font-medium mb-1" style={{ color: COLORS.dark }}>
+                {searchTerm || quarterFilter !== "all" || yearFilter !== "all" || businessTypeFilter !== "all"
+                  ? "No delinquent businesses found" 
+                  : "No delinquent businesses at this time"}
               </h3>
-              <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                All business taxes are currently paid and up to date
+              <p className="text-sm max-w-xs mx-auto" style={{ color: COLORS.secondary }}>
+                {searchTerm || quarterFilter !== "all" || yearFilter !== "all" || businessTypeFilter !== "all"
+                  ? "Try adjusting your search filters"
+                  : "All business taxes are currently up to date"}
               </p>
-              {searchTerm || quarterFilter !== "all" || yearFilter !== "all" || businessTypeFilter !== "all" && (
+              {(searchTerm || quarterFilter !== "all" || yearFilter !== "all" || businessTypeFilter !== "all") && (
                 <button
                   onClick={() => {
                     setSearchTerm("");
@@ -507,7 +561,8 @@ export default function BusinessDelinquent() {
                     setYearFilter("all");
                     setBusinessTypeFilter("all");
                   }}
-                  className="mt-4 text-sm font-medium text-gray-900 hover:text-black"
+                  className="mt-4 text-sm font-medium transition-all"
+                  style={{ color: COLORS.primary }}
                 >
                   Clear all filters
                 </button>
@@ -516,52 +571,59 @@ export default function BusinessDelinquent() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y" style={{ borderColor: COLORS.secondary }}>
+                  <thead style={{ backgroundColor: `${COLORS.background}` }}>
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Business Details
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Owner & Contact
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Tax Period
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Amount Details
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Overdue Status
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Status & Due Date
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y" style={{ borderColor: COLORS.secondary }}>
                     {filteredDelinquents.map((delinquent) => {
-                      const severity = getOverdueSeverity(delinquent.days_late || 0);
+                      const statusInfo = getStatusInfo(delinquent.days_late || 0, delinquent.payment_status);
+                      const StatusIcon = statusInfo.icon;
                       const totalDue = calculateTotalDue(delinquent.total_quarterly_tax, delinquent.penalty_amount);
                       
                       return (
-                        <tr key={delinquent.id} className="hover:bg-red-50 transition-colors">
+                        <tr key={delinquent.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-red-100">
-                                <Store className="w-4 h-4 text-red-600" />
+                              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                                <Store className="w-4 h-4" style={{ color: COLORS.primary }} />
                               </div>
                               <div>
-                                <div className="font-medium text-sm text-gray-900">
-                                  {delinquent.business_name || "Business Name N/A"}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-0.5">
+                                <div className="font-mono text-xs font-semibold" style={{ color: COLORS.dark }}>
                                   ID: {delinquent.applicant_id || "N/A"}
                                 </div>
-                                <div className="text-xs text-gray-600 mt-1">
-                                  <span className="font-medium">{delinquent.business_nature || "N/A"}</span>
+                                <div className="text-sm font-medium mt-0.5" style={{ color: COLORS.dark }}>
+                                  {delinquent.business_name || "Business Name N/A"}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs" style={{ color: COLORS.secondary }}>
+                                  {delinquent.business_nature || "N/A"}
+                                </div>
+                                <div className="text-xs" style={{ color: COLORS.secondary }}>
                                   <MapPin className="w-3 h-3 inline mr-1" />
                                   {delinquent.business_barangay || "N/A"}
                                 </div>
@@ -570,32 +632,30 @@ export default function BusinessDelinquent() {
                           </td>
                           
                           <td className="px-5 py-4">
-                            <div className="font-medium text-sm text-gray-900">
+                            <div className="font-medium text-sm" style={{ color: COLORS.dark }}>
                               {delinquent.owner_full_name || "N/A"}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
                               <Building className="w-3 h-3 inline mr-1" />
                               {delinquent.owner_type || "Individual"}
                             </div>
-                            <div className="text-xs text-gray-500 mt-2">
+                            <div className="text-xs" style={{ color: COLORS.secondary }}>
                               <Phone className="w-3 h-3 inline mr-1" />
                               {delinquent.contact_number || "No phone"}
                             </div>
-                            <div className="text-xs text-gray-500 truncate max-w-[180px]">
-                              <span className="font-medium">Email:</span> {delinquent.email_address || "No email"}
+                            <div className="text-xs truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
+                              <Mail className="w-3 h-3 inline mr-1" />
+                              {delinquent.email_address || "No email"}
                             </div>
                           </td>
                           
                           <td className="px-5 py-4">
                             <div className="text-center">
-                              <div className="font-bold text-lg text-gray-900">
+                              <div className="font-bold text-lg" style={{ color: COLORS.dark }}>
                                 {delinquent.quarter || "N/A"}
                               </div>
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm" style={{ color: COLORS.secondary }}>
                                 {delinquent.year || "N/A"}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-2">
-                                Due: {formatDate(delinquent.due_date)}
                               </div>
                             </div>
                           </td>
@@ -603,20 +663,21 @@ export default function BusinessDelinquent() {
                           <td className="px-5 py-4">
                             <div className="space-y-1">
                               <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Base Tax:</span>
-                                <span className="font-medium text-gray-900">
+                                <span style={{ color: COLORS.secondary }}>Base Tax:</span>
+                                <span className="font-medium" style={{ color: COLORS.dark }}>
                                   {formatCurrency(delinquent.total_quarterly_tax)}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-red-600">Penalty:</span>
-                                <span className="font-medium text-red-600">
+                                <span style={{ color: COLORS.danger }}>Penalty:</span>
+                                <span className="font-medium" style={{ color: COLORS.danger }}>
                                   {formatCurrency(delinquent.penalty_amount)}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-sm font-bold border-t pt-1">
-                                <span>Total Due:</span>
-                                <span className="text-gray-900">
+                              <div className="flex justify-between text-sm font-bold border-t pt-1" 
+                                   style={{ borderColor: COLORS.secondary }}>
+                                <span style={{ color: COLORS.dark }}>Total Due:</span>
+                                <span className="font-bold" style={{ color: COLORS.dark }}>
                                   {formatCurrency(totalDue)}
                                 </span>
                               </div>
@@ -624,15 +685,22 @@ export default function BusinessDelinquent() {
                           </td>
                           
                           <td className="px-5 py-4">
-                            <div className="flex flex-col gap-2">
-                              <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${severity.bgColor} ${severity.color} border ${severity.borderColor}`}>
-                                {severity.label}
-                              </span>
-                              <div className="text-sm text-gray-700">
-                                {severity.daysLabel} late
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${statusInfo.bg}`}>
+                                <StatusIcon className={`w-4 h-4 ${statusInfo.text}`} />
                               </div>
-                              <div className="text-xs text-gray-500">
-                                Due: {formatDate(delinquent.due_date)}
+                              <div>
+                                <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bg} ${statusInfo.text} border ${statusInfo.border}`}>
+                                  {statusInfo.label}
+                                </span>
+                                <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
+                                  Due: {formatDate(delinquent.due_date)}
+                                </div>
+                                {statusInfo.daysLate > 0 && (
+                                  <div className="text-xs mt-0.5" style={{ color: COLORS.danger }}>
+                                    {statusInfo.daysLate} days late
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -647,9 +715,13 @@ export default function BusinessDelinquent() {
                                   delinquent.email_address,
                                   delinquent.contact_number
                                 )}
-                                className="text-sm font-medium px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition duration-200 flex items-center justify-center gap-2"
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  backgroundColor: COLORS.danger, 
+                                  color: 'white'
+                                }}
                               >
-                                <AlertTriangle className="w-4 h-4" />
+                                <Bell className="w-3 h-3" />
                                 Send Notice
                               </button>
                               <button
@@ -658,9 +730,14 @@ export default function BusinessDelinquent() {
                                   delinquent.business_name,
                                   totalDue
                                 )}
-                                className="text-sm font-medium px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2"
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  borderColor: COLORS.primary,
+                                  color: COLORS.primary,
+                                  backgroundColor: 'white'
+                                }}
                               >
-                                <CreditCard className="w-4 h-4" />
+                                <CreditCard className="w-3 h-3" />
                                 Record Payment
                               </button>
                             </div>
@@ -673,18 +750,14 @@ export default function BusinessDelinquent() {
               </div>
               
               {/* Table Footer */}
-              <div className="px-5 py-4 border-t border-gray-200 bg-red-50">
+              <div className="px-5 py-4 border-t" 
+                   style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm text-gray-700">
-                    Showing <span className="font-semibold">{filteredDelinquents.length}</span> overdue business{filteredDelinquents.length === 1 ? '' : 'es'}
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredDelinquents.length}</span> delinquent business{filteredDelinquents.length === 1 ? '' : 'es'}
                   </div>
-                  <div className="text-sm text-gray-700">
-                    <div className="font-medium">
-                      Total outstanding: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      Average overdue: {stats.averageDaysLate} days
-                    </div>
+                  <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
+                    Total Outstanding: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
                   </div>
                 </div>
               </div>
@@ -692,12 +765,20 @@ export default function BusinessDelinquent() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Local Government Unit - Overdue Business Tax Management</p>
-            <p className="mt-1">Business Tax Collection System v2.0 | Showing overdue taxes only</p>
-          </div>
+        {/* Footer - Same style */}
+        <div className="mt-8 pt-6 border-t text-center text-sm" 
+             style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+          <p className="font-medium" style={{ color: COLORS.dark }}>Local Government Unit - Business Tax Management</p>
+          <p className="mt-1">Business Tax Collection System v2.0</p>
+          <p className="mt-1 text-xs">
+            Last updated: {new Date().toLocaleDateString('en-PH', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
         </div>
       </div>
     </div>

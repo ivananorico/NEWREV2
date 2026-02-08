@@ -1,22 +1,51 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Eye, Download, RefreshCw, CheckCircle, Building, User, Calendar, DollarSign, Clock, AlertCircle, Home, Phone, Mail, MapPin, TrendingUp, Wallet, Percent } from "lucide-react";
+import { 
+  Search, Filter, Eye, Download, RefreshCw, CheckCircle, Building, 
+  User, Calendar, DollarSign, Clock, AlertCircle, Home, Phone, Mail, 
+  MapPin, TrendingUp, Wallet, Percent, ChevronRight, BarChart3, 
+  Database, Shield, CheckCircle2, Clock3, FileWarning, Archive, 
+  Landmark, Users, TrendingDown, ArrowUpRight, ArrowDownRight
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+// Custom colors from the dashboard
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 // Property Type Badge Component
 const PropertyTypeBadge = ({ propertyType }) => {
-  if (!propertyType) return <span className="text-gray-400 text-sm">Not specified</span>;
+  if (!propertyType) return <span className="text-sm" style={{ color: COLORS.secondary }}>Not specified</span>;
   
   const colors = {
-    'Residential': 'bg-green-50 text-green-700 border border-green-200',
-    'Commercial': 'bg-blue-50 text-blue-700 border border-blue-200',
-    'Industrial': 'bg-purple-50 text-purple-700 border border-purple-200',
-    'Agricultural': 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+    'Residential': { bg: `${COLORS.success}15`, text: COLORS.success, border: `${COLORS.success}30` },
+    'Commercial': { bg: `${COLORS.primary}15`, text: COLORS.primary, border: `${COLORS.primary}30` },
+    'Industrial': { bg: `${COLORS.warning}15`, text: COLORS.warning, border: `${COLORS.warning}30` },
+    'Agricultural': { bg: `${COLORS.info}15`, text: COLORS.info, border: `${COLORS.info}30` }
   };
   
-  const colorClass = colors[propertyType] || 'bg-gray-50 text-gray-700 border border-gray-200';
+  const colorStyle = colors[propertyType] || { 
+    bg: `${COLORS.secondary}15`, 
+    text: COLORS.secondary, 
+    border: `${COLORS.secondary}30` 
+  };
   
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
+    <span 
+      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+      style={{ 
+        backgroundColor: colorStyle.bg,
+        color: colorStyle.text,
+        borderColor: colorStyle.border
+      }}
+    >
       {propertyType}
     </span>
   );
@@ -29,31 +58,41 @@ const PaymentStatusBadge = ({ status }) => {
       case 'paid':
         return {
           text: 'Paid',
-          color: 'bg-green-50 text-green-700 border border-green-200',
+          bgColor: `${COLORS.success}15`,
+          textColor: COLORS.success,
+          borderColor: `${COLORS.success}30`,
           icon: <CheckCircle className="w-3 h-3 mr-1" />
         };
       case 'overdue':
         return {
           text: 'Delinquent',
-          color: 'bg-red-50 text-red-700 border border-red-200',
+          bgColor: `${COLORS.danger}15`,
+          textColor: COLORS.danger,
+          borderColor: `${COLORS.danger}30`,
           icon: <AlertCircle className="w-3 h-3 mr-1" />
         };
       case 'next-quarter':
         return {
           text: 'Next Quarter',
-          color: 'bg-blue-50 text-blue-700 border border-blue-200',
+          bgColor: `${COLORS.info}15`,
+          textColor: COLORS.info,
+          borderColor: `${COLORS.info}30`,
           icon: <Clock className="w-3 h-3 mr-1" />
         };
       case 'pending':
         return {
           text: 'Current Quarter',
-          color: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+          bgColor: `${COLORS.warning}15`,
+          textColor: COLORS.warning,
+          borderColor: `${COLORS.warning}30`,
           icon: <Clock className="w-3 h-3 mr-1" />
         };
       default:
         return {
           text: 'Unknown',
-          color: 'bg-gray-50 text-gray-700 border border-gray-200',
+          bgColor: `${COLORS.secondary}15`,
+          textColor: COLORS.secondary,
+          borderColor: `${COLORS.secondary}30`,
           icon: null
         };
     }
@@ -62,7 +101,14 @@ const PaymentStatusBadge = ({ status }) => {
   const statusInfo = getStatusInfo();
   
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+    <span 
+      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+      style={{ 
+        backgroundColor: statusInfo.bgColor,
+        color: statusInfo.textColor,
+        borderColor: statusInfo.borderColor
+      }}
+    >
       {statusInfo.icon}
       {statusInfo.text}
     </span>
@@ -85,7 +131,7 @@ export default function RPTStatus() {
 
   const API_PATH = "/RPT/RPTStatus";
 
-  // Define getPaymentStatus function FIRST before using it
+  // Define getPaymentStatus function
   const getPaymentStatus = (createdDate) => {
     if (!createdDate) return 'pending';
     
@@ -184,24 +230,27 @@ export default function RPTStatus() {
     fetchApprovedProperties();
   }, []);
 
-  // Calculate total annual revenue - NOW getPaymentStatus is defined
+  // Calculate totals
   const totalAnnualRevenue = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
-  
-  // Calculate total collected (assuming paid properties have total annual tax collected)
   const totalCollected = approvedProperties
-    .filter(p => {
-      const status = getPaymentStatus(p.created_at);
-      return status === 'paid';
-    })
+    .filter(p => getPaymentStatus(p.created_at) === 'paid')
     .reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
-  
-  // Calculate collection rate
   const collectionRate = totalAnnualRevenue > 0 ? Math.round((totalCollected / totalAnnualRevenue) * 100) : 0;
-  
-  // Calculate pending payments
   const pendingPayments = totalAnnualRevenue - totalCollected;
 
-  // Filter properties based on search, type, and payment status
+  // Statistics
+  const totalAnnualTax = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
+  const propertiesWithBuildings = approvedProperties.filter(p => p.has_building === 'yes' && (p.building_count || 0) > 0).length;
+  const vacantProperties = approvedProperties.filter(p => p.has_building !== 'yes').length;
+  
+  // Payment status statistics
+  const paymentStats = approvedProperties.reduce((stats, property) => {
+    const status = getPaymentStatus(property.created_at);
+    stats[status] = (stats[status] || 0) + 1;
+    return stats;
+  }, {});
+
+  // Filter properties
   const filteredProperties = approvedProperties.filter(property => {
     const matchesSearch = 
       (property.owner_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -242,12 +291,9 @@ export default function RPTStatus() {
     if (!amount || isNaN(amount)) return '₱0';
     const num = parseFloat(amount);
     
-    if (num >= 1000000) {
-      return `₱${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `₱${(num / 1000).toFixed(1)}K`;
-    }
+    if (num >= 1000000000) return `₱${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `₱${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `₱${(num / 1000).toFixed(2)}K`;
     return `₱${num.toFixed(2)}`;
   };
 
@@ -309,26 +355,13 @@ export default function RPTStatus() {
     window.URL.revokeObjectURL(url);
   };
 
-  // Calculate statistics
-  const totalAnnualTax = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
-  const propertiesWithBuildings = approvedProperties.filter(p => p.has_building === 'yes' && (p.building_count || 0) > 0).length;
-  const vacantProperties = approvedProperties.filter(p => p.has_building !== 'yes').length;
-  
-  // Calculate payment status statistics
-  const paymentStats = approvedProperties.reduce((stats, property) => {
-    const status = getPaymentStatus(property.created_at);
-    stats[status] = (stats[status] || 0) + 1;
-    return stats;
-  }, {});
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">
-            Loading citizen properties...
-          </p>
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="flex flex-col justify-center items-center h-screen bg-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mb-4" style={{ borderColor: COLORS.primary }}></div>
+          <p style={{ color: COLORS.dark }}>Loading Property Status...</p>
+          <p className="text-sm mt-2" style={{ color: COLORS.secondary }}>Fetching approved properties data</p>
         </div>
       </div>
     );
@@ -336,14 +369,20 @@ export default function RPTStatus() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-8 max-w-md w-full">
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="max-w-4xl mx-auto p-6 bg-white">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertCircle className="w-8 h-8" style={{ color: COLORS.danger }} />
+              <div>
+                <h3 className="text-lg font-semibold" style={{ color: COLORS.danger }}>Error Loading Properties</h3>
+                <p style={{ color: COLORS.danger }}>{error}</p>
+              </div>
+            </div>
+            <button 
               onClick={fetchApprovedProperties}
-              className="w-full bg-gray-900 hover:bg-black text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2"
+              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+              style={{ backgroundColor: COLORS.primary, color: 'white' }}
             >
               <RefreshCw className="w-4 h-4" />
               Try Again
@@ -355,31 +394,37 @@ export default function RPTStatus() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Citizen Property Registry
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Property Tax Status Registry
               </h1>
-              <p className="text-sm text-gray-600">
-                Track property taxes and payment status
-              </p>
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Approved Properties • {new Date().toLocaleDateString('en-PH')}</span>
+                </div>
+              </div>
             </div>
             
             <div className="flex flex-wrap gap-3 items-center">
               <button
                 onClick={fetchApprovedProperties}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
+              
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -391,147 +436,277 @@ export default function RPTStatus() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Compact Statistics Cards - Horizontal Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Total Properties */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Properties</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(approvedProperties.length)}</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <Home className="w-5 h-5" style={{ color: COLORS.primary }} />
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <Home className="w-5 h-5 text-gray-700" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Properties
+                </h3>
+                <p className="text-xl font-bold truncate" style={{ color: COLORS.dark }}>{formatNumber(approvedProperties.length)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${approvedProperties.length > 0 ? 100 : 0}%`,
+                        backgroundColor: COLORS.primary 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.primary }}>
+                    Total
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              Registered properties
             </div>
           </div>
-          
+
           {/* Properties with Buildings */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">With Buildings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(propertiesWithBuildings)}</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <Building className="w-5 h-5" style={{ color: COLORS.info }} />
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Building className="w-5 h-5 text-blue-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  With Buildings
+                </h3>
+                <p className="text-xl font-bold truncate" style={{ color: COLORS.dark }}>{formatNumber(propertiesWithBuildings)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${approvedProperties.length > 0 ? (propertiesWithBuildings / approvedProperties.length) * 100 : 0}%`,
+                        backgroundColor: COLORS.info 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.info }}>
+                    {approvedProperties.length > 0 ? Math.round((propertiesWithBuildings / approvedProperties.length) * 100) : 0}%
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              Properties with structures
             </div>
           </div>
 
           {/* Vacant Properties */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Vacant Lots</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(vacantProperties)}</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <MapPin className="w-5 h-5" style={{ color: COLORS.warning }} />
               </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <MapPin className="w-5 h-5 text-yellow-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Vacant Lots
+                </h3>
+                <p className="text-xl font-bold truncate" style={{ color: COLORS.dark }}>{formatNumber(vacantProperties)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${approvedProperties.length > 0 ? (vacantProperties / approvedProperties.length) * 100 : 0}%`,
+                        backgroundColor: COLORS.warning 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.warning }}>
+                    {approvedProperties.length > 0 ? Math.round((vacantProperties / approvedProperties.length) * 100) : 0}%
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              Properties without buildings
             </div>
           </div>
 
-          {/* Delinquent Payments */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Delinquent</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(paymentStats.overdue || 0)}</p>
+          {/* Delinquent Properties */}
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertCircle className="w-5 h-5" style={{ color: COLORS.danger }} />
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Delinquent
+                </h3>
+                <p className="text-xl font-bold truncate" style={{ color: COLORS.dark }}>{formatNumber(paymentStats.overdue || 0)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${approvedProperties.length > 0 ? ((paymentStats.overdue || 0) / approvedProperties.length) * 100 : 0}%`,
+                        backgroundColor: COLORS.danger 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.danger }}>
+                    {approvedProperties.length > 0 ? Math.round(((paymentStats.overdue || 0) / approvedProperties.length) * 100) : 0}%
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="text-xs text-gray-500">
-              Overdue payments
+          </div>
+
+          {/* Paid Properties */}
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                <CheckCircle className="w-5 h-5" style={{ color: COLORS.success }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Paid
+                </h3>
+                <p className="text-xl font-bold truncate" style={{ color: COLORS.dark }}>{formatNumber(paymentStats.paid || 0)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${approvedProperties.length > 0 ? ((paymentStats.paid || 0) / approvedProperties.length) * 100 : 0}%`,
+                        backgroundColor: COLORS.success 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.success }}>
+                    {approvedProperties.length > 0 ? Math.round(((paymentStats.paid || 0) / approvedProperties.length) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ADDED: Revenue Summary Boxes - Exactly like Business Status */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        {/* Compact Revenue Cards - Horizontal Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Total Annual Revenue */}
-          <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Annual Revenue</p>
-                <p className="text-xl font-bold text-blue-700 mt-1">{formatCurrency(totalAnnualRevenue)}</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <TrendingUp className="w-5 h-5" style={{ color: COLORS.primary }} />
               </div>
-              <div className="p-2 bg-blue-100 rounded">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Annual Revenue
+                </h3>
+                <p className="text-lg font-bold truncate" style={{ color: COLORS.dark }}>{formatCurrency(totalAnnualRevenue)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${totalAnnualRevenue > 0 ? 100 : 0}%`,
+                        backgroundColor: COLORS.primary 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.primary }}>
+                    Total
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Total expected revenue from all properties
             </div>
           </div>
-          
+
           {/* Total Collected */}
-          <div className="bg-white border border-green-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Collected</p>
-                <p className="text-xl font-bold text-green-700 mt-1">{formatCurrency(totalCollected)}</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                <Wallet className="w-5 h-5" style={{ color: COLORS.success }} />
               </div>
-              <div className="p-2 bg-green-100 rounded">
-                <Wallet className="w-5 h-5 text-green-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Collected Revenue
+                </h3>
+                <p className="text-lg font-bold truncate" style={{ color: COLORS.dark }}>{formatCurrency(totalCollected)}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${totalAnnualRevenue > 0 ? (totalCollected / totalAnnualRevenue) * 100 : 0}%`,
+                        backgroundColor: COLORS.success 
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.success }}>
+                    {totalAnnualRevenue > 0 ? Math.round((totalCollected / totalAnnualRevenue) * 100) : 0}%
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Actual payments received
             </div>
           </div>
-          
+
           {/* Collection Rate */}
-          <div className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Collection Rate</p>
-                <p className="text-xl font-bold text-purple-700 mt-1">{collectionRate}%</p>
+          <div className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-all" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <Percent className="w-5 h-5" style={{ color: COLORS.info }} />
               </div>
-              <div className="p-2 bg-purple-100 rounded">
-                <Percent className="w-5 h-5 text-purple-600" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: COLORS.secondary }}>
+                  Collection Rate
+                </h3>
+                <p className="text-lg font-bold truncate" style={{ color: COLORS.dark }}>{collectionRate}%</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full" 
+                      style={{ 
+                        width: `${collectionRate}%`,
+                        backgroundColor: collectionRate >= 80 ? COLORS.success : collectionRate >= 60 ? COLORS.warning : COLORS.danger
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: COLORS.secondary }}>
+                    {formatCurrency(pendingPayments)} pending
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              {formatCurrency(pendingPayments)} pending
             </div>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div>
+        {/* Filter Section */}
+        <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: COLORS.secondary }} />
                 <input
                   type="text"
-                  placeholder="Search by owner, reference, or location..."
+                  placeholder="Search by owner name, reference number, location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  style={{ borderColor: COLORS.secondary }}
                 />
               </div>
             </div>
             
-            <div>
+            <div className="flex-1">
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: COLORS.secondary }} />
                 <select
                   value={propertyTypeFilter}
                   onChange={(e) => setPropertyTypeFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-10 py-2 border rounded-lg appearance-none bg-white"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   <option value="all">All Property Types</option>
                   {propertyTypes.map(type => (
@@ -541,13 +716,14 @@ export default function RPTStatus() {
               </div>
             </div>
             
-            <div>
+            <div className="flex-1">
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2" style={{ color: COLORS.secondary }} />
                 <select
                   value={paymentFilter}
                   onChange={(e) => setPaymentFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-10 py-2 border rounded-lg appearance-none bg-white"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   <option value="all">All Payment Status</option>
                   <option value="paid">Paid</option>
@@ -561,51 +737,52 @@ export default function RPTStatus() {
           
           {/* Search Stats */}
           <div className="mt-4 flex items-center justify-between text-sm">
-            <div className="text-gray-600">
+            <div style={{ color: COLORS.secondary }}>
               {searchTerm ? (
                 <span>
-                  Searching for: <span className="font-medium text-gray-900">"{searchTerm}"</span>
+                  Searching for: <span className="font-medium" style={{ color: COLORS.dark }}>"{searchTerm}"</span>
                 </span>
               ) : (
-                <span>Showing all citizen properties</span>
+                <span>Showing all approved properties</span>
               )}
             </div>
-            <div className="text-gray-700 font-medium">
+            <div className="font-medium" style={{ color: COLORS.dark }}>
               {filteredProperties.length} of {approvedProperties.length} properties
             </div>
           </div>
         </div>
 
-        {/* Properties Table - UNCHANGED */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        {/* Properties Table */}
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Citizen Properties</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {filteredProperties.length} propert{filteredProperties.length !== 1 ? 'ies' : 'y'}
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Home className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Property Registry ({filteredProperties.length})
+                </h3>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  Approved citizen properties
                 </p>
               </div>
-              <div className="mt-2 sm:mt-0">
-                <div className="inline-flex items-center gap-2 text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg">
-                  <Calendar className="w-3 h-3" />
-                  <span>Current Quarter: Q{Math.floor((new Date().getMonth() / 3)) + 1}</span>
-                </div>
+              
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm"
+                   style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+                <Calendar className="w-4 h-4" />
+                <span>Current Quarter: Q{Math.floor((new Date().getMonth() / 3)) + 1}</span>
               </div>
             </div>
           </div>
           
           {filteredProperties.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <Home className="w-6 h-6 text-gray-400" />
-              </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
+            <div className="text-center py-12" style={{ color: COLORS.secondary }}>
+              <Home className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm font-medium" style={{ color: COLORS.dark }}>
                 {searchTerm || propertyTypeFilter !== "all" || paymentFilter !== "all"
                   ? "No matching properties found" 
                   : "No approved properties yet"}
-              </h3>
-              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+              </p>
+              <p className="text-sm mt-1 max-w-xs mx-auto">
                 {searchTerm || propertyTypeFilter !== "all" || paymentFilter !== "all"
                   ? "Try adjusting your search terms or clear filters"
                   : "Check back later for approved properties"}
@@ -617,7 +794,8 @@ export default function RPTStatus() {
                     setPropertyTypeFilter("all");
                     setPaymentFilter("all");
                   }}
-                  className="mt-4 text-sm font-medium text-gray-900 hover:text-black"
+                  className="mt-4 text-sm font-medium px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   Clear filters
                 </button>
@@ -626,104 +804,106 @@ export default function RPTStatus() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Reference No.
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Property Owner
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Owner
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Property Type
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Type
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Building Status
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Location
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Annual Tax
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Payment Status
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody>
                     {filteredProperties.map((property) => {
                       const paymentStatus = getPaymentStatus(property.created_at);
                       const buildingStatus = getBuildingStatus(property);
                       
                       return (
-                        <tr key={property.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <div className="font-mono text-xs font-semibold text-gray-900">
+                        <tr key={property.id} className="hover:bg-gray-50 transition-colors" 
+                            style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                          <td className="p-4">
+                            <div className="font-mono font-medium" style={{ color: COLORS.dark }}>
                               {property.reference_number}
                             </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
                               {formatNumber(property.land_area_sqm)} sqm
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-sm text-gray-900">
+                          <td className="p-4">
+                            <div className="font-medium" style={{ color: COLORS.dark }}>
                               {property.owner_name || `${property.first_name || ''} ${property.last_name || ''}`.trim()}
                             </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               {property.phone || "No phone"}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="p-4">
                             <PropertyTypeBadge propertyType={property.property_type} />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="p-4">
                             <div className="flex items-center gap-1.5">
                               {buildingStatus === 'Vacant' ? (
                                 <>
-                                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                                  <span className="text-sm text-gray-600">{buildingStatus}</span>
+                                  <MapPin className="w-3.5 h-3.5" style={{ color: COLORS.secondary }} />
+                                  <span className="text-sm" style={{ color: COLORS.secondary }}>{buildingStatus}</span>
                                 </>
                               ) : buildingStatus === 'Building pending' ? (
                                 <>
-                                  <Building className="w-3.5 h-3.5 text-gray-400" />
-                                  <span className="text-sm text-gray-600">{buildingStatus}</span>
+                                  <Building className="w-3.5 h-3.5" style={{ color: COLORS.secondary }} />
+                                  <span className="text-sm" style={{ color: COLORS.secondary }}>{buildingStatus}</span>
                                 </>
                               ) : (
                                 <>
-                                  <Building className="w-3.5 h-3.5 text-blue-600" />
-                                  <span className="text-sm text-blue-700 font-medium">{buildingStatus}</span>
+                                  <Building className="w-3.5 h-3.5" style={{ color: COLORS.primary }} />
+                                  <span className="text-sm font-medium" style={{ color: COLORS.primary }}>{buildingStatus}</span>
                                 </>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="text-sm text-gray-900">{property.lot_location || "Not specified"}</div>
-                            <div className="text-xs text-gray-500">
+                          <td className="p-4">
+                            <div className="text-sm" style={{ color: COLORS.dark }}>{property.lot_location || "Not specified"}</div>
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               Brgy. {property.barangay || "N/A"}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-gray-900 text-sm">
+                          <td className="p-4">
+                            <div className="font-bold text-sm" style={{ color: COLORS.dark }}>
                               {formatCurrency(property.total_annual_tax)}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                               {formatDate(property.created_at)}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="p-4">
                             <PaymentStatusBadge status={paymentStatus} />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="p-4">
                             <button
                               onClick={() => handleViewDetails(property.id)}
-                              className="text-xs font-medium px-3 py-1.5 rounded bg-gray-900 text-white hover:bg-black transition duration-200 flex items-center gap-1.5"
+                              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                              style={{ backgroundColor: COLORS.primary, color: 'white' }}
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-4 h-4" />
                               View
                             </button>
                           </td>
@@ -735,22 +915,25 @@ export default function RPTStatus() {
               </div>
               
               {/* Table Footer */}
-              <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="p-4 border-t" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm text-gray-700">
-                    Showing <span className="font-semibold">{filteredProperties.length}</span> of{" "}
-                    <span className="font-semibold">{approvedProperties.length}</span> properties
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredProperties.length}</span> of{" "}
+                    <span className="font-semibold" style={{ color: COLORS.dark }}>{approvedProperties.length}</span> properties
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">Summary:</span>
-                      <span className="px-2 py-1 rounded bg-green-50 text-green-700 border border-green-200 text-xs">
+                      <span className="font-medium" style={{ color: COLORS.dark }}>Summary:</span>
+                      <span className="px-2 py-1 rounded text-xs border" 
+                            style={{ backgroundColor: `${COLORS.success}15`, color: COLORS.success, borderColor: `${COLORS.success}30` }}>
                         Paid: {paymentStats.paid || 0}
                       </span>
-                      <span className="px-2 py-1 rounded bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs">
+                      <span className="px-2 py-1 rounded text-xs border" 
+                            style={{ backgroundColor: `${COLORS.warning}15`, color: COLORS.warning, borderColor: `${COLORS.warning}30` }}>
                         Current: {paymentStats.pending || 0}
                       </span>
-                      <span className="px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200 text-xs">
+                      <span className="px-2 py-1 rounded text-xs border" 
+                            style={{ backgroundColor: `${COLORS.danger}15`, color: COLORS.danger, borderColor: `${COLORS.danger}30` }}>
                         Delinquent: {paymentStats.overdue || 0}
                       </span>
                     </div>
@@ -761,11 +944,12 @@ export default function RPTStatus() {
           )}
         </div>
 
-        {/* Footer - Simplified */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Property Tax Management System</p>
-          </div>
+        {/* Footer Summary */}
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
+          <p>Property Tax Status Registry • {new Date().toLocaleDateString('en-PH')}</p>
+          <p className="text-xs mt-1">
+            Local Government Unit - Real Property Tax Management System
+          </p>
         </div>
       </div>
     </div>

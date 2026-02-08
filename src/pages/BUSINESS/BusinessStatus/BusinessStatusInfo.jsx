@@ -21,7 +21,35 @@ import {
   FileText,
   ShieldCheck,
   User,
+  Briefcase,
+  CreditCard,
+  CalendarDays,
+  Hash,
+  Wallet,
+  FileCheck,
+  TrendingUp,
+  ChevronRight,
+  Download,
+  Info,
+  Home,
+  Building,
+  Users
 } from "lucide-react";
+
+// Custom color palette
+const COLORS = {
+  primary: '#4a90e2',      // Blue
+  secondary: '#9aa5b1',    // Gray
+  success: '#4caf50',      // Green
+  warning: '#ff9800',      // Orange
+  danger: '#f44336',       // Red
+  info: '#2196f3',         // Light Blue
+  purple: '#9c27b0',       // Purple
+  indigo: '#3f51b5',       // Indigo
+  background: '#fbfbfb',   // Light Background
+  dark: '#374151',         // Dark Gray
+  lightGray: '#f3f4f6'     // Very Light Gray
+};
 
 export default function BusinessStatusInfo() {
   const { id } = useParams();
@@ -83,12 +111,12 @@ export default function BusinessStatusInfo() {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount || isNaN(amount)) return '₱0.00';
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2
-    }).format(amount);
+    if (!amount || isNaN(amount)) return '₱0';
+    const num = parseFloat(amount);
+    
+    if (num >= 1000000) return `₱${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `₱${(num / 1000).toFixed(1)}K`;
+    return `₱${num.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   const formatDate = (dateString) => {
@@ -111,11 +139,29 @@ export default function BusinessStatusInfo() {
   const getPaymentStatus = (status) => {
     switch(status) {
       case 'paid':
-        return { text: "Paid", color: "text-green-700", bg: "bg-green-50 border border-green-200", icon: CheckCircle };
+        return { 
+          text: "Paid", 
+          color: COLORS.success, 
+          bg: `${COLORS.success}15`, 
+          border: `${COLORS.success}30`,
+          icon: CheckCircle 
+        };
       case 'overdue':
-        return { text: "Overdue", color: "text-red-700", bg: "bg-red-50 border border-red-200", icon: AlertCircle };
+        return { 
+          text: "Overdue", 
+          color: COLORS.danger, 
+          bg: `${COLORS.danger}15`, 
+          border: `${COLORS.danger}30`,
+          icon: AlertCircle 
+        };
       default:
-        return { text: "Pending", color: "text-yellow-700", bg: "bg-yellow-50 border border-yellow-200", icon: Clock };
+        return { 
+          text: "Pending", 
+          color: COLORS.warning, 
+          bg: `${COLORS.warning}15`, 
+          border: `${COLORS.warning}30`,
+          icon: Clock 
+        };
     }
   };
 
@@ -128,16 +174,81 @@ export default function BusinessStatusInfo() {
     }
   };
 
+  const getBusinessStatusColor = (status) => {
+    const statusLower = status?.toLowerCase();
+    switch(statusLower) {
+      case 'active':
+      case 'approved':
+      case 'renewed':
+        return COLORS.success;
+      case 'pending':
+      case 'for_approval':
+        return COLORS.warning;
+      case 'expired':
+      case 'cancelled':
+      case 'suspended':
+        return COLORS.danger;
+      default:
+        return COLORS.secondary;
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
+  const handleExportDetails = () => {
+    if (!permit) return;
+    
+    const headers = [
+      "Field", "Value"
+    ];
+
+    const data = [
+      ["Permit ID", permit.business_permit_id || permit.applicant_id],
+      ["Business Name", permit.business_name],
+      ["Trade Name", permit.trade_name || "N/A"],
+      ["Owner Name", permit.owner_name || permit.owner_full_name],
+      ["Owner Type", getOwnerTypeText(permit.owner_type)],
+      ["Business Type", permit.business_type || permit.business_nature],
+      ["Tax Calculation Type", permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'],
+      ["Capital Investment/Tax Base", formatCurrency(permit.capital_investment || permit.taxable_amount)],
+      ["Tax Rate", `${permit.tax_rate || 0}%`],
+      ["Tax Amount", formatCurrency(permit.tax_amount)],
+      ["Regulatory Fees", formatCurrency(permit.regulatory_fees)],
+      ["Total Annual Tax", formatCurrency(permit.total_tax)],
+      ["Business Status", permit.business_status || permit.permit_status],
+      ["Contact Number", permit.contact_number || "N/A"],
+      ["Email Address", permit.email_address || "N/A"],
+      ["Address", `${permit.business_barangay || ''}, ${permit.business_city || ''}, ${permit.business_province || ''}`],
+      ["Issue Date", formatDate(permit.issue_date)],
+      ["Approved Date", formatDate(permit.approved_date)],
+      ["Expiry Date", formatDate(permit.expiry_date)],
+      ["Application Date", formatDate(permit.application_date) || "N/A"],
+      ["Created At", formatDate(permit.created_at)],
+      ["Updated At", formatDate(permit.updated_at)]
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...data.map(row => `"${row[0]}","${row[1]}"`)
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `business-details-${permit.business_permit_id}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Business Details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 mx-auto mb-4" style={{ borderColor: COLORS.primary }}></div>
+          <p className="text-gray-700">Loading Business Details...</p>
         </div>
       </div>
     );
@@ -145,23 +256,23 @@ export default function BusinessStatusInfo() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-6">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-8 max-w-2xl mx-auto">
-            <div className="flex items-center mb-6">
-              <AlertCircle className="h-10 w-10 text-red-600 mr-4" />
-              <div>
-                <h2 className="text-xl font-bold text-red-900">Error</h2>
-                <p className="text-red-700">{error}</p>
-              </div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
+        <div className="max-w-md w-full bg-white rounded-xl border p-8" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex items-center mb-6">
+            <AlertCircle className="h-10 w-10 mr-4" style={{ color: COLORS.danger }} />
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: COLORS.danger }}>Error</h2>
+              <p style={{ color: COLORS.secondary }}>{error}</p>
             </div>
-            <button
-              onClick={() => navigate('/business/businessstatus')}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
-            >
-              ← Back to Business List
-            </button>
           </div>
+          <button
+            onClick={() => navigate('/business/businessstatus')}
+            className="w-full px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all"
+            style={{ backgroundColor: COLORS.primary, color: 'white' }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Business List
+          </button>
         </div>
       </div>
     );
@@ -169,112 +280,130 @@ export default function BusinessStatusInfo() {
 
   if (!permit) {
     return (
-      <div className="min-h-screen bg-gray-50 py-6">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-8 max-w-2xl mx-auto">
-            <div className="flex items-center mb-6">
-              <AlertCircle className="h-10 w-10 text-red-600 mr-4" />
-              <div>
-                <h2 className="text-xl font-bold text-red-900">Business Permit Not Found</h2>
-                <p className="text-red-700">The requested business permit could not be found.</p>
-              </div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
+        <div className="max-w-md w-full bg-white rounded-xl border p-8" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex items-center mb-6">
+            <AlertCircle className="h-10 w-10 mr-4" style={{ color: COLORS.danger }} />
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: COLORS.danger }}>Business Permit Not Found</h2>
+              <p style={{ color: COLORS.secondary }}>The requested business permit could not be found.</p>
             </div>
-            <button
-              onClick={() => navigate('/business/businessstatus')}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
-            >
-              ← Back to Business List
-            </button>
           </div>
+          <button
+            onClick={() => navigate('/business/businessstatus')}
+            className="w-full px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all"
+            style={{ backgroundColor: COLORS.primary, color: 'white' }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Business List
+          </button>
         </div>
       </div>
     );
   }
 
+  // Calculate stats
   const paidTaxes = quarterlyTaxes.filter(tax => tax.payment_status === 'paid');
   const totalPaid = paidTaxes.reduce((sum, tax) => sum + (parseFloat(tax.total_quarterly_tax) || 0), 0);
   const collectionRate = permit.total_tax > 0 ? Math.round((totalPaid / permit.total_tax) * 100) : 0;
   const totalPending = parseFloat(permit.total_pending_tax) || 0;
   const totalPenalty = parseFloat(permit.total_penalty) || 0;
 
-  // Calculate stats for summary
+  // Calculate quarter stats
   const paidQuarters = quarterlyTaxes.filter(t => t.payment_status === 'paid').length;
   const pendingQuarters = quarterlyTaxes.filter(t => t.payment_status === 'pending').length;
   const overdueQuarters = quarterlyTaxes.filter(t => t.payment_status === 'overdue').length;
   const totalQuarters = quarterlyTaxes.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Header Card with Business Permit Number */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+        {/* Header Section */}
+        <div className="bg-white rounded-xl border p-6 mb-6" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div className="flex-1">
-              <button 
-                onClick={() => navigate('/business/businessstatus')} 
-                className="text-gray-600 hover:text-blue-600 mb-4 flex items-center"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Back to List
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-blue-600" />
+              <div className="flex items-center gap-2 mb-4">
+                <button 
+                  onClick={() => navigate('/business/businessstatus')} 
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ color: COLORS.primary, borderColor: COLORS.secondary, borderWidth: '1px' }}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to List
+                </button>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                  <Briefcase className="w-6 h-6" style={{ color: COLORS.primary }} />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Business Permit Details</h1>
-                  <div className="flex flex-wrap items-center gap-4 mt-2">
-                    <div className="flex items-center gap-2">
-                      <div className="font-mono text-lg font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-                        {permit.business_permit_id || permit.applicant_id}
-                      </div>
-                      <span className="text-sm text-gray-600">Permit Number</span>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h1 className="text-2xl font-bold" style={{ color: COLORS.dark }}>{permit.business_name}</h1>
+                    <div className="px-2 py-1 rounded text-xs font-medium border" 
+                         style={{ 
+                           backgroundColor: `${getBusinessStatusColor(permit.business_status || permit.permit_status)}15`,
+                           color: getBusinessStatusColor(permit.business_status || permit.permit_status),
+                           borderColor: `${getBusinessStatusColor(permit.business_status || permit.permit_status)}30`
+                         }}>
+                      {permit.business_status || permit.permit_status || 'N/A'}
                     </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">ID: {permit.id}</span>
+                      <Hash className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                      <span className="font-mono font-medium" style={{ color: COLORS.primary }}>
+                        {permit.business_permit_id || permit.applicant_id}
+                      </span>
+                      <span className="text-sm" style={{ color: COLORS.secondary }}>Permit ID</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                      <span className="text-sm" style={{ color: COLORS.secondary }}>
+                        Issued: {formatDate(permit.issue_date) || 'Not issued'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                      <span className="text-sm" style={{ color: COLORS.dark }}>
+                        {permit.owner_name || permit.owner_full_name}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex flex-col items-start md:items-end gap-3">
-              <span className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${
-                permit.business_status === 'ACTIVE' ? 'bg-green-100 text-green-800 border border-green-200' :
-                permit.business_status === 'APPROVED' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                permit.business_status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                permit.business_status === 'RENEWED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
-                permit.business_status === 'EXPIRED' ? 'bg-red-100 text-red-800 border border-red-200' :
-                'bg-gray-100 text-gray-800 border border-gray-200'
-              }`}>
-                {permit.business_status || 'N/A'}
-              </span>
-              <div className="text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  {permit.issue_date ? `Issued: ${formatDate(permit.issue_date)}` : 'No issue date'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Business Name Highlight */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Building2 className="w-6 h-6 text-gray-600" />
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{permit.business_name}</h2>
-                  {permit.trade_name && (
-                    <p className="text-gray-600">Trade Name: {permit.trade_name}</p>
-                  )}
-                  <p className="text-sm text-gray-600 mt-1">{permit.owner_name || permit.owner_full_name || 'Owner not specified'}</p>
-                </div>
-              </div>
+            
+            <div className="flex flex-col items-end gap-3">
               <div className="text-right">
-                <div className="text-lg font-bold text-green-600">{formatCurrency(permit.total_tax)}</div>
-                <div className="text-sm text-gray-600">Annual Tax</div>
+                <div className="text-lg font-bold" style={{ color: COLORS.success }}>
+                  {formatCurrency(permit.total_tax)}
+                </div>
+                <div className="text-sm" style={{ color: COLORS.secondary }}>Annual Tax</div>
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all border"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
+                </button>
+                
+                <button
+                  onClick={handleExportDetails}
+                  className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                  style={{ backgroundColor: COLORS.primary, color: 'white' }}
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
               </div>
             </div>
           </div>
@@ -283,55 +412,62 @@ export default function BusinessStatusInfo() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Left Column - Main Information */}
+          {/* Left Column - Owner & Business Info */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* Owner Information Card */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                <UserCircle className="w-5 h-5 mr-2 text-blue-600" />
-                Owner Information
-              </h2>
+            <div className="bg-white rounded-xl border p-6" style={{ borderColor: COLORS.secondary }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                  <UserCircle className="w-5 h-5" style={{ color: COLORS.info }} />
+                </div>
+                <h2 className="font-semibold" style={{ color: COLORS.dark }}>Owner Information</h2>
+              </div>
               
               <div className="space-y-4">
-                {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Owner Full Name</label>
-                    <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                      <User className="w-4 h-4 text-gray-400 mr-2" />
-                      {permit.owner_name || permit.owner_full_name || 'Not specified'}
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>OWNER NAME</label>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                      <User className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                      <span className="font-medium" style={{ color: COLORS.dark }}>
+                        {permit.owner_name || permit.owner_full_name || 'Not specified'}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Owner Type</label>
-                    <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border">
-                      {getOwnerTypeText(permit.owner_type)}
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>OWNER TYPE</label>
+                    <div className="p-2.5 rounded-lg border text-center"
+                         style={{ 
+                           borderColor: permit.owner_type?.toLowerCase() === 'corporation' ? COLORS.info : COLORS.primary,
+                           backgroundColor: permit.owner_type?.toLowerCase() === 'corporation' ? `${COLORS.info}10` : `${COLORS.primary}10`,
+                           color: permit.owner_type?.toLowerCase() === 'corporation' ? COLORS.info : COLORS.primary
+                         }}>
+                      <span className="font-medium">{getOwnerTypeText(permit.owner_type)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Contact Information */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Contact Information</h3>
+                <div className="border-t pt-4" style={{ borderColor: `${COLORS.secondary}30` }}>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: COLORS.secondary }}>CONTACT INFORMATION</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {permit.contact_number && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Number</label>
-                        <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                          <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                          {permit.contact_number}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>CONTACT NUMBER</label>
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                          <Phone className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                          <span className="font-medium" style={{ color: COLORS.dark }}>{permit.contact_number}</span>
                         </div>
                       </div>
                     )}
                     
                     {permit.email_address && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Email Address</label>
-                        <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                          <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                          {permit.email_address}
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>EMAIL ADDRESS</label>
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                          <Mail className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                          <span className="font-medium" style={{ color: COLORS.dark }}>{permit.email_address}</span>
                         </div>
                       </div>
                     )}
@@ -341,116 +477,122 @@ export default function BusinessStatusInfo() {
             </div>
 
             {/* Business Information Card */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                <Building2 className="w-5 h-5 mr-2 text-green-600" />
-                Business Information
-              </h2>
+            <div className="bg-white rounded-xl border p-6" style={{ borderColor: COLORS.secondary }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                  <Building2 className="w-5 h-5" style={{ color: COLORS.success }} />
+                </div>
+                <h2 className="font-semibold" style={{ color: COLORS.dark }}>Business Information</h2>
+              </div>
               
               <div className="space-y-4">
-                {/* Basic Business Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</label>
-                    <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border">{permit.business_name}</div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>BUSINESS NAME</label>
+                    <div className="p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                      <span className="font-medium" style={{ color: COLORS.dark }}>{permit.business_name}</span>
+                    </div>
                   </div>
                   
-                  <div className="space-y-1">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Business Type & Tax</label>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                        <Tag className="w-4 h-4 text-gray-400 mr-2" />
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>BUSINESS TYPE</label>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                      <Tag className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                      <span className="font-medium" style={{ color: COLORS.dark }}>
                         {permit.business_type || permit.business_nature || 'N/A'}
-                      </div>
-                      <div className={`text-sm font-medium p-2 rounded border flex items-center ${
-                        permit.tax_calculation_type === 'capital_investment' 
-                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                      }`}>
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Gross Sales'}
-                      </div>
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Tax Information */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Tax Information</h3>
+                <div className="border-t pt-4" style={{ borderColor: `${COLORS.secondary}30` }}>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: COLORS.secondary }}>TAX INFORMATION</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {permit.tax_calculation_type === 'capital_investment' ? 'Capital Investment' : 'Tax Base'}
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>
+                        {permit.tax_calculation_type === 'capital_investment' ? 'CAPITAL INVESTMENT' : 'TAX BASE'}
                       </label>
-                      <div className="text-sm font-bold text-gray-900 bg-gray-50 p-2 rounded border">
-                        {formatCurrency(permit.capital_investment || permit.taxable_amount || 0)}
+                      <div className="p-2.5 rounded-lg border text-center" style={{ borderColor: COLORS.secondary }}>
+                        <span className="font-bold" style={{ color: COLORS.dark }}>
+                          {formatCurrency(permit.capital_investment || permit.taxable_amount || 0)}
+                        </span>
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Rate</label>
-                      <div className="text-sm font-bold text-blue-600 bg-blue-50 p-2 rounded border border-blue-200 flex items-center">
-                        <Percent className="w-4 h-4 mr-1" />
-                        {permit.tax_rate || 0}%
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>TAX RATE</label>
+                      <div className="p-2.5 rounded-lg border text-center" 
+                           style={{ 
+                             borderColor: COLORS.info, 
+                             backgroundColor: `${COLORS.info}10`,
+                             color: COLORS.info
+                           }}>
+                        <div className="flex items-center justify-center gap-1">
+                          <Percent className="w-3.5 h-3.5" />
+                          <span className="font-bold">{permit.tax_rate || 0}%</span>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Amount</label>
-                      <div className="text-sm font-bold text-green-600 bg-green-50 p-2 rounded border border-green-200">
-                        {formatCurrency(permit.tax_amount || 0)}
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>TAX AMOUNT</label>
+                      <div className="p-2.5 rounded-lg border text-center" 
+                           style={{ 
+                             borderColor: COLORS.success, 
+                             backgroundColor: `${COLORS.success}10`,
+                             color: COLORS.success
+                           }}>
+                        <span className="font-bold">{formatCurrency(permit.tax_amount || 0)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Business Address */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Business Address</h3>
-                  <div className="space-y-2 p-3 bg-gray-50 rounded border">
-                    <p className="text-sm text-gray-900 flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                      {permit.business_address || (
-                        <>
+                <div className="border-t pt-4" style={{ borderColor: `${COLORS.secondary}30` }}>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: COLORS.secondary }}>BUSINESS ADDRESS</h3>
+                  <div className="p-3 rounded-lg border" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}10` }}>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 mt-0.5" style={{ color: COLORS.secondary }} />
+                      <div>
+                        <p className="font-medium" style={{ color: COLORS.dark }}>
                           Brgy. {permit.business_barangay || 'N/A'}, {permit.business_city || 'N/A'}
                           {permit.business_province && `, ${permit.business_province}`}
                           {permit.business_zipcode && ` ${permit.business_zipcode}`}
-                        </>
-                      )}
-                    </p>
-                    {permit.business_district && permit.business_district !== 'Unknown' && (
-                      <p className="text-sm text-gray-900 ml-6">
-                        District: {permit.business_district}
-                      </p>
-                    )}
+                        </p>
+                        {permit.business_district && permit.business_district !== 'Unknown' && (
+                          <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                            District: {permit.business_district}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Dates */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Permit Dates</h3>
+                <div className="border-t pt-4" style={{ borderColor: `${COLORS.secondary}30` }}>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: COLORS.secondary }}>PERMIT DATES</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                        {formatDate(permit.issue_date) || 'Not issued'}
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>ISSUE DATE</label>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                        <Calendar className="w-4 h-4" style={{ color: COLORS.secondary }} />
+                        <span className="font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.issue_date) || 'Not issued'}</span>
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Date</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                        <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                        {formatDate(permit.approved_date) || 'Not approved'}
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>APPROVED DATE</label>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                        <CheckCircle className="w-4 h-4" style={{ color: COLORS.success }} />
+                        <span className="font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.approved_date) || 'Not approved'}</span>
                       </div>
                     </div>
                     
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</label>
-                      <div className="text-sm font-medium text-gray-900 bg-gray-50 p-2 rounded border flex items-center">
-                        <AlertCircle className="w-4 h-4 text-orange-400 mr-2" />
-                        {formatDate(permit.expiry_date) || 'Not set'}
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: COLORS.secondary }}>EXPIRY DATE</label>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                        <AlertCircle className="w-4 h-4" style={{ color: COLORS.warning }} />
+                        <span className="font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.expiry_date) || 'Not set'}</span>
                       </div>
                     </div>
                   </div>
@@ -459,71 +601,88 @@ export default function BusinessStatusInfo() {
             </div>
           </div>
 
-          {/* Right Column - Combined Summary & Tax Information */}
+          {/* Right Column - Summary & Stats */}
           <div className="space-y-6">
             
             {/* Summary Stats Card */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Summary Stats</h2>
+            <div className="bg-white rounded-xl border p-6" style={{ borderColor: COLORS.secondary }}>
+              <h2 className="font-semibold mb-4" style={{ color: COLORS.dark }}>Summary Stats</h2>
               
               <div className="space-y-4">
-                {/* Quarter Stats */}
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quarterly Payments</h3>
+                  <h3 className="text-sm font-medium mb-3" style={{ color: COLORS.secondary }}>QUARTERLY PAYMENTS</h3>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="text-xl font-bold text-green-600">{paidQuarters}</div>
-                      <div className="text-xs text-green-700 mt-1">Paid</div>
+                    <div className="p-3 rounded-lg text-center" 
+                         style={{ 
+                           backgroundColor: `${COLORS.success}15`,
+                           border: `1px solid ${COLORS.success}30`
+                         }}>
+                      <div className="text-lg font-bold" style={{ color: COLORS.success }}>{paidQuarters}</div>
+                      <div className="text-xs mt-1" style={{ color: COLORS.success }}>Paid</div>
                     </div>
                     
-                    <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="text-xl font-bold text-yellow-600">{pendingQuarters}</div>
-                      <div className="text-xs text-yellow-700 mt-1">Pending</div>
+                    <div className="p-3 rounded-lg text-center" 
+                         style={{ 
+                           backgroundColor: `${COLORS.warning}15`,
+                           border: `1px solid ${COLORS.warning}30`
+                         }}>
+                      <div className="text-lg font-bold" style={{ color: COLORS.warning }}>{pendingQuarters}</div>
+                      <div className="text-xs mt-1" style={{ color: COLORS.warning }}>Pending</div>
                     </div>
                     
-                    <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="text-xl font-bold text-red-600">{overdueQuarters}</div>
-                      <div className="text-xs text-red-700 mt-1">Overdue</div>
+                    <div className="p-3 rounded-lg text-center" 
+                         style={{ 
+                           backgroundColor: `${COLORS.danger}15`,
+                           border: `1px solid ${COLORS.danger}30`
+                         }}>
+                      <div className="text-lg font-bold" style={{ color: COLORS.danger }}>{overdueQuarters}</div>
+                      <div className="text-xs mt-1" style={{ color: COLORS.danger }}>Overdue</div>
                     </div>
                     
-                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-xl font-bold text-blue-600">{totalQuarters}</div>
-                      <div className="text-xs text-blue-700 mt-1">Total</div>
+                    <div className="p-3 rounded-lg text-center" 
+                         style={{ 
+                           backgroundColor: `${COLORS.primary}15`,
+                           border: `1px solid ${COLORS.primary}30`
+                         }}>
+                      <div className="text-lg font-bold" style={{ color: COLORS.primary }}>{totalQuarters}</div>
+                      <div className="text-xs mt-1" style={{ color: COLORS.primary }}>Total</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Collection Rate */}
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t" style={{ borderColor: `${COLORS.secondary}30` }}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Collection Rate</span>
-                    <span className="text-lg font-bold text-blue-600">{collectionRate}%</span>
+                    <span className="text-sm font-medium" style={{ color: COLORS.secondary }}>Collection Rate</span>
+                    <span className="font-bold" style={{ color: COLORS.primary }}>{collectionRate}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full h-2 rounded-full" style={{ backgroundColor: `${COLORS.secondary}30` }}>
                     <div 
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${collectionRate}%` }}
+                      className="h-full rounded-full"
+                      style={{ 
+                        width: `${collectionRate}%`,
+                        backgroundColor: collectionRate >= 80 ? COLORS.success : 
+                                       collectionRate >= 60 ? COLORS.warning : COLORS.danger
+                      }}
                     ></div>
                   </div>
                 </div>
 
-                {/* Timestamps */}
-                <div className="pt-4 border-t border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Record Info</h3>
+                <div className="pt-4 border-t" style={{ borderColor: `${COLORS.secondary}30` }}>
+                  <h3 className="text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>RECORD INFO</h3>
                   <div className="space-y-2">
                     {permit.application_date && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-600">Application</span>
-                        <span className="text-xs font-medium text-gray-900">{formatDate(permit.application_date)}</span>
+                        <span className="text-xs" style={{ color: COLORS.secondary }}>Application</span>
+                        <span className="text-xs font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.application_date)}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Created</span>
-                      <span className="text-xs font-medium text-gray-900">{formatDate(permit.created_at)}</span>
+                      <span className="text-xs" style={{ color: COLORS.secondary }}>Created</span>
+                      <span className="text-xs font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.created_at)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Last Updated</span>
-                      <span className="text-xs font-medium text-gray-900">{formatDate(permit.updated_at)}</span>
+                      <span className="text-xs" style={{ color: COLORS.secondary }}>Last Updated</span>
+                      <span className="text-xs font-medium" style={{ color: COLORS.dark }}>{formatDate(permit.updated_at)}</span>
                     </div>
                   </div>
                 </div>
@@ -531,53 +690,55 @@ export default function BusinessStatusInfo() {
             </div>
 
             {/* Tax Summary Card */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                <PieChart className="w-5 h-5 mr-2 text-purple-600" />
-                Tax Summary
-              </h2>
+            <div className="bg-white rounded-xl border p-6" style={{ borderColor: COLORS.secondary }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.purple}15` }}>
+                  <PieChart className="w-5 h-5" style={{ color: COLORS.purple }} />
+                </div>
+                <h2 className="font-semibold" style={{ color: COLORS.dark }}>Tax Summary</h2>
+              </div>
               
               <div className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Basic Tax</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(permit.tax_amount)}</span>
+                    <span className="text-sm" style={{ color: COLORS.secondary }}>Basic Tax</span>
+                    <span className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(permit.tax_amount)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Regulatory Fees</span>
-                    <span className="font-bold text-blue-600">{formatCurrency(permit.regulatory_fees)}</span>
+                    <span className="text-sm" style={{ color: COLORS.secondary }}>Regulatory Fees</span>
+                    <span className="font-bold" style={{ color: COLORS.primary }}>{formatCurrency(permit.regulatory_fees)}</span>
                   </div>
-                  <div className="pt-3 border-t border-gray-300">
+                  <div className="pt-3 border-t" style={{ borderColor: `${COLORS.secondary}30` }}>
                     <div className="flex justify-between items-center font-bold">
-                      <span className="text-green-700">Total Annual Tax</span>
-                      <span className="text-lg font-bold text-green-600">{formatCurrency(permit.total_tax)}</span>
+                      <span style={{ color: COLORS.success }}>Total Annual Tax</span>
+                      <span className="text-lg" style={{ color: COLORS.success }}>{formatCurrency(permit.total_tax)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t" style={{ borderColor: `${COLORS.secondary}30` }}>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
-                        <span className="text-sm text-green-700">Total Paid</span>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" style={{ color: COLORS.success }} />
+                        <span className="text-sm" style={{ color: COLORS.success }}>Total Paid</span>
                       </div>
-                      <span className="font-bold text-green-600">{formatCurrency(totalPaid)}</span>
+                      <span className="font-bold" style={{ color: COLORS.success }}>{formatCurrency(totalPaid)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-yellow-600 mr-2" />
-                        <span className="text-sm text-yellow-700">Pending Balance</span>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" style={{ color: COLORS.warning }} />
+                        <span className="text-sm" style={{ color: COLORS.warning }}>Pending Balance</span>
                       </div>
-                      <span className="font-bold text-yellow-600">{formatCurrency(totalPending)}</span>
+                      <span className="font-bold" style={{ color: COLORS.warning }}>{formatCurrency(totalPending)}</span>
                     </div>
                     {totalPenalty > 0 && (
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <AlertTriangle className="w-4 h-4 text-red-600 mr-2" />
-                          <span className="text-sm text-red-700">Total Penalty</span>
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" style={{ color: COLORS.danger }} />
+                          <span className="text-sm" style={{ color: COLORS.danger }}>Total Penalty</span>
                         </div>
-                        <span className="font-bold text-red-600">{formatCurrency(totalPenalty)}</span>
+                        <span className="font-bold" style={{ color: COLORS.danger }}>{formatCurrency(totalPenalty)}</span>
                       </div>
                     )}
                   </div>
@@ -588,109 +749,111 @@ export default function BusinessStatusInfo() {
         </div>
 
         {/* Quarterly Taxes Table */}
-        <div className="mt-6">
-          <div className="bg-white rounded-xl shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center">
-                <Receipt className="w-5 h-5 mr-2 text-blue-600" />
-                Quarterly Tax Payments
-              </h2>
+        <div className="mt-6 bg-white rounded-xl border overflow-hidden" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-4 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}10` }}>
+            <div className="flex items-center gap-2">
+              <Receipt className="w-5 h-5" style={{ color: COLORS.primary }} />
+              <h2 className="font-semibold" style={{ color: COLORS.dark }}>Quarterly Tax Payments</h2>
             </div>
-            
-            <div className="p-6">
-              {quarterlyTaxes.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Receipt className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Quarterly Tax Records</h3>
-                  <p className="text-gray-600 max-w-md mx-auto">
-                    No quarterly tax payment records found for this business permit.
-                  </p>
+          </div>
+          
+          <div className="p-6">
+            {quarterlyTaxes.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" 
+                     style={{ backgroundColor: `${COLORS.secondary}15` }}>
+                  <Receipt className="w-8 h-8" style={{ color: COLORS.secondary }} />
                 </div>
-              ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quarter</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penalty</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {quarterlyTaxes.map((tax) => {
-                          const status = getPaymentStatus(tax.payment_status);
-                          const StatusIcon = status.icon;
-                          const totalAmount = (parseFloat(tax.total_quarterly_tax) || 0) + (parseFloat(tax.penalty_amount) || 0);
-                          
-                          return (
-                            <tr key={tax.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="font-medium text-gray-900">{tax.quarter}</span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-gray-900">{tax.year}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-gray-900">{formatDate(tax.due_date)}</td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="font-bold text-gray-900">{formatCurrency(tax.total_quarterly_tax)}</span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {tax.penalty_amount > 0 ? (
-                                  <span className="font-medium text-red-600">{formatCurrency(tax.penalty_amount)}</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="font-bold text-green-600">{formatCurrency(totalAmount)}</span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${status.bg}`}>
-                                  <StatusIcon className={`w-3.5 h-3.5 mr-1.5 ${status.color}`} />
-                                  <span className={`text-xs font-medium ${status.color}`}>{status.text}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                                {tax.payment_date ? formatDate(tax.payment_date) : '-'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                <h3 className="font-medium mb-2" style={{ color: COLORS.dark }}>No Quarterly Tax Records</h3>
+                <p className="max-w-md mx-auto" style={{ color: COLORS.secondary }}>
+                  No quarterly tax payment records found for this business permit.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border" style={{ borderColor: COLORS.secondary }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${COLORS.secondary}`, backgroundColor: `${COLORS.secondary}10` }}>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Quarter</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Year</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Due Date</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Amount</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Penalty</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Total</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Status</th>
+                        <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>Payment Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quarterlyTaxes.map((tax) => {
+                        const status = getPaymentStatus(tax.payment_status);
+                        const StatusIcon = status.icon;
+                        const totalAmount = (parseFloat(tax.total_quarterly_tax) || 0) + (parseFloat(tax.penalty_amount) || 0);
+                        
+                        return (
+                          <tr key={tax.id} className="hover:bg-gray-50 transition-colors" style={{ borderBottom: `1px solid ${COLORS.secondary}30` }}>
+                            <td className="p-3">
+                              <span className="font-medium" style={{ color: COLORS.dark }}>{tax.quarter}</span>
+                            </td>
+                            <td className="p-3" style={{ color: COLORS.dark }}>{tax.year}</td>
+                            <td className="p-3" style={{ color: COLORS.dark }}>{formatDate(tax.due_date)}</td>
+                            <td className="p-3">
+                              <span className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(tax.total_quarterly_tax)}</span>
+                            </td>
+                            <td className="p-3">
+                              {tax.penalty_amount > 0 ? (
+                                <span className="font-medium" style={{ color: COLORS.danger }}>{formatCurrency(tax.penalty_amount)}</span>
+                              ) : (
+                                <span style={{ color: COLORS.secondary }}>-</span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              <span className="font-bold" style={{ color: COLORS.success }}>{formatCurrency(totalAmount)}</span>
+                            </td>
+                            <td className="p-3">
+                              <div className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border"
+                                   style={{ 
+                                     backgroundColor: status.bg,
+                                     color: status.color,
+                                     borderColor: status.border
+                                   }}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.text}
+                              </div>
+                            </td>
+                            <td className="p-3" style={{ color: COLORS.dark }}>
+                              {tax.payment_date ? formatDate(tax.payment_date) : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-6 flex justify-between items-center">
-          <div className="text-sm text-gray-500">
-            Business Permit: <span className="font-mono font-medium">{permit.business_permit_id || permit.applicant_id}</span>
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={handlePrint}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print
-            </button>
-            <button
-              onClick={() => navigate('/business/businessstatus')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to List
-            </button>
+        <div className="mt-6 pt-6 border-t" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              Business Permit ID: <span className="font-mono font-medium" style={{ color: COLORS.dark }}>
+                {permit.business_permit_id || permit.applicant_id}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate('/business/businessstatus')}
+                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all border"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to List
+              </button>
+            </div>
           </div>
         </div>
       </div>

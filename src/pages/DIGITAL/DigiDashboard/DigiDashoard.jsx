@@ -30,9 +30,29 @@ import {
   ArrowRight, ChevronRight, ExternalLink,
   CircleDollarSign, Building2, Store, Tag,
   Percent as PercentIcon, Target as TargetIcon,
-  TrendingDown as TrendingDownIcon
+  TrendingDown as TrendingDownIcon,
+  Wallet as Wallet2, Shield as Shield2,
+  Smartphone as Smartphone2,
+  CreditCard as CreditCard2,
+  Cloud as Cloud2,
+  ArrowUpRight as ArrowUpRight2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+// Custom color palette
+const COLORS = {
+  primary: '#4a90e2',      // Blue
+  secondary: '#9aa5b1',    // Gray
+  success: '#4caf50',      // Green
+  warning: '#ff9800',      // Orange
+  danger: '#f44336',       // Red
+  info: '#2196f3',         // Light Blue
+  purple: '#9c27b0',       // Purple
+  indigo: '#3f51b5',       // Indigo
+  background: '#fbfbfb',   // Light Background
+  dark: '#374151',         // Dark Gray
+  lightGray: '#f3f4f6'     // Very Light Gray
+};
 
 // Auto-detect environment
 const getApiBase = () => {
@@ -171,7 +191,7 @@ export default function DigiDashboard() {
       return `₱${(numAmount / 1000000000).toFixed(2)}B`;
     }
     if (numAmount >= 1000000) {
-      return `₱${(numAmount / 1000000000).toFixed(2)}B`;
+      return `₱${(numAmount / 1000000).toFixed(1)}M`;
     }
     if (numAmount >= 1000) {
       return `₱${(numAmount / 1000).toFixed(1)}K`;
@@ -208,43 +228,130 @@ export default function DigiDashboard() {
   const getStatusBadge = (status) => {
     switch(status) {
       case 'paid':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Paid</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.success}15`,
+                  color: COLORS.success,
+                  borderColor: `${COLORS.success}30`
+                }}>
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Paid
+          </span>
+        );
       case 'pending':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1"><Clock className="w-3 h-3" /> Pending</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.warning}15`,
+                  color: COLORS.warning,
+                  borderColor: `${COLORS.warning}30`
+                }}>
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </span>
+        );
       case 'failed':
-        return <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 flex items-center gap-1"><XCircle className="w-3 h-3" /> Failed</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.danger}15`,
+                  color: COLORS.danger,
+                  borderColor: `${COLORS.danger}30`
+                }}>
+            <XCircle className="w-3 h-3 mr-1" />
+            Failed
+          </span>
+        );
       default:
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Unknown</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.secondary}15`,
+                  color: COLORS.secondary,
+                  borderColor: `${COLORS.secondary}30`
+                }}>
+            Unknown
+          </span>
+        );
     }
   };
 
   const getMethodBadge = (method) => {
     switch(method) {
       case 'gcash':
-        return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex items-center gap-1"><SmartphoneIcon className="w-3 h-3" /> GCash</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.primary}15`,
+                  color: COLORS.primary,
+                  borderColor: `${COLORS.primary}30`
+                }}>
+            <SmartphoneIcon className="w-3 h-3 mr-1" />
+            GCash
+          </span>
+        );
       case 'maya':
-        return <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 flex items-center gap-1"><WalletIcon className="w-3 h-3" /> Maya</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.purple}15`,
+                  color: COLORS.purple,
+                  borderColor: `${COLORS.purple}30`
+                }}>
+            <WalletIcon className="w-3 h-3 mr-1" />
+            Maya
+          </span>
+        );
       case 'card':
-        return <span className="px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 flex items-center gap-1"><CreditCardIcon className="w-3 h-3" /> Card</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.info}15`,
+                  color: COLORS.info,
+                  borderColor: `${COLORS.info}30`
+                }}>
+            <CreditCardIcon className="w-3 h-3 mr-1" />
+            Card
+          </span>
+        );
       default:
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">{method || 'Unknown'}</span>;
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+                style={{ 
+                  backgroundColor: `${COLORS.secondary}15`,
+                  color: COLORS.secondary,
+                  borderColor: `${COLORS.secondary}30`
+                }}>
+            {method || 'Unknown'}
+          </span>
+        );
     }
   };
 
   const getSystemBadge = (system) => {
     const systemColors = {
-      'rpt': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'RPT', icon: <Home className="w-3 h-3" /> },
-      'business': { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Business', icon: <Building className="w-3 h-3" /> },
-      'market': { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Market Stall', icon: <ShoppingCart className="w-3 h-3" /> },
-      'market_rent': { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Market Rent', icon: <CalendarIcon className="w-3 h-3" /> }
+      'rpt': { color: COLORS.indigo, label: 'RPT', icon: <Home className="w-3 h-3" /> },
+      'business': { color: COLORS.success, label: 'Business', icon: <Building className="w-3 h-3" /> },
+      'market': { color: COLORS.warning, label: 'Market Stall', icon: <ShoppingCart className="w-3 h-3" /> },
+      'market_rent': { color: '#F59E0B', label: 'Market Rent', icon: <CalendarIcon className="w-3 h-3" /> }
     };
     
-    const config = systemColors[system] || { bg: 'bg-gray-100', text: 'text-gray-800', label: system || 'Unknown', icon: <Package className="w-3 h-3" /> };
+    const config = systemColors[system] || { 
+      color: COLORS.secondary, 
+      label: system || 'Unknown', 
+      icon: <Package className="w-3 h-3" /> 
+    };
     
     return (
-      <span className={`px-2 py-1 text-xs rounded-full ${config.bg} ${config.text} flex items-center gap-1`}>
+      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
+            style={{ 
+              backgroundColor: `${config.color}15`,
+              color: config.color,
+              borderColor: `${config.color}30`
+            }}>
         {config.icon}
-        {config.label}
+        <span className="ml-1">{config.label}</span>
       </span>
     );
   };
@@ -327,9 +434,9 @@ export default function DigiDashboard() {
     if (!stats) return [];
     
     return [
-      { name: 'GCash', value: stats.gcash_count || 0, color: '#0088FE' },
-      { name: 'Maya', value: stats.maya_count || 0, color: '#00C49F' },
-      { name: 'Card', value: stats.card_count || 0, color: '#FFBB28' }
+      { name: 'GCash', value: stats.gcash_count || 0, color: COLORS.primary },
+      { name: 'Maya', value: stats.maya_count || 0, color: COLORS.purple },
+      { name: 'Card', value: stats.card_count || 0, color: COLORS.info }
     ].filter(item => item.value > 0);
   };
 
@@ -340,10 +447,10 @@ export default function DigiDashboard() {
       name: system === 'market_rent' ? 'Market Rent' : system.charAt(0).toUpperCase() + system.slice(1),
       value: data.count || 0,
       amount: data.amount || 0,
-      color: system === 'rpt' ? '#4F46E5' : 
-             system === 'business' ? '#10B981' : 
-             system === 'market' ? '#F59E0B' : 
-             system === 'market_rent' ? '#FBBF24' : '#6B7280'
+      color: system === 'rpt' ? COLORS.indigo : 
+             system === 'business' ? COLORS.success : 
+             system === 'market' ? COLORS.warning : 
+             system === 'market_rent' ? '#F59E0B' : COLORS.secondary
     }));
   };
 
@@ -376,10 +483,11 @@ export default function DigiDashboard() {
 
   if (loading && payments.length === 0) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-600">Loading Digital Payment Dashboard...</p>
-        <p className="text-sm text-gray-400 mt-2">Fetching payment data...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 mx-auto mb-4" style={{ borderColor: COLORS.primary }}></div>
+          <p style={{ color: COLORS.dark }}>Loading Digital Payment Dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -387,52 +495,45 @@ export default function DigiDashboard() {
   const displayStats = stats || getExpectedStats();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                  <CloudIcon className="w-6 h-6 text-white" />
-                </div>
-                <span>Digital Payment Dashboard</span>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Digital Payment Gateway
               </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{dateRange.startDate} to {dateRange.endDate}</span>
-                </div>
-                <span className="text-gray-300">•</span>
-                <div className="flex items-center gap-1">
-                  <ZapIcon className="w-4 h-4 text-green-500" />
-                  <span className="text-green-600 font-medium">Live Data</span>
-                </div>
+              <div className="flex items-center gap-2 text-sm" style={{ color: COLORS.secondary }}>
+                <CloudIcon className="w-4 h-4" />
+                <span>Real-time Payment Dashboard • {dateRange.startDate} to {dateRange.endDate}</span>
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex gap-2 bg-white border border-gray-300 rounded-lg p-1">
+            <div className="flex gap-3">
+              <div className="flex border rounded-lg" style={{ borderColor: COLORS.secondary }}>
                 <input
                   type="date"
                   value={dateRange.startDate}
                   onChange={(e) => handleDateChange('startDate', e.target.value)}
                   className="px-3 py-2 text-sm border-0 focus:ring-0 focus:outline-none"
+                  style={{ color: COLORS.dark }}
                 />
-                <span className="self-center text-gray-400">to</span>
+                <span className="self-center px-2" style={{ color: COLORS.secondary }}>to</span>
                 <input
                   type="date"
                   value={dateRange.endDate}
                   onChange={(e) => handleDateChange('endDate', e.target.value)}
                   className="px-3 py-2 text-sm border-0 focus:ring-0 focus:outline-none"
+                  style={{ color: COLORS.dark }}
                 />
               </div>
               
               <button
                 onClick={exportToExcel}
                 disabled={exportLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 shadow-sm"
+                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
               >
                 {exportLoading ? (
                   <>
@@ -449,7 +550,8 @@ export default function DigiDashboard() {
               
               <button
                 onClick={fetchAllData}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 shadow-sm"
+                className="px-4 py-2 rounded-lg flex items-center gap-2 border transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
@@ -458,15 +560,19 @@ export default function DigiDashboard() {
           </div>
           
           {/* Navigation Tabs */}
-          <div className="mt-6 border-b border-gray-200">
+          <div className="mt-6 border-b" style={{ borderColor: COLORS.secondary }}>
             <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'overview'
-                    ? 'border-blue-600 text-blue-600'
+                    ? `border-${COLORS.primary} text-${COLORS.primary}`
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                style={{ 
+                  borderBottomColor: activeTab === 'overview' ? COLORS.primary : 'transparent',
+                  color: activeTab === 'overview' ? COLORS.primary : COLORS.secondary
+                }}
               >
                 <div className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
@@ -478,9 +584,13 @@ export default function DigiDashboard() {
                 onClick={() => setActiveTab('transactions')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'transactions'
-                    ? 'border-blue-600 text-blue-600'
+                    ? `border-${COLORS.primary} text-${COLORS.primary}`
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                style={{ 
+                  borderBottomColor: activeTab === 'transactions' ? COLORS.primary : 'transparent',
+                  color: activeTab === 'transactions' ? COLORS.primary : COLORS.secondary
+                }}
               >
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4" />
@@ -492,9 +602,13 @@ export default function DigiDashboard() {
                 onClick={() => setActiveTab('analytics')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'analytics'
-                    ? 'border-blue-600 text-blue-600'
+                    ? `border-${COLORS.primary} text-${COLORS.primary}`
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
+                style={{ 
+                  borderBottomColor: activeTab === 'analytics' ? COLORS.primary : 'transparent',
+                  color: activeTab === 'analytics' ? COLORS.primary : COLORS.secondary
+                }}
               >
                 <div className="flex items-center gap-2">
                   <TrendingUpIcon2 className="w-4 h-4" />
@@ -514,233 +628,221 @@ export default function DigiDashboard() {
             {/* TOP SUMMARY METRICS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Total Amount */}
-              <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl">
-                    <CircleDollarSign className="w-7 h-7 text-blue-600" />
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                    <Wallet2 className="w-5 h-5" style={{ color: COLORS.primary }} />
                   </div>
-                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                    TOTAL COLLECTION
-                  </span>
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>TOTAL COLLECTION</p>
+                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.total_amount)}</p>
+                  </div>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  {formatCurrency(displayStats.total_amount)}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Total digital payments collected
-                </p>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-green-600">₱164K in January 2026</span>
+                <div className="text-xs mt-2" style={{ color: COLORS.success }}>
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>₱164K in January 2026</span>
+                  </div>
                 </div>
               </div>
               
               {/* Total Transactions */}
-              <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl">
-                    <FileText className="w-7 h-7 text-purple-600" />
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                    <FileText className="w-5 h-5" style={{ color: COLORS.success }} />
                   </div>
-                  <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
-                    TRANSACTIONS
-                  </span>
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>TRANSACTIONS</p>
+                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatNumber(displayStats.total_transactions)}</p>
+                  </div>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  {formatNumber(displayStats.total_transactions)}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Successful digital payments
-                </p>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-green-600">35 successful • 1 failed</span>
+                <div className="text-xs mt-2" style={{ color: COLORS.dark }}>
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" style={{ color: COLORS.success }} />
+                    <span>35 successful • 1 failed</span>
+                  </div>
                 </div>
               </div>
               
               {/* Success Rate */}
-              <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-r from-green-100 to-green-200 rounded-xl">
-                    <TargetIcon className="w-7 h-7 text-green-600" />
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                    <TargetIcon className="w-5 h-5" style={{ color: COLORS.warning }} />
                   </div>
-                  <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                    SUCCESS RATE
-                  </span>
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>SUCCESS RATE</p>
+                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{displayStats.success_rate || 0}%</p>
+                  </div>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  {displayStats.success_rate || 0}%
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Payment completion rate
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full h-2 rounded-full mt-2" style={{ backgroundColor: `${COLORS.secondary}30` }}>
                   <div 
-                    className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full" 
-                    style={{ width: `${displayStats.success_rate || 0}%` }}
+                    className="h-full rounded-full"
+                    style={{ 
+                      width: `${displayStats.success_rate || 0}%`,
+                      backgroundColor: COLORS.warning
+                    }}
                   ></div>
                 </div>
               </div>
               
               {/* Average Transaction */}
-              <div className="bg-gradient-to-br from-orange-50 to-white border border-orange-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-r from-orange-100 to-orange-200 rounded-xl">
-                    <TrendingUpIcon className="w-7 h-7 text-orange-600" />
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                    <TrendingUpIcon className="w-5 h-5" style={{ color: COLORS.info }} />
                   </div>
-                  <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
-                    AVERAGE TX
-                  </span>
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>AVERAGE TX</p>
+                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.average_amount)}</p>
+                  </div>
                 </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  {formatCurrency(displayStats.average_amount)}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Per transaction average
-                </p>
-                <div className="flex items-center gap-2">
-                  <ArrowUpRight className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm text-orange-600">₱4.6K average per payment</span>
+                <div className="text-xs mt-2" style={{ color: COLORS.info }}>
+                  <div className="flex items-center gap-1">
+                    <ArrowUpRight2 className="w-3 h-3" />
+                    <span>₱4.6K average per payment</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* REVENUE SYSTEMS BREAKDOWN */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  Revenue Systems Breakdown
-                </h3>
-                <span className="text-sm text-gray-500">
-                  4 Connected Systems
-                </span>
+                <h3 className="font-bold" style={{ color: COLORS.dark }}>Revenue Systems Breakdown</h3>
+                <span className="text-sm" style={{ color: COLORS.secondary }}>4 Connected Systems</span>
               </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* System Details */}
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-4 text-sm uppercase tracking-wider">DETAILED BREAKDOWN</h4>
+                  <h4 className="text-xs font-medium mb-4 uppercase tracking-wider" style={{ color: COLORS.secondary }}>DETAILED BREAKDOWN</h4>
                   <div className="space-y-4">
                     {/* RPT */}
-                    <div className="p-4 border border-indigo-100 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                    <div className="p-4 border rounded-xl" 
+                         style={{ 
+                           borderColor: `${COLORS.indigo}30`, 
+                           backgroundColor: `${COLORS.indigo}10` 
+                         }}>
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg">
-                            <Home className="w-5 h-5 text-indigo-600" />
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
+                            <Home className="w-4 h-4" style={{ color: COLORS.indigo }} />
                           </div>
                           <div>
-                            <h5 className="font-bold text-gray-900">RPT (Real Property Tax)</h5>
-                            <p className="text-sm text-gray-600">Real Property Tax Collection</p>
+                            <h5 className="font-bold" style={{ color: COLORS.dark }}>RPT (Real Property Tax)</h5>
+                            <p className="text-sm" style={{ color: COLORS.secondary }}>Real Property Tax Collection</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xl font-bold text-gray-900">{formatCurrency(displayStats.by_system?.rpt?.amount || 0)}</div>
-                          <div className="text-sm text-indigo-600 font-medium">
-                            {(displayStats.by_system?.rpt?.amount / displayStats.total_amount * 100).toFixed(1)}% of total
+                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.rpt?.amount || 0)}</div>
+                          <div className="text-xs font-medium" style={{ color: COLORS.indigo }}>
+                            {displayStats.by_system?.rpt?.amount ? 
+                              ((displayStats.by_system.rpt.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
                           </div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: COLORS.secondary }}>
                         <div className="flex justify-between mb-1">
                           <span>Transactions:</span>
                           <span className="font-medium">{displayStats.by_system?.rpt?.count || 0} payments</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Includes:</span>
-                          <span className="font-medium">Annual (₱47,520) + Quarterly (₱9,600 each)</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* Business */}
-                    <div className="p-4 border border-emerald-100 rounded-xl bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                    <div className="p-4 border rounded-xl" 
+                         style={{ 
+                           borderColor: `${COLORS.success}30`, 
+                           backgroundColor: `${COLORS.success}10` 
+                         }}>
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg">
-                            <Building className="w-5 h-5 text-emerald-600" />
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
+                            <Building className="w-4 h-4" style={{ color: COLORS.success }} />
                           </div>
                           <div>
-                            <h5 className="font-bold text-gray-900">Business Tax</h5>
-                            <p className="text-sm text-gray-600">Business Tax Collection</p>
+                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Business Tax</h5>
+                            <p className="text-sm" style={{ color: COLORS.secondary }}>Business Tax Collection</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xl font-bold text-gray-900">{formatCurrency(displayStats.by_system?.business?.amount || 0)}</div>
-                          <div className="text-sm text-emerald-600 font-medium">
-                            {(displayStats.by_system?.business?.amount / displayStats.total_amount * 100).toFixed(1)}% of total
+                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.business?.amount || 0)}</div>
+                          <div className="text-xs font-medium" style={{ color: COLORS.success }}>
+                            {displayStats.by_system?.business?.amount ? 
+                              ((displayStats.by_system.business.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
                           </div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: COLORS.secondary }}>
                         <div className="flex justify-between mb-1">
                           <span>Transactions:</span>
                           <span className="font-medium">{displayStats.by_system?.business?.count || 0} payments</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Includes:</span>
-                          <span className="font-medium">Quarterly + Annual business taxes</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* Market Rent */}
-                    <div className="p-4 border border-amber-100 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors">
+                    <div className="p-4 border rounded-xl" 
+                         style={{ 
+                           borderColor: '#F59E0B30', 
+                           backgroundColor: '#F59E0B10' 
+                         }}>
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg">
-                            <CalendarIcon className="w-5 h-5 text-amber-600" />
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
+                            <CalendarIcon className="w-4 h-4" style={{ color: '#F59E0B' }} />
                           </div>
                           <div>
-                            <h5 className="font-bold text-gray-900">Market Rent</h5>
-                            <p className="text-sm text-gray-600">Monthly Stall Rentals</p>
+                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Market Rent</h5>
+                            <p className="text-sm" style={{ color: COLORS.secondary }}>Monthly Stall Rentals</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xl font-bold text-gray-900">{formatCurrency(displayStats.by_system?.market_rent?.amount || 0)}</div>
-                          <div className="text-sm text-amber-600 font-medium">
-                            {(displayStats.by_system?.market_rent?.amount / displayStats.total_amount * 100).toFixed(1)}% of total
+                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.market_rent?.amount || 0)}</div>
+                          <div className="text-xs font-medium" style={{ color: '#F59E0B' }}>
+                            {displayStats.by_system?.market_rent?.amount ? 
+                              ((displayStats.by_system.market_rent.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
                           </div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: COLORS.secondary }}>
                         <div className="flex justify-between mb-1">
                           <span>Transactions:</span>
                           <span className="font-medium">{displayStats.by_system?.market_rent?.count || 0} monthly rents</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Monthly Rate:</span>
-                          <span className="font-medium">₱1,000 per stall (12 months paid)</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* Market Stall */}
-                    <div className="p-4 border border-yellow-100 rounded-xl bg-yellow-50 hover:bg-yellow-100 transition-colors">
+                    <div className="p-4 border rounded-xl" 
+                         style={{ 
+                           borderColor: `${COLORS.warning}30`, 
+                           backgroundColor: `${COLORS.warning}10` 
+                         }}>
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg">
-                            <Store className="w-5 h-5 text-yellow-600" />
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
+                            <Store className="w-4 h-4" style={{ color: COLORS.warning }} />
                           </div>
                           <div>
-                            <h5 className="font-bold text-gray-900">Market Stall Rights</h5>
-                            <p className="text-sm text-gray-600">Stall Rental Fees</p>
+                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Market Stall Rights</h5>
+                            <p className="text-sm" style={{ color: COLORS.secondary }}>Stall Rental Fees</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-xl font-bold text-gray-900">{formatCurrency(displayStats.by_system?.market?.amount || 0)}</div>
-                          <div className="text-sm text-yellow-600 font-medium">
-                            {(displayStats.by_system?.market?.amount / displayStats.total_amount * 100).toFixed(1)}% of total
+                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.market?.amount || 0)}</div>
+                          <div className="text-xs font-medium" style={{ color: COLORS.warning }}>
+                            {displayStats.by_system?.market?.amount ? 
+                              ((displayStats.by_system.market.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
                           </div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: COLORS.secondary }}>
                         <div className="flex justify-between mb-1">
                           <span>Transactions:</span>
                           <span className="font-medium">{displayStats.by_system?.market?.count || 0} stall fees</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Fee:</span>
-                          <span className="font-medium">₱7,000 per stall (C Class)</span>
                         </div>
                       </div>
                     </div>
@@ -749,7 +851,7 @@ export default function DigiDashboard() {
                 
                 {/* System Chart */}
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-4 text-sm uppercase tracking-wider">Distribution by System</h4>
+                  <h4 className="text-xs font-medium mb-4 uppercase tracking-wider" style={{ color: COLORS.secondary }}>DISTRIBUTION BY SYSTEM</h4>
                   <div className="h-[400px]">
                     {getSystemChartData().length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
@@ -780,7 +882,7 @@ export default function DigiDashboard() {
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                         <PieChartIcon className="w-12 h-12 mb-2" />
                         <p>No system data available</p>
                       </div>
@@ -791,32 +893,33 @@ export default function DigiDashboard() {
             </div>
 
             {/* PAYMENT METHOD OVERVIEW */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 text-lg mb-6 flex items-center gap-2">
-                <SmartphoneIcon className="w-5 h-5 text-blue-600" />
-                Payment Method Overview
-              </h3>
+            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+              <h3 className="font-bold mb-6" style={{ color: COLORS.dark }}>Payment Method Overview</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* GCash */}
-                <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl">
+                <div className="p-6 border rounded-xl" 
+                     style={{ 
+                       borderColor: `${COLORS.primary}30`,
+                       backgroundColor: `${COLORS.primary}10` 
+                     }}>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <SmartphoneIcon className="w-6 h-6 text-blue-600" />
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
+                      <SmartphoneIcon className="w-6 h-6" style={{ color: COLORS.primary }} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">GCash</h4>
-                      <p className="text-sm text-gray-600">Mobile Wallet</p>
+                      <h4 className="font-bold" style={{ color: COLORS.dark }}>GCash</h4>
+                      <p className="text-sm" style={{ color: COLORS.secondary }}>Mobile Wallet</p>
                     </div>
                   </div>
                   <div className="mb-4">
-                    <div className="text-3xl font-bold text-gray-900">{formatNumber(displayStats.gcash_count || 0)}</div>
-                    <p className="text-sm text-gray-600">Total Transactions</p>
+                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.gcash_count || 0)}</div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm" style={{ color: COLORS.dark }}>
                     <div className="flex justify-between">
                       <span>Market Share:</span>
-                      <span className="font-bold text-blue-600">100%</span>
+                      <span className="font-bold" style={{ color: COLORS.primary }}>100%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Usage:</span>
@@ -826,24 +929,28 @@ export default function DigiDashboard() {
                 </div>
                 
                 {/* Maya */}
-                <div className="p-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl">
+                <div className="p-6 border rounded-xl" 
+                     style={{ 
+                       borderColor: `${COLORS.purple}30`,
+                       backgroundColor: `${COLORS.purple}10` 
+                     }}>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <WalletIcon className="w-6 h-6 text-purple-600" />
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
+                      <WalletIcon className="w-6 h-6" style={{ color: COLORS.purple }} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">Maya</h4>
-                      <p className="text-sm text-gray-600">Digital Wallet</p>
+                      <h4 className="font-bold" style={{ color: COLORS.dark }}>Maya</h4>
+                      <p className="text-sm" style={{ color: COLORS.secondary }}>Digital Wallet</p>
                     </div>
                   </div>
                   <div className="mb-4">
-                    <div className="text-3xl font-bold text-gray-900">{formatNumber(displayStats.maya_count || 0)}</div>
-                    <p className="text-sm text-gray-600">Total Transactions</p>
+                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.maya_count || 0)}</div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm" style={{ color: COLORS.dark }}>
                     <div className="flex justify-between">
                       <span>Market Share:</span>
-                      <span className="font-bold text-purple-600">0%</span>
+                      <span className="font-bold" style={{ color: COLORS.purple }}>0%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Status:</span>
@@ -853,24 +960,28 @@ export default function DigiDashboard() {
                 </div>
                 
                 {/* Card */}
-                <div className="p-6 bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl">
+                <div className="p-6 border rounded-xl" 
+                     style={{ 
+                       borderColor: `${COLORS.info}30`,
+                       backgroundColor: `${COLORS.info}10` 
+                     }}>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <CreditCardIcon className="w-6 h-6 text-orange-600" />
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
+                      <CreditCardIcon className="w-6 h-6" style={{ color: COLORS.info }} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">Card</h4>
-                      <p className="text-sm text-gray-600">Credit/Debit Cards</p>
+                      <h4 className="font-bold" style={{ color: COLORS.dark }}>Card</h4>
+                      <p className="text-sm" style={{ color: COLORS.secondary }}>Credit/Debit Cards</p>
                     </div>
                   </div>
                   <div className="mb-4">
-                    <div className="text-3xl font-bold text-gray-900">{formatNumber(displayStats.card_count || 0)}</div>
-                    <p className="text-sm text-gray-600">Total Transactions</p>
+                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.card_count || 0)}</div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm" style={{ color: COLORS.dark }}>
                     <div className="flex justify-between">
                       <span>Market Share:</span>
-                      <span className="font-bold text-orange-600">0%</span>
+                      <span className="font-bold" style={{ color: COLORS.info }}>0%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Status:</span>
@@ -885,12 +996,12 @@ export default function DigiDashboard() {
 
         {/* TRANSACTIONS TAB */}
         {activeTab === 'transactions' && (
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: COLORS.secondary }}>
+            <div className="p-6 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}10` }}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h3 className="font-bold text-gray-900 text-lg">Payment Transactions</h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <h3 className="font-bold" style={{ color: COLORS.dark }}>Payment Transactions</h3>
+                  <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                     Showing {payments.length} transactions • Total: {formatCurrency(displayStats.total_amount)}
                   </p>
                 </div>
@@ -901,15 +1012,17 @@ export default function DigiDashboard() {
                       placeholder="Search payments..."
                       value={filters.search}
                       onChange={(e) => handleFilterChange('search', e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="pl-10 pr-4 py-2 border rounded-lg text-sm"
+                      style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                     />
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                      <Search className="w-4 h-4 text-gray-400" />
+                      <Search className="w-4 h-4" style={{ color: COLORS.secondary }} />
                     </div>
                   </div>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                    className="px-4 py-2 border rounded-lg flex items-center gap-2"
+                    style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                   >
                     <Filter className="w-4 h-4" />
                     Filters
@@ -920,16 +1033,21 @@ export default function DigiDashboard() {
               
               {/* Filters Panel */}
               {showFilters && (
-                <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="mt-4 p-4 border rounded-lg" 
+                     style={{ 
+                       borderColor: COLORS.secondary, 
+                       backgroundColor: `${COLORS.secondary}10` 
+                     }}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
                         Payment Method
                       </label>
                       <select
                         value={filters.payment_method}
                         onChange={(e) => handleFilterChange('payment_method', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                       >
                         <option value="all">All Methods</option>
                         <option value="gcash">GCash</option>
@@ -939,13 +1057,14 @@ export default function DigiDashboard() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
                         Payment Status
                       </label>
                       <select
                         value={filters.payment_status}
                         onChange={(e) => handleFilterChange('payment_status', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                       >
                         <option value="all">All Statuses</option>
                         <option value="paid">Paid</option>
@@ -955,13 +1074,14 @@ export default function DigiDashboard() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
                         Client System
                       </label>
                       <select
                         value={filters.client_system}
                         onChange={(e) => handleFilterChange('client_system', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                       >
                         <option value="all">All Systems</option>
                         <option value="rpt">RPT</option>
@@ -976,64 +1096,65 @@ export default function DigiDashboard() {
             </div>
             
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${COLORS.secondary}`, backgroundColor: `${COLORS.secondary}10` }}>
+                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
                       Payment Details
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
                       Amount
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
                       Method & Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
                       Date & Time
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {payments.length > 0 ? (
                     payments.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
+                      <tr key={payment.id} className="hover:bg-gray-50 transition-colors" 
+                          style={{ borderBottom: `1px solid ${COLORS.secondary}30` }}>
+                        <td className="p-4">
+                          <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               {getSystemBadge(payment.client_system)}
-                              <span className="text-sm font-medium text-gray-900">
+                              <span className="font-medium" style={{ color: COLORS.dark }}>
                                 {payment.payment_id}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{payment.purpose}</p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <p className="text-sm" style={{ color: COLORS.secondary }}>{payment.purpose}</p>
+                            <div className="flex items-center gap-2 text-xs" style={{ color: COLORS.secondary }}>
                               <Receipt className="w-3 h-3" />
                               {payment.receipt_number || 'No receipt'}
                               <span className="mx-1">•</span>
                               <Smartphone className="w-3 h-3" />
                               {payment.phone}
                             </div>
-                            <p className="text-xs text-gray-400">Ref: {payment.client_reference}</p>
+                            <p className="text-xs" style={{ color: COLORS.secondary }}>Ref: {payment.client_reference}</p>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-lg font-bold text-gray-900">
+                        <td className="p-4">
+                          <div className="font-bold" style={{ color: COLORS.dark }}>
                             {formatCurrency(payment.amount)}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="p-4">
                           <div className="space-y-2">
                             <div>{getMethodBadge(payment.payment_method)}</div>
                             <div>{getStatusBadge(payment.payment_status)}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="p-4">
                           <div className="space-y-1">
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm" style={{ color: COLORS.dark }}>
                               {formatDate(payment.created_at)}
                             </div>
                             {payment.paid_at && (
-                              <div className="text-xs text-green-600 flex items-center gap-1">
+                              <div className="text-xs flex items-center gap-1" style={{ color: COLORS.success }}>
                                 <CheckCircle className="w-3 h-3" />
                                 Paid: {payment.paid_at.split(' ')[0]}
                               </div>
@@ -1044,9 +1165,9 @@ export default function DigiDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan="4" className="px-6 py-12 text-center" style={{ color: COLORS.secondary }}>
                         <div className="flex flex-col items-center">
-                          <Database className="w-12 h-12 text-gray-300 mb-2" />
+                          <Database className="w-12 h-12 mb-2" />
                           <p>No payment transactions found</p>
                           <p className="text-sm mt-1">Try adjusting your filters or date range</p>
                         </div>
@@ -1065,28 +1186,31 @@ export default function DigiDashboard() {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Daily Trend Chart */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                    <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
                     Daily Transaction Trend
                   </h3>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                  <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: `${COLORS.secondary}15` }}>
                     <button
                       onClick={() => setChartType('bar')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'bar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-900'}`}
+                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'bar' ? 'bg-white' : ''}`}
+                      style={{ color: chartType === 'bar' ? COLORS.dark : COLORS.secondary }}
                     >
                       Bar
                     </button>
                     <button
                       onClick={() => setChartType('line')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'line' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-900'}`}
+                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'line' ? 'bg-white' : ''}`}
+                      style={{ color: chartType === 'line' ? COLORS.dark : COLORS.secondary }}
                     >
                       Line
                     </button>
                     <button
                       onClick={() => setChartType('area')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'area' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-900'}`}
+                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'area' ? 'bg-white' : ''}`}
+                      style={{ color: chartType === 'area' ? COLORS.dark : COLORS.secondary }}
                     >
                       Area
                     </button>
@@ -1109,7 +1233,7 @@ export default function DigiDashboard() {
                             }}
                           />
                           <Legend />
-                          <Bar dataKey="amount" fill="#3B82F6" name="Amount" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="amount" fill={COLORS.primary} name="Amount" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       ) : chartType === 'line' ? (
                         <LineChart data={getDailyTrendData()}>
@@ -1125,8 +1249,8 @@ export default function DigiDashboard() {
                             }}
                           />
                           <Legend />
-                          <Line type="monotone" dataKey="amount" stroke="#3B82F6" name="Amount" strokeWidth={2} dot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="count" stroke="#10B981" name="Count" strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="amount" stroke={COLORS.primary} name="Amount" strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="count" stroke={COLORS.success} name="Count" strokeWidth={2} dot={{ r: 4 }} />
                         </LineChart>
                       ) : (
                         <AreaChart data={getDailyTrendData()}>
@@ -1142,12 +1266,12 @@ export default function DigiDashboard() {
                             }}
                           />
                           <Legend />
-                          <Area type="monotone" dataKey="amount" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} name="Amount" />
+                          <Area type="monotone" dataKey="amount" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.3} name="Amount" />
                         </AreaChart>
                       )}
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                       <LineChartIcon className="w-12 h-12 mb-2" />
                       <p>No transaction data available</p>
                     </div>
@@ -1156,10 +1280,10 @@ export default function DigiDashboard() {
               </div>
 
               {/* Payment Methods Distribution */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                    <PieChartIcon className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-bold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                    <PieChartIcon className="w-5 h-5" style={{ color: COLORS.purple }} />
                     Payment Methods Distribution
                   </h3>
                 </div>
@@ -1188,7 +1312,7 @@ export default function DigiDashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                       <PieChartIcon className="w-12 h-12 mb-2" />
                       <p>No payment method data available</p>
                     </div>
@@ -1198,24 +1322,24 @@ export default function DigiDashboard() {
             </div>
 
             {/* Summary Stats */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 text-lg mb-6">Digital Payment Summary</h3>
+            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+              <h3 className="font-bold mb-6" style={{ color: COLORS.dark }}>Digital Payment Summary</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <div className="text-sm text-blue-600 font-medium mb-1">Period</div>
-                  <div className="text-lg font-bold text-gray-900">January 2026</div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.primary}10`, border: `1px solid ${COLORS.primary}30` }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.primary }}>Period</div>
+                  <div className="font-bold" style={{ color: COLORS.dark }}>January 2026</div>
                 </div>
-                <div className="p-4 bg-green-50 rounded-xl">
-                  <div className="text-sm text-green-600 font-medium mb-1">Peak Day</div>
-                  <div className="text-lg font-bold text-gray-900">Jan 19 (₱93,614)</div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.success}10`, border: `1px solid ${COLORS.success}30` }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.success }}>Peak Day</div>
+                  <div className="font-bold" style={{ color: COLORS.dark }}>Jan 19 ({formatCurrency(93614)})</div>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <div className="text-sm text-purple-600 font-medium mb-1">Top System</div>
-                  <div className="text-lg font-bold text-gray-900">RPT (₱88,320)</div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.indigo}10`, border: `1px solid ${COLORS.indigo}30` }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.indigo }}>Top System</div>
+                  <div className="font-bold" style={{ color: COLORS.dark }}>RPT ({formatCurrency(88320)})</div>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-xl">
-                  <div className="text-sm text-amber-600 font-medium mb-1">Top Payment</div>
-                  <div className="text-lg font-bold text-gray-900">₱52,800 (RPT Annual)</div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.warning}10`, border: `1px solid ${COLORS.warning}30` }}>
+                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.warning }}>Top Payment</div>
+                  <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(52800)} (RPT Annual)</div>
                 </div>
               </div>
             </div>
@@ -1223,10 +1347,10 @@ export default function DigiDashboard() {
         )}
 
         {/* Footer */}
-        <div className="text-center text-sm text-gray-500 pt-6 border-t border-gray-200">
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
           <p>Digital Payment Gateway Dashboard • {formatCurrency(displayStats.total_amount)} collected from {formatNumber(displayStats.total_transactions)} transactions</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Last updated: {new Date().toLocaleTimeString()} • API: {API_BASE}
+          <p className="text-xs mt-1">
+            Last updated: {new Date().toLocaleTimeString()}
           </p>
         </div>
       </div>

@@ -105,9 +105,6 @@ function getDashboardData($pdo, $year) {
         // 13. Available Years
         $data['available_years'] = getAvailableYearsFromData($pdo);
         
-        // 14. Pending applications count
-        $data['pending_applications'] = $data['business_stats']['pending_applications'] ?? 0;
-        
         echo json_encode([
             'success' => true,
             'data' => $data,
@@ -124,26 +121,26 @@ function getBusinessStatistics($pdo) {
     $stats = [];
     
     try {
-        // Total businesses - include all non-deleted statuses
-        $query = "SELECT COUNT(*) as total FROM business_permits WHERE status != 'Deleted'";
+        // Total businesses - check permit_status instead of status
+        $query = "SELECT COUNT(*) as total FROM business_permits WHERE permit_status != 'EXPIRED'";
         $stmt = $pdo->query($query);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['total_businesses'] = $result['total'] ?? 0;
         
-        // Active businesses - include both Active and Approved
-        $query = "SELECT COUNT(*) as active FROM business_permits WHERE status IN ('Active', 'Approved')";
+        // Active businesses - check permit_status
+        $query = "SELECT COUNT(*) as active FROM business_permits WHERE permit_status IN ('ACTIVE', 'APPROVED')";
         $stmt = $pdo->query($query);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['active_businesses'] = $result['active'] ?? 0;
         
         // Pending applications
-        $query = "SELECT COUNT(*) as pending FROM business_permits WHERE status = 'Pending'";
+        $query = "SELECT COUNT(*) as pending FROM business_permits WHERE permit_status = 'PENDING'";
         $stmt = $pdo->query($query);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['pending_applications'] = $result['pending'] ?? 0;
         
-        // Businesses by type - include both Active and Approved
-        $query = "SELECT business_type, COUNT(*) as count FROM business_permits WHERE status IN ('Active', 'Approved') GROUP BY business_type";
+        // Businesses by type - use business_nature column
+        $query = "SELECT business_nature as business_type, COUNT(*) as count FROM business_permits WHERE permit_status IN ('ACTIVE', 'APPROVED') GROUP BY business_nature";
         $stmt = $pdo->query($query);
         $businessTypes = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         
@@ -155,8 +152,8 @@ function getBusinessStatistics($pdo) {
         
         $stats['business_by_type'] = $businessTypes;
         
-        // Total capital investment - include both Active and Approved
-        $query = "SELECT SUM(taxable_amount) as total_capital FROM business_permits WHERE status IN ('Active', 'Approved')";
+        // Total capital investment
+        $query = "SELECT SUM(capital_investment) as total_capital FROM business_permits WHERE permit_status IN ('ACTIVE', 'APPROVED')";
         $stmt = $pdo->query($query);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['total_capital_investment'] = floatval($result['total_capital'] ?? 0);
@@ -179,27 +176,15 @@ function getTaxStatistics($pdo, $year) {
     $stats = [];
     
     try {
-        // Annual tax assessment - include both Active and Approved
+        // Annual tax assessment
         $query = "SELECT 
-                    SUM(b.total_tax) as total_annual_tax,
-                    SUM(b.tax_amount) as total_tax_amount,
-                    SUM(b.regulatory_fees) as total_fees
-                  FROM business_permits b
-                  WHERE b.status IN ('Active', 'Approved')";
+                    SUM(total_tax) as total_annual_tax,
+                    SUM(tax_amount) as total_tax_amount,
+                    SUM(regulatory_fees) as total_fees
+                  FROM business_permits 
+                  WHERE permit_status IN ('ACTIVE', 'APPROVED')";
         $stmt = $pdo->query($query);
         $annual = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // If no annual tax from approved businesses, use the one business in your database
-        if (floatval($annual['total_annual_tax'] ?? 0) == 0) {
-            $query = "SELECT 
-                        SUM(total_tax) as total_annual_tax,
-                        SUM(tax_amount) as total_tax_amount,
-                        SUM(regulatory_fees) as total_fees
-                      FROM business_permits b
-                      WHERE b.status != 'Deleted'";
-            $stmt = $pdo->query($query);
-            $annual = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
         
         $stats['annual'] = [
             'total_annual_tax' => floatval($annual['total_annual_tax'] ?? 0),
@@ -308,16 +293,16 @@ function getTopTaxpayers($pdo, $year, $limit = 10) {
     try {
         $query = "SELECT 
                     bp.business_name,
-                    bp.business_type,
-                    bp.business_barangay as barangay,
-                    bp.full_name as owner_name,
+                    bp.business_nature as business_type,
+                    bp.business_barangay,
+                    bp.owner_full_name as owner_name,
                     SUM(bqt.total_quarterly_tax) as total_tax_paid,
                     COUNT(bqt.id) as quarters_paid,
                     MAX(bqt.payment_date) as last_payment
                   FROM business_permits bp
                   LEFT JOIN business_quarterly_taxes bqt ON bp.id = bqt.business_permit_id
                   WHERE bqt.payment_status = 'paid' AND bqt.year = :year
-                  AND bp.status IN ('Active', 'Approved')
+                  AND bp.permit_status IN ('ACTIVE', 'APPROVED')
                   GROUP BY bp.id
                   ORDER BY total_tax_paid DESC
                   LIMIT :limit";
@@ -349,7 +334,7 @@ function getBarangayCollection($pdo, $year) {
                   FROM business_permits bp
                   LEFT JOIN business_quarterly_taxes bqt ON bp.id = bqt.business_permit_id
                   WHERE bqt.year = :year
-                  AND bp.status IN ('Active', 'Approved')
+                  AND bp.permit_status IN ('ACTIVE', 'APPROVED')
                   GROUP BY bp.business_barangay
                   ORDER BY total_collection DESC";
         
@@ -372,15 +357,14 @@ function getOverdueTaxes($pdo, $year, $limit = 15) {
         $query = "SELECT 
                     bqt.*,
                     bp.business_name,
-                    bp.business_permit_id,
-                    bp.full_name as owner_name,
-                    bp.personal_contact,
-                    bp.business_barangay as barangay,
+                    bp.owner_full_name as owner_name,
+                    bp.contact_number,
+                    bp.business_barangay,
                     DATEDIFF(CURDATE(), bqt.due_date) as days_overdue
                   FROM business_quarterly_taxes bqt
                   JOIN business_permits bp ON bqt.business_permit_id = bp.id
                   WHERE bqt.payment_status = 'overdue' AND bqt.year = :year
-                  AND bp.status IN ('Active', 'Approved')
+                  AND bp.permit_status IN ('ACTIVE', 'APPROVED')
                   ORDER BY bqt.due_date ASC
                   LIMIT :limit";
         
@@ -406,13 +390,13 @@ function getRecentPayments($pdo, $limit = 10) {
         $query = "SELECT 
                     bqt.*,
                     bp.business_name,
-                    bp.business_permit_id,
-                    bp.full_name as owner_name,
-                    bp.business_barangay as barangay
+                    bp.owner_full_name as owner_name,
+                    bp.business_barangay
                   FROM business_quarterly_taxes bqt
                   JOIN business_permits bp ON bqt.business_permit_id = bp.id
                   WHERE bqt.payment_date IS NOT NULL
-                  AND bp.status IN ('Active', 'Approved')
+                  AND bqt.payment_status = 'paid'
+                  AND bp.permit_status IN ('ACTIVE', 'APPROVED')
                   ORDER BY bqt.payment_date DESC
                   LIMIT :limit";
         

@@ -37,6 +37,20 @@ const getApiBase = () => {
 
 const API_BASE = getApiBase();
 
+// Custom colors
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
+
+const CHART_COLORS = ['#4a90e2', '#9aa5b1', '#4caf50', '#ff9800', '#2196f3', '#f44336', '#673ab7'];
+
 export default function BusinessTaxDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,7 +60,7 @@ export default function BusinessTaxDashboard() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState([]);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'charts'
+  const [viewMode, setViewMode] = useState('cards');
   const [currentQuarter] = useState(() => {
     const month = new Date().getMonth() + 1;
     if (month >= 1 && month <= 3) return 'Q1';
@@ -158,7 +172,7 @@ export default function BusinessTaxDashboard() {
       return `₱${(numAmount / 1000000000).toFixed(2)}B`;
     }
     if (numAmount >= 1000000) {
-      return `₱${(numAmount / 1000000000).toFixed(2)}M`;
+      return `₱${(numAmount / 1000000).toFixed(2)}M`;
     }
     if (numAmount >= 1000) {
       return `₱${(numAmount / 1000).toFixed(2)}K`;
@@ -180,22 +194,6 @@ export default function BusinessTaxDashboard() {
   const formatPercent = (value) => {
     const parsedValue = safeParseFloat(value);
     return `${parsedValue.toFixed(1)}%`;
-  };
-
-  const getProgressColor = (value) => {
-    const numValue = safeParseFloat(value);
-    if (numValue >= 90) return 'bg-green-500';
-    if (numValue >= 75) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   const exportToExcel = (data, fileName, sheetName = 'Sheet1') => {
@@ -305,7 +303,8 @@ export default function BusinessTaxDashboard() {
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-800 mb-4"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mb-4"
+             style={{ borderColor: COLORS.primary }}></div>
         <p className="text-gray-600">Loading Business Tax Dashboard...</p>
         <p className="text-sm text-gray-400 mt-2">Fetching data for {selectedYear}</p>
       </div>
@@ -315,7 +314,7 @@ export default function BusinessTaxDashboard() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-white">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6" style={{ backgroundColor: COLORS.background }}>
           <div className="flex items-center space-x-3 mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
             <div>
@@ -325,7 +324,8 @@ export default function BusinessTaxDashboard() {
           </div>
           <button 
             onClick={fetchDashboardData}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+            style={{ backgroundColor: COLORS.primary, color: 'white' }}
           >
             <RefreshCw className="w-4 h-4" />
             Try Again
@@ -338,11 +338,12 @@ export default function BusinessTaxDashboard() {
   if (!dashboardData) {
     return (
       <div className="text-center py-12 bg-white">
-        <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <Building className="w-16 h-16 mx-auto mb-4" style={{ color: COLORS.primary }} />
         <p className="text-gray-500">No dashboard data available for {selectedYear}</p>
         <button 
           onClick={fetchDashboardData}
-          className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2 mx-auto"
+          className="mt-4 px-4 py-2 rounded-lg flex items-center gap-2 mx-auto transition-all"
+          style={{ backgroundColor: COLORS.primary, color: 'white' }}
         >
           <RefreshCw className="w-4 h-4" />
           Load Dashboard
@@ -438,16 +439,16 @@ export default function BusinessTaxDashboard() {
     : 'Now';
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header - Clean White Design */}
-      <div className="border-b border-gray-200 bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      {/* Header */}
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
                 Business Tax Collection Dashboard
               </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-500">
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
                 <div className="flex items-center gap-1">
                   <CalendarIcon className="w-4 h-4" />
                   <span>{dataCurrentQuarter || currentQuarter} {selectedYear} • {formattedDate} at {formattedTime}</span>
@@ -460,7 +461,8 @@ export default function BusinessTaxDashboard() {
               <div className="relative">
                 <button
                   onClick={() => setYearDropdownOpen(!yearDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   <CalendarIcon className="w-4 h-4" />
                   <span>Year: {selectedYear}</span>
@@ -468,9 +470,9 @@ export default function BusinessTaxDashboard() {
                 </button>
                 
                 {yearDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50">
                     <div className="py-1 max-h-60 overflow-y-auto">
-                      {available_years.length > 0 ? available_years : availableYears.map(year => (
+                      {(available_years.length > 0 ? available_years : availableYears).map(year => (
                         <button
                           key={year}
                           onClick={() => {
@@ -479,14 +481,16 @@ export default function BusinessTaxDashboard() {
                           }}
                           className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
                             selectedYear === year 
-                              ? 'bg-gray-100 text-gray-900 font-medium' 
+                              ? 'bg-gray-100 font-medium' 
                               : 'text-gray-700'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span>{year}</span>
+                            <span style={{ color: selectedYear === year ? COLORS.primary : COLORS.dark }}>
+                              {year}
+                            </span>
                             {selectedYear === year && (
-                              <CheckCircle className="w-4 h-4 text-gray-600" />
+                              <CheckCircle className="w-4 h-4" style={{ color: COLORS.primary }} />
                             )}
                           </div>
                         </button>
@@ -496,20 +500,20 @@ export default function BusinessTaxDashboard() {
                 )}
               </div>
               
-              {/* Refresh Button */}
               <button
                 onClick={fetchDashboardData}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
               
-              {/* Export Button */}
               <button
                 onClick={exportCompleteDashboardReport}
                 disabled={exportLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
               >
                 {exportLoading ? (
                   <>
@@ -534,9 +538,14 @@ export default function BusinessTaxDashboard() {
                 onClick={() => setSelectedYear(year)}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors border ${
                   selectedYear === year
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ? 'text-white border-gray-900'
+                    : 'border-gray-300 hover:bg-gray-50'
                 }`}
+                style={{
+                  backgroundColor: selectedYear === year ? COLORS.primary : 'transparent',
+                  color: selectedYear === year ? 'white' : COLORS.dark,
+                  borderColor: selectedYear === year ? COLORS.primary : COLORS.secondary
+                }}
               >
                 {year}
               </button>
@@ -547,23 +556,18 @@ export default function BusinessTaxDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Export Options Bar */}
-        {exportLoading && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
-              <span className="text-sm text-blue-600">Preparing Excel export for {selectedYear}...</span>
-            </div>
-          </div>
-        )}
-
-        {/* Export Buttons */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
+        {/* Export Options */}
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: COLORS.secondary }}>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={exportQuarterlyReport}
               disabled={exportLoading || quarterly_analysis.length === 0}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+              style={{ 
+                borderColor: COLORS.secondary, 
+                color: COLORS.dark,
+                backgroundColor: 'white'
+              }}
             >
               <CalendarIcon className="w-4 h-4" />
               Quarterly Report
@@ -571,7 +575,12 @@ export default function BusinessTaxDashboard() {
             <button
               onClick={exportBarangayReport}
               disabled={exportLoading || barangay_collection.length === 0}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+              style={{ 
+                borderColor: COLORS.secondary, 
+                color: COLORS.dark,
+                backgroundColor: 'white'
+              }}
             >
               <MapPin className="w-4 h-4" />
               Barangay Report
@@ -579,7 +588,12 @@ export default function BusinessTaxDashboard() {
             <button
               onClick={exportCompleteDashboardReport}
               disabled={exportLoading}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+              style={{ 
+                borderColor: COLORS.secondary, 
+                color: COLORS.dark,
+                backgroundColor: 'white'
+              }}
             >
               <Database className="w-4 h-4" />
               Complete Report
@@ -590,10 +604,11 @@ export default function BusinessTaxDashboard() {
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Collection Rate Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <PercentIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <PercentIcon className="w-6 h-6" style={{ color: COLORS.primary }} />
               </div>
               <span className={`text-sm px-3 py-1 rounded-full ${
                 effectiveCollectionRate >= 90 ? 'bg-green-100 text-green-800' :
@@ -603,55 +618,57 @@ export default function BusinessTaxDashboard() {
                 {formatPercent(effectiveCollectionRate)}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Collection Rate
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>
               {formatCurrency(overallCollection.collected)}
             </p>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between mb-1">
                 <span>Target:</span>
                 <span className="font-medium">{formatCurrency(overallCollection.total_due)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className={`h-2 rounded-full ${
-                    effectiveCollectionRate >= 90 ? 'bg-green-500' :
-                    effectiveCollectionRate >= 75 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min(effectiveCollectionRate, 100)}%` }}
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min(effectiveCollectionRate, 100)}%`,
+                    backgroundColor: effectiveCollectionRate >= 90 ? COLORS.success :
+                                   effectiveCollectionRate >= 75 ? COLORS.warning : COLORS.danger
+                  }}
                 ></div>
               </div>
             </div>
           </div>
 
           {/* Annual Tax Assessment Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <CalculatorIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                <CalculatorIcon className="w-6 h-6" style={{ color: COLORS.success }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
                 {selectedYear} Assessment
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Total Assessment
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalAnnualTax)}</p>
-            <div className="space-y-2 text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totalAnnualTax)}</p>
+            <div className="space-y-2 text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between">
                 <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }}></div>
                   Tax Amount:
                 </span>
                 <span>{formatCurrency(tax_stats.annual?.total_tax_amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.success }}></div>
                   Regulatory Fees:
                 </span>
                 <span>{formatCurrency(tax_stats.annual?.total_fees)}</span>
@@ -660,52 +677,55 @@ export default function BusinessTaxDashboard() {
           </div>
 
           {/* Current Quarter Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <CalendarDays className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <CalendarDays className="w-6 h-6" style={{ color: COLORS.warning }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
                 {dataCurrentQuarter || currentQuarter}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Current Quarter
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(currentQuarterCollected)}</p>
-            <div className="text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(currentQuarterCollected)}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between mb-1">
                 <span>Target:</span>
                 <span className="font-medium">{formatCurrency(quarterlyTarget)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className={`h-2 rounded-full ${
-                    (currentQuarterCollected / quarterlyTarget) >= 0.8 ? 'bg-green-500' :
-                    (currentQuarterCollected / quarterlyTarget) >= 0.6 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min((currentQuarterCollected / quarterlyTarget) * 100, 100)}%` }}
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min((currentQuarterCollected / quarterlyTarget) * 100, 100)}%`,
+                    backgroundColor: (currentQuarterCollected / quarterlyTarget) >= 0.8 ? COLORS.success :
+                                   (currentQuarterCollected / quarterlyTarget) >= 0.6 ? COLORS.warning : COLORS.danger
+                  }}
                 ></div>
               </div>
             </div>
           </div>
 
           {/* Outstanding Balance Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-red-50 rounded-lg">
-                <AlertTriangleIcon className="w-6 h-6 text-red-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertTriangleIcon className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-red-100 text-red-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full bg-red-100 text-red-800">
                 Delinquent
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Outstanding Balance
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalOutstanding)}</p>
-            <div className="space-y-2 text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totalOutstanding)}</p>
+            <div className="space-y-2 text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between">
                 <span>Pending:</span>
                 <span>{formatCurrency(tax_stats.outstanding?.pending_balance)}</span>
@@ -714,7 +734,7 @@ export default function BusinessTaxDashboard() {
                 <span>Overdue:</span>
                 <span>{formatCurrency(tax_stats.outstanding?.overdue_balance)}</span>
               </div>
-              <div className="flex justify-between font-medium">
+              <div className="flex justify-between font-medium" style={{ color: COLORS.dark }}>
                 <span>Total Bills:</span>
                 <span>{formatNumber(tax_stats.outstanding?.outstanding_bills)}</span>
               </div>
@@ -724,14 +744,18 @@ export default function BusinessTaxDashboard() {
 
         {/* View Mode Toggle */}
         <div className="flex justify-end">
-          <div className="inline-flex rounded-lg border border-gray-300 p-1">
+          <div className="inline-flex rounded-lg border p-1" style={{ borderColor: COLORS.secondary }}>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm rounded-md transition-all ${
                 viewMode === 'cards' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-white' 
+                  : 'hover:bg-gray-50'
               }`}
+              style={{
+                backgroundColor: viewMode === 'cards' ? COLORS.primary : 'transparent',
+                color: viewMode === 'cards' ? 'white' : COLORS.dark
+              }}
             >
               <div className="flex items-center gap-2">
                 <GridIcon className="w-4 h-4" />
@@ -740,11 +764,15 @@ export default function BusinessTaxDashboard() {
             </button>
             <button
               onClick={() => setViewMode('charts')}
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm rounded-md transition-all ${
                 viewMode === 'charts' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-white' 
+                  : 'hover:bg-gray-50'
               }`}
+              style={{
+                backgroundColor: viewMode === 'charts' ? COLORS.primary : 'transparent',
+                color: viewMode === 'charts' ? 'white' : COLORS.dark
+              }}
             >
               <div className="flex items-center gap-2">
                 <BarChart4 className="w-4 h-4" />
@@ -758,16 +786,17 @@ export default function BusinessTaxDashboard() {
         {viewMode === 'charts' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quarterly Collection Chart */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Quarterly Collection {selectedYear}
                 </h3>
                 <button
                   onClick={exportQuarterlyReport}
                   disabled={exportLoading || quarterly_analysis.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
@@ -792,15 +821,20 @@ export default function BusinessTaxDashboard() {
                           return [name === 'collection_rate' ? `${safeParseFloat(value).toFixed(1)}%` : formattedValue, label];
                         }}
                         labelFormatter={(label) => `Quarter: ${label}`}
+                        contentStyle={{ 
+                          backgroundColor: 'white',
+                          borderColor: COLORS.secondary,
+                          borderRadius: '8px'
+                        }}
                       />
                       <Legend />
-                      <Bar dataKey="collected" fill="#10B981" name="Paid" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="overdue_amount" fill="#EF4444" name="Overdue" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="pending_amount" fill="#F59E0B" name="Pending" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="collected" fill={COLORS.success} name="Paid" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="overdue_amount" fill={COLORS.danger} name="Overdue" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="pending_amount" fill={COLORS.warning} name="Pending" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                     <BarChart3 className="w-12 h-12 mb-2" />
                     <p>No quarterly data available for {selectedYear}</p>
                   </div>
@@ -809,16 +843,17 @@ export default function BusinessTaxDashboard() {
             </div>
 
             {/* Business Types Chart */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <PieChartIcon className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <PieChartIcon className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Business Types Distribution
                 </h3>
                 <button
                   onClick={exportCompleteDashboardReport}
                   disabled={exportLoading}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
@@ -838,7 +873,7 @@ export default function BusinessTaxDashboard() {
                         dataKey="value"
                       >
                         {businessTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip 
@@ -846,12 +881,17 @@ export default function BusinessTaxDashboard() {
                           const percent = (props.payload.percentage || 0).toFixed(1);
                           return [`${value} businesses (${percent}%)`, 'Count'];
                         }}
+                        contentStyle={{ 
+                          backgroundColor: 'white',
+                          borderColor: COLORS.secondary,
+                          borderRadius: '8px'
+                        }}
                       />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                     <PieChartIcon className="w-12 h-12 mb-2" />
                     <p>No business type data available</p>
                   </div>
@@ -865,25 +905,28 @@ export default function BusinessTaxDashboard() {
         {viewMode === 'cards' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quarterly Analysis Cards */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <CalendarIcon className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Quarterly Analysis {selectedYear}
                 </h3>
                 <button
                   onClick={exportQuarterlyReport}
                   disabled={exportLoading || quarterly_analysis.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
               </div>
               <div className="space-y-4">
                 {quarterly_analysis.map((quarter, index) => (
-                  <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div key={index} 
+                       className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                       style={{ borderColor: COLORS.secondary }}>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium text-gray-900">{quarter.quarter} {quarter.year}</span>
+                      <span className="font-medium" style={{ color: COLORS.dark }}>{quarter.quarter} {quarter.year}</span>
                       <span className={`text-sm px-3 py-1 rounded-full ${
                         safeParseFloat(quarter.collection_rate) >= 90 ? 'bg-green-100 text-green-800' :
                         safeParseFloat(quarter.collection_rate) >= 60 ? 'bg-yellow-100 text-yellow-800' :
@@ -892,16 +935,16 @@ export default function BusinessTaxDashboard() {
                         {formatPercent(quarter.collection_rate)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-2 gap-4 text-sm" style={{ color: COLORS.secondary }}>
                       <div>
-                        <p className="font-medium text-gray-500">Collected</p>
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="font-medium">Collected</p>
+                        <p className="text-lg font-semibold" style={{ color: COLORS.dark }}>
                           {formatCurrency(quarter.collected)}
                         </p>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-500">Due</p>
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="font-medium">Due</p>
+                        <p className="text-lg font-semibold" style={{ color: COLORS.dark }}>
                           {formatCurrency(quarter.total_due)}
                         </p>
                       </div>
@@ -912,37 +955,43 @@ export default function BusinessTaxDashboard() {
             </div>
 
             {/* Business Types Cards */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Building2 className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Business Types {selectedYear}
                 </h3>
                 <button
                   onClick={exportCompleteDashboardReport}
                   disabled={exportLoading || business_types.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
               </div>
               <div className="space-y-4">
                 {business_types.slice(0, 5).map((business, index) => (
-                  <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                  <div key={index} 
+                       className="p-4 border rounded-lg transition-all hover:shadow-sm"
+                       style={{ borderColor: COLORS.secondary }}>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium text-gray-900">{business.business_type}</span>
-                      <span className="text-sm text-gray-600">
+                      <span className="font-medium" style={{ color: COLORS.dark }}>{business.business_type}</span>
+                      <span className="text-sm" style={{ color: COLORS.secondary }}>
                         {formatNumber(business.count)} businesses
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="h-2 rounded-full bg-blue-500"
-                          style={{ width: `${Math.min(safeParseFloat(business.percentage), 100)}%` }}
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${Math.min(safeParseFloat(business.percentage), 100)}%`,
+                            backgroundColor: CHART_COLORS[index % CHART_COLORS.length]
+                          }}
                         ></div>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium" style={{ color: COLORS.dark }}>
                         {formatPercent(business.percentage)}
                       </span>
                     </div>
@@ -954,15 +1003,15 @@ export default function BusinessTaxDashboard() {
         )}
 
         {/* Barangay Collection Section */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Map className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Map className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Barangay Collection {selectedYear}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                   {barangaysData.length} barangays with business tax revenue
                 </p>
               </div>
@@ -970,7 +1019,12 @@ export default function BusinessTaxDashboard() {
                 <button
                   onClick={exportBarangayReport}
                   disabled={exportLoading || barangaysData.length === 0}
-                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+                  style={{ 
+                    borderColor: COLORS.secondary, 
+                    color: COLORS.dark,
+                    backgroundColor: 'white'
+                  }}
                 >
                   <Download className="w-4 h-4" />
                   Export
@@ -984,42 +1038,45 @@ export default function BusinessTaxDashboard() {
               <div className="space-y-6">
                 {/* Summary Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="p-4 rounded-lg border transition-all hover:shadow-sm" 
+                       style={{ backgroundColor: `${COLORS.primary}05`, borderColor: COLORS.secondary }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Total Barangays</span>
-                      <MapPin className="w-5 h-5 text-gray-600" />
+                      <span className="text-sm font-medium" style={{ color: COLORS.dark }}>Total Barangays</span>
+                      <MapPin className="w-5 h-5" style={{ color: COLORS.primary }} />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">{barangaysData.length}</p>
-                    <p className="text-sm text-gray-600 mt-1">With Business Tax Revenue</p>
+                    <p className="text-2xl font-bold" style={{ color: COLORS.primary }}>{barangaysData.length}</p>
+                    <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>With Business Tax Revenue</p>
                   </div>
                   
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="p-4 rounded-lg border transition-all hover:shadow-sm" 
+                       style={{ backgroundColor: `${COLORS.success}05`, borderColor: COLORS.secondary }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Total Collection</span>
-                      <DollarSign className="w-5 h-5 text-gray-600" />
+                      <span className="text-sm font-medium" style={{ color: COLORS.dark }}>Total Collection</span>
+                      <DollarSign className="w-5 h-5" style={{ color: COLORS.success }} />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold" style={{ color: COLORS.success }}>
                       {formatCurrency(barangaysData.reduce((total, b) => total + b.revenue, 0))}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">From All Barangays</p>
+                    <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>From All Barangays</p>
                   </div>
                   
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="p-4 rounded-lg border transition-all hover:shadow-sm" 
+                       style={{ backgroundColor: `${COLORS.info}05`, borderColor: COLORS.secondary }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Total Businesses</span>
-                      <Building className="w-5 h-5 text-gray-600" />
+                      <span className="text-sm font-medium" style={{ color: COLORS.dark }}>Total Businesses</span>
+                      <Building className="w-5 h-5" style={{ color: COLORS.info }} />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold" style={{ color: COLORS.info }}>
                       {formatNumber(barangaysData.reduce((total, b) => total + b.businesses, 0))}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">Across All Barangays</p>
+                    <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>Across All Barangays</p>
                   </div>
                 </div>
                 
                 {/* Top Barangays List */}
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-gray-600" />
+                  <h4 className="font-semibold mb-4 flex items-center gap-2" style={{ color: COLORS.dark }}>
+                    <Trophy className="w-5 h-5" style={{ color: COLORS.warning }} />
                     Top Performing Barangays
                   </h4>
                   <div className="space-y-3">
@@ -1030,7 +1087,9 @@ export default function BusinessTaxDashboard() {
                         : 0;
                       
                       return (
-                        <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div key={index} 
+                             className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                             style={{ borderColor: COLORS.secondary }}>
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                               index === 0 ? 'bg-yellow-100 text-yellow-800' :
@@ -1044,18 +1103,26 @@ export default function BusinessTaxDashboard() {
                               {index > 2 && <span className="text-sm font-bold">{index + 1}</span>}
                             </div>
                             <div>
-                              <h5 className="font-medium text-gray-900">{barangay.name}</h5>
-                              <p className="text-sm text-gray-500">{formatNumber(barangay.businesses)} businesses</p>
+                              <h5 className="font-medium" style={{ color: COLORS.dark }}>{barangay.name}</h5>
+                              <p className="text-sm" style={{ color: COLORS.secondary }}>
+                                {formatNumber(barangay.businesses)} businesses
+                              </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-lg text-gray-900">{formatCurrency(barangay.revenue)}</p>
+                            <p className="font-bold text-lg" style={{ color: COLORS.primary }}>
+                              {formatCurrency(barangay.revenue)}
+                            </p>
                             <div className="flex items-center justify-end gap-2 text-sm">
-                              <span className="text-gray-500">{percentage.toFixed(1)}%</span>
+                              <span style={{ color: COLORS.secondary }}>{percentage.toFixed(1)}%</span>
                               <div className="w-24 bg-gray-200 rounded-full h-2">
                                 <div 
-                                  className="h-2 rounded-full bg-blue-500"
-                                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                                  className="h-2 rounded-full transition-all duration-500"
+                                  style={{ 
+                                    width: `${Math.min(percentage, 100)}%`,
+                                    backgroundColor: percentage > 20 ? COLORS.success :
+                                                   percentage > 10 ? COLORS.warning : COLORS.primary
+                                  }}
                                 ></div>
                               </div>
                             </div>
@@ -1067,7 +1134,7 @@ export default function BusinessTaxDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8" style={{ color: COLORS.secondary }}>
                 <Map className="w-12 h-12 mx-auto mb-2" />
                 <p>No barangay collection data available for {selectedYear}</p>
                 <p className="text-sm mt-1">Business tax collection data by barangay will appear here</p>
@@ -1077,31 +1144,41 @@ export default function BusinessTaxDashboard() {
         </div>
 
         {/* Recent Activities */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-gray-600" />
+              <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
                 Recent Activities {selectedYear}
               </h3>
               <div className="flex gap-2">
                 <button
                   onClick={() => setActiveTab('payments')}
-                  className={`px-4 py-2 text-sm rounded-lg transition-colors border ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all border ${
                     activeTab === 'payments' 
-                      ? 'bg-gray-900 text-white border-gray-900' 
-                      : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'text-white' 
+                      : 'hover:bg-gray-50'
                   }`}
+                  style={{
+                    backgroundColor: activeTab === 'payments' ? COLORS.primary : 'transparent',
+                    color: activeTab === 'payments' ? 'white' : COLORS.dark,
+                    borderColor: activeTab === 'payments' ? COLORS.primary : COLORS.secondary
+                  }}
                 >
                   Payments
                 </button>
                 <button
                   onClick={() => setActiveTab('overdue')}
-                  className={`px-4 py-2 text-sm rounded-lg transition-colors border ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all border ${
                     activeTab === 'overdue' 
-                      ? 'bg-gray-900 text-white border-gray-900' 
-                      : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'text-white' 
+                      : 'hover:bg-gray-50'
                   }`}
+                  style={{
+                    backgroundColor: activeTab === 'overdue' ? COLORS.primary : 'transparent',
+                    color: activeTab === 'overdue' ? 'white' : COLORS.dark,
+                    borderColor: activeTab === 'overdue' ? COLORS.primary : COLORS.secondary
+                  }}
                 >
                   Overdue
                 </button>
@@ -1111,7 +1188,9 @@ export default function BusinessTaxDashboard() {
           <div className="p-6">
             <div className="space-y-4">
               {getActivitiesForTab().slice(0, 5).map((activity, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div key={index} 
+                     className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                     style={{ borderColor: COLORS.secondary }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
@@ -1124,8 +1203,8 @@ export default function BusinessTaxDashboard() {
                         )}
                       </div>
                       <div>
-                        <h4 className="font-medium text-gray-900">{activity.business_name || activity.owner_name}</h4>
-                        <p className="text-sm text-gray-500">
+                        <h4 className="font-medium" style={{ color: COLORS.dark }}>{activity.business_name || activity.owner_name}</h4>
+                        <p className="text-sm" style={{ color: COLORS.secondary }}>
                           {activeTab === 'payments' && `Payment #${activity.receipt_number} • ${activity.quarter} ${activity.year}`}
                           {activeTab === 'overdue' && `${activity.days_overdue} days overdue • ${activity.quarter} ${activity.year}`}
                         </p>
@@ -1138,7 +1217,7 @@ export default function BusinessTaxDashboard() {
                         {formatCurrency(activity.total_quarterly_tax || activity.amount)}
                       </p>
                       {activeTab === 'payments' && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm" style={{ color: COLORS.secondary }}>
                           {safeParseFloat(activity.discount_amount) > 0 && (
                             <span className="text-blue-600">
                               -{formatCurrency(activity.discount_amount)}
@@ -1152,7 +1231,7 @@ export default function BusinessTaxDashboard() {
               ))}
               
               {getActivitiesForTab().length === 0 && (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8" style={{ color: COLORS.secondary }}>
                   <Activity className="w-12 h-12 mx-auto mb-2" />
                   <p>No {activeTab} activities available for {selectedYear}</p>
                 </div>
@@ -1162,9 +1241,9 @@ export default function BusinessTaxDashboard() {
         </div>
 
         {/* Footer Summary */}
-        <div className="text-center text-sm text-gray-500 pt-6 border-t border-gray-200">
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
           <p>Business Tax Collection Dashboard • Year: {selectedYear} • Updated {formattedDate} at {formattedTime}</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs mt-1">
             Available years: {(available_years.length > 0 ? available_years : availableYears).join(', ')}
           </p>
         </div>
@@ -1172,6 +1251,3 @@ export default function BusinessTaxDashboard() {
     </div>
   );
 }
-
-// Colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];

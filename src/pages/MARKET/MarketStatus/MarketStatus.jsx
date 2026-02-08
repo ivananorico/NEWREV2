@@ -1,35 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
-  Download,
-  Eye,
-  User,
-  Mail,
-  Phone,
-  Building,
-  DollarSign,
-  TrendingUp,
-  Home,
-  Calendar,
-  ShieldCheck,
-  FileText,
-  MapPin,
-  Award,
-  Clock,
-  Users,
-  Filter,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  Store,
-  BarChart3,
-  Target,
-  TrendingDown,
-  Layers,
-  Briefcase,
-  Hash
+  Search, Download, Eye, User, Mail, Phone, Building, DollarSign, TrendingUp,
+  Home, Calendar, ShieldCheck, FileText, MapPin, Award, Clock, Users, Filter,
+  RefreshCw, CheckCircle, AlertCircle, Store, BarChart3, Target, TrendingDown,
+  Layers, Briefcase, Hash, ChevronRight, ChevronLeft, Database, Settings,
+  ArrowUpRight, PieChart, Grid3x3, Landmark, CreditCard, Timer, Percent,
+  Building as BuildingIcon, Store as StoreIcon, Target as TargetIcon,
+  TrendingUp as TrendingUpIcon, Users as UsersIcon, CheckCircle as CheckCircleIcon
 } from 'lucide-react';
+
+// Custom colors matching the dashboard
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 export default function MarketStatus() {
   const [citizens, setCitizens] = useState([]);
@@ -48,6 +39,9 @@ export default function MarketStatus() {
   const [searchTerm, setSearchTerm] = useState('');
   const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const navigate = useNavigate();
 
   // API Base URL
@@ -58,7 +52,7 @@ export default function MarketStatus() {
 
   useEffect(() => {
     loadData();
-  }, []); // Empty dependency array to load once on mount
+  }, []);
 
   useEffect(() => {
     filterCitizens();
@@ -142,21 +136,17 @@ export default function MarketStatus() {
     setFilteredCitizens(result);
   };
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCitizens.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCitizens = filteredCitizens.slice(startIndex, endIndex);
+
   const formatCurrency = (amount) => {
     const num = parseFloat(amount) || 0;
-    if (num >= 1000000) {
-      return `₱${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `₱${(num / 1000).toFixed(1)}K`;
-    }
+    if (num >= 1000000) return `₱${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `₱${(num / 1000).toFixed(2)}K`;
     return `₱${num.toFixed(2)}`;
-  };
-
-  const formatLargeNumber = (num) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
   };
 
   const formatDate = (dateString) => {
@@ -179,36 +169,46 @@ export default function MarketStatus() {
         return {
           text: 'Active',
           bgColor: 'bg-green-50',
-          textColor: 'text-green-700',
-          icon: CheckCircle
+          textColor: 'text-green-800',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          dotColor: COLORS.success
         };
       case 'pending':
         return {
           text: 'Pending',
           bgColor: 'bg-yellow-50',
-          textColor: 'text-yellow-700',
-          icon: Clock
+          textColor: 'text-yellow-800',
+          borderColor: 'border-yellow-200',
+          icon: Clock,
+          dotColor: COLORS.warning
         };
       case 'approved':
         return {
           text: 'Approved',
           bgColor: 'bg-blue-50',
-          textColor: 'text-blue-700',
-          icon: ShieldCheck
+          textColor: 'text-blue-800',
+          borderColor: 'border-blue-200',
+          icon: ShieldCheck,
+          dotColor: COLORS.primary
         };
       case 'inactive':
         return {
           text: 'Inactive',
           bgColor: 'bg-gray-50',
-          textColor: 'text-gray-700',
-          icon: AlertCircle
+          textColor: 'text-gray-800',
+          borderColor: 'border-gray-200',
+          icon: AlertCircle,
+          dotColor: COLORS.secondary
         };
       default:
         return {
           text: status || 'N/A',
           bgColor: 'bg-gray-50',
-          textColor: 'text-gray-700',
-          icon: AlertCircle
+          textColor: 'text-gray-800',
+          borderColor: 'border-gray-200',
+          icon: AlertCircle,
+          dotColor: COLORS.secondary
         };
     }
   };
@@ -281,392 +281,596 @@ export default function MarketStatus() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading market citizens...</p>
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="flex flex-col justify-center items-center h-screen bg-white">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-800 mb-4"></div>
+          <p className="text-gray-600">Loading Market Citizens...</p>
+          <p className="text-sm text-gray-400 mt-2">Fetching market citizen data</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 lg:p-6">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Market Citizens Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and monitor market stall renters with financial totals</p>
-          </div>
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Summary Cards - Main Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {/* Total Citizens */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Market Citizens Dashboard
+              </h1>
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Approved Renters • {new Date().toLocaleDateString('en-PH')}</span>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Total Citizens</p>
-              <p className="text-lg font-bold text-gray-800 dark:text-white">
-                {totals.total_citizens}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {totals.active_citizens} Active
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Monthly Rent Total */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Rent</p>
-              <p className="text-lg font-bold text-gray-800 dark:text-white">
-                {formatCurrency(totals.total_monthly_rent)}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Avg: {formatCurrency(totals.average_monthly_rent)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Contract Value Total */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <BarChart3 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Total Contract Value</p>
-              <p className="text-lg font-bold text-gray-800 dark:text-white">
-                {formatCurrency(totals.total_contract_value)}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Per citizen: {formatCurrency(totals.average_contract_value)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Business Types */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-              <Briefcase className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Business Types</p>
-              <p className="text-lg font-bold text-gray-800 dark:text-white">
-                {totals.total_business_types}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {totals.total_stall_classes} Stall Classes
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtered Summary */}
-      {searchTerm || businessTypeFilter !== 'all' || statusFilter !== 'all' ? (
-        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="flex flex-wrap gap-4">
-            <div className="text-center">
-              <p className="text-xs text-blue-600 dark:text-blue-400">Filtered Citizens</p>
-              <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                {filteredTotals.count} / {totals.total_citizens}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-blue-600 dark:text-blue-400">Filtered Monthly Rent</p>
-              <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                {formatCurrency(filteredTotals.total_monthly_rent)}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-blue-600 dark:text-blue-400">Filtered Contract Value</p>
-              <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                {formatCurrency(filteredTotals.total_contract_value)}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search citizens, business, renter code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <select
-                value={businessTypeFilter}
-                onChange={(e) => setBusinessTypeFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none"
+            
+            <div className="flex flex-wrap gap-3 items-center">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
-                <option value="all">All Business Types</option>
-                {getBusinessTypes().map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="relative">
-              <ShieldCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none"
+                <Filter className="w-4 h-4" />
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="inactive">Inactive</option>
-              </select>
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+              <button 
+                onClick={exportToCSV}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
             </div>
           </div>
-
-          <button
-            onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-          >
-            <Download size={16} />
-            Export CSV
-          </button>
         </div>
       </div>
 
-      {/* Citizens List */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Citizen Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Business Details
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Financials
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Contract
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredCitizens.map((citizen) => {
-                const statusBadge = getStatusBadge(citizen.status);
-                const StatusIcon = statusBadge.icon;
-                const contractMonths = citizen.contract_months || 0;
-                const monthlyTotals = parseFloat(citizen.monthly_totals) || 0;
-                
-                return (
-                  <tr key={citizen.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
-                    {/* Citizen Info */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <p className="font-semibold text-gray-900 dark:text-white">{citizen.full_name || 'No Name'}</p>
-                        <p className="text-gray-600 dark:text-gray-400 text-xs">{citizen.renter_code || 'No Code'}</p>
-                        <div className="flex flex-col gap-1 pt-1">
-                          <div className="flex items-center gap-2 text-xs">
-                            <Mail className="w-3 h-3 text-gray-400" />
-                            <span className="text-gray-500 dark:text-gray-400 truncate">{citizen.email || 'No email'}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <Phone className="w-3 h-3 text-gray-400" />
-                            <span className="text-gray-500 dark:text-gray-400">{citizen.mobile || 'No phone'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <Users className="w-6 h-6" style={{ color: COLORS.primary }} />
+              </div>
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                Total
+              </span>
+            </div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Total Citizens
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{totals.total_citizens}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between mb-1">
+                <span>Active:</span>
+                <span className="font-medium">{totals.active_citizens}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${totals.total_citizens > 0 ? (totals.active_citizens / totals.total_citizens) * 100 : 0}%`,
+                    backgroundColor: (totals.active_citizens / totals.total_citizens) >= 0.7 ? COLORS.success :
+                                   (totals.active_citizens / totals.total_citizens) >= 0.4 ? COLORS.warning : COLORS.danger
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
 
-                    {/* Business Details */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-start gap-2">
-                          <Building className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-gray-900 dark:text-white">{citizen.business_name || 'No Business'}</p>
-                            <div className="flex gap-1 mt-1">
-                              {citizen.business_type && (
-                                <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                                  {citizen.business_type}
-                                </span>
-                              )}
-                              {citizen.class_name && (
-                                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                                  {citizen.class_name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs pt-1">
-                          <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">Stall: {citizen.stall_name || citizen.stall_rights_no || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </td>
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                <DollarSign className="w-6 h-6" style={{ color: COLORS.success }} />
+              </div>
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                Monthly
+              </span>
+            </div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Monthly Rent Total
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totals.total_monthly_rent)}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Average:</span>
+                <span className="font-medium">{formatCurrency(totals.average_monthly_rent)}</span>
+              </div>
+            </div>
+          </div>
 
-                    {/* Status */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center">
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg ${statusBadge.bgColor} ${statusBadge.textColor}`}>
-                          <StatusIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="text-sm font-semibold whitespace-nowrap">{statusBadge.text}</span>
-                        </div>
-                      </div>
-                    </td>
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: '#6b46c115' }}>
+                <BarChart3 className="w-6 h-6" style={{ color: '#6b46c1' }} />
+              </div>
+              <span className="text-sm px-3 py-1 rounded-full bg-purple-100 text-purple-800">
+                Total
+              </span>
+            </div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Contract Value
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totals.total_contract_value)}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Average:</span>
+                <span className="font-medium">{formatCurrency(totals.average_contract_value)}</span>
+              </div>
+            </div>
+          </div>
 
-                    {/* Financials */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-                            {formatCurrency(citizen.monthly_rent)}
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-xs">Monthly Rent</p>
-                        </div>
-                        {monthlyTotals > 0 && (
-                          <div className="border-t pt-2">
-                            <p className="text-sm font-bold text-green-700 dark:text-green-400">
-                              {formatCurrency(monthlyTotals)}
-                            </p>
-                            <p className="text-gray-500 dark:text-gray-400 text-xs">Contract Total</p>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <Briefcase className="w-6 h-6" style={{ color: COLORS.info }} />
+              </div>
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                Types
+              </span>
+            </div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+              Business Types
+            </h3>
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{totals.total_business_types}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              <div className="flex justify-between">
+                <span>Stall Classes:</span>
+                <span className="font-medium">{totals.total_stall_classes}</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                    {/* Contract */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-1">
-                        {contractMonths > 0 ? (
-                          <>
-                            <div className="flex items-center text-gray-700 dark:text-gray-300 text-sm">
-                              <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                              <span>{contractMonths} months</span>
-                            </div>
-                            <div className="text-xs text-gray-500 space-y-0.5">
-                              <div>From: {formatDate(citizen.contract_start)}</div>
-                              <div>To: {formatDate(citizen.contract_end)}</div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-gray-400 text-sm">No contract details</div>
-                        )}
-                      </div>
-                    </td>
+        {/* Filters Section */}
+        <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold" style={{ color: COLORS.dark }}>Filter Citizens</h3>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm"
+              style={{ color: COLORS.primary }}
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
+          </div>
+          
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: COLORS.secondary }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Search */}
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                    <input
+                      type="text"
+                      placeholder="Search citizens, business, renter code..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2.5 border rounded-lg bg-white"
+                      style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                    />
+                  </div>
+                </div>
 
-                    {/* Actions */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <button
-                          onClick={() => navigate(`/market/marketstatusinfo/${citizen.renter_code || citizen.id}`)}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs"
-                        >
-                          <Eye size={12} />
-                          View Details
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                {/* Business Type Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Business Type</label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                             style={{ color: COLORS.secondary }} />
+                    <select
+                      value={businessTypeFilter}
+                      onChange={(e) => setBusinessTypeFilter(e.target.value)}
+                      className="block w-full pl-10 pr-10 py-2.5 border rounded-lg bg-white appearance-none"
+                      style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                    >
+                      <option value="all">All Business Types</option>
+                      {getBusinessTypes().map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-          {filteredCitizens.length === 0 && (
-            <div className="text-center py-8">
-              <Store className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">No market citizens found</p>
-              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
-                {searchTerm || businessTypeFilter !== 'all' || statusFilter !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'No approved market citizens available'}
-              </p>
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Status</label>
+                  <div className="relative">
+                    <ShieldCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                                style={{ color: COLORS.secondary }} />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="block w-full pl-10 pr-10 py-2.5 border rounded-lg bg-white appearance-none"
+                      style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
+          
+          {/* Search Stats */}
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <div style={{ color: COLORS.secondary }}>
+              {searchTerm ? (
+                <span>
+                  Searching for: <span className="font-medium" style={{ color: COLORS.dark }}>"{searchTerm}"</span>
+                </span>
+              ) : (
+                <span>Showing all approved citizens</span>
+              )}
+            </div>
+            <div className="font-medium" style={{ color: COLORS.dark }}>
+              {filteredCitizens.length} of {citizens.length} citizens
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Footer Summary */}
-      <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total Citizens</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">{totals.total_citizens}</p>
+        {/* Filtered Summary Banner */}
+        {searchTerm || businessTypeFilter !== 'all' || statusFilter !== 'all' ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <p className="text-sm" style={{ color: COLORS.dark }}>Filtered Citizens</p>
+                <p className="text-xl font-bold" style={{ color: COLORS.primary }}>
+                  {filteredTotals.count} / {totals.total_citizens}
+                </p>
+                <p className="text-xs" style={{ color: COLORS.secondary }}>{filteredTotals.active_citizens} active</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm" style={{ color: COLORS.dark }}>Filtered Monthly Rent</p>
+                <p className="text-xl font-bold" style={{ color: COLORS.success }}>
+                  {formatCurrency(filteredTotals.total_monthly_rent)}
+                </p>
+                <p className="text-xs" style={{ color: COLORS.secondary }}>
+                  Avg: {formatCurrency(filteredTotals.count > 0 ? filteredTotals.total_monthly_rent / filteredTotals.count : 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm" style={{ color: COLORS.dark }}>Filtered Contract Value</p>
+                <p className="text-xl font-bold" style={{ color: '#6b46c1' }}>
+                  {formatCurrency(filteredTotals.total_contract_value)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm" style={{ color: COLORS.dark }}>Completion</p>
+                <p className="text-xl font-bold" style={{ color: COLORS.warning }}>
+                  {citizens.length > 0 ? ((filteredTotals.count / citizens.length) * 100).toFixed(1) : 0}%
+                </p>
+                <p className="text-xs" style={{ color: COLORS.secondary }}>of total</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Citizens Table */}
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Users className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Market Citizens ({filteredCitizens.length})
+                </h3>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  Approved market stall renters with contracts
+                </p>
+              </div>
+              
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm"
+                   style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+                <CheckCircle className="w-4 h-4" />
+                <span>Approved citizens only</span>
+              </div>
+            </div>
           </div>
           
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Rent Total</p>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {formatCurrency(totals.total_monthly_rent)}
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Contract Value Total</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(totals.total_contract_value)}
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Average Per Citizen</p>
-            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              {formatCurrency(totals.average_contract_value)}
-            </p>
-          </div>
+          {paginatedCitizens.length === 0 ? (
+            <div className="text-center py-12" style={{ color: COLORS.secondary }}>
+              <Users className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm font-medium" style={{ color: COLORS.dark }}>
+                {searchTerm || businessTypeFilter !== 'all' || statusFilter !== 'all' 
+                  ? "No matching citizens found" 
+                  : "No approved citizens available"}
+              </p>
+              <p className="text-sm mt-1 max-w-xs mx-auto">
+                {searchTerm 
+                  ? "Try adjusting your search terms or clear filters"
+                  : "No approved market citizens at this time"}
+              </p>
+              {(searchTerm || businessTypeFilter !== "all" || statusFilter !== "all") && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setBusinessTypeFilter("all");
+                    setStatusFilter("all");
+                  }}
+                  className="mt-4 text-sm font-medium px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Citizen Info
+                      </th>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Business Details
+                      </th>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Status
+                      </th>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Financials
+                      </th>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Contract
+                      </th>
+                      <th className="p-4 text-left text-sm font-semibold" style={{ color: COLORS.secondary }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedCitizens.map((citizen) => {
+                      const statusBadge = getStatusBadge(citizen.status);
+                      const StatusIcon = statusBadge.icon;
+                      const contractMonths = citizen.contract_months || 0;
+                      const monthlyTotals = parseFloat(citizen.monthly_totals) || 0;
+                      
+                      return (
+                        <tr key={citizen.id} className="hover:bg-gray-50 transition-colors" 
+                            style={{ borderColor: COLORS.secondary, borderBottomWidth: '1px' }}>
+                          {/* Citizen Info */}
+                          <td className="p-4">
+                            <div className="space-y-2">
+                              <div>
+                                <p className="font-semibold" style={{ color: COLORS.dark }}>
+                                  {citizen.full_name || 'No Name'}
+                                </p>
+                                <p className="text-sm" style={{ color: COLORS.secondary }}>
+                                  {citizen.renter_code || 'No Code'}
+                                </p>
+                              </div>
+                              <div className="space-y-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="w-3 h-3" style={{ color: COLORS.secondary }} />
+                                  <span style={{ color: COLORS.dark }} className="truncate">
+                                    {citizen.email || 'No email'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Phone className="w-3 h-3" style={{ color: COLORS.secondary }} />
+                                  <span style={{ color: COLORS.dark }}>{citizen.mobile || 'No phone'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Business Details */}
+                          <td className="p-4">
+                            <div className="space-y-2">
+                              <div>
+                                <p className="font-medium" style={{ color: COLORS.dark }}>
+                                  {citizen.business_name || 'No Business'}
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {citizen.business_type && (
+                                    <span className="text-xs px-2 py-1 rounded" 
+                                          style={{ backgroundColor: `${COLORS.info}15`, color: COLORS.dark }}>
+                                      {citizen.business_type}
+                                    </span>
+                                  )}
+                                  {citizen.class_name && (
+                                    <span className="text-xs px-2 py-1 rounded" 
+                                          style={{ backgroundColor: `${COLORS.primary}15`, color: COLORS.dark }}>
+                                      {citizen.class_name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center text-xs">
+                                <MapPin className="w-3 h-3 mr-1" style={{ color: COLORS.secondary }} />
+                                <span style={{ color: COLORS.dark }}>
+                                  Stall: {citizen.stall_name || citizen.stall_rights_no || 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${statusBadge.bgColor}`}>
+                                <StatusIcon className={`w-4 h-4 ${statusBadge.textColor}`} />
+                              </div>
+                              <div>
+                                <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusBadge.bgColor} ${statusBadge.textColor} border ${statusBadge.borderColor}`}>
+                                  {statusBadge.text}
+                                </span>
+                                <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
+                                  {formatDate(citizen.registration_date)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Financials */}
+                          <td className="p-4">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm font-semibold" style={{ color: COLORS.dark }}>
+                                  {formatCurrency(citizen.monthly_rent)}
+                                </p>
+                                <p className="text-xs" style={{ color: COLORS.secondary }}>Monthly Rent</p>
+                              </div>
+                              {monthlyTotals > 0 && (
+                                <div className="pt-2 border-t" style={{ borderColor: COLORS.secondary }}>
+                                  <p className="text-sm font-bold" style={{ color: COLORS.success }}>
+                                    {formatCurrency(monthlyTotals)}
+                                  </p>
+                                  <p className="text-xs" style={{ color: COLORS.secondary }}>Contract Total</p>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Contract */}
+                          <td className="p-4">
+                            <div className="space-y-2">
+                              {contractMonths > 0 ? (
+                                <>
+                                  <div className="flex items-center text-sm">
+                                    <Calendar className="w-4 h-4 mr-2" style={{ color: COLORS.secondary }} />
+                                    <span style={{ color: COLORS.dark }}>{contractMonths} months</span>
+                                  </div>
+                                  <div className="text-xs space-y-1" style={{ color: COLORS.secondary }}>
+                                    <div>From: {formatDate(citizen.contract_start)}</div>
+                                    <div>To: {formatDate(citizen.contract_end)}</div>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-sm" style={{ color: COLORS.secondary }}>No contract details</div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="p-4">
+                            <button
+                              onClick={() => navigate(`/market/marketstatusinfo/${citizen.renter_code || citizen.id}`)}
+                              className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                              style={{ backgroundColor: COLORS.primary, color: 'white' }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Table Footer & Pagination */}
+              <div className="p-4 border-t" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{startIndex + 1}</span> to{" "}
+                    <span className="font-semibold" style={{ color: COLORS.dark }}>{Math.min(endIndex, filteredCitizens.length)}</span> of{" "}
+                    <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredCitizens.length}</span> citizens
+                  </div>
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+
+                          if (pageNumber < 1 || pageNumber > totalPages) return null;
+
+                          return (
+                            <button
+                              key={pageNumber}
+                              onClick={() => setCurrentPage(pageNumber)}
+                              className={`px-3 py-1 text-sm rounded ${
+                                currentPage === pageNumber ? 'text-white' : 'border hover:bg-gray-50'
+                              }`}
+                              style={{ 
+                                backgroundColor: currentPage === pageNumber ? COLORS.primary : 'transparent',
+                                color: currentPage === pageNumber ? 'white' : COLORS.dark,
+                                borderColor: currentPage === pageNumber ? COLORS.primary : COLORS.secondary
+                              }}
+                            >
+                              {pageNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-        
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-center">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Last updated: {new Date().toLocaleTimeString('en-PH', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
+
+        {/* Footer Summary */}
+        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
+          <p>Market Citizens Management System • {new Date().toLocaleDateString('en-PH')}</p>
+          <p className="text-xs mt-1">
+            Local Government Unit - Market Stall Revenue Management
           </p>
         </div>
       </div>

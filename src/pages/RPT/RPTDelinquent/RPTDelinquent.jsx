@@ -3,8 +3,21 @@ import {
   Search, Filter, Eye, Download, RefreshCw, AlertCircle, 
   Calendar, FileText, Home, MapPin, User, Hash, DollarSign,
   Clock, TrendingUp, AlertTriangle, Percent, CreditCard,
-  FileWarning, Building, Landmark, CheckCircle, Ban, Archive
+  FileWarning, Building, Landmark, CheckCircle, Ban, Archive,
+  Send, Bell, MoreVertical, ChevronDown, ExternalLink, Mail
 } from "lucide-react";
+
+// Custom colors
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
 
 export default function RPTDelinquent() {
   const [delinquents, setDelinquents] = useState([]);
@@ -14,6 +27,7 @@ export default function RPTDelinquent() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [quarterFilter, setQuarterFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
+  const [showFilters, setShowFilters] = useState(false);
 
   const API_BASE = window.location.hostname === "localhost" 
     ? "http://localhost/revenue2/backend" 
@@ -26,7 +40,6 @@ export default function RPTDelinquent() {
       
       const response = await fetch(`${API_BASE}/RPT/RPTDelinquent/get_delinquent_taxes.php`, {
         method: 'GET',
-        credentials: 'omit',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -38,7 +51,6 @@ export default function RPTDelinquent() {
       }
       
       const data = await response.json();
-      console.log("API Response:", data); // Debug log
       
       let delinquentsData = [];
       
@@ -66,12 +78,9 @@ export default function RPTDelinquent() {
     fetchDelinquentTaxes();
   }, []);
 
-  // Generate years for filter (current year - 5 years back)
+  // Generate years for filter
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => (currentYear - i).toString());
-
-  // Get unique quarters from data
-  const uniqueQuarters = ["Q1", "Q2", "Q3", "Q4"];
 
   // Filter delinquents
   const filteredDelinquents = delinquents.filter(delinquent => {
@@ -79,9 +88,7 @@ export default function RPTDelinquent() {
       (delinquent.owner_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (delinquent.reference_number?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (delinquent.tdn?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (delinquent.lot_location?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (delinquent.first_name && delinquent.last_name ? 
-        `${delinquent.first_name} ${delinquent.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) : false);
+      (delinquent.lot_location?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || delinquent.payment_status === statusFilter;
     const matchesQuarter = quarterFilter === "all" || delinquent.quarter === quarterFilter;
@@ -97,15 +104,18 @@ export default function RPTDelinquent() {
       totalPenalties: 0,
       totalProperties: filteredDelinquents.length,
       byQuarter: { Q1: 0, Q2: 0, Q3: 0, Q4: 0 },
-      byStatus: { pending: 0, overdue: 0 }
+      byStatus: { overdue: 0, pending: 0 },
+      totalDaysLate: 0
     };
 
     filteredDelinquents.forEach(d => {
       const amount = parseFloat(d.total_quarterly_tax || d.total_amount || 0);
       const penalty = parseFloat(d.penalty_amount || 0);
+      const daysLate = parseInt(d.days_late || 0);
       
       stats.totalAmountDue += amount;
       stats.totalPenalties += penalty;
+      stats.totalDaysLate += daysLate;
       
       if (d.quarter) stats.byQuarter[d.quarter] = (stats.byQuarter[d.quarter] || 0) + 1;
       
@@ -116,55 +126,84 @@ export default function RPTDelinquent() {
       }
     });
 
+    stats.averageDaysLate = stats.totalProperties > 0 ? Math.round(stats.totalDaysLate / stats.totalProperties) : 0;
+
     return stats;
   };
 
   const stats = calculateStats();
 
-  const getStatusInfo = (status, dueDate) => {
-    const now = new Date();
-    const due = new Date(dueDate);
-    const daysLate = Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24)));
+  const getStatusInfo = (status, dueDate, daysLate) => {
+    const lateDays = daysLate || 0;
     
-    if (status === 'overdue' || daysLate > 0) {
-      const colorClass = daysLate > 90 ? "text-red-800" : 
-                         daysLate > 60 ? "text-orange-800" : "text-yellow-800";
-      const bgClass = daysLate > 90 ? "bg-red-50" : 
-                      daysLate > 60 ? "bg-orange-50" : "bg-yellow-50";
+    if (status === 'overdue' || lateDays > 0) {
+      const severity = lateDays > 90 ? "critical" : 
+                       lateDays > 60 ? "high" : 
+                       lateDays > 30 ? "medium" : "low";
+      
+      const colorMap = {
+        critical: { 
+          text: "text-red-800", 
+          bg: "bg-red-50", 
+          border: "border-red-200",
+          icon: AlertTriangle
+        },
+        high: { 
+          text: "text-orange-800", 
+          bg: "bg-orange-50", 
+          border: "border-orange-200",
+          icon: AlertTriangle
+        },
+        medium: { 
+          text: "text-yellow-800", 
+          bg: "bg-yellow-50", 
+          border: "border-yellow-200",
+          icon: Clock
+        },
+        low: { 
+          text: "text-blue-800", 
+          bg: "bg-blue-50", 
+          border: "border-blue-200",
+          icon: Clock
+        }
+      };
+      
+      const info = colorMap[severity] || colorMap.low;
       
       return {
-        label: `Overdue (${daysLate} days)`,
-        color: colorClass,
-        bgColor: bgClass,
-        borderColor: "border-red-200",
-        icon: AlertTriangle,
-        daysLate
+        label: `Overdue (${lateDays} days)`,
+        severity,
+        ...info,
+        daysLate: lateDays
       };
     }
     
     const statusMap = {
       pending: { 
         label: "Pending Payment", 
-        color: "text-blue-800",
-        bgColor: "bg-blue-50",
-        borderColor: "border-blue-200",
-        icon: Clock
+        text: "text-blue-800",
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        icon: Clock,
+        severity: "pending"
       },
       paid: { 
         label: "Paid", 
-        color: "text-green-800",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-200",
-        icon: CheckCircle
+        text: "text-green-800",
+        bg: "bg-green-50",
+        border: "border-green-200",
+        icon: CheckCircle,
+        severity: "paid"
       }
     };
     
     return statusMap[status] || { 
       label: status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()), 
-      color: "text-gray-800",
-      bgColor: "bg-gray-50",
-      borderColor: "border-gray-200",
-      icon: FileWarning
+      text: "text-gray-800",
+      bg: "bg-gray-50",
+      border: "border-gray-200",
+      icon: FileWarning,
+      severity: "unknown"
     };
   };
 
@@ -189,35 +228,22 @@ export default function RPTDelinquent() {
     }
   };
 
-  const calculatePenalty = (amount, dueDate, penaltyRate = 0.02) => {
-    if (!dueDate) return 0;
-    
-    const now = new Date();
-    const due = new Date(dueDate);
-    const daysLate = Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24)));
-    
-    if (daysLate <= 0) return 0;
-    
-    // Calculate monthly penalty (2% per month or fraction thereof)
-    const monthsLate = Math.ceil(daysLate / 30);
-    return parseFloat(amount) * penaltyRate * monthsLate;
-  };
-
   const handleExportReport = () => {
     const csvContent = [
-      ['Reference No', 'TDN', 'Owner Name', 'Property Location', 'Quarter', 'Year', 'Amount Due', 'Penalty', 'Total Due', 'Status', 'Due Date'],
+      ['Reference No', 'TDN', 'Owner Name', 'Property Location', 'Quarter', 'Year', 'Amount Due', 'Penalty', 'Total Due', 'Status', 'Due Date', 'Days Late'],
       ...filteredDelinquents.map(d => [
         d.reference_number || 'N/A',
         d.tdn || 'N/A',
-        d.owner_name || `${d.first_name} ${d.last_name}` || 'N/A',
+        d.owner_name || 'N/A',
         d.lot_location || 'N/A',
         d.quarter || 'N/A',
         d.year || 'N/A',
         d.total_quarterly_tax || d.total_amount || '0',
-        d.penalty_amount || calculatePenalty(d.total_quarterly_tax, d.due_date) || '0',
+        d.penalty_amount || '0',
         (parseFloat(d.total_quarterly_tax || 0) + parseFloat(d.penalty_amount || 0)).toFixed(2),
         d.payment_status || 'pending',
-        formatDate(d.due_date)
+        formatDate(d.due_date),
+        d.days_late || '0'
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -229,13 +255,22 @@ export default function RPTDelinquent() {
     a.click();
   };
 
+  const handleSendNotice = (delinquent) => {
+    // Implement send notice functionality
+    console.log("Sending notice to:", delinquent.owner_name);
+    // You can integrate with email API here
+    alert(`Notice sent to ${delinquent.owner_name || "property owner"}`);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
         <div className="flex items-center justify-center p-4 h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800"></div>
-            <p className="mt-4 font-medium text-gray-600">Loading delinquent taxes...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4"
+                 style={{ borderColor: COLORS.primary }}></div>
+            <p className="font-medium" style={{ color: COLORS.dark }}>Loading delinquent taxes...</p>
+            <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>Fetching data from server</p>
           </div>
         </div>
       </div>
@@ -244,18 +279,21 @@ export default function RPTDelinquent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
         <div className="flex items-center justify-center p-4 h-screen">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg border p-6 max-w-md w-full" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-50">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" 
+                   style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertCircle className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">Connection Error</h2>
-              <p className="text-gray-600 text-sm mb-4">{error}</p>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: COLORS.dark }}>Connection Error</h2>
+              <p className="text-sm mb-4" style={{ color: COLORS.secondary }}>{error}</p>
               <button
                 onClick={fetchDelinquentTaxes}
-                className="w-full px-4 py-2.5 rounded-md font-medium text-white bg-gray-900 hover:bg-black transition duration-200"
+                className="w-full px-4 py-2.5 rounded-md font-medium text-white transition duration-200"
+                style={{ backgroundColor: COLORS.primary }}
               >
                 <RefreshCw className="w-4 h-4 inline-block mr-2" />
                 Retry Connection
@@ -268,16 +306,16 @@ export default function RPTDelinquent() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
                 Delinquent Property Taxes
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm" style={{ color: COLORS.secondary }}>
                 Track and manage overdue property tax payments
               </p>
             </div>
@@ -285,14 +323,22 @@ export default function RPTDelinquent() {
             <div className="flex flex-wrap gap-3 items-center">
               <button
                 onClick={handleExportReport}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
               >
                 <Download className="w-4 h-4" />
                 Export Report
               </button>
               <button
                 onClick={fetchDelinquentTaxes}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
@@ -307,169 +353,202 @@ export default function RPTDelinquent() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Delinquent Properties */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Delinquent Properties</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{stats.totalProperties}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Delinquent Properties</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.danger }}>{stats.totalProperties}</p>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
-                <FileWarning className="w-5 h-5 text-red-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <FileWarning className="w-5 h-5" style={{ color: COLORS.danger }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               {stats.byStatus.overdue} overdue, {stats.byStatus.pending} pending
             </div>
           </div>
 
           {/* Total Amount Due */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Amount Due</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(stats.totalAmountDue)}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Total Amount Due</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(stats.totalAmountDue)}</p>
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-gray-700" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.dark}08` }}>
+                <DollarSign className="w-5 h-5" style={{ color: COLORS.dark }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               Excluding penalties and interest
             </div>
           </div>
 
           {/* Total Penalties */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Accrued Penalties</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{formatCurrency(stats.totalPenalties)}</p>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Accrued Penalties</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.warning }}>{formatCurrency(stats.totalPenalties)}</p>
               </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <TrendingUp className="w-5 h-5" style={{ color: COLORS.warning }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
               2% monthly penalty rate
             </div>
           </div>
 
-          {/* Distribution */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+          {/* Average Days Late */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">Quarter Distribution</p>
-                <div className="flex gap-2 mt-2">
-                  {Object.entries(stats.byQuarter).map(([quarter, count]) => (
-                    count > 0 && (
-                      <div key={quarter} className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                        {quarter}: {count}
-                      </div>
-                    )
-                  ))}
-                </div>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Average Days Late</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.info }}>{stats.averageDaysLate} days</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Calendar className="w-5 h-5 text-blue-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <Calendar className="w-5 h-5" style={{ color: COLORS.info }} />
               </div>
             </div>
-            <div className="text-xs text-gray-500">
-              By tax quarter
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              Across all delinquent properties
             </div>
           </div>
         </div>
 
         {/* Filters Section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search by owner, TDN, or location..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent transition duration-200"
-                />
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending Payment</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Quarter Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quarter</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={quarterFilter}
-                  onChange={(e) => setQuarterFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Quarters</option>
-                  {uniqueQuarters.map(quarter => (
-                    <option key={quarter} value={quarter}>{quarter}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Year Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent appearance-none bg-white transition duration-200"
-                >
-                  <option value="all">All Years</option>
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        <div className="bg-white border rounded-xl p-5 transition-all" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold" style={{ color: COLORS.dark }}>Filter Delinquent Taxes</h3>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm"
+              style={{ color: COLORS.primary }}
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
           </div>
           
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                         style={{ color: COLORS.secondary }} />
+                  <input
+                    type="text"
+                    placeholder="Search by owner, TDN, or location..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Payment Status</label>
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                         style={{ color: COLORS.secondary }} />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending Payment</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Quarter Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Quarter</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={quarterFilter}
+                    onChange={(e) => setQuarterFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Quarters</option>
+                    <option value="Q1">Q1</option>
+                    <option value="Q2">Q2</option>
+                    <option value="Q3">Q3</option>
+                    <option value="Q4">Q4</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Year Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Year</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => setYearFilter(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Years</option>
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Search Stats */}
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <div className="text-gray-600">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
               {filteredDelinquents.length} delinquent propert{filteredDelinquents.length === 1 ? 'y' : 'ies'} found
             </div>
-            <div className="text-gray-700 font-medium">
+            <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
               Total due: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
             </div>
           </div>
         </div>
 
         {/* Delinquent Taxes Table */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="bg-white border rounded-xl overflow-hidden shadow-sm transition-all" 
+             style={{ borderColor: COLORS.secondary }}>
+          <div className="px-5 py-4 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Delinquent Properties</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: COLORS.dark }}>
+                  Delinquent Properties
+                </h2>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
                   {filteredDelinquents.length} propert{filteredDelinquents.length === 1 ? 'y' : 'ies'} with overdue taxes
                 </p>
               </div>
@@ -478,15 +557,16 @@ export default function RPTDelinquent() {
           
           {filteredDelinquents.length === 0 ? (
             <div className="px-4 py-12 text-center">
-              <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <CheckCircle className="w-6 h-6 text-green-400" />
+              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" 
+                   style={{ backgroundColor: `${COLORS.success}15` }}>
+                <CheckCircle className="w-6 h-6" style={{ color: COLORS.success }} />
               </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
+              <h3 className="text-sm font-medium mb-1" style={{ color: COLORS.dark }}>
                 {searchTerm || statusFilter !== "all" || quarterFilter !== "all" || yearFilter !== "all"
                   ? "No delinquent properties found" 
                   : "No delinquent properties at this time"}
               </h3>
-              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+              <p className="text-sm max-w-xs mx-auto" style={{ color: COLORS.secondary }}>
                 {searchTerm || statusFilter !== "all" || quarterFilter !== "all" || yearFilter !== "all"
                   ? "Try adjusting your search filters"
                   : "All taxes are currently up to date"}
@@ -499,7 +579,8 @@ export default function RPTDelinquent() {
                     setQuarterFilter("all");
                     setYearFilter("all");
                   }}
-                  className="mt-4 text-sm font-medium text-gray-900 hover:text-black"
+                  className="mt-4 text-sm font-medium transition-all"
+                  style={{ color: COLORS.primary }}
                 >
                   Clear all filters
                 </button>
@@ -508,59 +589,62 @@ export default function RPTDelinquent() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y" style={{ borderColor: COLORS.secondary }}>
+                  <thead style={{ backgroundColor: `${COLORS.background}` }}>
                     <tr>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Property Details
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Owner
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Tax Period
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Amount Details
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Status & Due Date
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y" style={{ borderColor: COLORS.secondary }}>
                     {filteredDelinquents.map((delinquent) => {
-                      const statusInfo = getStatusInfo(delinquent.payment_status, delinquent.due_date);
+                      const statusInfo = getStatusInfo(
+                        delinquent.payment_status, 
+                        delinquent.due_date, 
+                        delinquent.days_late
+                      );
                       const StatusIcon = statusInfo.icon;
-                      const ownerName = delinquent.owner_name || 
-                        (delinquent.first_name && delinquent.last_name ? 
-                          `${delinquent.first_name} ${delinquent.last_name}` : 
-                          "N/A");
                       
-                      const penaltyAmount = parseFloat(delinquent.penalty_amount || 0) > 0 
-                        ? parseFloat(delinquent.penalty_amount) 
-                        : calculatePenalty(delinquent.total_quarterly_tax, delinquent.due_date);
-                      
+                      const penaltyAmount = parseFloat(delinquent.penalty_amount || 0);
                       const totalAmount = parseFloat(delinquent.total_quarterly_tax || 0) + penaltyAmount;
                       
                       return (
                         <tr key={delinquent.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-gray-100">
-                                <Building className="w-4 h-4 text-gray-600" />
+                              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                                <Building className="w-4 h-4" style={{ color: COLORS.primary }} />
                               </div>
                               <div>
-                                <div className="font-mono text-xs font-semibold text-gray-900">
+                                <div className="font-mono text-xs font-semibold" style={{ color: COLORS.dark }}>
                                   TDN: {delinquent.tdn || "N/A"}
                                 </div>
-                                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                                <div className="text-sm font-medium mt-0.5" style={{ color: COLORS.dark }}>
                                   {delinquent.lot_location || "Location not specified"}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs" style={{ color: COLORS.secondary }}>
                                   Brgy. {delinquent.barangay || "N/A"}
                                 </div>
                               </div>
@@ -568,19 +652,23 @@ export default function RPTDelinquent() {
                           </td>
                           
                           <td className="px-5 py-4">
-                            <div className="font-medium text-sm text-gray-900">{ownerName}</div>
-                            <div className="text-xs text-gray-500 truncate max-w-[180px]">
+                            <div className="font-medium text-sm" style={{ color: COLORS.dark }}>
+                              {delinquent.owner_name || "N/A"}
+                            </div>
+                            <div className="text-xs truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
                               {delinquent.email || "No email provided"}
                             </div>
-                            <div className="text-xs text-gray-500">{delinquent.phone || "No phone"}</div>
+                            <div className="text-xs" style={{ color: COLORS.secondary }}>
+                              {delinquent.phone || "No phone"}
+                            </div>
                           </td>
                           
                           <td className="px-5 py-4">
                             <div className="text-center">
-                              <div className="font-bold text-lg text-gray-900">
+                              <div className="font-bold text-lg" style={{ color: COLORS.dark }}>
                                 {delinquent.quarter || "N/A"}
                               </div>
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm" style={{ color: COLORS.secondary }}>
                                 {delinquent.year || "N/A"}
                               </div>
                             </div>
@@ -589,20 +677,21 @@ export default function RPTDelinquent() {
                           <td className="px-5 py-4">
                             <div className="space-y-1">
                               <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Base Tax:</span>
-                                <span className="font-medium text-gray-900">
+                                <span style={{ color: COLORS.secondary }}>Base Tax:</span>
+                                <span className="font-medium" style={{ color: COLORS.dark }}>
                                   {formatCurrency(delinquent.total_quarterly_tax)}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-red-600">Penalty:</span>
-                                <span className="font-medium text-red-600">
+                                <span style={{ color: COLORS.danger }}>Penalty:</span>
+                                <span className="font-medium" style={{ color: COLORS.danger }}>
                                   {formatCurrency(penaltyAmount)}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-sm font-bold border-t pt-1">
-                                <span>Total Due:</span>
-                                <span className="text-gray-900">
+                              <div className="flex justify-between text-sm font-bold border-t pt-1" 
+                                   style={{ borderColor: COLORS.secondary }}>
+                                <span style={{ color: COLORS.dark }}>Total Due:</span>
+                                <span className="font-bold" style={{ color: COLORS.dark }}>
                                   {formatCurrency(totalAmount)}
                                 </span>
                               </div>
@@ -611,18 +700,18 @@ export default function RPTDelinquent() {
                           
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${statusInfo.bgColor}`}>
-                                <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
+                              <div className={`p-2 rounded-lg ${statusInfo.bg}`}>
+                                <StatusIcon className={`w-4 h-4 ${statusInfo.text}`} />
                               </div>
                               <div>
-                                <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor}`}>
+                                <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bg} ${statusInfo.text} border ${statusInfo.border}`}>
                                   {statusInfo.label}
                                 </span>
-                                <div className="text-xs text-gray-600 mt-1">
+                                <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
                                   Due: {formatDate(delinquent.due_date)}
                                 </div>
                                 {statusInfo.daysLate > 0 && (
-                                  <div className="text-xs text-red-600 mt-0.5">
+                                  <div className="text-xs mt-0.5" style={{ color: COLORS.danger }}>
                                     {statusInfo.daysLate} days late
                                   </div>
                                 )}
@@ -634,16 +723,25 @@ export default function RPTDelinquent() {
                             <div className="flex flex-col gap-2">
                               <button
                                 onClick={() => console.log("View details", delinquent.id)}
-                                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-black transition duration-200 flex items-center justify-center gap-1"
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  backgroundColor: COLORS.primary, 
+                                  color: 'white'
+                                }}
                               >
                                 <Eye className="w-3 h-3" />
                                 Details
                               </button>
                               <button
-                                onClick={() => console.log("Send notice", delinquent.id)}
-                                className="text-sm font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition duration-200 flex items-center justify-center gap-1"
+                                onClick={() => handleSendNotice(delinquent)}
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  borderColor: COLORS.danger,
+                                  color: COLORS.danger,
+                                  backgroundColor: 'white'
+                                }}
                               >
-                                <AlertTriangle className="w-3 h-3" />
+                                <Send className="w-3 h-3" />
                                 Send Notice
                               </button>
                             </div>
@@ -656,15 +754,14 @@ export default function RPTDelinquent() {
               </div>
               
               {/* Table Footer */}
-              <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="px-5 py-4 border-t" 
+                   style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm text-gray-700">
-                    Showing <span className="font-semibold">{filteredDelinquents.length}</span> delinquent propert{filteredDelinquents.length === 1 ? 'y' : 'ies'}
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredDelinquents.length}</span> delinquent propert{filteredDelinquents.length === 1 ? 'y' : 'ies'}
                   </div>
-                  <div className="text-sm text-gray-700">
-                    <div className="font-medium">
-                      Total Outstanding: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
-                    </div>
+                  <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
+                    Total Outstanding: {formatCurrency(stats.totalAmountDue + stats.totalPenalties)}
                   </div>
                 </div>
               </div>
@@ -673,11 +770,19 @@ export default function RPTDelinquent() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Local Government Unit - Delinquent Tax Management</p>
-            <p className="mt-1">Real Property Tax Collection System v2.0</p>
-          </div>
+        <div className="mt-8 pt-6 border-t text-center text-sm" 
+             style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+          <p className="font-medium" style={{ color: COLORS.dark }}>Local Government Unit - Delinquent Tax Management</p>
+          <p className="mt-1">Real Property Tax Collection System v2.0</p>
+          <p className="mt-1 text-xs">
+            Last updated: {new Date().toLocaleDateString('en-PH', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
         </div>
       </div>
     </div>
