@@ -37,7 +37,7 @@ const isLocalhost = window.location.hostname === 'localhost' ||
                     window.location.hostname === '';
 const API_BASE = isLocalhost
   ? "http://localhost/revenue2/backend/Market/MarketDashboard"
-  : "/revenue2/backend/Market/MarketDashboard";
+  : "/backend/Market/MarketDashboard";
 
 // Custom colors
 const COLORS = {
