@@ -36,6 +36,10 @@
             max-width: 28rem;
         }
         
+        .terms-modal {
+            max-width: 48rem;
+        }
+        
         /* Hide scrollbar when modal is open */
         body.modal-open {
             overflow: hidden;
@@ -75,6 +79,43 @@
             border-color: #3b82f6;
         }
         
+        /* Password strength indicator */
+        .password-strength {
+            height: 4px;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            margin-top: 4px;
+        }
+        
+        .strength-weak { width: 25%; background-color: #ef4444; }
+        .strength-fair { width: 50%; background-color: #f59e0b; }
+        .strength-good { width: 75%; background-color: #3b82f6; }
+        .strength-strong { width: 100%; background-color: #10b981; }
+        
+        .password-requirements {
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+        
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 2px;
+        }
+        
+        .requirement.met {
+            color: #10b981;
+        }
+        
+        .requirement.unmet {
+            color: #6b7280;
+        }
+        
+        .requirement i {
+            font-size: 0.6rem;
+        }
+        
         /* Fix for background image on both localhost and domain */
         .bg-custom-bg {
             /* First try the relative path */
@@ -94,6 +135,25 @@
                 /* This will override with the correct path based on JavaScript detection */
                 background-image: var(--custom-bg-image, url('Login/images/bg.jpg'));
             }
+        }
+        
+        /* Custom scrollbar for terms modal */
+        .terms-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .terms-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .terms-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .terms-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
     </style>
 </head>
@@ -348,13 +408,50 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                                 <input type="password" name="regPassword" required 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                                       minlength="6">
-                                <p class="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                                       minlength="6" id="regPassword">
+                                
+                                <!-- Password strength indicator -->
+                                <div id="passwordStrength" class="password-strength"></div>
+                                
+                                <!-- Password requirements -->
+                                <div id="passwordRequirements" class="password-requirements">
+                                    <div class="requirement unmet" id="reqLength">
+                                        <i class="fas fa-circle"></i>
+                                        <span>At least 8 characters</span>
+                                    </div>
+                                    <div class="requirement unmet" id="reqUppercase">
+                                        <i class="fas fa-circle"></i>
+                                        <span>One uppercase letter</span>
+                                    </div>
+                                    <div class="requirement unmet" id="reqLowercase">
+                                        <i class="fas fa-circle"></i>
+                                        <span>One lowercase letter</span>
+                                    </div>
+                                    <div class="requirement unmet" id="reqNumber">
+                                        <i class="fas fa-circle"></i>
+                                        <span>One number</span>
+                                    </div>
+                                    <div class="requirement unmet" id="reqSpecial">
+                                        <i class="fas fa-circle"></i>
+                                        <span>One special character</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-xs text-gray-500 mt-1">Password must be strong for security</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
                                 <input type="password" name="confirmPassword" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
+                                       id="confirmPassword">
+                                <div id="passwordMatch" class="text-sm mt-1 hidden">
+                                    <i class="fas fa-check text-green-500"></i>
+                                    <span class="text-green-600 ml-1">Passwords match</span>
+                                </div>
+                                <div id="passwordMismatch" class="text-sm mt-1 hidden">
+                                    <i class="fas fa-times text-red-500"></i>
+                                    <span class="text-red-600 ml-1">Passwords do not match</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -366,14 +463,14 @@
                                 <input type="checkbox" id="agreeTerms" name="agreeTerms" required 
                                        class="mt-1 w-4 h-4 text-custom-secondary focus:ring-custom-secondary border-gray-300 rounded">
                                 <label for="agreeTerms" class="text-sm text-gray-700">
-                                    I agree to the <button type="button" class="text-custom-secondary hover:underline font-medium">Terms of Service</button> *
+                                    I agree to the <button type="button" class="text-custom-secondary hover:underline font-medium show-terms-modal">Terms of Service</button> *
                                 </label>
                             </div>
                             <div class="flex items-start space-x-3">
                                 <input type="checkbox" id="agreePrivacy" name="agreePrivacy" required 
                                        class="mt-1 w-4 h-4 text-custom-secondary focus:ring-custom-secondary border-gray-300 rounded">
                                 <label for="agreePrivacy" class="text-sm text-gray-700">
-                                    I agree to the <button type="button" class="text-custom-secondary hover:underline font-medium">Privacy Policy</button> *
+                                    I agree to the <button type="button" class="text-custom-secondary hover:underline font-medium show-privacy-modal">Privacy Policy</button> *
                                 </label>
                             </div>
                         </div>
@@ -383,7 +480,7 @@
                         <button type="button" id="cancelRegisterBtn" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-custom-secondary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        <button type="submit" class="bg-custom-secondary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium" id="registerSubmitBtn" disabled>
                             Create Account
                         </button>
                     </div>
@@ -445,6 +542,219 @@
         </div>
     </div>
 
+    <!-- Terms of Service Modal -->
+    <div id="termsModal" class="modal-container hidden">
+        <div class="modal-content terms-modal">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-custom-secondary">Terms of Service</h2>
+                    <button type="button" id="closeTermsModal" class="text-gray-500 hover:text-gray-700 text-xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="terms-content max-h-[60vh] overflow-y-auto pr-2">
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">1. Acceptance of Terms</h3>
+                            <p class="text-gray-600">By accessing and using GoServePH, you accept and agree to be bound by the terms and provision of this agreement.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">2. Description of Service</h3>
+                            <p class="text-gray-600">GoServePH provides a platform for citizens to access various government services including but not limited to:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Business permit applications</li>
+                                <li>Real property tax payments</li>
+                                <li>Social service requests</li>
+                                <li>Document processing</li>
+                                <li>Appointment scheduling</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">3. User Responsibilities</h3>
+                            <p class="text-gray-600">As a user of GoServePH, you agree to:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Provide accurate and complete information</li>
+                                <li>Maintain the confidentiality of your account</li>
+                                <li>Report any unauthorized access immediately</li>
+                                <li>Use the service only for lawful purposes</li>
+                                <li>Not attempt to circumvent security measures</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">4. Account Security</h3>
+                            <p class="text-gray-600">You are responsible for maintaining the security of your account. You must:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Use a strong password</li>
+                                <li>Not share your credentials</li>
+                                <li>Log out after each session</li>
+                                <li>Notify us of any security breach</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">5. Data Privacy</h3>
+                            <p class="text-gray-600">We collect and process your personal data in accordance with the Data Privacy Act of 2012. All information is handled with strict confidentiality and used only for the purposes of providing government services.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">6. Service Availability</h3>
+                            <p class="text-gray-600">We strive to maintain 24/7 service availability but reserve the right to suspend access for maintenance, upgrades, or security reasons without prior notice.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">7. Limitation of Liability</h3>
+                            <p class="text-gray-600">The Government Services Management System shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">8. Changes to Terms</h3>
+                            <p class="text-gray-600">We reserve the right to modify these terms at any time. Continued use of the service after changes constitutes acceptance of the new terms.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">9. Governing Law</h3>
+                            <p class="text-gray-600">These terms shall be governed by and construed in accordance with the laws of the Republic of the Philippines.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">10. Contact Information</h3>
+                            <p class="text-gray-600">For questions regarding these Terms of Service, please contact:</p>
+                            <p class="text-gray-800 mt-1">
+                                Government Services Management System<br>
+                                Email: helpdesk@gov.ph<br>
+                                Hotline: 122
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button type="button" id="agreeTermsModal" class="bg-custom-secondary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        I Agree to Terms
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="modal-container hidden">
+        <div class="modal-content terms-modal">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-custom-secondary">Privacy Policy</h2>
+                    <button type="button" id="closePrivacyModal" class="text-gray-500 hover:text-gray-700 text-xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="terms-content max-h-[60vh] overflow-y-auto pr-2">
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">1. Data Collection</h3>
+                            <p class="text-gray-600">We collect the following information:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Personal identification information</li>
+                                <li>Contact details</li>
+                                <li>Address information</li>
+                                <li>Service usage data</li>
+                                <li>Transaction records</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">2. Purpose of Data Collection</h3>
+                            <p class="text-gray-600">Your data is collected for:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Service provision and processing</li>
+                                <li>Account management</li>
+                                <li>Communication regarding services</li>
+                                <li>Improvement of government services</li>
+                                <li>Legal compliance and reporting</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">3. Data Protection</h3>
+                            <p class="text-gray-600">We implement appropriate security measures including:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Encryption of sensitive data</li>
+                                <li>Regular security audits</li>
+                                <li>Access control mechanisms</li>
+                                <li>Secure data storage</li>
+                                <li>Employee confidentiality agreements</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">4. Data Sharing</h3>
+                            <p class="text-gray-600">We may share your data with:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Other government agencies for service processing</li>
+                                <li>Law enforcement when required by law</li>
+                                <li>Service providers under strict confidentiality</li>
+                            </ul>
+                            <p class="text-gray-600 mt-2">We do not sell your personal information to third parties.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">5. Your Rights</h3>
+                            <p class="text-gray-600">Under the Data Privacy Act, you have the right to:</p>
+                            <ul class="list-disc pl-5 text-gray-600 mt-2 space-y-1">
+                                <li>Access your personal data</li>
+                                <li>Correct inaccurate information</li>
+                                <li>Request data deletion</li>
+                                <li>Object to data processing</li>
+                                <li>Data portability</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">6. Cookies and Tracking</h3>
+                            <p class="text-gray-600">We use cookies to enhance user experience. You can control cookie settings through your browser preferences.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">7. Data Retention</h3>
+                            <p class="text-gray-600">We retain your data only for as long as necessary to fulfill the purposes outlined in this policy, unless a longer retention period is required by law.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">8. Children's Privacy</h3>
+                            <p class="text-gray-600">We do not knowingly collect data from children under 18 without parental consent.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">9. Policy Updates</h3>
+                            <p class="text-gray-600">We may update this policy periodically. Changes will be posted on this page with an updated effective date.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">10. Contact Us</h3>
+                            <p class="text-gray-600">For privacy concerns, contact our Data Protection Officer:</p>
+                            <p class="text-gray-800 mt-1">
+                                Data Protection Office<br>
+                                Government Services Management System<br>
+                                Email: dpo@gov.ph<br>
+                                Hotline: 122
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button type="button" id="agreePrivacyModal" class="bg-custom-secondary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        I Agree to Privacy Policy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // CONFIGURATION
@@ -465,6 +775,7 @@
             setInterval(updateDateTime, 1000);
             setupEventListeners();
             setupOTPInputs();
+            setupPasswordValidation();
             fixBackgroundImage();
         });
         
@@ -564,7 +875,7 @@
             if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
             if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
             
-            // OTP buttons - Use onclick instead of addEventListener to avoid duplicates
+            // OTP buttons
             const cancelOtp = document.getElementById('cancelOtp');
             const resendOtp = document.getElementById('resendOtp');
             const submitOtp = document.getElementById('submitOtp');
@@ -584,9 +895,46 @@
                 });
             }
             
+            // Terms and Privacy modals
+            const closeTermsModal = document.getElementById('closeTermsModal');
+            const closePrivacyModal = document.getElementById('closePrivacyModal');
+            const agreeTermsModal = document.getElementById('agreeTermsModal');
+            const agreePrivacyModal = document.getElementById('agreePrivacyModal');
+            
+            if (closeTermsModal) closeTermsModal.addEventListener('click', hideTermsModal);
+            if (closePrivacyModal) closePrivacyModal.addEventListener('click', hidePrivacyModal);
+            if (agreeTermsModal) agreeTermsModal.addEventListener('click', agreeToTerms);
+            if (agreePrivacyModal) agreePrivacyModal.addEventListener('click', agreeToPrivacy);
+            
+            // Terms and Privacy buttons in register form
+            const showTermsButtons = document.querySelectorAll('.show-terms-modal');
+            const showPrivacyButtons = document.querySelectorAll('.show-privacy-modal');
+            
+            showTermsButtons.forEach(button => {
+                button.addEventListener('click', showTermsModal);
+            });
+            
+            showPrivacyButtons.forEach(button => {
+                button.addEventListener('click', showPrivacyModal);
+            });
+            
+            // Footer buttons
+            const footerTerms = document.getElementById('footerTerms');
+            const footerPrivacy = document.getElementById('footerPrivacy');
+            
+            if (footerTerms) {
+                footerTerms.addEventListener('click', showTermsModal);
+            }
+            
+            if (footerPrivacy) {
+                footerPrivacy.addEventListener('click', showPrivacyModal);
+            }
+            
             // Modal background clicks
             const registerModal = document.getElementById('registerFormContainer');
             const otpModalElement = document.getElementById('otpModal');
+            const termsModalElement = document.getElementById('termsModal');
+            const privacyModalElement = document.getElementById('privacyModal');
             
             if (registerModal) {
                 registerModal.addEventListener('click', function(e) {
@@ -600,19 +948,47 @@
                 });
             }
             
-            // Terms and Privacy buttons
-            const footerTerms = document.getElementById('footerTerms');
-            const footerPrivacy = document.getElementById('footerPrivacy');
-            
-            if (footerTerms) {
-                footerTerms.addEventListener('click', function() {
-                    showNotification('Terms of Service will be available soon', 'info');
+            if (termsModalElement) {
+                termsModalElement.addEventListener('click', function(e) {
+                    if (e.target === this) hideTermsModal();
                 });
             }
             
-            if (footerPrivacy) {
-                footerPrivacy.addEventListener('click', function() {
-                    showNotification('Privacy Policy will be available soon', 'info');
+            if (privacyModalElement) {
+                privacyModalElement.addEventListener('click', function(e) {
+                    if (e.target === this) hidePrivacyModal();
+                });
+            }
+        }
+        
+        function setupPasswordValidation() {
+            const passwordInput = document.getElementById('regPassword');
+            const confirmInput = document.getElementById('confirmPassword');
+            const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('input', function() {
+                    checkPasswordStrength(this.value);
+                    validateRegisterForm();
+                });
+                
+                passwordInput.addEventListener('focus', function() {
+                    document.getElementById('passwordRequirements').style.display = 'block';
+                });
+                
+                passwordInput.addEventListener('blur', function() {
+                    setTimeout(() => {
+                        if (!this.matches(':focus')) {
+                            document.getElementById('passwordRequirements').style.display = 'none';
+                        }
+                    }, 200);
+                });
+            }
+            
+            if (confirmInput) {
+                confirmInput.addEventListener('input', function() {
+                    checkPasswordMatch();
+                    validateRegisterForm();
                 });
             }
         }
@@ -721,6 +1097,103 @@
                     this.select();
                 });
             });
+        }
+        
+        // ============================================
+        // PASSWORD VALIDATION FUNCTIONS
+        // ============================================
+        function checkPasswordStrength(password) {
+            const strengthBar = document.getElementById('passwordStrength');
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                number: /\d/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+            };
+            
+            // Update requirement indicators
+            document.getElementById('reqLength').className = requirements.length ? 'requirement met' : 'requirement unmet';
+            document.getElementById('reqUppercase').className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
+            document.getElementById('reqLowercase').className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
+            document.getElementById('reqNumber').className = requirements.number ? 'requirement met' : 'requirement unmet';
+            document.getElementById('reqSpecial').className = requirements.special ? 'requirement met' : 'requirement unmet';
+            
+            // Calculate strength score
+            let score = 0;
+            Object.values(requirements).forEach(met => {
+                if (met) score++;
+            });
+            
+            // Update strength bar
+            let strengthClass = '';
+            let strengthText = '';
+            
+            if (password.length === 0) {
+                strengthClass = '';
+                strengthText = '';
+            } else if (password.length < 6) {
+                strengthClass = 'strength-weak';
+                strengthText = 'Weak';
+            } else if (score <= 2) {
+                strengthClass = 'strength-fair';
+                strengthText = 'Fair';
+            } else if (score <= 4) {
+                strengthClass = 'strength-good';
+                strengthText = 'Good';
+            } else {
+                strengthClass = 'strength-strong';
+                strengthText = 'Strong';
+            }
+            
+            strengthBar.className = `password-strength ${strengthClass}`;
+            strengthBar.title = strengthText;
+        }
+        
+        function checkPasswordMatch() {
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const matchElement = document.getElementById('passwordMatch');
+            const mismatchElement = document.getElementById('passwordMismatch');
+            
+            if (confirmPassword.length === 0) {
+                matchElement.classList.add('hidden');
+                mismatchElement.classList.add('hidden');
+                return false;
+            }
+            
+            if (password === confirmPassword) {
+                matchElement.classList.remove('hidden');
+                mismatchElement.classList.add('hidden');
+                return true;
+            } else {
+                matchElement.classList.add('hidden');
+                mismatchElement.classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        function validateRegisterForm() {
+            const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Check password requirements
+            const hasMinLength = password.length >= 8;
+            const hasUppercase = /[A-Z]/.test(password);
+            const hasLowercase = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            const passwordsMatch = checkPasswordMatch();
+            
+            const isStrongPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
+            
+            // Enable button only if all requirements are met and passwords match
+            if (isStrongPassword && passwordsMatch) {
+                registerSubmitBtn.disabled = false;
+            } else {
+                registerSubmitBtn.disabled = true;
+            }
         }
         
         // ============================================
@@ -867,6 +1340,18 @@
             
             if (!data.agreeTerms || !data.agreePrivacy) {
                 showNotification('Please agree to the Terms of Service and Privacy Policy', 'error');
+                return;
+            }
+            
+            // Check password strength
+            const hasMinLength = data.regPassword.length >= 8;
+            const hasUppercase = /[A-Z]/.test(data.regPassword);
+            const hasLowercase = /[a-z]/.test(data.regPassword);
+            const hasNumber = /\d/.test(data.regPassword);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(data.regPassword);
+            
+            if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+                showNotification('Password must be strong. It needs at least 8 characters with uppercase, lowercase, number, and special character.', 'error');
                 return;
             }
             
@@ -1039,13 +1524,17 @@
         }
         
         // ============================================
-        // UI FUNCTIONS
+        // MODAL FUNCTIONS
         // ============================================
         function showRegisterForm() {
             const container = document.getElementById('registerFormContainer');
             if (container) {
                 container.classList.remove('hidden');
                 document.body.classList.add('modal-open');
+                // Reset password validation
+                checkPasswordStrength('');
+                checkPasswordMatch();
+                validateRegisterForm();
             }
         }
         
@@ -1055,6 +1544,58 @@
                 container.classList.add('hidden');
                 document.body.classList.remove('modal-open');
                 container.querySelector('form').reset();
+            }
+        }
+        
+        function showTermsModal() {
+            const modal = document.getElementById('termsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            }
+        }
+        
+        function hideTermsModal() {
+            const modal = document.getElementById('termsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            }
+        }
+        
+        function showPrivacyModal() {
+            const modal = document.getElementById('privacyModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            }
+        }
+        
+        function hidePrivacyModal() {
+            const modal = document.getElementById('privacyModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            }
+        }
+        
+        function agreeToTerms() {
+            const agreeCheckbox = document.getElementById('agreeTerms');
+            if (agreeCheckbox) {
+                agreeCheckbox.checked = true;
+                hideTermsModal();
+                showNotification('Terms of Service accepted', 'success');
+                validateRegisterForm();
+            }
+        }
+        
+        function agreeToPrivacy() {
+            const agreeCheckbox = document.getElementById('agreePrivacy');
+            if (agreeCheckbox) {
+                agreeCheckbox.checked = true;
+                hidePrivacyModal();
+                showNotification('Privacy Policy accepted', 'success');
+                validateRegisterForm();
             }
         }
         

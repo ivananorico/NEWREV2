@@ -1,24 +1,9 @@
 <?php
 // revenue2/citizen_dashboard/market/market_services.php
-
-// SESSION AND SECURITY CHECKS - MUST BE AT THE VERY TOP
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
-    // Build proper URL for redirect
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-    $host = $_SERVER['HTTP_HOST'];
-    
-    // Check if we're on localhost or domain
-    if (strpos($host, 'localhost') !== false) {
-        // Localhost: index.php is inside /revenue2/
-        $login_url = $protocol . "://" . $host . "/revenue2/index.php";
-    } else {
-        // Domain: index.php is at root level
-        $login_url = $protocol . "://" . $host . "/index.php";
-    }
-    
-    header('Location: ' . $login_url);
+    header('Location: ../index.php');
     exit();
 }
 
@@ -38,7 +23,7 @@ $status_counts = [
     'need_correction' => 0,
     'resubmitted' => 0,
     'approved' => 0,
-    'rejected' => 9
+    'rejected' => 0
 ];
 
 $total_applications = 0;
