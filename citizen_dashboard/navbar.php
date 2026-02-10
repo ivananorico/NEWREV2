@@ -420,7 +420,7 @@ nav {
             <div class="flex items-center space-x-4">
                 <div class="text-right">
                     <p class="text-sm font-semibold user-name">
-                        Welcome, <?php echo htmlspecialchars($user_name); ?>
+                       <?php echo htmlspecialchars($user_name); ?>
                     </p>
                     <p class="text-xs user-email">
                         <?php echo htmlspecialchars($user_email); ?>

@@ -87,6 +87,7 @@ $current_month_name = date('F');
     <title>Market Rent Payment - LGU System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="../../images/GSM_logo.png">
     <style>
         /* Clean, Simple Styles - Same as RPT */
         body {

@@ -361,6 +361,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     <title>Property Registration - RPT Services | GoServePH</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="../../images/GSM_logo.png">
     <style>
         :root {
             --primary: #4a90e2;
