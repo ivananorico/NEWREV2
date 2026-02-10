@@ -15,7 +15,54 @@ const checkSuccess = (data) => {
   return false;
 };
 
-// REGISTRATION FUNCTIONS
+// ============================================
+// ASSESSOR FUNCTIONS (NEW)
+// ============================================
+export const getAssessors = async () => {
+  const response = await fetch(`${API_BASE}${API_PATH}/get_assessors.php`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const result = await response.json();
+  console.log('Assessors response:', result);
+  
+  if (!checkSuccess(result)) {
+    throw new Error(result.message || result.error || "Failed to get assessors");
+  }
+  
+  return result.data || result;
+};
+
+export const updateAssessorStatus = async (assessorId, status) => {
+  const response = await fetch(`${API_BASE}${API_PATH}/update_assessor_status.php`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      assessor_id: assessorId,
+      status: status
+    })
+  });
+  
+  const result = await response.json();
+  console.log('Update assessor status response:', result);
+  
+  if (!checkSuccess(result)) {
+    throw new Error(result.message || result.error || "Failed to update assessor status");
+  }
+  
+  return result;
+};
+
+// ============================================
+// REGISTRATION FUNCTIONS (UPDATED)
+// ============================================
 export const scheduleInspection = async (registrationId, data) => {
   const response = await fetch(`${API_BASE}${API_PATH}/schedule_inspection.php`, {
     method: 'POST',
@@ -132,7 +179,9 @@ export const approveProperty = async (registrationId, taxData) => {
   return result;
 };
 
+// ============================================
 // ASSESSMENT FUNCTIONS
+// ============================================
 export const saveAssessment = async (registrationId, assessmentData) => {
   const response = await fetch(`${API_BASE}${API_PATH}/assess_property.php`, {
     method: 'POST',
@@ -175,7 +224,9 @@ export const getAssessmentData = async (registrationId) => {
   return result.data || result;
 };
 
+// ============================================
 // CONFIGURATION FUNCTIONS
+// ============================================
 export const getLandConfigs = async () => {
   const response = await fetch(`${API_BASE}${API_PATH}/get_land_configurations.php`, {
     headers: { 'Accept': 'application/json' }
@@ -224,5 +275,7 @@ export default {
   getLandConfigs,
   getPropertyConfigs,
   getTaxConfigs,
-  getBuildingAssessmentLevels
+  getBuildingAssessmentLevels,
+  getAssessors, // Added
+  updateAssessorStatus // Added
 };

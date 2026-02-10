@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import apiService from "./apiService";
 
 export default function Pending({ registration, documents, fetchData, formatDate, getDocumentTypeName, navigate }) {
@@ -7,9 +7,31 @@ export default function Pending({ registration, documents, fetchData, formatDate
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [currentDocument, setCurrentDocument] = useState(null);
   const [inspectionDate, setInspectionDate] = useState("");
-  const [assessorName, setAssessorName] = useState("");
+  const [selectedAssessor, setSelectedAssessor] = useState("");
   const [rejectionNotes, setRejectionNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assessors, setAssessors] = useState([]);
+  const [loadingAssessors, setLoadingAssessors] = useState(false);
+
+  // Fetch assessors on component mount
+  useEffect(() => {
+    if (showInspectionForm) {
+      fetchAssessors();
+    }
+  }, [showInspectionForm]);
+
+  const fetchAssessors = async () => {
+    try {
+      setLoadingAssessors(true);
+      const data = await apiService.getAssessors();
+      setAssessors(data);
+    } catch (error) {
+      console.error("Failed to fetch assessors:", error);
+      alert("Failed to load assessors: " + error.message);
+    } finally {
+      setLoadingAssessors(false);
+    }
+  };
 
   const getDocumentUrl = (filePath) => {
     const cleanPath = filePath.replace(/^(http:\/\/localhost\/revenue2\/|https:\/\/revenuetreasury.goserveph.com\/)/, '');
@@ -32,13 +54,37 @@ export default function Pending({ registration, documents, fetchData, formatDate
   };
 
   const handleScheduleInspection = async () => {
-    if (!inspectionDate || !assessorName) { alert("Please fill all fields"); return; }
+    if (!inspectionDate || !selectedAssessor) { 
+      alert("Please select both inspection date and assessor"); 
+      return; 
+    }
+    
     setLoading(true);
     try {
-      await apiService.scheduleInspection(registration.id, { scheduled_date: inspectionDate, assessor_name: assessorName });
+      // Update assessor status to "not_available"
+      await apiService.updateAssessorStatus(selectedAssessor, 'not_available');
+      
+      // Get assessor name for scheduling
+      const assessor = assessors.find(a => a.id == selectedAssessor);
+      const assessorName = assessor ? assessor.name : "Assessor";
+      
+      await apiService.scheduleInspection(registration.id, { 
+        scheduled_date: inspectionDate, 
+        assessor_name: assessorName,
+        assessor_id: selectedAssessor 
+      });
+      
       alert("✅ Inspection scheduled!");
-      setShowInspectionForm(false); setInspectionDate(""); setAssessorName(""); await fetchData();
-    } catch (err) { alert(`❌ ${err.message}`); } finally { setLoading(false); }
+      setShowInspectionForm(false); 
+      setInspectionDate(""); 
+      setSelectedAssessor(""); 
+      setAssessors([]);
+      await fetchData();
+    } catch (err) { 
+      alert(`❌ ${err.message}`); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleReject = async () => {
@@ -500,21 +546,62 @@ export default function Pending({ registration, documents, fetchData, formatDate
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessor Name *</label>
-                    <input 
-                      type="text" 
-                      value={assessorName} 
-                      onChange={(e) => setAssessorName(e.target.value)} 
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
-                      placeholder="Enter assessor's name" 
-                      required 
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Assessor *</label>
+                    <div className="relative">
+                      {loadingAssessors ? (
+                        <div className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-500">
+                          Loading assessors...
+                        </div>
+                      ) : (
+                        <select 
+                          value={selectedAssessor} 
+                          onChange={(e) => setSelectedAssessor(e.target.value)} 
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition appearance-none bg-white"
+                          required
+                        >
+                          <option value="">-- Select an assessor --</option>
+                          {assessors
+                            .filter(assessor => assessor.status === 'available')
+                            .map(assessor => (
+                              <option key={assessor.id} value={assessor.id}>
+                                {assessor.name} - Available
+                              </option>
+                            ))
+                          }
+                          {assessors
+                            .filter(assessor => assessor.status === 'not_available')
+                            .map(assessor => (
+                              <option key={assessor.id} value={assessor.id} disabled>
+                                {assessor.name} - Not Available
+                              </option>
+                            ))
+                          }
+                        </select>
+                      )}
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                    {assessors.length > 0 && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span>{assessors.filter(a => a.status === 'available').length} available assessors</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span>{assessors.filter(a => a.status === 'not_available').length} unavailable</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-3 pt-2">
                     <button 
                       onClick={handleScheduleInspection} 
-                      disabled={loading}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-green-400 disabled:to-emerald-400 text-white py-3.5 rounded-xl font-medium transition-all flex items-center justify-center shadow-lg hover:shadow-xl"
+                      disabled={loading || !selectedAssessor || !inspectionDate || loadingAssessors}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-green-300 disabled:to-emerald-400 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-medium transition-all flex items-center justify-center shadow-lg hover:shadow-xl disabled:hover:shadow"
                     >
                       {loading ? (
                         <>
@@ -527,7 +614,12 @@ export default function Pending({ registration, documents, fetchData, formatDate
                       ) : 'Schedule Inspection'}
                     </button>
                     <button 
-                      onClick={() => setShowInspectionForm(false)} 
+                      onClick={() => {
+                        setShowInspectionForm(false);
+                        setSelectedAssessor("");
+                        setInspectionDate("");
+                        setAssessors([]);
+                      }} 
                       disabled={loading}
                       className="flex-1 bg-gradient-to-r from-gray-300 to-gray-400 hover:from-gray-400 hover:to-gray-500 disabled:from-gray-200 disabled:to-gray-300 text-gray-800 py-3.5 rounded-xl font-medium transition-all shadow"
                     >

@@ -30,11 +30,13 @@ $applications = [];
 $total_applications = 0;
 
 try {
-    // Get registrations
+    // Get registrations - UPDATED to include inspector_name and inspector_id
     $stmt = $pdo->prepare("
         SELECT 
             pr.*,
-            po.* 
+            po.*,
+            pr.inspector_name,
+            pr.inspector_id
         FROM property_registrations pr
         JOIN property_owners po ON pr.owner_id = po.id
         WHERE po.user_id = ? 
@@ -51,6 +53,7 @@ try {
             SELECT 
                 scheduled_date,
                 assessor_name,
+                assessor_id,
                 status as inspection_status,
                 DATE(created_at) as inspection_date
             FROM property_inspections 
@@ -66,6 +69,7 @@ try {
         } else {
             $app['scheduled_date'] = null;
             $app['assessor_name'] = null;
+            $app['assessor_id'] = null;
             $app['inspection_status'] = null;
             $app['inspection_date'] = null;
         }
@@ -342,6 +346,15 @@ body::before {
     margin: 1rem 0;
 }
 
+/* Inspector info box */
+.inspector-info-box {
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border: 2px solid #0ea5e9;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+}
+
 /* Info box for property type highlighting */
 .info-box-highlight {
     background: #f0f9ff;
@@ -517,12 +530,52 @@ body::before {
                                     <div class="text-xs text-gray-600 mb-2 font-medium">ASSIGNED ASSESSOR</div>
                                     <div class="text-lg font-semibold text-gray-900">
                                         <i class="fas fa-user-tie mr-2 text-green-500"></i>
-                                        <?php echo htmlspecialchars($app['assessor_name']); ?>
+                                        <?php echo htmlspecialchars($app['assessor_name'] ?? $app['inspector_name'] ?? 'Not assigned yet'); ?>
                                     </div>
                                     <div class="text-sm text-gray-500 mt-1">
                                         Will contact you for inspection details
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Inspector Information Box -->
+                        <?php if (!empty($app['inspector_name']) || !empty($app['inspector_id'])): ?>
+                        <div class="inspector-info-box mx-6 mt-4">
+                            <div class="flex items-center mb-3">
+                                <i class="fas fa-user-check text-blue-500 mr-2 text-lg"></i>
+                                <h4 class="font-semibold text-gray-800 text-lg">Assigned Inspector Information</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-xs text-gray-600 mb-1 font-medium">INSPECTOR NAME</div>
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        <?php echo htmlspecialchars($app['inspector_name'] ?? 'Not assigned'); ?>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-600 mb-1 font-medium">INSPECTOR ID</div>
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        <?php echo $app['inspector_id'] ?? 'N/A'; ?>
+                                    </div>
+                                </div>
+                                <?php if (!empty($app['assessor_id'])): ?>
+                                <div>
+                                    <div class="text-xs text-gray-600 mb-1 font-medium">ASSESSOR ID</div>
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        <?php echo $app['assessor_id']; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                                <?php if (!empty($app['inspection_date'])): ?>
+                                <div>
+                                    <div class="text-xs text-gray-600 mb-1 font-medium">INSPECTION SET ON</div>
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        <?php echo date('F j, Y', strtotime($app['inspection_date'])); ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -733,8 +786,9 @@ body::before {
                                             <div class="text-sm font-semibold text-gray-900 mb-1">What's Next?</div>
                                             <div class="text-sm text-gray-700">
                                                 <?php if (!empty($app['scheduled_date'])): ?>
-                                                    Property inspection is scheduled. Please ensure someone is available at the property on <span class="font-medium"><?php echo date('F j, Y', strtotime($app['scheduled_date'])); ?></span>.
-                                                    The assessor will verify documents and inspect the property.
+                                                    Property inspection is scheduled for <span class="font-medium"><?php echo date('F j, Y', strtotime($app['scheduled_date'])); ?></span>.
+                                                    Your assigned inspector is <span class="font-medium"><?php echo htmlspecialchars($app['inspector_name'] ?? $app['assessor_name'] ?? 'Not assigned yet'); ?></span>.
+                                                    Please ensure someone is available at the property for inspection.
                                                 <?php else: ?>
                                                     Waiting for inspection schedule assignment. You'll be notified once a date is set.
                                                 <?php endif; ?>
@@ -754,7 +808,8 @@ body::before {
                                                 • Ensure property is accessible<br>
                                                 • Have original documents ready<br>
                                                 • Property owner or authorized representative should be present<br>
-                                                • Inspection takes 1-2 hours
+                                                • Inspection takes 1-2 hours<br>
+                                                • Inspector will verify documents on-site
                                             </div>
                                         </div>
                                     </div>

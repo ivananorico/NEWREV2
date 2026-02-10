@@ -1,22 +1,27 @@
 <?php
-// ================================================
-// SCHEDULE INSPECTION API - UPDATED
-// ================================================
+// schedule_inspection.php - SIMPLER VERSION without updated_at issues
 
-// Enable CORS and JSON response
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Create database connection using the config from rpt_db.php
+$dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
+
+if (!file_exists($dbPath)) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "message" => "Database config file not found at: " . $dbPath]);
+    exit();
+}
+
+require_once $dbPath;
+
 function createPDOConnection() {
     $config = getDatabaseConfig();
     
@@ -32,10 +37,7 @@ function createPDOConnection() {
         return $pdo;
         
     } catch (PDOException $e) {
-        // Log error but don't expose details to user
         error_log("Database connection failed: " . $e->getMessage());
-        
-        // Return user-friendly error
         return [
             'error' => true,
             'message' => 'Database connection failed. Please try again later.',
@@ -44,18 +46,6 @@ function createPDOConnection() {
     }
 }
 
-// Try to include DB connection with proper error handling
-$dbPath = dirname(__DIR__, 3) . '/db/RPT/rpt_db.php';
-
-if (!file_exists($dbPath)) {
-    http_response_code(500);
-    echo json_encode(["success" => false, "message" => "Database config file not found at: " . $dbPath]);
-    exit();
-}
-
-require_once $dbPath;
-
-// Get PDO connection
 $pdo = createPDOConnection();
 if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
     http_response_code(500);
@@ -64,10 +54,8 @@ if (!$pdo || (is_array($pdo) && isset($pdo['error']))) {
     exit();
 }
 
-// Determine HTTP method
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Route based on method
 switch ($method) {
     case 'POST':
         scheduleInspection($pdo);
@@ -81,12 +69,7 @@ switch ($method) {
         break;
 }
 
-// ==========================
-// FUNCTIONS
-// ==========================
-
 function scheduleInspection($pdo) {
-    // Get input data
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
 
@@ -97,69 +80,81 @@ function scheduleInspection($pdo) {
     }
 
     // Validate required fields
-    $requiredFields = ['registration_id', 'scheduled_date', 'assessor_name'];
+    $requiredFields = ['registration_id', 'scheduled_date', 'assessor_name', 'assessor_id'];
     foreach ($requiredFields as $field) {
-        if (!isset($data[$field]) || empty(trim($data[$field]))) {
+        if (!isset($data[$field]) || (is_string($data[$field]) && empty(trim($data[$field])))) {
             http_response_code(400);
-            echo json_encode(["success" => false, "message" => "Missing required field: " . $field]);
+            echo json_encode(["success" => false, "message" => "Missing required field: " . $field . " (value: " . json_encode($data[$field] ?? 'null') . ")"]);
             return;
         }
     }
 
     try {
+        // Check if we need to add inspector columns to property_registrations
+        $checkInspectorColumn = $pdo->query("SHOW COLUMNS FROM property_registrations LIKE 'inspector_name'");
+        if ($checkInspectorColumn->rowCount() === 0) {
+            $pdo->exec("ALTER TABLE property_registrations ADD COLUMN inspector_name VARCHAR(255) DEFAULT 'To be assigned'");
+            $pdo->exec("ALTER TABLE property_registrations ADD COLUMN inspector_id INT NULL AFTER inspector_name");
+        }
+
         // Start transaction
         $pdo->beginTransaction();
 
-        // 1. Check/create property_inspections table
-        $checkTable = $pdo->query("SHOW TABLES LIKE 'property_inspections'");
-        if ($checkTable->rowCount() === 0) {
-            $pdo->exec("
-                CREATE TABLE property_inspections (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    registration_id INT NOT NULL,
-                    scheduled_date DATE NOT NULL,
-                    assessor_name VARCHAR(255) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'scheduled',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )
-            ");
-        }
-
-        // 2. Insert into property_inspections table
+        // 1. Insert into property_inspections table
         $stmt1 = $pdo->prepare("
             INSERT INTO property_inspections 
-            (registration_id, scheduled_date, assessor_name, status, created_at, updated_at)
-            VALUES (?, ?, ?, 'scheduled', NOW(), NOW())
+            (registration_id, scheduled_date, assessor_name, assessor_id, status, created_at)
+            VALUES (?, ?, ?, ?, 'scheduled', NOW())
         ");
 
+        $assessorId = intval($data['assessor_id']);
+        $assessorName = trim($data['assessor_name']);
+        
         $stmt1->execute([
             intval($data['registration_id']),
             $data['scheduled_date'],
-            trim($data['assessor_name'])
+            $assessorName,
+            $assessorId
         ]);
 
-        // 3. UPDATE the registration status to 'for_inspection'
+        $inspectionId = $pdo->lastInsertId();
+
+        // 2. UPDATE the property_registrations table with inspector info
         $stmt2 = $pdo->prepare("
             UPDATE property_registrations 
             SET status = 'for_inspection', 
+                inspector_name = ?,
+                inspector_id = ?,
                 updated_at = NOW()
             WHERE id = ?
         ");
 
-        $stmt2->execute([intval($data['registration_id'])]);
+        $stmt2->execute([
+            $assessorName,
+            $assessorId,
+            intval($data['registration_id'])
+        ]);
+
+        // 3. Update assessor status to 'not_available'
+        // First check what columns exist in assessors table
+        $assessorColumns = $pdo->query("SHOW COLUMNS FROM assessors")->fetchAll(PDO::FETCH_COLUMN);
         
-        // Check if status was updated
-        if ($stmt2->rowCount() === 0) {
-            // If no rows affected, check current status
-            $checkStmt = $pdo->prepare("SELECT status FROM property_registrations WHERE id = ?");
-            $checkStmt->execute([intval($data['registration_id'])]);
-            $currentStatus = $checkStmt->fetchColumn();
-            
-            if ($currentStatus !== 'for_inspection') {
-                throw new Exception("Failed to update registration status. Current status: " . $currentStatus);
-            }
+        if (in_array('updated_at', $assessorColumns)) {
+            $stmt3 = $pdo->prepare("
+                UPDATE assessors 
+                SET status = 'not_available',
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+        } else {
+            $stmt3 = $pdo->prepare("
+                UPDATE assessors 
+                SET status = 'not_available'
+                WHERE id = ?
+            ");
         }
+        
+        $stmt3->execute([$assessorId]);
 
         // Commit transaction
         $pdo->commit();
@@ -167,12 +162,16 @@ function scheduleInspection($pdo) {
         echo json_encode([
             "success" => true,
             "status" => "success",
-            "message" => "Inspection scheduled successfully and status updated to 'for_inspection'",
+            "message" => "Inspection scheduled successfully",
             "data" => [
                 "registration_id" => intval($data['registration_id']),
+                "inspection_id" => $inspectionId,
                 "scheduled_date" => $data['scheduled_date'],
-                "assessor_name" => trim($data['assessor_name']),
-                "new_status" => "for_inspection"
+                "assessor_name" => $assessorName,
+                "assessor_id" => $assessorId,
+                "new_status" => "for_inspection",
+                "inspector_updated" => true,
+                "assessor_updated" => true
             ]
         ]);
         
@@ -182,6 +181,7 @@ function scheduleInspection($pdo) {
             $pdo->rollBack();
         }
         http_response_code(500);
+        error_log("Schedule inspection error: " . $e->getMessage() . " | Data: " . json_encode($data));
         echo json_encode(["success" => false, "message" => "Failed to schedule inspection: " . $e->getMessage()]);
     }
 }
