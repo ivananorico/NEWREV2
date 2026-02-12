@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="Login/styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-     <link rel="icon" type="image/png" href="Login/images/GSM_logo.png">
+    <link rel="icon" type="image/png" href="Login/images/GSM_logo.png">
     <style>
         /* Custom styles for better modal handling */
         .modal-container {
@@ -116,25 +116,13 @@
             font-size: 0.6rem;
         }
         
-        /* Fix for background image on both localhost and domain */
+        /* Background image fix */
         .bg-custom-bg {
-            /* First try the relative path */
-            background-image: url('Login/images/bg.jpg');
-            /* Fallback for domain if relative path doesn't work */
-            background-image: url('/Login/images/bg.jpg'), url('Login/images/bg.jpg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
             min-height: 100vh;
-        }
-        
-        /* If both relative paths fail, use absolute path based on current domain */
-        @media (min-width: 1px) {
-            .bg-custom-bg {
-                /* This will override with the correct path based on JavaScript detection */
-                background-image: var(--custom-bg-image, url('Login/images/bg.jpg'));
-            }
         }
         
         /* Custom scrollbar for terms modal */
@@ -356,184 +344,6 @@
                                     <option value="Barangay 8">Barangay 8</option>
                                     <option value="Barangay 9">Barangay 9</option>
                                     <option value="Barangay 10">Barangay 10</option>
-                                    <option value="Barangay 11">Barangay 11</option>
-                                    <option value="Barangay 12">Barangay 12</option>
-                                    <option value="Barangay 13">Barangay 13</option>
-                                    <option value="Barangay 14">Barangay 14</option>
-                                    <option value="Barangay 15">Barangay 15</option>
-                                    <option value="Barangay 16">Barangay 16</option>
-                                    <option value="Barangay 17">Barangay 17</option>
-                                    <option value="Barangay 18">Barangay 18</option>
-                                    <option value="Barangay 19">Barangay 19</option>
-                                    <option value="Barangay 20">Barangay 20</option>
-                                    <option value="Barangay 21">Barangay 21</option>
-                                    <option value="Barangay 22">Barangay 22</option>
-                                    <option value="Barangay 23">Barangay 23</option>
-                                    <option value="Barangay 24">Barangay 24</option>
-                                    <option value="Barangay 25">Barangay 25</option>
-                                    <option value="Barangay 26">Barangay 26</option>
-                                    <option value="Barangay 27">Barangay 27</option>
-                                    <option value="Barangay 28">Barangay 28</option>
-                                    <option value="Barangay 29">Barangay 29</option>
-                                    <option value="Barangay 30">Barangay 30</option>
-                                    <option value="Barangay 31">Barangay 31</option>
-                                    <option value="Barangay 32">Barangay 32</option>
-                                    <option value="Barangay 33">Barangay 33</option>
-                                    <option value="Barangay 34">Barangay 34</option>
-                                    <option value="Barangay 35">Barangay 35</option>
-                                    <option value="Barangay 36">Barangay 36</option>
-                                    <option value="Barangay 37">Barangay 37</option>
-                                    <option value="Barangay 38">Barangay 38</option>
-                                    <option value="Barangay 39">Barangay 39</option>
-                                    <option value="Barangay 40">Barangay 40</option>
-                                    <option value="Barangay 41">Barangay 41</option>
-                                    <option value="Barangay 42">Barangay 42</option>
-                                    <option value="Barangay 43">Barangay 43</option>
-                                    <option value="Barangay 44">Barangay 44</option>
-                                    <option value="Barangay 45">Barangay 45</option>
-                                    <option value="Barangay 46">Barangay 46</option>
-                                    <option value="Barangay 47">Barangay 47</option>
-                                    <option value="Barangay 48">Barangay 48</option>
-                                    <option value="Barangay 49">Barangay 49</option>
-                                    <option value="Barangay 50">Barangay 50</option>
-                                    <option value="Barangay 51">Barangay 51</option>
-                                    <option value="Barangay 52">Barangay 52</option>
-                                    <option value="Barangay 53">Barangay 53</option>
-                                    <option value="Barangay 54">Barangay 54</option>
-                                    <option value="Barangay 55">Barangay 55</option>
-                                    <option value="Barangay 56">Barangay 56</option>
-                                    <option value="Barangay 57">Barangay 57</option>
-                                    <option value="Barangay 58">Barangay 58</option>
-                                    <option value="Barangay 59">Barangay 59</option>
-                                    <option value="Barangay 60">Barangay 60</option>
-                                    <option value="Barangay 61">Barangay 61</option>
-                                    <option value="Barangay 62">Barangay 62</option>
-                                    <option value="Barangay 63">Barangay 63</option>
-                                    <option value="Barangay 64">Barangay 64</option>
-                                    <option value="Barangay 65">Barangay 65</option>
-                                    <option value="Barangay 66">Barangay 66</option>
-                                    <option value="Barangay 67">Barangay 67</option>
-                                    <option value="Barangay 68">Barangay 68</option>
-                                    <option value="Barangay 69">Barangay 69</option>
-                                    <option value="Barangay 70">Barangay 70</option>
-                                    <option value="Barangay 71">Barangay 71</option>
-                                    <option value="Barangay 72">Barangay 72</option>
-                                    <option value="Barangay 73">Barangay 73</option>
-                                    <option value="Barangay 74">Barangay 74</option>
-                                    <option value="Barangay 75">Barangay 75</option>
-                                    <option value="Barangay 76">Barangay 76</option>
-                                    <option value="Barangay 77">Barangay 77</option>
-                                    <option value="Barangay 78">Barangay 78</option>
-                                    <option value="Barangay 79">Barangay 79</option>
-                                    <option value="Barangay 80">Barangay 80</option>
-                                    <option value="Barangay 81">Barangay 81</option>
-                                    <option value="Barangay 82">Barangay 82</option>
-                                    <option value="Barangay 83">Barangay 83</option>
-                                    <option value="Barangay 84">Barangay 84</option>
-                                    <option value="Barangay 85">Barangay 85</option>
-                                    <option value="Barangay 86">Barangay 86</option>
-                                    <option value="Barangay 87">Barangay 87</option>
-                                    <option value="Barangay 88">Barangay 88</option>
-                                    <option value="Barangay 89">Barangay 89</option>
-                                    <option value="Barangay 90">Barangay 90</option>
-                                    <option value="Barangay 91">Barangay 91</option>
-                                    <option value="Barangay 92">Barangay 92</option>
-                                    <option value="Barangay 93">Barangay 93</option>
-                                    <option value="Barangay 94">Barangay 94</option>
-                                    <option value="Barangay 95">Barangay 95</option>
-                                    <option value="Barangay 96">Barangay 96</option>
-                                    <option value="Barangay 97">Barangay 97</option>
-                                    <option value="Barangay 98">Barangay 98</option>
-                                    <option value="Barangay 99">Barangay 99</option>
-                                    <option value="Barangay 100">Barangay 100</option>
-                                    <option value="Barangay 101">Barangay 101</option>
-                                    <option value="Barangay 102">Barangay 102</option>
-                                    <option value="Barangay 103">Barangay 103</option>
-                                    <option value="Barangay 104">Barangay 104</option>
-                                    <option value="Barangay 105">Barangay 105</option>
-                                    <option value="Barangay 106">Barangay 106</option>
-                                    <option value="Barangay 107">Barangay 107</option>
-                                    <option value="Barangay 108">Barangay 108</option>
-                                    <option value="Barangay 109">Barangay 109</option>
-                                    <option value="Barangay 110">Barangay 110</option>
-                                    <option value="Barangay 111">Barangay 111</option>
-                                    <option value="Barangay 112">Barangay 112</option>
-                                    <option value="Barangay 113">Barangay 113</option>
-                                    <option value="Barangay 114">Barangay 114</option>
-                                    <option value="Barangay 115">Barangay 115</option>
-                                    <option value="Barangay 116">Barangay 116</option>
-                                    <option value="Barangay 117">Barangay 117</option>
-                                    <option value="Barangay 118">Barangay 118</option>
-                                    <option value="Barangay 119">Barangay 119</option>
-                                    <option value="Barangay 120">Barangay 120</option>
-                                    <option value="Barangay 121">Barangay 121</option>
-                                    <option value="Barangay 122">Barangay 122</option>
-                                    <option value="Barangay 123">Barangay 123</option>
-                                    <option value="Barangay 124">Barangay 124</option>
-                                    <option value="Barangay 125">Barangay 125</option>
-                                    <option value="Barangay 126">Barangay 126</option>
-                                    <option value="Barangay 127">Barangay 127</option>
-                                    <option value="Barangay 128">Barangay 128</option>
-                                    <option value="Barangay 129">Barangay 129</option>
-                                    <option value="Barangay 130">Barangay 130</option>
-                                    <option value="Barangay 131">Barangay 131</option>
-                                    <option value="Barangay 132">Barangay 132</option>
-                                    <option value="Barangay 133">Barangay 133</option>
-                                    <option value="Barangay 134">Barangay 134</option>
-                                    <option value="Barangay 135">Barangay 135</option>
-                                    <option value="Barangay 136">Barangay 136</option>
-                                    <option value="Barangay 137">Barangay 137</option>
-                                    <option value="Barangay 138">Barangay 138</option>
-                                    <option value="Barangay 139">Barangay 139</option>
-                                    <option value="Barangay 140">Barangay 140</option>
-                                    <option value="Barangay 141">Barangay 141</option>
-                                    <option value="Barangay 142">Barangay 142</option>
-                                    <option value="Barangay 143">Barangay 143</option>
-                                    <option value="Barangay 144">Barangay 144</option>
-                                    <option value="Barangay 145">Barangay 145</option>
-                                    <option value="Barangay 146">Barangay 146</option>
-                                    <option value="Barangay 147">Barangay 147</option>
-                                    <option value="Barangay 148">Barangay 148</option>
-                                    <option value="Barangay 149">Barangay 149</option>
-                                    <option value="Barangay 150">Barangay 150</option>
-                                    <option value="Barangay 151">Barangay 151</option>
-                                    <option value="Barangay 152">Barangay 152</option>
-                                    <option value="Barangay 153">Barangay 153</option>
-                                    <option value="Barangay 154">Barangay 154</option>
-                                    <option value="Barangay 155">Barangay 155</option>
-                                    <option value="Barangay 156">Barangay 156</option>
-                                    <option value="Barangay 157">Barangay 157</option>
-                                    <option value="Barangay 158">Barangay 158</option>
-                                    <option value="Barangay 159">Barangay 159</option>
-                                    <option value="Barangay 160">Barangay 160</option>
-                                    <option value="Barangay 161">Barangay 161</option>
-                                    <option value="Barangay 162">Barangay 162</option>
-                                    <option value="Barangay 163">Barangay 163</option>
-                                    <option value="Barangay 164">Barangay 164</option>
-                                    <option value="Barangay 165">Barangay 165</option>
-                                    <option value="Barangay 166">Barangay 166</option>
-                                    <option value="Barangay 167">Barangay 167</option>
-                                    <option value="Barangay 168">Barangay 168</option>
-                                    <option value="Barangay 169">Barangay 169</option>
-                                    <option value="Barangay 170">Barangay 170</option>
-                                    <option value="Barangay 171">Barangay 171</option>
-                                    <option value="Barangay 172">Barangay 172</option>
-                                    <option value="Barangay 173">Barangay 173</option>
-                                    <option value="Barangay 174">Barangay 174</option>
-                                    <option value="Barangay 175">Barangay 175</option>
-                                    <option value="Barangay 176">Barangay 176</option>
-                                    <option value="Barangay 177">Barangay 177</option>
-                                    <option value="Barangay 178">Barangay 178</option>
-                                    <option value="Barangay 179">Barangay 179</option>
-                                    <option value="Barangay 180">Barangay 180</option>
-                                    <option value="Barangay 181">Barangay 181</option>
-                                    <option value="Barangay 182">Barangay 182</option>
-                                    <option value="Barangay 183">Barangay 183</option>
-                                    <option value="Barangay 184">Barangay 184</option>
-                                    <option value="Barangay 185">Barangay 185</option>
-                                    <option value="Barangay 186">Barangay 186</option>
-                                    <option value="Barangay 187">Barangay 187</option>
-                                    <option value="Barangay 188">Barangay 188</option>
                                 </select>
                             </div>
                             <div>
@@ -584,7 +394,7 @@
                                 <div id="passwordStrength" class="password-strength"></div>
                                 
                                 <!-- Password requirements -->
-                                <div id="passwordRequirements" class="password-requirements">
+                                <div id="passwordRequirements" class="password-requirements hidden">
                                     <div class="requirement unmet" id="reqLength">
                                         <i class="fas fa-circle"></i>
                                         <span>At least 8 characters</span>
@@ -672,7 +482,7 @@
                 
                 <div class="text-center mb-6">
                     <p class="text-gray-600">We've sent a 6-digit OTP to your email</p>
-                    <p id="otpEmail" class="font-semibold text-custom-secondary mt-1">user@example.com</p>
+                    <p id="otpEmail" class="font-semibold text-custom-secondary mt-1"></p>
                     <p id="otpTimer" class="text-sm text-gray-500 mt-2">03:00</p>
                 </div>
                 
@@ -927,14 +737,11 @@
 
     <script>
         // ============================================
-        // CONFIGURATION
+        // CONFIGURATION - FIXED
         // ============================================
-        // ============================================
-// CONFIGURATION - FIXED
-// ============================================
-// Always use /revenue2 since that's where your app is located
-const basePath = '/revenue2';
-const API_ENDPOINT = '/revenue2/Login/api/auth.php';
+        // Auto-detect the correct base path
+        const basePath = window.location.pathname.includes('/revenue2/') ? '/revenue2' : '';
+        const API_ENDPOINT = 'Login/api/auth.php'; // Relative path - works in all environments
         
         let currentUserId = null;
         let otpTimer = null;
@@ -943,6 +750,9 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOM loaded, initializing app...');
+            console.log('📡 API Endpoint:', API_ENDPOINT);
+            console.log('📍 Base Path:', basePath);
+            
             updateDateTime();
             setInterval(updateDateTime, 1000);
             setupEventListeners();
@@ -952,32 +762,39 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         });
         
         function fixBackgroundImage() {
-    console.log('🖼️ Fixing background image...');
-    const bgElement = document.querySelector('.bg-custom-bg');
-    if (!bgElement) return;
-    
-    // Direct path to your background image - this is the correct path
-    const correctPath = '/revenue2/Login/images/bg.jpg';
-    
-    // Set the background image directly
-    bgElement.style.backgroundImage = `url('${correctPath}')`;
-    bgElement.style.backgroundSize = 'cover';
-    bgElement.style.backgroundPosition = 'center';
-    bgElement.style.backgroundRepeat = 'no-repeat';
-    bgElement.style.backgroundAttachment = 'fixed';
-    
-    // Verify if image loads
-    const testImage = new Image();
-    testImage.onload = function() {
-        console.log('✅ Background image loaded successfully:', correctPath);
-    };
-    testImage.onerror = function() {
-        console.log('❌ Background image failed to load:', correctPath);
-        // Fallback color
-        bgElement.style.backgroundColor = '#f3f4f6';
-    };
-    testImage.src = correctPath;
-}
+            console.log('🖼️ Fixing background image...');
+            const bgElement = document.querySelector('.bg-custom-bg');
+            if (!bgElement) return;
+            
+            // Auto-detect correct path for background image
+            let imagePath;
+            const currentPath = window.location.pathname;
+            
+            if (currentPath.includes('/revenue2/')) {
+                imagePath = 'Login/images/bg.jpg'; // Relative path when in /revenue2/
+            } else {
+                imagePath = 'Login/images/bg.jpg'; // Same relative path works everywhere
+            }
+            
+            // Set the background image
+            bgElement.style.backgroundImage = `url('${imagePath}')`;
+            bgElement.style.backgroundSize = 'cover';
+            bgElement.style.backgroundPosition = 'center';
+            bgElement.style.backgroundRepeat = 'no-repeat';
+            bgElement.style.backgroundAttachment = 'fixed';
+            
+            // Test if image loads
+            const testImage = new Image();
+            testImage.onload = function() {
+                console.log('✅ Background image loaded successfully:', imagePath);
+            };
+            testImage.onerror = function() {
+                console.warn('⚠️ Background image not found at:', imagePath);
+                console.log('💡 Please add background image at: /revenue2/Login/images/bg.jpg');
+                // Don't change background color, just log the warning
+            };
+            testImage.src = imagePath;
+        }
         
         function setupEventListeners() {
             // Login form
@@ -1094,6 +911,7 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             const passwordInput = document.getElementById('regPassword');
             const confirmInput = document.getElementById('confirmPassword');
             const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+            const requirementsDiv = document.getElementById('passwordRequirements');
             
             if (passwordInput) {
                 passwordInput.addEventListener('input', function() {
@@ -1102,13 +920,15 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                 });
                 
                 passwordInput.addEventListener('focus', function() {
-                    document.getElementById('passwordRequirements').style.display = 'block';
+                    if (requirementsDiv) {
+                        requirementsDiv.style.display = 'block';
+                    }
                 });
                 
                 passwordInput.addEventListener('blur', function() {
                     setTimeout(() => {
-                        if (!this.matches(':focus')) {
-                            document.getElementById('passwordRequirements').style.display = 'none';
+                        if (!this.matches(':focus') && requirementsDiv) {
+                            requirementsDiv.style.display = 'none';
                         }
                     }, 200);
                 });
@@ -1131,7 +951,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     const value = e.target.value.replace(/[^0-9]/g, '');
                     
                     if (value) {
-                        // Auto-advance to next input
                         e.target.value = value.charAt(0);
                         e.target.classList.add('filled');
                         
@@ -1139,7 +958,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                             inputs[index + 1].focus();
                             inputs[index + 1].select();
                         } else {
-                            // If last input, blur it
                             e.target.blur();
                         }
                     } else {
@@ -1149,7 +967,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     // Auto-submit if all inputs are filled
                     const allFilled = Array.from(inputs).every(input => input.value.length === 1);
                     if (allFilled) {
-                        // Small delay to let the last input be filled
                         setTimeout(() => {
                             handleVerifyOtp();
                         }, 100);
@@ -1159,7 +976,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                 // Handle backspace
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Backspace') {
-                        // If current input is empty, go to previous input
                         if (!e.target.value && index > 0) {
                             e.preventDefault();
                             inputs[index - 1].focus();
@@ -1168,7 +984,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                         }
                     }
                     
-                    // Handle left/right arrow keys for navigation
                     if (e.key === 'ArrowLeft' && index > 0) {
                         e.preventDefault();
                         inputs[index - 1].focus();
@@ -1181,7 +996,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                         inputs[index + 1].select();
                     }
                     
-                    // Handle delete key
                     if (e.key === 'Delete') {
                         e.target.value = '';
                         e.target.classList.remove('filled');
@@ -1201,14 +1015,12 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                         }
                     });
                     
-                    // Focus on next empty input or last input
                     const nextIndex = digits.length < 6 ? digits.length : 5;
                     if (inputs[nextIndex]) {
                         inputs[nextIndex].focus();
                         inputs[nextIndex].select();
                     }
                     
-                    // Auto-submit if all filled
                     if (digits.length === 6) {
                         setTimeout(() => {
                             handleVerifyOtp();
@@ -1216,23 +1028,20 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     }
                 });
                 
-                // Handle focus to select all text
                 input.addEventListener('focus', function() {
                     this.select();
                 });
                 
-                // Handle click to select all text
                 input.addEventListener('click', function() {
                     this.select();
                 });
             });
         }
         
-        // ============================================
-        // PASSWORD VALIDATION FUNCTIONS
-        // ============================================
         function checkPasswordStrength(password) {
             const strengthBar = document.getElementById('passwordStrength');
+            if (!strengthBar) return;
+            
             const requirements = {
                 length: password.length >= 8,
                 uppercase: /[A-Z]/.test(password),
@@ -1242,41 +1051,38 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             };
             
             // Update requirement indicators
-            document.getElementById('reqLength').className = requirements.length ? 'requirement met' : 'requirement unmet';
-            document.getElementById('reqUppercase').className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
-            document.getElementById('reqLowercase').className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
-            document.getElementById('reqNumber').className = requirements.number ? 'requirement met' : 'requirement unmet';
-            document.getElementById('reqSpecial').className = requirements.special ? 'requirement met' : 'requirement unmet';
+            const reqLength = document.getElementById('reqLength');
+            const reqUppercase = document.getElementById('reqUppercase');
+            const reqLowercase = document.getElementById('reqLowercase');
+            const reqNumber = document.getElementById('reqNumber');
+            const reqSpecial = document.getElementById('reqSpecial');
             
-            // Calculate strength score
+            if (reqLength) reqLength.className = requirements.length ? 'requirement met' : 'requirement unmet';
+            if (reqUppercase) reqUppercase.className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
+            if (reqLowercase) reqLowercase.className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
+            if (reqNumber) reqNumber.className = requirements.number ? 'requirement met' : 'requirement unmet';
+            if (reqSpecial) reqSpecial.className = requirements.special ? 'requirement met' : 'requirement unmet';
+            
             let score = 0;
             Object.values(requirements).forEach(met => {
                 if (met) score++;
             });
             
-            // Update strength bar
             let strengthClass = '';
-            let strengthText = '';
             
             if (password.length === 0) {
                 strengthClass = '';
-                strengthText = '';
             } else if (password.length < 6) {
                 strengthClass = 'strength-weak';
-                strengthText = 'Weak';
             } else if (score <= 2) {
                 strengthClass = 'strength-fair';
-                strengthText = 'Fair';
             } else if (score <= 4) {
                 strengthClass = 'strength-good';
-                strengthText = 'Good';
             } else {
                 strengthClass = 'strength-strong';
-                strengthText = 'Strong';
             }
             
             strengthBar.className = `password-strength ${strengthClass}`;
-            strengthBar.title = strengthText;
         }
         
         function checkPasswordMatch() {
@@ -1286,18 +1092,18 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             const mismatchElement = document.getElementById('passwordMismatch');
             
             if (confirmPassword.length === 0) {
-                matchElement.classList.add('hidden');
-                mismatchElement.classList.add('hidden');
+                if (matchElement) matchElement.classList.add('hidden');
+                if (mismatchElement) mismatchElement.classList.add('hidden');
                 return false;
             }
             
             if (password === confirmPassword) {
-                matchElement.classList.remove('hidden');
-                mismatchElement.classList.add('hidden');
+                if (matchElement) matchElement.classList.remove('hidden');
+                if (mismatchElement) mismatchElement.classList.add('hidden');
                 return true;
             } else {
-                matchElement.classList.add('hidden');
-                mismatchElement.classList.remove('hidden');
+                if (matchElement) matchElement.classList.add('hidden');
+                if (mismatchElement) mismatchElement.classList.remove('hidden');
                 return false;
             }
         }
@@ -1305,9 +1111,9 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         function validateRegisterForm() {
             const registerSubmitBtn = document.getElementById('registerSubmitBtn');
             const password = document.getElementById('regPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
             
-            // Check password requirements
+            if (!registerSubmitBtn) return;
+            
             const hasMinLength = password.length >= 8;
             const hasUppercase = /[A-Z]/.test(password);
             const hasLowercase = /[a-z]/.test(password);
@@ -1317,17 +1123,9 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             
             const isStrongPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
             
-            // Enable button only if all requirements are met and passwords match
-            if (isStrongPassword && passwordsMatch) {
-                registerSubmitBtn.disabled = false;
-            } else {
-                registerSubmitBtn.disabled = true;
-            }
+            registerSubmitBtn.disabled = !(isStrongPassword && passwordsMatch);
         }
         
-        // ============================================
-        // MAIN HANDLER FUNCTIONS
-        // ============================================
         async function handleLoginSubmit(e) {
             e.preventDefault();
             console.log('🔐 Login form submitted');
@@ -1336,7 +1134,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             const password = document.getElementById('password').value.trim();
             const loginBtn = document.getElementById('loginBtn');
             
-            // Validation
             if (!email || !password) {
                 showNotification('Please enter both email and password', 'error');
                 return;
@@ -1350,7 +1147,8 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             setButtonLoading(loginBtn, true, 'Logging in...');
             
             try {
-                console.log('📤 Sending login request...');
+                console.log('📤 Sending login request to:', API_ENDPOINT);
+                
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -1371,11 +1169,9 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     data = JSON.parse(responseText);
                 } catch (parseError) {
                     console.error('❌ JSON Parse Error:', parseError);
-                    showNotification('Server returned invalid response', 'error');
+                    showNotification('Server returned invalid response. Check if auth.php exists.', 'error');
                     return;
                 }
-                
-                console.log('📨 Login response:', data);
                 
                 if (data.success) {
                     console.log('✅ Login successful');
@@ -1385,7 +1181,7 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                         showNotification('Admin login successful! Redirecting...', 'success');
                         
                         setTimeout(() => {
-                            window.location.href = basePath + '/dist/index.html';
+                            window.location.href = (basePath ? basePath + '/' : '') + 'dist/index.html';
                         }, 1000);
                     } else {
                         currentUserId = data.user_id;
@@ -1397,14 +1193,13 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                         }
                         openOtpModal();
                     }
-                    
                 } else {
                     console.log('❌ Login failed:', data.message);
                     showNotification(data.message || 'Invalid email or password', 'error');
                 }
             } catch (error) {
                 console.error('🚨 Login error:', error);
-                showNotification('Network error. Please try again.', 'error');
+                showNotification('Network error. Please check if server is running.', 'error');
             } finally {
                 setButtonLoading(loginBtn, false, 'Login');
             }
@@ -1487,7 +1282,8 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             setButtonLoading(registerBtn, true, 'Creating Account...');
             
             try {
-                console.log('📤 Sending registration request...');
+                console.log('📤 Sending registration request to:', API_ENDPOINT);
+                
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -1510,8 +1306,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     showNotification('Server returned invalid response', 'error');
                     return;
                 }
-                
-                console.log('📨 Register response:', result);
                 
                 if (result.success) {
                     currentUserId = result.user_id;
@@ -1575,17 +1369,15 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     return;
                 }
                 
-                console.log('📨 OTP verification response:', data);
-                
                 if (data.success) {
                     showNotification('OTP verified successfully!', 'success');
                     closeOtpModalFunc();
                     
                     setTimeout(() => {
                         if (data.redirect_url) {
-                            window.location.href = basePath + '/' + data.redirect_url;
+                            window.location.href = (basePath ? basePath + '/' : '') + data.redirect_url;
                         } else {
-                            window.location.href = basePath + '/citizen_dashboard/citizen_dashboard.php';
+                            window.location.href = (basePath ? basePath + '/' : '') + 'citizen_dashboard/citizen_dashboard.php';
                         }
                     }, 1500);
                 } else {
@@ -1631,8 +1423,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                     return;
                 }
                 
-                console.log('📨 Resend OTP response:', data);
-                
                 if (data.success) {
                     if (data.debug_otp) {
                         console.log('🔑 DEBUG OTP:', data.debug_otp);
@@ -1660,7 +1450,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             if (container) {
                 container.classList.remove('hidden');
                 document.body.classList.add('modal-open');
-                // Reset password validation
                 checkPasswordStrength('');
                 checkPasswordMatch();
                 validateRegisterForm();
@@ -1672,7 +1461,8 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             if (container) {
                 container.classList.add('hidden');
                 document.body.classList.remove('modal-open');
-                container.querySelector('form').reset();
+                const form = container.querySelector('form');
+                if (form) form.reset();
             }
         }
         
@@ -1737,7 +1527,7 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                 resetOtpInputs();
                 startOtpTimer();
                 hideOtpError();
-                // Focus on first OTP input
+                
                 const firstInput = document.querySelector('.otp-input[data-index="0"]');
                 if (firstInput) {
                     setTimeout(() => {
@@ -1768,7 +1558,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         function getOtpCode() {
             const inputs = document.querySelectorAll('.otp-input');
             const code = Array.from(inputs).map(input => input.value).join('');
-            console.log('🔑 OTP code entered:', code);
             return code;
         }
         
@@ -1836,7 +1625,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
                 errorElement.textContent = message;
                 errorElement.classList.remove('hidden');
                 
-                // Highlight OTP inputs in red
                 const inputs = document.querySelectorAll('.otp-input');
                 inputs.forEach(input => {
                     input.classList.add('border-red-500');
@@ -1849,7 +1637,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             if (errorElement) {
                 errorElement.classList.add('hidden');
                 
-                // Remove red border from OTP inputs
                 const inputs = document.querySelectorAll('.otp-input');
                 inputs.forEach(input => {
                     input.classList.remove('border-red-500');
@@ -1894,7 +1681,6 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         }
         
         function showNotification(message, type = 'info') {
-            // Remove existing notifications
             const existing = document.querySelectorAll('.notification');
             existing.forEach(notif => notif.remove());
             
@@ -1921,12 +1707,10 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             
             document.body.appendChild(notification);
             
-            // Animate in
             setTimeout(() => {
                 notification.classList.add('show');
             }, 100);
             
-            // Auto remove after 5 seconds
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.classList.remove('show');
