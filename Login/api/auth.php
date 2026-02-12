@@ -3,7 +3,8 @@
 session_start();
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Change to 0 to prevent HTML errors from breaking JSON
+ini_set('log_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -79,7 +80,7 @@ try {
 
 } catch (Exception $e) {
     error_log("Auth Exception: " . $e->getMessage());
-    $response['message'] = 'System error: ' . $e->getMessage();
+    $response['message'] = 'System error';
 }
 
 echo json_encode($response);
@@ -172,8 +173,18 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
-    if (strlen($input['regPassword']) < 6) {
-        $response['message'] = 'Password must be at least 6 characters';
+    if (strlen($input['regPassword']) < 8) {
+        $response['message'] = 'Password must be at least 8 characters';
+        return;
+    }
+
+    // Check password strength
+    $password = $input['regPassword'];
+    if (!preg_match('/[A-Z]/', $password) || 
+        !preg_match('/[a-z]/', $password) || 
+        !preg_match('/[0-9]/', $password) || 
+        !preg_match('/[!@#$%^&*(),.?":{}|<>]/', $password)) {
+        $response['message'] = 'Password must contain uppercase, lowercase, number, and special character';
         return;
     }
 
@@ -192,7 +203,6 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
-    // ✅ FIXED: Caloocan City validation
     if ($input['city'] !== 'Caloocan City') {
         $response['message'] = 'City must be Caloocan City';
         return;
@@ -211,10 +221,11 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
+    // Set user properties
     $user->first_name = trim($input['firstName']);
     $user->last_name = trim($input['lastName']);
-    $user->middle_name = isset($input['middleName']) ? trim($input['middleName']) : null;
-    $user->suffix = isset($input['suffix']) ? trim($input['suffix']) : null;
+    $user->middle_name = isset($input['middleName']) && !empty(trim($input['middleName'])) ? trim($input['middleName']) : null;
+    $user->suffix = isset($input['suffix']) && !empty(trim($input['suffix'])) ? trim($input['suffix']) : null;
     $user->birthdate = trim($input['birthdate']);
     $user->mobile = trim($input['mobile']);
     $user->house_number = trim($input['houseNumber']);
@@ -224,9 +235,9 @@ function handleRegister($db, $input, &$response) {
     $user->city = trim($input['city']);
     $user->province = trim($input['province']);
     $user->zip_code = trim($input['zipCode']);
-    $user->password = $input['regPassword'];
 
-    if ($user->create()) {
+    // ✅ FIXED: Pass the plain password to the create() method
+    if ($user->create($input['regPassword'])) {
         $otp = new OTP($db);
         $otp_code = $otp->generateOTP();
         $otp->user_id = $user->id;
@@ -255,6 +266,7 @@ function handleRegister($db, $input, &$response) {
         }
     } else {
         $response['message'] = 'Registration failed. Please try again.';
+        error_log("Registration failed for email: " . $user->email);
     }
 }
 
