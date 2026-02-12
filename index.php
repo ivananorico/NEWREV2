@@ -951,23 +951,16 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
             fixBackgroundImage();
         });
         
-       function fixBackgroundImage() {
+        function fixBackgroundImage() {
     console.log('🖼️ Fixing background image...');
     const bgElement = document.querySelector('.bg-custom-bg');
     if (!bgElement) return;
     
-    // AUTO-DETECT CORRECT PATH BASED ON ENVIRONMENT
-    let imagePath;
-    const hostname = window.location.hostname;
-    
-    if (hostname.includes('goserveph.com')) {
-        imagePath = '/Login/images/bg.jpg';  // Domain: no /revenue2
-    } else {
-        imagePath = '/revenue2/Login/images/bg.jpg';  // Local/IP: with /revenue2
-    }
+    // Direct path to your background image - this is the correct path
+    const correctPath = '/revenue2/Login/images/bg.jpg';
     
     // Set the background image directly
-    bgElement.style.backgroundImage = `url('${imagePath}')`;
+    bgElement.style.backgroundImage = `url('${correctPath}')`;
     bgElement.style.backgroundSize = 'cover';
     bgElement.style.backgroundPosition = 'center';
     bgElement.style.backgroundRepeat = 'no-repeat';
@@ -976,14 +969,14 @@ const API_ENDPOINT = '/revenue2/Login/api/auth.php';
     // Verify if image loads
     const testImage = new Image();
     testImage.onload = function() {
-        console.log('✅ Background image loaded successfully:', imagePath);
+        console.log('✅ Background image loaded successfully:', correctPath);
     };
     testImage.onerror = function() {
-        console.log('❌ Background image failed to load:', imagePath);
-        // NO BACKGROUND COLOR CHANGE - just log the error
-        console.log('⚠️ Please add background image at:', imagePath);
+        console.log('❌ Background image failed to load:', correctPath);
+        // Fallback color
+        bgElement.style.backgroundColor = '#f3f4f6';
     };
-    testImage.src = imagePath;
+    testImage.src = correctPath;
 }
         
         function setupEventListeners() {
