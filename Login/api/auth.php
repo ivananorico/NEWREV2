@@ -215,10 +215,11 @@ function handleRegister($db, $input, &$response) {
     }
 
     // Validate fixed city and province
-    if ($input['city'] !== 'Quezon City') {
-        $response['message'] = 'City must be Quezon City';
-        return;
-    }
+    // Validate fixed city and province
+if ($input['city'] !== 'Caloocan City') {
+    $response['message'] = 'City must be Caloocan City';
+    return;
+}
 
     if ($input['province'] !== 'Metro Manila') {
         $response['message'] = 'Province must be Metro Manila';
