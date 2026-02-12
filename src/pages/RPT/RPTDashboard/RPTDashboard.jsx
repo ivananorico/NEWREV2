@@ -1,4 +1,4 @@
- import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area
@@ -18,9 +18,33 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const API_BASE = window.location.hostname === "localhost"
-  ? "http://localhost/revenue2/backend"
-  : "https://revenuetreasury.goserveph.com/backend";
+// Auto-detect environment
+const getApiBase = () => {
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1';
+  
+  if (isLocalhost) {
+    return 'http://localhost/revenue2/backend';
+  } else {
+    return 'https://revenuetreasury.goserveph.com/backend';
+  }
+};
+
+const API_BASE = getApiBase();
+
+// Color palette from BusinessTaxDashboard
+const COLORS = {
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
+};
+
+const CHART_COLORS = ['#4a90e2', '#9aa5b1', '#4caf50', '#ff9800', '#2196f3', '#f44336', '#673ab7'];
 
 export default function RPTDashboardImproved() {
   const [loading, setLoading] = useState(true);
@@ -31,7 +55,7 @@ export default function RPTDashboardImproved() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState([]);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'charts'
+  const [viewMode, setViewMode] = useState('cards');
   const [currentQuarter] = useState(() => {
     const month = new Date().getMonth() + 1;
     if (month >= 1 && month <= 3) return 'Q1';
@@ -46,7 +70,6 @@ export default function RPTDashboardImproved() {
 
   useEffect(() => {
     if (availableYears.length > 0) {
-      // Set default year to latest available
       const latestYear = Math.max(...availableYears);
       if (!availableYears.includes(selectedYear)) {
         setSelectedYear(latestYear);
@@ -64,15 +87,9 @@ export default function RPTDashboardImproved() {
       const data = await response.json();
       
       if (data.success && data.years && data.years.length > 0) {
-        setAvailableYears(data.years);
-        // Sort years in descending order
-        setAvailableYears(prev => [...prev].sort((a, b) => b - a));
-        
-        // Set initial year to latest available
-        const latestYear = Math.max(...data.years);
-        setSelectedYear(latestYear);
+        const sortedYears = [...data.years].sort((a, b) => b - a);
+        setAvailableYears(sortedYears);
       } else {
-        // Fallback to current year and previous years
         const currentYear = new Date().getFullYear();
         const years = [currentYear, currentYear - 1, currentYear - 2];
         setAvailableYears(years);
@@ -105,7 +122,6 @@ export default function RPTDashboardImproved() {
         throw new Error(data.error || data.message || 'Failed to load dashboard data');
       }
       
-      // Parse string numbers to floats
       const parsedData = parseNumbersInData(data);
       setDashboardData(parsedData);
       
@@ -117,7 +133,6 @@ export default function RPTDashboardImproved() {
     }
   };
 
-  // Helper function to parse string numbers to floats
   const parseNumbersInData = (data) => {
     if (!data) return data;
     
@@ -176,22 +191,6 @@ export default function RPTDashboardImproved() {
     return `${parsedValue.toFixed(1)}%`;
   };
 
-  const getProgressColor = (value) => {
-    const numValue = safeParseFloat(value);
-    if (numValue >= 90) return 'bg-green-500';
-    if (numValue >= 75) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const exportToExcel = (data, fileName, sheetName = 'Sheet1') => {
     try {
       if (!data || data.length === 0) {
@@ -240,6 +239,31 @@ export default function RPTDashboardImproved() {
     }
   };
 
+  const exportBarangayCollectionReport = () => {
+    if (!dashboardData || !dashboardData.top_barangays) return;
+    
+    setExportLoading(true);
+    try {
+      const barangayData = dashboardData.top_barangays.map(b => ({
+        'Barangay': b.barangay,
+        'District': b.district || 'Unknown',
+        'Property Count': formatNumber(b.property_count),
+        'Unique Owners': formatNumber(b.unique_owners),
+        'Total Annual Tax (PHP)': safeParseFloat(b.total_annual_tax),
+        'Total Land Value (PHP)': safeParseFloat(b.total_land_value),
+        'Total Building Value (PHP)': safeParseFloat(b.total_building_value),
+        'Average Tax per Property (PHP)': safeParseFloat(b.avg_tax_per_property)
+      }));
+
+      exportToExcel(barangayData, `RPT_Barangay_Collections_${selectedYear}`, 'Barangay Collections');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Error exporting barangay collection report');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const exportCompleteDashboardReport = () => {
     if (!dashboardData) return;
     
@@ -248,7 +272,6 @@ export default function RPTDashboardImproved() {
       const wb = XLSX.utils.book_new();
       const dateStr = new Date().toISOString().split('T')[0];
       
-      // 1. Summary Sheet
       const overallCollection = dashboardData.quarterly_analysis.reduce((acc, q) => {
         return {
           total_due: acc.total_due + safeParseFloat(q.total_due),
@@ -274,6 +297,22 @@ export default function RPTDashboardImproved() {
       const ws1 = XLSX.utils.json_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(wb, ws1, 'Dashboard Summary');
       
+      if (dashboardData.top_barangays && dashboardData.top_barangays.length > 0) {
+        const barangayData = dashboardData.top_barangays.map(b => ({
+          'Barangay': b.barangay,
+          'District': b.district || 'Unknown',
+          'Property Count': safeParseFloat(b.property_count),
+          'Unique Owners': safeParseFloat(b.unique_owners),
+          'Total Annual Tax': safeParseFloat(b.total_annual_tax),
+          'Total Land Value': safeParseFloat(b.total_land_value),
+          'Total Building Value': safeParseFloat(b.total_building_value),
+          'Avg Tax per Property': safeParseFloat(b.avg_tax_per_property)
+        }));
+        
+        const ws2 = XLSX.utils.json_to_sheet(barangayData);
+        XLSX.utils.book_append_sheet(wb, ws2, 'Barangay Collections');
+      }
+      
       XLSX.writeFile(wb, `RPT_Complete_Report_${selectedYear}_${dateStr}.xlsx`);
       
     } catch (error) {
@@ -286,8 +325,9 @@ export default function RPTDashboardImproved() {
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-800 mb-4"></div>
+      <div className="flex flex-col justify-center items-center h-screen" style={{ backgroundColor: COLORS.background }}>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mb-4"
+             style={{ borderColor: COLORS.primary }}></div>
         <p className="text-gray-600">Loading Real Property Tax Dashboard...</p>
         <p className="text-sm text-gray-400 mt-2">Fetching data for {selectedYear}</p>
       </div>
@@ -297,17 +337,18 @@ export default function RPTDashboardImproved() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-white">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6" style={{ backgroundColor: COLORS.background }}>
           <div className="flex items-center space-x-3 mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+            <AlertCircle className="w-8 h-8" style={{ color: COLORS.danger }} />
             <div>
-              <h3 className="text-lg font-semibold text-red-600">Error Loading Dashboard</h3>
-              <p className="text-red-600">{error}</p>
+              <h3 className="text-lg font-semibold" style={{ color: COLORS.danger }}>Error Loading Dashboard</h3>
+              <p style={{ color: COLORS.danger }}>{error}</p>
             </div>
           </div>
           <button 
             onClick={fetchDashboardData}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+            style={{ backgroundColor: COLORS.primary, color: 'white' }}
           >
             <RefreshCw className="w-4 h-4" />
             Try Again
@@ -319,12 +360,13 @@ export default function RPTDashboardImproved() {
 
   if (!dashboardData) {
     return (
-      <div className="text-center py-12 bg-white">
-        <Landmark className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      <div className="text-center py-12" style={{ backgroundColor: COLORS.background }}>
+        <Landmark className="w-16 h-16 mx-auto mb-4" style={{ color: COLORS.primary }} />
         <p className="text-gray-500">No dashboard data available for {selectedYear}</p>
         <button 
           onClick={fetchDashboardData}
-          className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center gap-2 mx-auto"
+          className="mt-4 px-4 py-2 rounded-lg flex items-center gap-2 mx-auto transition-all"
+          style={{ backgroundColor: COLORS.primary, color: 'white' }}
         >
           <RefreshCw className="w-4 h-4" />
           Load Dashboard
@@ -333,7 +375,6 @@ export default function RPTDashboardImproved() {
     );
   }
 
-  // Extract data with defaults
   const {
     property_stats = {},
     tax_stats = {},
@@ -341,13 +382,11 @@ export default function RPTDashboardImproved() {
     property_distribution = {},
     quarterly_analysis = [],
     top_barangays = [],
-    payment_analysis = {},
     recent_activities = {},
     current_quarter: dataCurrentQuarter,
     timestamp
   } = dashboardData;
 
-  // Calculate key metrics
   const overallCollection = quarterly_analysis.reduce((acc, q) => {
     return {
       total_due: acc.total_due + safeParseFloat(q.total_due),
@@ -365,8 +404,7 @@ export default function RPTDashboardImproved() {
   const totalOutstanding = safeParseFloat(tax_stats.outstanding?.total_outstanding);
 
   const quarterlyData = tax_stats.quarterly || [];
-  const topBarangaysData = top_barangays.slice(0, 5);
-  const paymentTimingData = payment_analysis.payment_timing || [];
+  const topBarangaysData = top_barangays.slice(0, 10);
 
   const getActivitiesForTab = () => {
     switch(activeTab) {
@@ -397,16 +435,16 @@ export default function RPTDashboardImproved() {
     : 'Now';
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header - Clean White Design */}
-      <div className="border-b border-gray-200 bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
+      {/* Header */}
+      <div className="border-b" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
                 Real Property Tax Collection Dashboard
               </h1>
-              <div className="flex items-center gap-3 text-sm text-gray-500">
+              <div className="flex items-center gap-3 text-sm" style={{ color: COLORS.secondary }}>
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   <span>{dataCurrentQuarter || currentQuarter} {selectedYear} • {formattedDate} at {formattedTime}</span>
@@ -419,7 +457,8 @@ export default function RPTDashboardImproved() {
               <div className="relative">
                 <button
                   onClick={() => setYearDropdownOpen(!yearDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                  style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Year: {selectedYear}</span>
@@ -427,7 +466,8 @@ export default function RPTDashboardImproved() {
                 </button>
                 
                 {yearDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-50"
+                       style={{ borderColor: COLORS.secondary }}>
                     <div className="py-1 max-h-60 overflow-y-auto">
                       {availableYears.map(year => (
                         <button
@@ -438,14 +478,16 @@ export default function RPTDashboardImproved() {
                           }}
                           className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
                             selectedYear === year 
-                              ? 'bg-gray-100 text-gray-900 font-medium' 
+                              ? 'bg-gray-100 font-medium' 
                               : 'text-gray-700'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span>{year}</span>
+                            <span style={{ color: selectedYear === year ? COLORS.primary : COLORS.dark }}>
+                              {year}
+                            </span>
                             {selectedYear === year && (
-                              <CheckCircle className="w-4 h-4 text-gray-600" />
+                              <CheckCircle className="w-4 h-4" style={{ color: COLORS.primary }} />
                             )}
                           </div>
                         </button>
@@ -455,20 +497,20 @@ export default function RPTDashboardImproved() {
                 )}
               </div>
               
-              {/* Refresh Button */}
               <button
                 onClick={fetchDashboardData}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-all"
+                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
               
-              {/* Export Button */}
               <button
                 onClick={exportCompleteDashboardReport}
                 disabled={exportLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+                style={{ backgroundColor: COLORS.primary, color: 'white' }}
               >
                 {exportLoading ? (
                   <>
@@ -493,9 +535,14 @@ export default function RPTDashboardImproved() {
                 onClick={() => setSelectedYear(year)}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors border ${
                   selectedYear === year
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ? 'text-white'
+                    : 'hover:bg-gray-50'
                 }`}
+                style={{
+                  backgroundColor: selectedYear === year ? COLORS.primary : 'transparent',
+                  color: selectedYear === year ? 'white' : COLORS.dark,
+                  borderColor: selectedYear === year ? COLORS.primary : COLORS.secondary
+                }}
               >
                 {year}
               </button>
@@ -509,10 +556,11 @@ export default function RPTDashboardImproved() {
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Collection Rate Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Percent className="w-6 h-6 text-blue-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                <Percent className="w-6 h-6" style={{ color: COLORS.primary }} />
               </div>
               <span className={`text-sm px-3 py-1 rounded-full ${
                 effectiveCollectionRate >= 90 ? 'bg-green-100 text-green-800' :
@@ -522,55 +570,57 @@ export default function RPTDashboardImproved() {
                 {formatPercent(effectiveCollectionRate)}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Collection Rate
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>
               {formatCurrency(overallCollection.collected)}
             </p>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between mb-1">
                 <span>Target:</span>
                 <span className="font-medium">{formatCurrency(overallCollection.total_due)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className={`h-2 rounded-full ${
-                    effectiveCollectionRate >= 90 ? 'bg-green-500' :
-                    effectiveCollectionRate >= 75 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min(effectiveCollectionRate, 100)}%` }}
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min(effectiveCollectionRate, 100)}%`,
+                    backgroundColor: effectiveCollectionRate >= 90 ? COLORS.success :
+                                   effectiveCollectionRate >= 75 ? COLORS.warning : COLORS.danger
+                  }}
                 ></div>
               </div>
             </div>
           </div>
 
           {/* Annual Tax Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
+                <DollarSign className="w-6 h-6" style={{ color: COLORS.success }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
                 {selectedYear} Tax
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Total Tax
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalAnnualTax)}</p>
-            <div className="space-y-2 text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totalAnnualTax)}</p>
+            <div className="space-y-2 text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between">
                 <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }}></div>
                   Residential:
                 </span>
                 <span>{formatCurrency(tax_stats.annual?.residential_tax)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.success }}></div>
                   Commercial:
                 </span>
                 <span>{formatCurrency(tax_stats.annual?.commercial_tax)}</span>
@@ -579,52 +629,55 @@ export default function RPTDashboardImproved() {
           </div>
 
           {/* Current Quarter Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <CalendarDays className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <CalendarDays className="w-6 h-6" style={{ color: COLORS.warning }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full" 
+                    style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
                 {dataCurrentQuarter || currentQuarter}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Current Quarter
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(currentQuarterCollected)}</p>
-            <div className="text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(currentQuarterCollected)}</p>
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between mb-1">
                 <span>Target:</span>
                 <span className="font-medium">{formatCurrency(quarterlyTarget)}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className={`h-2 rounded-full ${
-                    (currentQuarterCollected / quarterlyTarget) >= 0.8 ? 'bg-green-500' :
-                    (currentQuarterCollected / quarterlyTarget) >= 0.6 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min((currentQuarterCollected / quarterlyTarget) * 100, 100)}%` }}
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.min((currentQuarterCollected / quarterlyTarget) * 100, 100)}%`,
+                    backgroundColor: (currentQuarterCollected / quarterlyTarget) >= 0.8 ? COLORS.success :
+                                   (currentQuarterCollected / quarterlyTarget) >= 0.6 ? COLORS.warning : COLORS.danger
+                  }}
                 ></div>
               </div>
             </div>
           </div>
 
           {/* Outstanding Balance Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
+               style={{ borderColor: COLORS.secondary }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-red-50 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertTriangle className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <span className="text-sm px-3 py-1 bg-red-100 text-red-800 rounded-full">
+              <span className="text-sm px-3 py-1 rounded-full bg-red-100 text-red-800">
                 Delinquent
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
               Outstanding Balance
             </h3>
-            <p className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(totalOutstanding)}</p>
-            <div className="space-y-2 text-sm text-gray-600">
+            <p className="text-2xl font-bold mb-4" style={{ color: COLORS.dark }}>{formatCurrency(totalOutstanding)}</p>
+            <div className="space-y-2 text-sm" style={{ color: COLORS.secondary }}>
               <div className="flex justify-between">
                 <span>Pending:</span>
                 <span>{formatCurrency(tax_stats.outstanding?.pending_balance)}</span>
@@ -633,7 +686,7 @@ export default function RPTDashboardImproved() {
                 <span>Overdue:</span>
                 <span>{formatCurrency(tax_stats.outstanding?.overdue_balance)}</span>
               </div>
-              <div className="flex justify-between font-medium">
+              <div className="flex justify-between font-medium" style={{ color: COLORS.dark }}>
                 <span>Total Bills:</span>
                 <span>{formatNumber(tax_stats.outstanding?.outstanding_bills)}</span>
               </div>
@@ -643,14 +696,18 @@ export default function RPTDashboardImproved() {
 
         {/* View Mode Toggle */}
         <div className="flex justify-end">
-          <div className="inline-flex rounded-lg border border-gray-300 p-1">
+          <div className="inline-flex rounded-lg border p-1" style={{ borderColor: COLORS.secondary }}>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm rounded-md transition-all ${
                 viewMode === 'cards' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-white' 
+                  : 'hover:bg-gray-50'
               }`}
+              style={{
+                backgroundColor: viewMode === 'cards' ? COLORS.primary : 'transparent',
+                color: viewMode === 'cards' ? 'white' : COLORS.dark
+              }}
             >
               <div className="flex items-center gap-2">
                 <Grid3x3 className="w-4 h-4" />
@@ -659,11 +716,15 @@ export default function RPTDashboardImproved() {
             </button>
             <button
               onClick={() => setViewMode('charts')}
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm rounded-md transition-all ${
                 viewMode === 'charts' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-white' 
+                  : 'hover:bg-gray-50'
               }`}
+              style={{
+                backgroundColor: viewMode === 'charts' ? COLORS.primary : 'transparent',
+                color: viewMode === 'charts' ? 'white' : COLORS.dark
+              }}
             >
               <div className="flex items-center gap-2">
                 <BarChart4 className="w-4 h-4" />
@@ -677,16 +738,17 @@ export default function RPTDashboardImproved() {
         {viewMode === 'charts' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quarterly Collection Chart */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Quarterly Collection {selectedYear}
                 </h3>
                 <button
                   onClick={exportQuarterlyReport}
                   disabled={exportLoading || quarterly_analysis.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
@@ -716,14 +778,19 @@ export default function RPTDashboardImproved() {
                           return [name === 'collection_rate' ? `${value.toFixed(1)}%` : formattedValue, label];
                         }}
                         labelFormatter={(label) => `Quarter: ${label}`}
+                        contentStyle={{ 
+                          backgroundColor: 'white',
+                          borderColor: COLORS.secondary,
+                          borderRadius: '8px'
+                        }}
                       />
                       <Legend />
-                      <Bar dataKey="total_paid" fill="#4F46E5" name="Paid" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="total_due" fill="#9CA3AF" name="Total Due" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="total_paid" fill={COLORS.primary} name="Paid" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="total_due" fill={COLORS.secondary} name="Total Due" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                     <BarChart3 className="w-12 h-12 mb-2" />
                     <p>No quarterly data available for {selectedYear}</p>
                   </div>
@@ -731,18 +798,20 @@ export default function RPTDashboardImproved() {
               </div>
             </div>
 
-            {/* Top Barangays Chart */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            {/* Top Barangays Collection Chart */}
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-gray-600" />
-                  Top Barangays {selectedYear}
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <MapPin className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Top Barangays by Collection {selectedYear}
                 </h3>
                 <button
-                  onClick={exportQuarterlyReport}
+                  onClick={exportBarangayCollectionReport}
                   disabled={exportLoading || top_barangays.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all flex items-center gap-1"
+                  style={{ color: COLORS.secondary }}
                 >
+                  <Download className="w-4 h-4" />
                   Export
                 </button>
               </div>
@@ -752,32 +821,55 @@ export default function RPTDashboardImproved() {
                     <BarChart 
                       data={topBarangaysData.map(b => ({
                         name: b.barangay.length > 15 ? b.barangay.substring(0, 12) + '...' : b.barangay,
-                        revenue: safeParseFloat(b.total_annual_tax),
-                        fullName: b.barangay
+                        collection: safeParseFloat(b.total_annual_tax),
+                        fullName: b.barangay,
+                        propertyCount: safeParseFloat(b.property_count),
+                        avgTax: safeParseFloat(b.avg_tax_per_property)
                       }))}
+                      layout="vertical"
+                      margin={{ left: 100, right: 30, top: 20, bottom: 20 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                       <XAxis 
-                        dataKey="name"
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis 
+                        type="number"
                         tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
                       />
+                      <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        width={100}
+                        tick={{ fontSize: 12 }}
+                      />
                       <Tooltip 
-                        formatter={(value) => [formatCurrency(value), 'Annual Tax']}
+                        formatter={(value, name) => {
+                          if (name === 'collection') return [formatCurrency(value), 'Annual Tax'];
+                          if (name === 'propertyCount') return [formatNumber(value), 'Properties'];
+                          if (name === 'avgTax') return [formatCurrency(value), 'Avg Tax/Property'];
+                          return [value, name];
+                        }}
                         labelFormatter={(label, payload) => {
                           const fullName = payload[0]?.payload.fullName;
-                          return fullName || label;
+                          return `Barangay: ${fullName || label}`;
+                        }}
+                        contentStyle={{ 
+                          backgroundColor: 'white',
+                          borderColor: COLORS.secondary,
+                          borderRadius: '8px'
                         }}
                       />
-                      <Bar dataKey="revenue" fill="#10B981" name="Annual Tax" radius={[4, 4, 0, 0]} />
+                      <Legend />
+                      <Bar 
+                        dataKey="collection" 
+                        fill={COLORS.primary} 
+                        name="Annual Tax Collection" 
+                        radius={[0, 4, 4, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
                     <MapPin className="w-12 h-12 mb-2" />
-                    <p>No barangay data available for {selectedYear}</p>
+                    <p>No barangay collection data available for {selectedYear}</p>
                   </div>
                 )}
               </div>
@@ -789,25 +881,28 @@ export default function RPTDashboardImproved() {
         {viewMode === 'cards' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quarterly Analysis Cards */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Calendar className="w-5 h-5" style={{ color: COLORS.primary }} />
                   Quarterly Analysis {selectedYear}
                 </h3>
                 <button
                   onClick={exportQuarterlyReport}
                   disabled={exportLoading || quarterly_analysis.length === 0}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
                 >
                   Export
                 </button>
               </div>
               <div className="space-y-4">
                 {quarterly_analysis.map((quarter, index) => (
-                  <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div key={index} 
+                       className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                       style={{ borderColor: COLORS.secondary }}>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium text-gray-900">{quarter.quarter} {quarter.year}</span>
+                      <span className="font-medium" style={{ color: COLORS.dark }}>{quarter.quarter} {quarter.year}</span>
                       <span className={`text-sm px-3 py-1 rounded-full ${
                         safeParseFloat(quarter.collection_rate) >= 90 ? 'bg-green-100 text-green-800' :
                         safeParseFloat(quarter.collection_rate) >= 60 ? 'bg-yellow-100 text-yellow-800' :
@@ -816,105 +911,151 @@ export default function RPTDashboardImproved() {
                         {formatPercent(quarter.collection_rate)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-2 gap-4 text-sm" style={{ color: COLORS.secondary }}>
                       <div>
-                        <p className="font-medium text-gray-500">Collected</p>
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="font-medium">Collected</p>
+                        <p className="text-lg font-semibold" style={{ color: COLORS.dark }}>
                           {formatCurrency(quarter.collected)}
                         </p>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-500">Due</p>
-                        <p className="text-lg font-semibold text-gray-900">
+                        <p className="font-medium">Due</p>
+                        <p className="text-lg font-semibold" style={{ color: COLORS.dark }}>
                           {formatCurrency(quarter.total_due)}
                         </p>
                       </div>
                     </div>
                   </div>
                 ))}
+                
+                {quarterly_analysis.length === 0 && (
+                  <div className="text-center py-8" style={{ color: COLORS.secondary }}>
+                    <Calendar className="w-12 h-12 mx-auto mb-2" />
+                    <p>No quarterly data available for {selectedYear}</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Payment Analysis Cards */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            {/* Collections per Barangay Cards */}
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-gray-600" />
-                  Payment Analysis {selectedYear}
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <MapPin className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Collections per Barangay {selectedYear}
                 </h3>
                 <button
-                  onClick={exportQuarterlyReport}
-                  disabled={exportLoading || !payment_analysis}
-                  className="text-sm text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                  onClick={exportBarangayCollectionReport}
+                  disabled={exportLoading || top_barangays.length === 0}
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all flex items-center gap-1"
+                  style={{ color: COLORS.secondary }}
                 >
+                  <Download className="w-4 h-4" />
                   Export
                 </button>
               </div>
-              <div className="space-y-4">
-                {paymentTimingData.map((item, index) => (
-                  <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className={`font-medium ${
-                        item.payment_timing === 'On Time' ? 'text-green-700' :
-                        item.payment_timing === 'Late Payment' ? 'text-yellow-700' :
-                        'text-red-700'
-                      }`}>
-                        {item.payment_timing}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {safeParseFloat(item.count)} bills
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                {topBarangaysData.map((barangay, index) => (
+                  <div key={index} 
+                       className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                       style={{ borderColor: COLORS.secondary }}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-medium" style={{ color: COLORS.dark }}>{barangay.barangay}</span>
+                        {barangay.district && barangay.district !== 'Unknown' && (
+                          <span className="ml-2 text-xs px-2 py-1 rounded-full"
+                                style={{ backgroundColor: `${COLORS.secondary}15`, color: COLORS.dark }}>
+                            {barangay.district}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: COLORS.secondary }}>
+                        {formatNumber(barangay.property_count)} properties
                       </span>
                     </div>
-                    <p className={`text-2xl font-bold ${
-                      item.payment_timing === 'On Time' ? 'text-green-600' :
-                      item.payment_timing === 'Late Payment' ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {formatCurrency(item.amount)}
-                    </p>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-xs" style={{ color: COLORS.secondary }}>Annual Tax Collection</p>
+                        <p className="text-xl font-bold" style={{ color: COLORS.dark }}>
+                          {formatCurrency(barangay.total_annual_tax)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs" style={{ color: COLORS.secondary }}>Avg per Property</p>
+                        <p className="text-sm font-semibold" style={{ color: COLORS.primary }}>
+                          {formatCurrency(barangay.avg_tax_per_property)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-between text-xs" style={{ color: COLORS.secondary }}>
+                      <span>Land Value: {formatCurrency(barangay.total_land_value)}</span>
+                      <span>Building Value: {formatCurrency(barangay.total_building_value)}</span>
+                    </div>
                   </div>
                 ))}
+                
+                {topBarangaysData.length === 0 && (
+                  <div className="text-center py-8" style={{ color: COLORS.secondary }}>
+                    <MapPin className="w-12 h-12 mx-auto mb-2" />
+                    <p>No barangay collection data available for {selectedYear}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {/* Recent Activities */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-gray-600" />
+              <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
                 Recent Activities {selectedYear}
               </h3>
               <div className="flex gap-2">
                 <button
                   onClick={() => setActiveTab('payments')}
-                  className={`px-4 py-2 text-sm rounded-lg transition-colors border ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all border ${
                     activeTab === 'payments' 
-                      ? 'bg-gray-900 text-white border-gray-900' 
-                      : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'text-white' 
+                      : 'hover:bg-gray-50'
                   }`}
+                  style={{
+                    backgroundColor: activeTab === 'payments' ? COLORS.primary : 'transparent',
+                    color: activeTab === 'payments' ? 'white' : COLORS.dark,
+                    borderColor: activeTab === 'payments' ? COLORS.primary : COLORS.secondary
+                  }}
                 >
                   Payments
                 </button>
                 <button
                   onClick={() => setActiveTab('registrations')}
-                  className={`px-4 py-2 text-sm rounded-lg transition-colors border ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all border ${
                     activeTab === 'registrations' 
-                      ? 'bg-gray-900 text-white border-gray-900' 
-                      : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'text-white' 
+                      : 'hover:bg-gray-50'
                   }`}
+                  style={{
+                    backgroundColor: activeTab === 'registrations' ? COLORS.primary : 'transparent',
+                    color: activeTab === 'registrations' ? 'white' : COLORS.dark,
+                    borderColor: activeTab === 'registrations' ? COLORS.primary : COLORS.secondary
+                  }}
                 >
                   Registrations
                 </button>
                 <button
                   onClick={() => setActiveTab('overdue')}
-                  className={`px-4 py-2 text-sm rounded-lg transition-colors border ${
+                  className={`px-4 py-2 text-sm rounded-lg transition-all border ${
                     activeTab === 'overdue' 
-                      ? 'bg-gray-900 text-white border-gray-900' 
-                      : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'text-white' 
+                      : 'hover:bg-gray-50'
                   }`}
+                  style={{
+                    backgroundColor: activeTab === 'overdue' ? COLORS.primary : 'transparent',
+                    color: activeTab === 'overdue' ? 'white' : COLORS.dark,
+                    borderColor: activeTab === 'overdue' ? COLORS.primary : COLORS.secondary
+                  }}
                 >
                   Overdue
                 </button>
@@ -924,7 +1065,9 @@ export default function RPTDashboardImproved() {
           <div className="p-6">
             <div className="space-y-4">
               {getActivitiesForTab().slice(0, 5).map((activity, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div key={index} 
+                     className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
+                     style={{ borderColor: COLORS.secondary }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
@@ -933,19 +1076,19 @@ export default function RPTDashboardImproved() {
                         'bg-red-100'
                       }`}>
                         {activeTab === 'payments' ? (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <CheckCircle className="w-5 h-5" style={{ color: COLORS.success }} />
                         ) : activeTab === 'registrations' ? (
-                          <FileText className="w-5 h-5 text-blue-600" />
+                          <FileText className="w-5 h-5" style={{ color: COLORS.info }} />
                         ) : (
-                          <AlertCircle className="w-5 h-5 text-red-600" />
+                          <AlertCircle className="w-5 h-5" style={{ color: COLORS.danger }} />
                         )}
                       </div>
                       <div>
-                        <h4 className="font-medium text-gray-900">{activity.owner_name}</h4>
-                        <p className="text-sm text-gray-500">
+                        <h4 className="font-medium" style={{ color: COLORS.dark }}>{activity.owner_name}</h4>
+                        <p className="text-sm" style={{ color: COLORS.secondary }}>
                           {activeTab === 'payments' && `Payment #${activity.receipt_number} • ${activity.quarter} ${activity.year}`}
                           {activeTab === 'registrations' && `Registration #${activity.reference_number} • ${activity.barangay}`}
-                          {activeTab === 'overdue' && `${activity.days_late} days overdue • ${activity.quarter} ${activity.year}`}
+                          {activeTab === 'overdue' && `${activity.days_late} days overdue • ${activity.quarter} ${activity.year} • ${activity.barangay}`}
                         </p>
                       </div>
                     </div>
@@ -958,9 +1101,9 @@ export default function RPTDashboardImproved() {
                         {formatCurrency(activity.amount)}
                       </p>
                       {activeTab === 'payments' && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm" style={{ color: COLORS.secondary }}>
                           {safeParseFloat(activity.discount_amount) > 0 && (
-                            <span className="text-blue-600">
+                            <span style={{ color: COLORS.primary }}>
                               -{formatCurrency(activity.discount_amount)}
                             </span>
                           )}
@@ -972,7 +1115,7 @@ export default function RPTDashboardImproved() {
               ))}
               
               {getActivitiesForTab().length === 0 && (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8" style={{ color: COLORS.secondary }}>
                   <Activity className="w-12 h-12 mx-auto mb-2" />
                   <p>No {activeTab} activities available for {selectedYear}</p>
                 </div>
@@ -982,9 +1125,10 @@ export default function RPTDashboardImproved() {
         </div>
 
         {/* Footer Summary */}
-        <div className="text-center text-sm text-gray-500 pt-6 border-t border-gray-200">
+        <div className="text-center text-sm pt-6 border-t" 
+             style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
           <p>Real Property Tax Collection Dashboard • Year: {selectedYear} • Updated {formattedDate} at {formattedTime}</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs mt-1">
             Available years: {availableYears.join(', ')}
           </p>
         </div>

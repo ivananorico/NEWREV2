@@ -131,31 +131,29 @@ export default function RPTStatus() {
 
   const API_PATH = "/RPT/RPTStatus";
 
-  // Define getPaymentStatus function
-  const getPaymentStatus = (createdDate) => {
-    if (!createdDate) return 'pending';
+  // Define getPaymentStatus function - uses backend data
+  const getPaymentStatus = (property) => {
+    if (!property) return 'pending';
     
-    const now = new Date();
-    const created = new Date(createdDate);
-    const currentMonth = now.getMonth();
-    const currentQuarter = Math.floor(currentMonth / 3) + 1;
-    
-    // Check if property was created this quarter
-    const createdMonth = created.getMonth();
-    const createdQuarter = Math.floor(createdMonth / 3) + 1;
-    const currentYear = now.getFullYear();
-    const createdYear = created.getFullYear();
-    
-    // If created this quarter, show "Next Quarter"
-    if (createdYear === currentYear && createdQuarter === currentQuarter) {
-      return 'next-quarter';
+    // Use the payment_status from the backend if available
+    if (property.payment_status) {
+      // Map backend status to frontend expected status
+      switch(property.payment_status) {
+        case 'paid':
+          return 'paid';
+        case 'overdue':
+          return 'overdue';
+        case 'pending':
+          return 'pending';
+        case 'next-quarter':
+          return 'next-quarter';
+        default:
+          return property.payment_status;
+      }
     }
     
-    // Simple logic: Random status for demo
-    const statuses = ['paid', 'pending', 'overdue'];
-    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    return randomStatus;
+    // Fallback to pending if no status
+    return 'pending';
   };
 
   // Get building status text
@@ -193,6 +191,8 @@ export default function RPTStatus() {
       try {
         data = JSON.parse(text);
       } catch (parseError) {
+        console.error("Parse error:", parseError);
+        console.log("Raw response:", text.substring(0, 200));
         throw new Error("Invalid JSON response from server");
       }
       
@@ -233,7 +233,7 @@ export default function RPTStatus() {
   // Calculate totals
   const totalAnnualRevenue = approvedProperties.reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
   const totalCollected = approvedProperties
-    .filter(p => getPaymentStatus(p.created_at) === 'paid')
+    .filter(p => getPaymentStatus(p) === 'paid')
     .reduce((sum, p) => sum + (parseFloat(p.total_annual_tax) || 0), 0);
   const collectionRate = totalAnnualRevenue > 0 ? Math.round((totalCollected / totalAnnualRevenue) * 100) : 0;
   const pendingPayments = totalAnnualRevenue - totalCollected;
@@ -245,7 +245,7 @@ export default function RPTStatus() {
   
   // Payment status statistics
   const paymentStats = approvedProperties.reduce((stats, property) => {
-    const status = getPaymentStatus(property.created_at);
+    const status = getPaymentStatus(property);
     stats[status] = (stats[status] || 0) + 1;
     return stats;
   }, {});
@@ -262,7 +262,7 @@ export default function RPTStatus() {
     const matchesType = propertyTypeFilter === "all" || 
       propertyType.toLowerCase() === propertyTypeFilter.toLowerCase();
     
-    const paymentStatus = getPaymentStatus(property.created_at);
+    const paymentStatus = getPaymentStatus(property);
     const matchesPayment = paymentFilter === "all" || 
       paymentStatus === paymentFilter;
     
@@ -325,8 +325,26 @@ export default function RPTStatus() {
     ];
 
     const csvData = filteredProperties.map(property => {
-      const paymentStatus = getPaymentStatus(property.created_at);
+      const paymentStatus = getPaymentStatus(property);
       const buildingStatus = getBuildingStatus(property);
+      
+      let paymentStatusText = '';
+      switch(paymentStatus) {
+        case 'paid':
+          paymentStatusText = 'Paid';
+          break;
+        case 'overdue':
+          paymentStatusText = 'Delinquent';
+          break;
+        case 'next-quarter':
+          paymentStatusText = 'Next Quarter';
+          break;
+        case 'pending':
+          paymentStatusText = 'Current Quarter';
+          break;
+        default:
+          paymentStatusText = paymentStatus;
+      }
       
       return [
         property.reference_number || "",
@@ -335,7 +353,7 @@ export default function RPTStatus() {
         property.lot_location || "",
         property.barangay || "",
         property.total_annual_tax || "0",
-        paymentStatus,
+        paymentStatusText,
         buildingStatus,
         property.created_at ? new Date(property.created_at).toLocaleDateString() : ""
       ];
@@ -835,7 +853,7 @@ export default function RPTStatus() {
                   </thead>
                   <tbody>
                     {filteredProperties.map((property) => {
-                      const paymentStatus = getPaymentStatus(property.created_at);
+                      const paymentStatus = getPaymentStatus(property);
                       const buildingStatus = getBuildingStatus(property);
                       
                       return (

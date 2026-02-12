@@ -1,4 +1,5 @@
 <?php
+//revenue2/db/RPT/rpt_db.php
 // ================================================
 // DATABASE CONFIGURATION FOR BOTH ENVIRONMENTS
 // ================================================

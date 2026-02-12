@@ -191,6 +191,9 @@
 
             <!-- Right Section - Login Form -->
             <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-auto w-full glass-card glow-on-hover mt-8">
+                <div class="text-center mb-4">
+                    <span class="text-2xl font-bold text-custom-secondary border-b-2 border-custom-secondary pb-2">Login</span>
+                </div>
                 <form id="loginForm" class="space-y-5">
                     <div>
                         <input 
@@ -221,26 +224,6 @@
                     >
                         Login
                     </button>
-                    
-                    <div class="relative">
-                        <div class="absolute inset-0 flex items-center">
-                            <div class="w-full border-t border-gray-300"></div>
-                        </div>
-                        <div class="relative flex justify-center text-sm">
-                            <span class="px-2 bg-white text-gray-500">OR</span>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        <button 
-                            type="button" 
-                            class="w-full bg-white border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
-                            onclick="showNotification('Google login is currently unavailable', 'warning')"
-                        >
-                            <i class="fab fa-google text-red-500"></i>
-                            <span>Continue with Google</span>
-                        </button>
-                    </div>
                     
                     <div class="text-center">
                         <p class="text-gray-600">
@@ -360,9 +343,198 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
-                                <input type="text" name="barangay" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                                       placeholder="Barangay Name">
+                                <select name="barangay" required 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                    <option value="">Select Barangay</option>
+                                    <option value="Barangay 1">Barangay 1</option>
+                                    <option value="Barangay 2">Barangay 2</option>
+                                    <option value="Barangay 3">Barangay 3</option>
+                                    <option value="Barangay 4">Barangay 4</option>
+                                    <option value="Barangay 5">Barangay 5</option>
+                                    <option value="Barangay 6">Barangay 6</option>
+                                    <option value="Barangay 7">Barangay 7</option>
+                                    <option value="Barangay 8">Barangay 8</option>
+                                    <option value="Barangay 9">Barangay 9</option>
+                                    <option value="Barangay 10">Barangay 10</option>
+                                    <option value="Barangay 11">Barangay 11</option>
+                                    <option value="Barangay 12">Barangay 12</option>
+                                    <option value="Barangay 13">Barangay 13</option>
+                                    <option value="Barangay 14">Barangay 14</option>
+                                    <option value="Barangay 15">Barangay 15</option>
+                                    <option value="Barangay 16">Barangay 16</option>
+                                    <option value="Barangay 17">Barangay 17</option>
+                                    <option value="Barangay 18">Barangay 18</option>
+                                    <option value="Barangay 19">Barangay 19</option>
+                                    <option value="Barangay 20">Barangay 20</option>
+                                    <option value="Barangay 21">Barangay 21</option>
+                                    <option value="Barangay 22">Barangay 22</option>
+                                    <option value="Barangay 23">Barangay 23</option>
+                                    <option value="Barangay 24">Barangay 24</option>
+                                    <option value="Barangay 25">Barangay 25</option>
+                                    <option value="Barangay 26">Barangay 26</option>
+                                    <option value="Barangay 27">Barangay 27</option>
+                                    <option value="Barangay 28">Barangay 28</option>
+                                    <option value="Barangay 29">Barangay 29</option>
+                                    <option value="Barangay 30">Barangay 30</option>
+                                    <option value="Barangay 31">Barangay 31</option>
+                                    <option value="Barangay 32">Barangay 32</option>
+                                    <option value="Barangay 33">Barangay 33</option>
+                                    <option value="Barangay 34">Barangay 34</option>
+                                    <option value="Barangay 35">Barangay 35</option>
+                                    <option value="Barangay 36">Barangay 36</option>
+                                    <option value="Barangay 37">Barangay 37</option>
+                                    <option value="Barangay 38">Barangay 38</option>
+                                    <option value="Barangay 39">Barangay 39</option>
+                                    <option value="Barangay 40">Barangay 40</option>
+                                    <option value="Barangay 41">Barangay 41</option>
+                                    <option value="Barangay 42">Barangay 42</option>
+                                    <option value="Barangay 43">Barangay 43</option>
+                                    <option value="Barangay 44">Barangay 44</option>
+                                    <option value="Barangay 45">Barangay 45</option>
+                                    <option value="Barangay 46">Barangay 46</option>
+                                    <option value="Barangay 47">Barangay 47</option>
+                                    <option value="Barangay 48">Barangay 48</option>
+                                    <option value="Barangay 49">Barangay 49</option>
+                                    <option value="Barangay 50">Barangay 50</option>
+                                    <option value="Barangay 51">Barangay 51</option>
+                                    <option value="Barangay 52">Barangay 52</option>
+                                    <option value="Barangay 53">Barangay 53</option>
+                                    <option value="Barangay 54">Barangay 54</option>
+                                    <option value="Barangay 55">Barangay 55</option>
+                                    <option value="Barangay 56">Barangay 56</option>
+                                    <option value="Barangay 57">Barangay 57</option>
+                                    <option value="Barangay 58">Barangay 58</option>
+                                    <option value="Barangay 59">Barangay 59</option>
+                                    <option value="Barangay 60">Barangay 60</option>
+                                    <option value="Barangay 61">Barangay 61</option>
+                                    <option value="Barangay 62">Barangay 62</option>
+                                    <option value="Barangay 63">Barangay 63</option>
+                                    <option value="Barangay 64">Barangay 64</option>
+                                    <option value="Barangay 65">Barangay 65</option>
+                                    <option value="Barangay 66">Barangay 66</option>
+                                    <option value="Barangay 67">Barangay 67</option>
+                                    <option value="Barangay 68">Barangay 68</option>
+                                    <option value="Barangay 69">Barangay 69</option>
+                                    <option value="Barangay 70">Barangay 70</option>
+                                    <option value="Barangay 71">Barangay 71</option>
+                                    <option value="Barangay 72">Barangay 72</option>
+                                    <option value="Barangay 73">Barangay 73</option>
+                                    <option value="Barangay 74">Barangay 74</option>
+                                    <option value="Barangay 75">Barangay 75</option>
+                                    <option value="Barangay 76">Barangay 76</option>
+                                    <option value="Barangay 77">Barangay 77</option>
+                                    <option value="Barangay 78">Barangay 78</option>
+                                    <option value="Barangay 79">Barangay 79</option>
+                                    <option value="Barangay 80">Barangay 80</option>
+                                    <option value="Barangay 81">Barangay 81</option>
+                                    <option value="Barangay 82">Barangay 82</option>
+                                    <option value="Barangay 83">Barangay 83</option>
+                                    <option value="Barangay 84">Barangay 84</option>
+                                    <option value="Barangay 85">Barangay 85</option>
+                                    <option value="Barangay 86">Barangay 86</option>
+                                    <option value="Barangay 87">Barangay 87</option>
+                                    <option value="Barangay 88">Barangay 88</option>
+                                    <option value="Barangay 89">Barangay 89</option>
+                                    <option value="Barangay 90">Barangay 90</option>
+                                    <option value="Barangay 91">Barangay 91</option>
+                                    <option value="Barangay 92">Barangay 92</option>
+                                    <option value="Barangay 93">Barangay 93</option>
+                                    <option value="Barangay 94">Barangay 94</option>
+                                    <option value="Barangay 95">Barangay 95</option>
+                                    <option value="Barangay 96">Barangay 96</option>
+                                    <option value="Barangay 97">Barangay 97</option>
+                                    <option value="Barangay 98">Barangay 98</option>
+                                    <option value="Barangay 99">Barangay 99</option>
+                                    <option value="Barangay 100">Barangay 100</option>
+                                    <option value="Barangay 101">Barangay 101</option>
+                                    <option value="Barangay 102">Barangay 102</option>
+                                    <option value="Barangay 103">Barangay 103</option>
+                                    <option value="Barangay 104">Barangay 104</option>
+                                    <option value="Barangay 105">Barangay 105</option>
+                                    <option value="Barangay 106">Barangay 106</option>
+                                    <option value="Barangay 107">Barangay 107</option>
+                                    <option value="Barangay 108">Barangay 108</option>
+                                    <option value="Barangay 109">Barangay 109</option>
+                                    <option value="Barangay 110">Barangay 110</option>
+                                    <option value="Barangay 111">Barangay 111</option>
+                                    <option value="Barangay 112">Barangay 112</option>
+                                    <option value="Barangay 113">Barangay 113</option>
+                                    <option value="Barangay 114">Barangay 114</option>
+                                    <option value="Barangay 115">Barangay 115</option>
+                                    <option value="Barangay 116">Barangay 116</option>
+                                    <option value="Barangay 117">Barangay 117</option>
+                                    <option value="Barangay 118">Barangay 118</option>
+                                    <option value="Barangay 119">Barangay 119</option>
+                                    <option value="Barangay 120">Barangay 120</option>
+                                    <option value="Barangay 121">Barangay 121</option>
+                                    <option value="Barangay 122">Barangay 122</option>
+                                    <option value="Barangay 123">Barangay 123</option>
+                                    <option value="Barangay 124">Barangay 124</option>
+                                    <option value="Barangay 125">Barangay 125</option>
+                                    <option value="Barangay 126">Barangay 126</option>
+                                    <option value="Barangay 127">Barangay 127</option>
+                                    <option value="Barangay 128">Barangay 128</option>
+                                    <option value="Barangay 129">Barangay 129</option>
+                                    <option value="Barangay 130">Barangay 130</option>
+                                    <option value="Barangay 131">Barangay 131</option>
+                                    <option value="Barangay 132">Barangay 132</option>
+                                    <option value="Barangay 133">Barangay 133</option>
+                                    <option value="Barangay 134">Barangay 134</option>
+                                    <option value="Barangay 135">Barangay 135</option>
+                                    <option value="Barangay 136">Barangay 136</option>
+                                    <option value="Barangay 137">Barangay 137</option>
+                                    <option value="Barangay 138">Barangay 138</option>
+                                    <option value="Barangay 139">Barangay 139</option>
+                                    <option value="Barangay 140">Barangay 140</option>
+                                    <option value="Barangay 141">Barangay 141</option>
+                                    <option value="Barangay 142">Barangay 142</option>
+                                    <option value="Barangay 143">Barangay 143</option>
+                                    <option value="Barangay 144">Barangay 144</option>
+                                    <option value="Barangay 145">Barangay 145</option>
+                                    <option value="Barangay 146">Barangay 146</option>
+                                    <option value="Barangay 147">Barangay 147</option>
+                                    <option value="Barangay 148">Barangay 148</option>
+                                    <option value="Barangay 149">Barangay 149</option>
+                                    <option value="Barangay 150">Barangay 150</option>
+                                    <option value="Barangay 151">Barangay 151</option>
+                                    <option value="Barangay 152">Barangay 152</option>
+                                    <option value="Barangay 153">Barangay 153</option>
+                                    <option value="Barangay 154">Barangay 154</option>
+                                    <option value="Barangay 155">Barangay 155</option>
+                                    <option value="Barangay 156">Barangay 156</option>
+                                    <option value="Barangay 157">Barangay 157</option>
+                                    <option value="Barangay 158">Barangay 158</option>
+                                    <option value="Barangay 159">Barangay 159</option>
+                                    <option value="Barangay 160">Barangay 160</option>
+                                    <option value="Barangay 161">Barangay 161</option>
+                                    <option value="Barangay 162">Barangay 162</option>
+                                    <option value="Barangay 163">Barangay 163</option>
+                                    <option value="Barangay 164">Barangay 164</option>
+                                    <option value="Barangay 165">Barangay 165</option>
+                                    <option value="Barangay 166">Barangay 166</option>
+                                    <option value="Barangay 167">Barangay 167</option>
+                                    <option value="Barangay 168">Barangay 168</option>
+                                    <option value="Barangay 169">Barangay 169</option>
+                                    <option value="Barangay 170">Barangay 170</option>
+                                    <option value="Barangay 171">Barangay 171</option>
+                                    <option value="Barangay 172">Barangay 172</option>
+                                    <option value="Barangay 173">Barangay 173</option>
+                                    <option value="Barangay 174">Barangay 174</option>
+                                    <option value="Barangay 175">Barangay 175</option>
+                                    <option value="Barangay 176">Barangay 176</option>
+                                    <option value="Barangay 177">Barangay 177</option>
+                                    <option value="Barangay 178">Barangay 178</option>
+                                    <option value="Barangay 179">Barangay 179</option>
+                                    <option value="Barangay 180">Barangay 180</option>
+                                    <option value="Barangay 181">Barangay 181</option>
+                                    <option value="Barangay 182">Barangay 182</option>
+                                    <option value="Barangay 183">Barangay 183</option>
+                                    <option value="Barangay 184">Barangay 184</option>
+                                    <option value="Barangay 185">Barangay 185</option>
+                                    <option value="Barangay 186">Barangay 186</option>
+                                    <option value="Barangay 187">Barangay 187</option>
+                                    <option value="Barangay 188">Barangay 188</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
@@ -372,17 +544,14 @@
                                     <option value="1">District 1</option>
                                     <option value="2">District 2</option>
                                     <option value="3">District 3</option>
-                                    <option value="4">District 4</option>
-                                    <option value="5">District 5</option>
-                                    <option value="6">District 6</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">City/Municipality *</label>
-                                <input type="text" name="city" value="Quezon City" required 
+                                <input type="text" name="city" value="Caloocan City" required 
                                        readonly
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
-                                <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Caloocan City</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
@@ -395,7 +564,8 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
                                 <input type="text" name="zipCode" required 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                                       placeholder="1100" pattern="[0-9]{4}">
+                                       placeholder="1400" pattern="[0-9]{4}">
+                                <p class="text-xs text-gray-500 mt-1">Caloocan City ZIP code: 1400 (North) / 1403 (South)</p>
                             </div>
                         </div>
                     </div>
@@ -1313,13 +1483,13 @@
                 return;
             }
             
-            if (!['1', '2', '3', '4', '5', '6'].includes(data.district)) {
-                showNotification('Please select a valid district', 'error');
+            if (!['1', '2', '3'].includes(data.district)) {
+                showNotification('Please select a valid district (1, 2, or 3)', 'error');
                 return;
             }
             
-            if (data.city !== 'Quezon City') {
-                showNotification('City must be Quezon City', 'error');
+            if (data.city !== 'Caloocan City') {
+                showNotification('City must be Caloocan City', 'error');
                 return;
             }
             
@@ -1817,9 +1987,6 @@
         
         // Make functions globally available
         window.showNotification = showNotification;
-        window.handleSocialLogin = function(provider) {
-            showNotification(`${provider} login is currently unavailable`, 'warning');
-        };
         window.closeOtpModalFunc = closeOtpModalFunc;
     </script>
 </body>

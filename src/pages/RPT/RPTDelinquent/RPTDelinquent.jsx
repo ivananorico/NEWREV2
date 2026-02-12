@@ -255,13 +255,6 @@ export default function RPTDelinquent() {
     a.click();
   };
 
-  const handleSendNotice = (delinquent) => {
-    // Implement send notice functionality
-    console.log("Sending notice to:", delinquent.owner_name);
-    // You can integrate with email API here
-    alert(`Notice sent to ${delinquent.owner_name || "property owner"}`);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
@@ -612,10 +605,6 @@ export default function RPTDelinquent() {
                           style={{ color: COLORS.secondary }}>
                         Status & Due Date
                       </th>
-                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
-                          style={{ color: COLORS.secondary }}>
-                        Actions
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y" style={{ borderColor: COLORS.secondary }}>
@@ -716,34 +705,6 @@ export default function RPTDelinquent() {
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          </td>
-                          
-                          <td className="px-5 py-4">
-                            <div className="flex flex-col gap-2">
-                              <button
-                                onClick={() => console.log("View details", delinquent.id)}
-                                className="text-sm font-medium px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all"
-                                style={{ 
-                                  backgroundColor: COLORS.primary, 
-                                  color: 'white'
-                                }}
-                              >
-                                <Eye className="w-3 h-3" />
-                                Details
-                              </button>
-                              <button
-                                onClick={() => handleSendNotice(delinquent)}
-                                className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all"
-                                style={{ 
-                                  borderColor: COLORS.danger,
-                                  color: COLORS.danger,
-                                  backgroundColor: 'white'
-                                }}
-                              >
-                                <Send className="w-3 h-3" />
-                                Send Notice
-                              </button>
                             </div>
                           </td>
                         </tr>
