@@ -14,23 +14,65 @@ $user_id = $_SESSION['user_id'];
 // Include database connection
 include_once '../../db/Market/market_db.php';
 
-// Status counters
-$status_counts = [
-    'pending' => 0,
-    'interview_scheduled' => 0,
-    'interviewed' => 0,
-    'paying' => 0,
-    'paid' => 0,
-    'need_correction' => 0,
-    'resubmitted' => 0,
-    'approved' => 0,
-    'rejected' => 0
-];
-
-$total_applications = 0;
-$latest_application = null;
+// Check if user has ANY existing application
+$has_existing_application = false;
+$active_application = null;
+$lock_rent_stall = false;
+$lock_message = '';
 
 try {
+    // Check for any application regardless of status (except rejected/completed)
+    $app_check_stmt = $pdo->prepare("
+        SELECT id, application_status, stall_rights_no, created_at
+        FROM rental_registration
+        WHERE user_id = ? 
+        AND application_status NOT IN ('rejected', 'paid')
+        ORDER BY created_at DESC
+        LIMIT 1
+    ");
+    $app_check_stmt->execute([$user_id]);
+    $active_application = $app_check_stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($active_application) {
+        $has_existing_application = true;
+        
+        // Determine lock status and message based on application state
+        switch ($active_application['application_status']) {
+            case 'approved':
+                $lock_rent_stall = true;
+                $lock_message = 'You already have an active stall rental.';
+                break;
+            case 'pending':
+            case 'interview_scheduled':
+            case 'interviewed':
+            case 'paying':
+            case 'resubmitted':
+                $lock_rent_stall = true;
+                $lock_message = 'You have an ongoing application.';
+                break;
+            case 'need_correction':
+                $lock_rent_stall = true;
+                $lock_message = 'Your application needs corrections.';
+                break;
+        }
+    }
+
+    // Status counters (keep existing code)
+    $status_counts = [
+        'pending' => 0,
+        'interview_scheduled' => 0,
+        'interviewed' => 0,
+        'paying' => 0,
+        'paid' => 0,
+        'need_correction' => 0,
+        'resubmitted' => 0,
+        'approved' => 0,
+        'rejected' => 0
+    ];
+
+    $total_applications = 0;
+    $latest_application = null;
+
     // Get status counts
     $stmt = $pdo->prepare("
         SELECT application_status, COUNT(*) as count
@@ -81,7 +123,7 @@ $priority_order = [
 ];
 
 foreach ($priority_order as $status => $priority) {
-    if ($status_counts[$status] > 0) {
+    if (isset($status_counts[$status]) && $status_counts[$status] > 0) {
         $view_all_page = $status . '.php';
         break;
     }
@@ -183,12 +225,22 @@ $logout_handler_url = '';
             transform: translateY(-6px);
             box-shadow: 0 12px 28px rgba(74, 144, 226, 0.15);
         }
+
+        .service-card.disabled {
+            opacity: 0.9;
+        }
+        
+        .service-card.disabled:hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: default;
+        }
         
         .service-arrow {
             transition: transform 0.3s ease;
         }
 
-        .service-card:hover .service-arrow {
+        .service-card:not(.disabled):hover .service-arrow {
             transform: translateX(8px);
         }
 
@@ -226,24 +278,6 @@ $logout_handler_url = '';
         .status-item:hover {
             background-color: rgba(249, 250, 251, 0.8);
             transform: translateX(4px);
-        }
-
-        .stats-box {
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .stats-value {
-            font-size: 2.25rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-
-        .stats-label {
-            font-size: 0.875rem;
-            font-weight: 500;
         }
 
         .info-item {
@@ -393,6 +427,15 @@ $logout_handler_url = '';
             transform: translateY(-1px);
             box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
         }
+        
+        .notification-slide {
+            animation: slideIn .3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 
@@ -444,9 +487,11 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
         </div>
     </div>
 
+    <!-- LOCK BANNER - COMPLETELY REMOVED -->
+
     <!-- PRIORITY NOTIFICATIONS -->
     <?php if ($status_counts['need_correction'] > 0): ?>
-    <div class="status-card border-l-4 border-red-500 p-5 mb-6 bg-red-50">
+    <div class="notification-slide status-card border-l-4 border-red-500 p-5 mb-6 bg-red-50">
         <div class="flex items-start gap-4">
             <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
@@ -467,7 +512,7 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
     <?php endif; ?>
 
     <?php if ($status_counts['paying'] > 0 && $status_counts['need_correction'] == 0): ?>
-    <div class="status-card border-l-4 border-purple-500 p-5 mb-6 bg-purple-50">
+    <div class="notification-slide status-card border-l-4 border-purple-500 p-5 mb-6 bg-purple-50">
         <div class="flex items-start gap-4">
             <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-money-bill-wave text-purple-500 text-xl"></i>
@@ -488,7 +533,7 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
     <?php endif; ?>
 
     <?php if ($status_counts['interviewed'] > 0 && $status_counts['need_correction'] == 0 && $status_counts['paying'] == 0): ?>
-    <div class="status-card border-l-4 border-teal-500 p-5 mb-6 bg-teal-50">
+    <div class="notification-slide status-card border-l-4 border-teal-500 p-5 mb-6 bg-teal-50">
         <div class="flex items-start gap-4">
             <div class="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-user-check text-teal-500 text-xl"></i>
@@ -509,7 +554,7 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
     <?php endif; ?>
 
     <?php if ($status_counts['interview_scheduled'] > 0 && $status_counts['need_correction'] == 0 && $status_counts['paying'] == 0 && $status_counts['interviewed'] == 0): ?>
-    <div class="status-card border-l-4 border-blue-500 p-5 mb-6 bg-blue-50">
+    <div class="notification-slide status-card border-l-4 border-blue-500 p-5 mb-6 bg-blue-50">
         <div class="flex items-start gap-4">
             <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-calendar-check text-blue-500 text-xl"></i>
@@ -529,12 +574,88 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
     </div>
     <?php endif; ?>
 
+    <?php if ($status_counts['approved'] > 0 && 
+              $status_counts['need_correction'] == 0 && 
+              $status_counts['paying'] == 0 && 
+              $status_counts['interviewed'] == 0 && 
+              $status_counts['interview_scheduled'] == 0): ?>
+    <div class="notification-slide status-card border-l-4 border-green-500 p-5 mb-6 bg-green-50">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-check-circle text-green-500 text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="font-semibold text-green-800 mb-2 text-lg">Approved</h3>
+                <p class="text-green-700 mb-4">
+                    You have <strong class="text-xl"><?php echo $status_counts['approved']; ?></strong> approved stall rental(s).
+                </p>
+                <a href="market_application/approved.php"
+                   class="inline-flex items-center px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg">
+                    <i class="fas fa-eye mr-2"></i>
+                    View Details
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- MAIN SERVICES GRID -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         
-        <!-- RENT STALL CARD -->
+        <!-- RENT STALL CARD - REDESIGNED TO MATCH RPT REGISTRATION CARD -->
+        <?php if ($has_existing_application): ?>
+        <div class="service-card disabled bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-l-4 <?php echo $active_application['application_status'] == 'approved' ? 'border-l-green-500' : 'border-l-amber-500'; ?>">
+            <div class="h-48 overflow-hidden relative">
+                <?php 
+                $rent_image = 'images/market-portal.png';
+                if (file_exists($rent_image)): ?>
+                    <img src="<?php echo $rent_image; ?>" alt="Rent a Market Stall" 
+                         class="w-full h-full object-cover">
+                <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(<?php echo $active_application['application_status'] == 'approved' ? '76,175,80' : '245,158,11'; ?>, 0.1);">
+                        <i class="fas fa-store text-6xl" style="color: rgba(<?php echo $active_application['application_status'] == 'approved' ? '76,175,80' : '245,158,11'; ?>, 0.3);"></i>
+                    </div>
+                <?php endif; ?>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(<?php echo $active_application['application_status'] == 'approved' ? '76,175,80' : '245,158,11'; ?>, 0.95);">
+                    <span class="text-xs font-semibold uppercase text-white">
+                        <?php echo $active_application['application_status'] == 'approved' ? 'Active' : 'In Progress'; ?>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="p-6 flex flex-col flex-grow">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: <?php echo $active_application['application_status'] == 'approved' ? '#4caf50' : '#f59e0b'; ?>;">
+                        <i class="fas <?php echo $active_application['application_status'] == 'approved' ? 'fa-check-circle' : 'fa-hourglass-half'; ?> text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800">Rent a Market Stall</h3>
+                </div>
+                
+                <p class="text-gray-600 mb-6 flex-grow">
+                    <?php if ($active_application['application_status'] == 'approved'): ?>
+                        <span class="font-medium text-green-600">You already have an active stall rental.</span>
+                        <br><br>
+                        You can manage your stall payments and view details in the payment section.
+                    <?php else: ?>
+                        <span class="font-medium text-amber-600">You have an ongoing application.</span>
+                        <br><br>
+                        Please wait for your current application to be processed.
+                    <?php endif; ?>
+                </p>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <a href="market_application/<?php echo $active_application['application_status']; ?>.php?id=<?php echo $active_application['id']; ?>" 
+                       class="font-semibold <?php echo $active_application['application_status'] == 'approved' ? 'text-green-600 hover:text-green-700' : 'text-amber-600 hover:text-amber-700'; ?> flex items-center">
+                        View Application
+                        <i class="fas fa-arrow-right ml-2 service-arrow"></i>
+                    </a>
+                    <i class="fas <?php echo $active_application['application_status'] == 'approved' ? 'fa-check-circle text-green-600' : 'fa-hourglass-half text-amber-600'; ?>"></i>
+                </div>
+            </div>
+        </div>
+        <?php else: ?>
         <a href="market_portal_services/market_portal_services.php"
-           class="service-card group bg-white">
+           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $rent_image = 'images/market-portal.png';
@@ -543,32 +664,36 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                 <?php else: ?>
                     <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(74, 144, 226, 0.1);">
-                        <i class="fas fa-store text-5xl" style="color: rgba(74, 144, 226, 0.3);"></i>
+                        <i class="fas fa-store text-6xl" style="color: rgba(74, 144, 226, 0.3);"></i>
                     </div>
                 <?php endif; ?>
-                <div class="absolute top-4 right-4 px-3 py-1 rounded-lg bg-white/90">
-                    <span class="text-xs font-semibold uppercase" style="color: var(--primary);">Rental</span>
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(74, 144, 226, 0.95);">
+                    <span class="text-xs font-semibold uppercase text-white">Available</span>
                 </div>
             </div>
-            <div class="p-5 flex flex-col flex-grow">
+            
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--primary);">
-                        <i class="fas fa-store text-white"></i>
+                        <i class="fas fa-edit text-white"></i>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Rent a Market Stall</h3>
+                    <h3 class="text-xl font-bold text-gray-800">Rent a Market Stall</h3>
                 </div>
-                <p class="text-gray-600 text-sm mb-6 leading-relaxed flex-grow">
+                
+                <p class="text-gray-600 leading-relaxed mb-6 flex-grow">
                     Browse market maps and apply for stall rental with complete online application.
                 </p>
+                
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span class="font-medium" style="color: var(--primary);">Apply Now</span>
+                    <span class="font-semibold" style="color: var(--primary);">Apply Now</span>
                     <i class="fas fa-arrow-right service-arrow" style="color: var(--primary);"></i>
                 </div>
             </div>
         </a>
+        <?php endif; ?>
 
-        <!-- APPLICATION STATUS CARD -->
-        <div class="service-card bg-white">
+        <!-- APPLICATION STATUS CARD (Always Available) -->
+        <div class="service-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $status_image = 'images/application-status.png';
@@ -577,21 +702,21 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                          class="w-full h-full object-cover">
                 <?php else: ?>
                     <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(154, 165, 177, 0.1);">
-                        <i class="fas fa-chart-bar text-5xl" style="color: rgba(154, 165, 177, 0.3);"></i>
+                        <i class="fas fa-chart-bar text-6xl" style="color: rgba(154, 165, 177, 0.3);"></i>
                     </div>
                 <?php endif; ?>
-                <div class="absolute top-4 right-4 px-3 py-1 rounded-lg bg-white/90">
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
                     <span class="text-xs font-semibold uppercase text-orange-600">Status</span>
                 </div>
             </div>
-            <div class="p-5 flex flex-col flex-grow">
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                         <i class="fas fa-chart-bar text-white"></i>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Application Status</h3>
+                    <h3 class="text-xl font-bold text-gray-800">Application Status</h3>
                 </div>
-                <p class="text-gray-600 text-sm mb-4">Track your submitted applications.</p>
+                <p class="text-gray-600 leading-relaxed mb-4">Track your submitted applications.</p>
                 
                 <div class="status-list-container">
                     <?php if ($total_applications > 0): ?>
@@ -610,7 +735,7 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                             ];
                             
                             foreach ($status_labels as $key => $label_info):
-                                if ($status_counts[$key] > 0):
+                                if (isset($status_counts[$key]) && $status_counts[$key] > 0):
                             ?>
                             <a href="market_application/<?php echo $key; ?>.php"
                                class="flex justify-between items-center px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors">
@@ -619,19 +744,23 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                             </a>
                             <?php endif; endforeach; ?>
                         </div>
+                    <?php else: ?>
+                        <p class="text-gray-500 text-sm italic">No applications submitted yet.</p>
                     <?php endif; ?>
                 </div>
                 
+                <?php if ($total_applications > 0): ?>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
-                    <span class="font-medium text-orange-600">Check Status</span>
+                    <span class="font-semibold text-orange-600">View All</span>
                     <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
-        <!-- RENT PAYMENT CARD -->
+        <!-- RENT PAYMENT CARD (Always Available) -->
         <a href="market_rent_payment/market_rent_payment.php"
-           class="service-card group bg-white">
+           class="service-card group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
             <div class="h-48 overflow-hidden relative">
                 <?php 
                 $payment_image = 'images/market-payment.png';
@@ -640,25 +769,25 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                 <?php else: ?>
                     <div class="w-full h-full flex items-center justify-center" style="background-color: rgba(76, 175, 80, 0.1);">
-                        <i class="fas fa-credit-card text-5xl" style="color: rgba(76, 175, 80, 0.3);"></i>
+                        <i class="fas fa-credit-card text-6xl" style="color: rgba(76, 175, 80, 0.3);"></i>
                     </div>
                 <?php endif; ?>
-                <div class="absolute top-4 right-4 px-3 py-1 rounded-lg bg-white/90">
+                <div class="absolute top-4 right-4 px-3 py-1.5 rounded-lg shadow-sm" style="background-color: rgba(255, 255, 255, 0.95);">
                     <span class="text-xs font-semibold uppercase" style="color: var(--accent);">Payment</span>
                 </div>
             </div>
-            <div class="p-5 flex flex-col flex-grow">
+            <div class="p-6 flex flex-col flex-grow">
                 <div class="flex items-center space-x-3 mb-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: var(--accent);">
                         <i class="fas fa-credit-card text-white"></i>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-800">Market Rent Payment</h3>
+                    <h3 class="text-xl font-bold text-gray-800">Market Rent Payment</h3>
                 </div>
-                <p class="text-gray-600 text-sm mb-6 leading-relaxed flex-grow">
+                <p class="text-gray-600 leading-relaxed mb-6 flex-grow">
                     Pay monthly rental fees and download official receipts online.
                 </p>
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span class="font-medium" style="color: var(--accent);">Pay Rent</span>
+                    <span class="font-semibold" style="color: var(--accent);">Pay Rent</span>
                     <i class="fas fa-arrow-right service-arrow" style="color: var(--accent);"></i>
                 </div>
             </div>
@@ -666,70 +795,8 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
 
     </div>
 
-    <!-- APPLICATION SUMMARY -->
-    <?php if ($total_applications > 0): ?>
-    <div class="status-card p-6 mb-8">
-        <h3 class="text-lg font-semibold text-gray-800 mb-6 section-header">
-            Your Applications Summary
-        </h3>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="stats-box" style="background-color: rgba(74, 144, 226, 0.08);">
-                <div class="stats-value" style="color: var(--primary);"><?php echo $total_applications; ?></div>
-                <div class="stats-label" style="color: var(--primary);">Total Applications</div>
-            </div>
-            
-            <?php if ($status_counts['need_correction'] > 0): ?>
-            <div class="stats-box" style="background-color: rgba(239, 68, 68, 0.08);">
-                <div class="stats-value text-red-600"><?php echo $status_counts['need_correction']; ?></div>
-                <div class="stats-label text-red-600">Need Correction</div>
-            </div>
-            <?php elseif ($status_counts['interviewed'] > 0): ?>
-            <div class="stats-box" style="background-color: rgba(20, 184, 166, 0.08);">
-                <div class="stats-value text-teal-600"><?php echo $status_counts['interviewed']; ?></div>
-                <div class="stats-label text-teal-600">Interview Completed</div>
-            </div>
-            <?php else: ?>
-            <div class="stats-box" style="background-color: rgba(34, 197, 94, 0.08);">
-                <div class="stats-value text-green-600"><?php echo $status_counts['approved']; ?></div>
-                <div class="stats-label text-green-600">Approved</div>
-            </div>
-            <?php endif; ?>
-            
-            <?php if ($status_counts['paying'] > 0): ?>
-            <div class="stats-box" style="background-color: rgba(168, 85, 247, 0.08);">
-                <div class="stats-value text-purple-600"><?php echo $status_counts['paying']; ?></div>
-                <div class="stats-label text-purple-600">Payment Required</div>
-            </div>
-            <?php elseif ($status_counts['interview_scheduled'] > 0): ?>
-            <div class="stats-box" style="background-color: rgba(59, 130, 246, 0.08);">
-                <div class="stats-value text-blue-600"><?php echo $status_counts['interview_scheduled']; ?></div>
-                <div class="stats-label text-blue-600">Interview Scheduled</div>
-            </div>
-            <?php else: ?>
-            <div class="stats-box" style="background-color: rgba(234, 179, 8, 0.08);">
-                <div class="stats-value text-yellow-600"><?php echo $status_counts['pending']; ?></div>
-                <div class="stats-label text-yellow-600">In Progress</div>
-            </div>
-            <?php endif; ?>
-            
-            <div class="stats-box" style="background-color: rgba(99, 102, 241, 0.08);">
-                <div class="stats-value text-indigo-600"><?php echo $status_counts['paid']; ?></div>
-                <div class="stats-label text-indigo-600">Paid</div>
-            </div>
-        </div>
-        
-        <div class="mt-6 text-center">
-            <a href="market_application/<?php echo $view_all_page; ?>" 
-               class="inline-flex items-center px-5 py-2.5 rounded-lg font-medium"
-               style="background-color: rgba(74, 144, 226, 0.1); color: var(--primary);">
-                <i class="fas fa-list mr-2"></i>
-                View Detailed Application Status
-            </a>
-        </div>
-    </div>
-    <?php endif; ?>
-
+    <!-- APPLICATION SUMMARY - COMPLETELY REMOVED -->
+    
     <!-- INFORMATION SECTION -->
     <div class="status-card p-6 mb-8">
         <h3 class="text-lg font-semibold text-gray-800 mb-6 section-header">
@@ -761,6 +828,12 @@ $logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
                         <span>Sign contract and receive stall assignment</span>
                     </li>
                 </ul>
+                <div class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <p class="text-amber-800 text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>One Stall Per Person:</strong> Only one active stall rental is allowed per person.
+                    </p>
+                </div>
             </div>
 
             <div>
@@ -880,6 +953,7 @@ document.addEventListener('keydown', function(e) {
 console.log('Market Services Loaded');
 console.log('View All Page: <?php echo $view_all_page; ?>');
 console.log('Total Applications: <?php echo $total_applications; ?>');
+console.log('Has Existing Application: <?php echo $has_existing_application ? "Yes" : "No"; ?>');
 </script>
 <?php ob_end_flush(); ?>
 </body>
