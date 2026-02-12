@@ -22,7 +22,7 @@ class Database {
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         
         // ============================================
-        // PRODUCTION - DOMAIN ONLY (goserveph.com)
+        // PRODUCTION - DOMAIN (goserveph.com)
         // ============================================
         if (strpos($host, 'goserveph.com') !== false) {
             return [
@@ -35,12 +35,12 @@ class Database {
         }
         
         // ============================================
-        // IP ADDRESS (192.168.1.10) - YOUR PHYSICAL SERVER
+        // PHYSICAL SERVER - IP ADDRESS (192.168.1.10)
         // ============================================
         else if ($host === '192.168.1.10') {
             return [
                 'host' => 'localhost',
-                'port' => 3306,      // ✅ Your physical server MySQL on 3306
+                'port' => 3306,
                 'dbname' => 'users',
                 'user' => 'root',
                 'pass' => ''
@@ -48,12 +48,12 @@ class Database {
         }
         
         // ============================================
-        // LOCALHOST (localhost, 127.0.0.1) - YOUR DEV MACHINE
+        // LOCALHOST (localhost, 127.0.0.1)
         // ============================================
         else {
             return [
                 'host' => 'localhost',
-                'port' => 3307,      // ✅ YOUR LOCAL MySQL is on 3307!
+                'port' => 3307,
                 'dbname' => 'users',
                 'user' => 'root',
                 'pass' => ''
@@ -72,15 +72,16 @@ class Database {
             
             $this->conn = new PDO($dsn, $this->username, $this->password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             
-            error_log("✅ Database connected: " . $this->db_name . " on port " . $this->port);
+            error_log("✅ DB Connected: " . $this->db_name . " on port " . $this->port);
             
-        } catch(PDOException $exception) {
-            error_log("❌ Database connection failed: " . $exception->getMessage());
+        } catch(PDOException $e) {
+            error_log("❌ DB Failed: " . $e->getMessage());
             
-            // Show error in console for debugging
+            // Show error in console
             $current_host = $_SERVER['HTTP_HOST'] ?? '';
-            echo "<script>console.error('Database Error: " . addslashes($exception->getMessage()) . "')</script>";
+            echo "<script>console.error('DB Error: " . addslashes($e->getMessage()) . "')</script>";
         }
         
         return $this->conn;

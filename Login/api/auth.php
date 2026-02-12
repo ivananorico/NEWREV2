@@ -2,27 +2,22 @@
 /** revenue2/Login/api/auth.php */
 session_start();
 
-// Enable ALL error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Set headers FIRST
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit(0);
 }
 
-// Default response
 $response = ['success' => false, 'message' => 'System error. Please try again.'];
 
 try {
-    // Get JSON input
     $json = file_get_contents('php://input');
     
     if (!$json) {
@@ -45,10 +40,8 @@ try {
         exit;
     }
 
-    // Define base path
     define('BASE_PATH', dirname(__DIR__));
     
-    // Include required files
     require_once BASE_PATH . '/config/database.php';
     require_once BASE_PATH . '/models/User.php';
     require_once BASE_PATH . '/models/OTP.php';
@@ -87,16 +80,10 @@ try {
 } catch (Exception $e) {
     error_log("Auth Exception: " . $e->getMessage());
     $response['message'] = 'System error: ' . $e->getMessage();
-    $response['error_details'] = $e->getMessage();
 }
 
-// Always return valid JSON
 echo json_encode($response);
 exit;
-
-// ============================================
-// Handler Functions
-// ============================================
 
 function handleLogin($db, $input, &$response) {
     if (!isset($input['email']) || !isset($input['password'])) {
@@ -117,7 +104,6 @@ function handleLogin($db, $input, &$response) {
         return;
     }
 
-    // Admin users bypass OTP
     if ($user->role === 'admin') {
         $_SESSION['user_id'] = $user->id;
         $_SESSION['user_name'] = $user->first_name . ' ' . $user->last_name;
@@ -132,7 +118,6 @@ function handleLogin($db, $input, &$response) {
         return;
     }
 
-    // Regular users need OTP
     $otp = new OTP($db);
     $otp_code = $otp->generateOTP();
     $otp->user_id = $user->id;
@@ -164,7 +149,6 @@ function handleLogin($db, $input, &$response) {
 }
 
 function handleRegister($db, $input, &$response) {
-    // Define required fields (with district)
     $required_fields = [
         'firstName', 'lastName', 'regEmail', 'regPassword', 'confirmPassword',
         'birthdate', 'mobile', 'houseNumber', 'street', 'barangay',
@@ -178,48 +162,41 @@ function handleRegister($db, $input, &$response) {
         }
     }
 
-    // Validate email
     if (!filter_var($input['regEmail'], FILTER_VALIDATE_EMAIL)) {
         $response['message'] = 'Invalid email format';
         return;
     }
 
-    // Check if passwords match
     if ($input['regPassword'] !== $input['confirmPassword']) {
         $response['message'] = 'Passwords do not match';
         return;
     }
 
-    // Validate password length
     if (strlen($input['regPassword']) < 6) {
         $response['message'] = 'Password must be at least 6 characters';
         return;
     }
 
-    // Validate mobile number
     if (!preg_match('/^09[0-9]{9}$/', $input['mobile'])) {
         $response['message'] = 'Please enter a valid 11-digit mobile number (09XXXXXXXXX)';
         return;
     }
 
-    // Validate ZIP code
     if (!preg_match('/^\d{4}$/', $input['zipCode'])) {
         $response['message'] = 'Please enter a valid 4-digit ZIP code';
         return;
     }
 
-    // Validate district
-    if (!in_array($input['district'], ['1', '2', '3', '4', '5', '6'])) {
-        $response['message'] = 'Please select a valid district';
+    if (!in_array($input['district'], ['1', '2', '3'])) {
+        $response['message'] = 'Please select a valid district (1, 2, or 3)';
         return;
     }
 
-    // Validate fixed city and province
-    // Validate fixed city and province
-if ($input['city'] !== 'Caloocan City') {
-    $response['message'] = 'City must be Caloocan City';
-    return;
-}
+    // ✅ FIXED: Caloocan City validation
+    if ($input['city'] !== 'Caloocan City') {
+        $response['message'] = 'City must be Caloocan City';
+        return;
+    }
 
     if ($input['province'] !== 'Metro Manila') {
         $response['message'] = 'Province must be Metro Manila';
@@ -229,13 +206,11 @@ if ($input['city'] !== 'Caloocan City') {
     $user = new User($db);
     $user->email = trim($input['regEmail']);
 
-    // Check if email already exists
     if ($user->emailExists()) {
         $response['message'] = 'Email already registered';
         return;
     }
 
-    // Set user properties
     $user->first_name = trim($input['firstName']);
     $user->last_name = trim($input['lastName']);
     $user->middle_name = isset($input['middleName']) ? trim($input['middleName']) : null;
@@ -249,7 +224,7 @@ if ($input['city'] !== 'Caloocan City') {
     $user->city = trim($input['city']);
     $user->province = trim($input['province']);
     $user->zip_code = trim($input['zipCode']);
-    $user->password_hash = $input['regPassword'];
+    $user->password = $input['regPassword'];
 
     if ($user->create()) {
         $otp = new OTP($db);
