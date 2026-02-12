@@ -14,7 +14,7 @@ import {
   ChevronDown, ChevronUp, TrendingUp as TrendingUpIcon,
   Activity, Receipt, Smartphone,
   Globe, Landmark, Building, MapPin, Eye, Banknote, Wallet,
-  Search, Percent, Target, Award, Star, Trophy,
+  Search, Percent, Target, Award, 
   AlertTriangle, Info, CalendarDays,
   FileSpreadsheet, History, Zap, Shield,
   Phone, Mail, MessageSquare,
@@ -35,23 +35,202 @@ import {
   Smartphone as Smartphone2,
   CreditCard as CreditCard2,
   Cloud as Cloud2,
-  ArrowUpRight as ArrowUpRight2
+  ArrowUpRight as ArrowUpRight2,
+  Sparkles, AlertOctagon, CheckCircle2,
+  ArrowUp, ArrowDown, MoreHorizontal,
+  Settings, Copy, Printer,
+  EyeOff, Eye as EyeIcon,
+  ChevronLeft, ChevronRight as ChevronRightIcon,
+  Sliders, Calendar as CalendarIcon2,
+  Clock as ClockIcon, Gift, 
+  Truck, Car, TreePine, Flame, Scissors, Dog, Trash2, 
+  Wrench, Stethoscope, BookOpen, Train, Coffee, Utensils, HardHat, Briefcase,
+  Leaf, Wind, Factory, Award as AwardIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-// Custom color palette
+// Custom Icons - Using unique names
+const WaterDropIcon = ({ className, strokeWidth }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth={strokeWidth || 2}
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+  </svg>
+);
+
+const CrossIcon = ({ className, strokeWidth }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth={strokeWidth || 2}
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 3v18M3 12h18" />
+  </svg>
+);
+
+// Enhanced color palette with ALL system colors
 const COLORS = {
-  primary: '#4a90e2',      // Blue
-  secondary: '#9aa5b1',    // Gray
-  success: '#4caf50',      // Green
-  warning: '#ff9800',      // Orange
-  danger: '#f44336',       // Red
-  info: '#2196f3',         // Light Blue
-  purple: '#9c27b0',       // Purple
-  indigo: '#3f51b5',       // Indigo
-  background: '#fbfbfb',   // Light Background
-  dark: '#374151',         // Dark Gray
-  lightGray: '#f3f4f6'     // Very Light Gray
+  // Primary brand colors
+  primary: '#4a90e2',
+  primaryLight: '#e8f0fe',
+  primaryDark: '#2a5c8a',
+  
+  // Secondary colors
+  secondary: '#9aa5b1',
+  secondaryLight: '#f0f2f4',
+  secondaryDark: '#6b7a88',
+  
+  // Status colors
+  success: '#4caf50',
+  successLight: '#e8f5e9',
+  warning: '#ff9800',
+  warningLight: '#fff3e0',
+  danger: '#f44336',
+  dangerLight: '#ffebee',
+  
+  // UI colors
+  background: '#fbfbfb',
+  cardBg: '#ffffff',
+  border: '#eaeef2',
+  text: {
+    primary: '#1a2634',
+    secondary: '#6b7a88',
+    disabled: '#b8c2cc',
+    inverse: '#ffffff'
+  },
+  chart: {
+    gradientStart: '#4a90e2',
+    gradientEnd: '#7bb3ff',
+    grid: '#eaeef2'
+  }
+};
+
+// EXACT SYSTEMS FROM YOUR DATABASE - Based on client_system values in payment_transactions
+const SYSTEM_CONFIG = {
+  // RPT - Real Property Tax
+  'rpt': { 
+    bg: '#3f51b510', 
+    color: '#3f51b5', 
+    border: '#3f51b520',
+    icon: Home, 
+    label: 'Real Property Tax',
+    category: 'Property Tax'
+  },
+  // Business Tax
+  'business': { 
+    bg: '#4caf5010', 
+    color: '#4caf50', 
+    border: '#4caf5020',
+    icon: Building2, 
+    label: 'Business Tax',
+    category: 'Business Permits'
+  },
+  // Market Stall Rights
+  'market': { 
+    bg: '#ff980010', 
+    color: '#ff9800', 
+    border: '#ff980020',
+    icon: Store, 
+    label: 'Market Stall Rights',
+    category: 'Market'
+  },
+  // Market Rent
+  'market_rent': { 
+    bg: '#9c27b010', 
+    color: '#9c27b0', 
+    border: '#9c27b020',
+    icon: Calendar, 
+    label: 'Market Rent',
+    category: 'Market'
+  },
+  // TMM - Traffic Management
+  'tmm': { 
+    bg: '#2196f310', 
+    color: '#2196f3', 
+    border: '#2196f320',
+    icon: Car, 
+    label: 'Traffic Management',
+    category: 'Traffic Violations'
+  },
+  // Zoning
+  'zoning': { 
+    bg: '#79554810', 
+    color: '#795548', 
+    border: '#79554820',
+    icon: MapPin, 
+    label: 'Zoning Clearance',
+    category: 'Building & Planning'
+  },
+  // Sanitation
+  'sanitation': { 
+    bg: '#00968810', 
+    color: '#009688', 
+    border: '#00968820',
+    icon: WaterDropIcon, 
+    label: 'Sanitation',
+    category: 'Health & Sanitation'
+  },
+  // WSS - Water Services
+  'wss': { 
+    bg: '#607d8b10', 
+    color: '#607d8b', 
+    border: '#607d8b20',
+    icon: WaterDropIcon, 
+    label: 'Water Services',
+    category: 'Utilities'
+  },
+  // Franchise Application
+  'franchise': { 
+    bg: '#e91e6310', 
+    color: '#e91e63', 
+    border: '#e91e6320',
+    icon: AwardIcon, 
+    label: 'Franchise Application',
+    category: 'Business Permits'
+  },
+  // Franchise Renewal
+  'franchise_renewal': { 
+    bg: '#ba68c810', 
+    color: '#ba68c8', 
+    border: '#ba68c820',
+    icon: RefreshCw, 
+    label: 'Franchise Renewal',
+    category: 'Business Permits'
+  },
+  // Cemetery Services
+  'cemetery': { 
+    bg: '#607d8b10', 
+    color: '#607d8b', 
+    border: '#607d8b20',
+    icon: CrossIcon, 
+    label: 'Cemetery Services',
+    category: 'Public Services'
+  },
+  // Default for any other systems
+  'default': { 
+    bg: '#9aa5b110', 
+    color: '#9aa5b1', 
+    border: '#9aa5b120',
+    icon: Package, 
+    label: 'Other Services',
+    category: 'Other'
+  }
 };
 
 // Auto-detect environment
@@ -84,6 +263,272 @@ const getApiBase = () => {
 
 const API_BASE = getApiBase();
 
+// Format functions
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined || amount === '' || isNaN(amount)) {
+    return '₱0';
+  }
+  
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  if (numAmount >= 1000000000) {
+    return `₱${(numAmount / 1000000000).toFixed(2)}B`;
+  }
+  if (numAmount >= 1000000) {
+    return `₱${(numAmount / 1000000).toFixed(1)}M`;
+  }
+  if (numAmount >= 1000) {
+    return `₱${(numAmount / 1000).toFixed(1)}K`;
+  }
+  return `₱${numAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatNumber = (num) => {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  return new Intl.NumberFormat('en-PH').format(num);
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const formatShortDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-PH', {
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// Status Badge Component
+const StatusBadge = ({ status }) => {
+  const config = {
+    paid: {
+      bg: '#e8f5e9',
+      color: '#4caf50',
+      border: '#4caf5020',
+      icon: CheckCircle2,
+      text: 'Paid'
+    },
+    pending: {
+      bg: '#fff3e0',
+      color: '#ff9800',
+      border: '#ff980020',
+      icon: Clock,
+      text: 'Pending'
+    },
+    failed: {
+      bg: '#ffebee',
+      color: '#f44336',
+      border: '#f4433620',
+      icon: AlertOctagon,
+      text: 'Failed'
+    }
+  };
+
+  const { bg, color, border, icon: Icon, text } = config[status] || config.pending;
+
+  return (
+    <span 
+      className="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium"
+      style={{ 
+        backgroundColor: bg,
+        color: color,
+        border: `1px solid ${border}`
+      }}
+    >
+      <Icon className="w-3 h-3 mr-1.5" strokeWidth={2.5} />
+      {text}
+    </span>
+  );
+};
+
+// Method Badge Component
+const MethodBadge = ({ method }) => {
+  const config = {
+    gcash: {
+      bg: '#4a90e210',
+      color: '#4a90e2',
+      border: '#4a90e220',
+      icon: Smartphone2,
+      text: 'GCash'
+    },
+    maya: {
+      bg: '#5a2e8c10',
+      color: '#5a2e8c',
+      border: '#5a2e8c20',
+      icon: Wallet2,
+      text: 'Maya'
+    },
+    card: {
+      bg: '#2196f310',
+      color: '#2196f3',
+      border: '#2196f320',
+      icon: CreditCard2,
+      text: 'Card'
+    }
+  };
+
+  const { bg, color, border, icon: Icon, text } = config[method] || {
+    bg: '#f0f2f4',
+    color: '#6b7a88',
+    border: '#9aa5b120',
+    icon: CreditCard2,
+    text: method || 'Unknown'
+  };
+
+  return (
+    <span 
+      className="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium"
+      style={{ 
+        backgroundColor: bg,
+        color: color,
+        border: `1px solid ${border}`
+      }}
+    >
+      <Icon className="w-3 h-3 mr-1.5" strokeWidth={2.5} />
+      {text}
+    </span>
+  );
+};
+
+// System Badge Component - Uses EXACT systems from your DB
+const SystemBadge = ({ system }) => {
+  const config = SYSTEM_CONFIG[system] || SYSTEM_CONFIG.default;
+  const Icon = config.icon;
+
+  return (
+    <span 
+      className="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium"
+      style={{ 
+        backgroundColor: config.bg,
+        color: config.color,
+        border: `1px solid ${config.border}`
+      }}
+    >
+      <Icon className="w-3 h-3 mr-1.5" strokeWidth={2.5} />
+      <span className="font-medium">{config.label}</span>
+    </span>
+  );
+};
+
+// Stat Card Component
+const StatCard = ({ title, value, icon: Icon, trend, trendValue, color, subtitle, loading }) => {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-6 border animate-pulse" style={{ borderColor: '#eaeef2' }}>
+        <div className="h-20 bg-gray-100 rounded"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="bg-white rounded-2xl p-6 border hover:shadow-lg transition-all duration-300"
+      style={{ borderColor: '#eaeef2' }}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium mb-1" style={{ color: '#6b7a88' }}>
+            {title}
+          </p>
+          <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>
+            {value}
+          </p>
+          {subtitle && (
+            <p className="text-xs mt-1" style={{ color: '#6b7a88' }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <div 
+          className="p-3 rounded-2xl"
+          style={{ 
+            backgroundColor: `${color}10`,
+            color: color
+          }}
+        >
+          <Icon className="w-6 h-6" strokeWidth={1.5} />
+        </div>
+      </div>
+      
+      {trend && (
+        <div className="flex items-center gap-2 mt-4">
+          <span 
+            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+            style={{ 
+              backgroundColor: trend > 0 ? '#e8f5e9' : '#ffebee',
+              color: trend > 0 ? '#4caf50' : '#f44336'
+            }}
+          >
+            {trend > 0 ? <ArrowUp className="w-3 h-3 mr-1" /> : <ArrowDown className="w-3 h-3 mr-1" />}
+            {Math.abs(trend)}%
+          </span>
+          <span className="text-xs" style={{ color: '#6b7a88' }}>
+            {trendValue}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Progress Bar Component
+const ProgressBar = ({ value, max = 100, color, label, showLabel = true }) => {
+  const percentage = Math.min((value / max) * 100, 100);
+  
+  return (
+    <div className="space-y-1.5">
+      {showLabel && (
+        <div className="flex justify-between text-xs">
+          <span style={{ color: '#6b7a88' }}>{label}</span>
+          <span className="font-medium" style={{ color: '#1a2634' }}>{percentage.toFixed(1)}%</span>
+        </div>
+      )}
+      <div className="h-2 rounded-full" style={{ backgroundColor: `${color}15` }}>
+        <div 
+          className="h-full rounded-full transition-all duration-500"
+          style={{ 
+            width: `${percentage}%`,
+            backgroundColor: color
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload, label, type = 'currency' }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 rounded-xl shadow-lg border" style={{ borderColor: '#eaeef2' }}>
+        <p className="text-sm font-medium mb-2" style={{ color: '#1a2634' }}>{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span style={{ color: '#6b7a88' }}>{entry.name}:</span>
+            <span className="font-bold" style={{ color: entry.color }}>
+              {type === 'currency' ? formatCurrency(entry.value) : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// Main Dashboard Component
 export default function DigiDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -103,12 +548,13 @@ export default function DigiDashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
-  const [chartType, setChartType] = useState('bar');
+  const [chartType, setChartType] = useState('area');
   const [activeTab, setActiveTab] = useState('overview');
+  const [timeRange, setTimeRange] = useState('month');
 
   useEffect(() => {
     fetchAllData();
-  }, [dateRange, currentPage]);
+  }, [dateRange, currentPage, timeRange]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -180,182 +626,6 @@ export default function DigiDashboard() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined || amount === '' || isNaN(amount)) {
-      return '₱0';
-    }
-    
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    
-    if (numAmount >= 1000000000) {
-      return `₱${(numAmount / 1000000000).toFixed(2)}B`;
-    }
-    if (numAmount >= 1000000) {
-      return `₱${(numAmount / 1000000).toFixed(1)}M`;
-    }
-    if (numAmount >= 1000) {
-      return `₱${(numAmount / 1000).toFixed(1)}K`;
-    }
-    return `₱${numAmount.toFixed(2)}`;
-  };
-
-  const formatNumber = (num) => {
-    if (num === null || num === undefined || isNaN(num)) return '0';
-    return new Intl.NumberFormat('en-PH').format(num);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatShortDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-PH', {
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    switch(status) {
-      case 'paid':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.success}15`,
-                  color: COLORS.success,
-                  borderColor: `${COLORS.success}30`
-                }}>
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Paid
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.warning}15`,
-                  color: COLORS.warning,
-                  borderColor: `${COLORS.warning}30`
-                }}>
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.danger}15`,
-                  color: COLORS.danger,
-                  borderColor: `${COLORS.danger}30`
-                }}>
-            <XCircle className="w-3 h-3 mr-1" />
-            Failed
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.secondary}15`,
-                  color: COLORS.secondary,
-                  borderColor: `${COLORS.secondary}30`
-                }}>
-            Unknown
-          </span>
-        );
-    }
-  };
-
-  const getMethodBadge = (method) => {
-    switch(method) {
-      case 'gcash':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.primary}15`,
-                  color: COLORS.primary,
-                  borderColor: `${COLORS.primary}30`
-                }}>
-            <SmartphoneIcon className="w-3 h-3 mr-1" />
-            GCash
-          </span>
-        );
-      case 'maya':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.purple}15`,
-                  color: COLORS.purple,
-                  borderColor: `${COLORS.purple}30`
-                }}>
-            <WalletIcon className="w-3 h-3 mr-1" />
-            Maya
-          </span>
-        );
-      case 'card':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.info}15`,
-                  color: COLORS.info,
-                  borderColor: `${COLORS.info}30`
-                }}>
-            <CreditCardIcon className="w-3 h-3 mr-1" />
-            Card
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-                style={{ 
-                  backgroundColor: `${COLORS.secondary}15`,
-                  color: COLORS.secondary,
-                  borderColor: `${COLORS.secondary}30`
-                }}>
-            {method || 'Unknown'}
-          </span>
-        );
-    }
-  };
-
-  const getSystemBadge = (system) => {
-    const systemColors = {
-      'rpt': { color: COLORS.indigo, label: 'RPT', icon: <Home className="w-3 h-3" /> },
-      'business': { color: COLORS.success, label: 'Business', icon: <Building className="w-3 h-3" /> },
-      'market': { color: COLORS.warning, label: 'Market Stall', icon: <ShoppingCart className="w-3 h-3" /> },
-      'market_rent': { color: '#F59E0B', label: 'Market Rent', icon: <CalendarIcon className="w-3 h-3" /> }
-    };
-    
-    const config = systemColors[system] || { 
-      color: COLORS.secondary, 
-      label: system || 'Unknown', 
-      icon: <Package className="w-3 h-3" /> 
-    };
-    
-    return (
-      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border"
-            style={{ 
-              backgroundColor: `${config.color}15`,
-              color: config.color,
-              borderColor: `${config.color}30`
-            }}>
-        {config.icon}
-        <span className="ml-1">{config.label}</span>
-      </span>
-    );
-  };
-
   const exportToExcel = () => {
     setExportLoading(true);
     try {
@@ -363,7 +633,7 @@ export default function DigiDashboard() {
       
       const wsPayments = XLSX.utils.json_to_sheet(payments.map(p => ({
         'Payment ID': p.payment_id,
-        'Client System': p.client_system,
+        'System': SYSTEM_CONFIG[p.client_system]?.label || p.client_system,
         'Reference': p.client_reference,
         'Purpose': p.purpose,
         'Amount': parseFloat(p.amount),
@@ -420,574 +690,731 @@ export default function DigiDashboard() {
     setCurrentPage(1);
   };
 
-  // Chart data preparation
-  const getDailyTrendData = () => {
-    if (!stats || !stats.daily_trend) return [];
-    return stats.daily_trend.map(day => ({
-      date: formatShortDate(day.date),
-      amount: parseFloat(day.amount || 0),
-      count: parseInt(day.count || 0)
-    }));
+  // Get unique systems from payments data
+  const getUniqueSystems = () => {
+    const systems = new Set();
+    payments.forEach(p => {
+      if (p.client_system) systems.add(p.client_system);
+    });
+    return Array.from(systems).sort();
   };
 
-  const getMethodChartData = () => {
-    if (!stats) return [];
-    
-    return [
-      { name: 'GCash', value: stats.gcash_count || 0, color: COLORS.primary },
-      { name: 'Maya', value: stats.maya_count || 0, color: COLORS.purple },
-      { name: 'Card', value: stats.card_count || 0, color: COLORS.info }
-    ].filter(item => item.value > 0);
-  };
-
+  // Get system chart data from actual payments
   const getSystemChartData = () => {
-    if (!stats || !stats.by_system) return [];
+    const systemMap = new Map();
     
-    return Object.entries(stats.by_system).map(([system, data]) => ({
-      name: system === 'market_rent' ? 'Market Rent' : system.charAt(0).toUpperCase() + system.slice(1),
-      value: data.count || 0,
-      amount: data.amount || 0,
-      color: system === 'rpt' ? COLORS.indigo : 
-             system === 'business' ? COLORS.success : 
-             system === 'market' ? COLORS.warning : 
-             system === 'market_rent' ? '#F59E0B' : COLORS.secondary
-    }));
+    payments.forEach(payment => {
+      const system = payment.client_system;
+      const amount = parseFloat(payment.amount) || 0;
+      const status = payment.payment_status;
+      
+      if (!system) return;
+      
+      if (!systemMap.has(system)) {
+        systemMap.set(system, {
+          system: system,
+          name: SYSTEM_CONFIG[system]?.label || system,
+          count: 0,
+          amount: 0,
+          paidAmount: 0,
+          pendingAmount: 0,
+          failedAmount: 0,
+          color: SYSTEM_CONFIG[system]?.color || '#9aa5b1'
+        });
+      }
+      
+      const data = systemMap.get(system);
+      data.count += 1;
+      data.amount += amount;
+      
+      if (status === 'paid') data.paidAmount += amount;
+      if (status === 'pending') data.pendingAmount += amount;
+      if (status === 'failed') data.failedAmount += amount;
+    });
+    
+    return Array.from(systemMap.values()).sort((a, b) => b.amount - a.amount);
   };
 
-  const getExpectedStats = () => {
+  // Get daily trend data
+  const getDailyTrendData = () => {
+    if (!payments.length) return [];
+    
+    const dailyMap = new Map();
+    
+    payments.forEach(payment => {
+      const date = payment.created_at?.split(' ')[0];
+      if (!date) return;
+      
+      if (!dailyMap.has(date)) {
+        dailyMap.set(date, {
+          date: formatShortDate(date),
+          fullDate: date,
+          amount: 0,
+          count: 0,
+          paidAmount: 0
+        });
+      }
+      
+      const data = dailyMap.get(date);
+      data.amount += parseFloat(payment.amount) || 0;
+      data.count += 1;
+      if (payment.payment_status === 'paid') {
+        data.paidAmount += parseFloat(payment.amount) || 0;
+      }
+    });
+    
+    return Array.from(dailyMap.values()).sort((a, b) => 
+      new Date(a.fullDate) - new Date(b.fullDate)
+    );
+  };
+
+  // Get method chart data
+  const getMethodChartData = () => {
+    const methodMap = new Map();
+    
+    payments.forEach(payment => {
+      const method = payment.payment_method;
+      if (!method) return;
+      
+      if (!methodMap.has(method)) {
+        methodMap.set(method, {
+          name: method === 'gcash' ? 'GCash' : 
+                method === 'maya' ? 'Maya' : 
+                method === 'card' ? 'Card' : method,
+          value: 0,
+          amount: 0,
+          color: method === 'gcash' ? '#4a90e2' : 
+                 method === 'maya' ? '#5a2e8c' : 
+                 method === 'card' ? '#2196f3' : '#9aa5b1'
+        });
+      }
+      
+      const data = methodMap.get(method);
+      data.value += 1;
+      data.amount += parseFloat(payment.amount) || 0;
+    });
+    
+    return Array.from(methodMap.values());
+  };
+
+  // Calculate summary stats from payments
+  const calculateStats = () => {
+    const total = payments.length;
+    const paid = payments.filter(p => p.payment_status === 'paid').length;
+    const pending = payments.filter(p => p.payment_status === 'pending').length;
+    const failed = payments.filter(p => p.payment_status === 'failed').length;
+    const totalAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const paidAmount = payments.filter(p => p.payment_status === 'paid')
+      .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    
     return {
-      total_amount: 164089.48,
-      total_transactions: 36,
-      success_rate: 94.6,
-      average_amount: 4557.99,
-      paid_count: 35,
-      failed_count: 1,
-      pending_count: 0,
-      by_system: {
-        rpt: { count: 9, amount: 88320.00 },
-        business: { count: 9, amount: 13375.00 },
-        market: { count: 2, amount: 14000.00 },
-        market_rent: { count: 16, amount: 48524.48 }
-      },
-      gcash_count: 36,
-      maya_count: 0,
-      card_count: 0,
-      daily_trend: [
-        { date: '2026-01-13', count: 8, amount: 9337.50 },
-        { date: '2026-01-17', count: 6, amount: 14000.00 },
-        { date: '2026-01-18', count: 15, amount: 47137.50 },
-        { date: '2026-01-19', count: 7, amount: 93614.48 }
-      ]
+      total_transactions: total,
+      paid_count: paid,
+      pending_count: pending,
+      failed_count: failed,
+      total_amount: totalAmount,
+      paid_amount: paidAmount,
+      success_rate: total > 0 ? ((paid / total) * 100).toFixed(1) : 0,
+      average_amount: paid > 0 ? paidAmount / paid : 0
     };
   };
 
+  const displayStats = stats || calculateStats();
+  const systemChartData = getSystemChartData();
+  const dailyTrendData = getDailyTrendData();
+  const methodChartData = getMethodChartData();
+  const uniqueSystems = getUniqueSystems();
+
   if (loading && payments.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#fbfbfb' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 mx-auto mb-4" style={{ borderColor: COLORS.primary }}></div>
-          <p style={{ color: COLORS.dark }}>Loading Digital Payment Dashboard...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 mx-auto mb-4" 
+                 style={{ borderColor: '#4a90e220', borderTopColor: '#4a90e2' }} />
+            <Sparkles className="w-6 h-6 absolute top-5 left-5 animate-pulse" style={{ color: '#4a90e2' }} />
+          </div>
+          <p className="text-sm font-medium" style={{ color: '#6b7a88' }}>Loading Digital Payment Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const displayStats = stats || getExpectedStats();
-
   return (
-    <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
-      {/* Header */}
-      <div className="border-b bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: '#fbfbfb' }}>
+      {/* Header Section */}
+      <div className="border-b bg-white sticky top-0 z-10" style={{ borderColor: '#eaeef2' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
-                Digital Payment Gateway
-              </h1>
-              <div className="flex items-center gap-2 text-sm" style={{ color: COLORS.secondary }}>
-                <CloudIcon className="w-4 h-4" />
-                <span>Real-time Payment Dashboard • {dateRange.startDate} to {dateRange.endDate}</span>
+          {/* Header Top Row */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div 
+                className="p-3 rounded-2xl"
+                style={{ backgroundColor: '#4a90e210' }}
+              >
+                <Cloud2 className="w-8 h-8" style={{ color: '#4a90e2' }} strokeWidth={1.5} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#1a2634' }}>
+                  Digital Payment Gateway
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full" 
+                        style={{ backgroundColor: '#e8f5e9', color: '#4caf50' }}>
+                    Live
+                  </span>
+                </h1>
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="flex items-center gap-1.5 text-sm" style={{ color: '#6b7a88' }}>
+                    <CalendarIcon className="w-4 h-4" />
+                    <span>{dateRange.startDate} - {dateRange.endDate}</span>
+                  </div>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+                  <div className="flex items-center gap-1.5 text-sm" style={{ color: '#6b7a88' }}>
+                    <Database className="w-4 h-4" />
+                    <span>{formatNumber(payments.length)} transactions</span>
+                  </div>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+                  <div className="flex items-center gap-1.5 text-sm" style={{ color: '#6b7a88' }}>
+                    <Layers className="w-4 h-4" />
+                    <span>{uniqueSystems.length} systems</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div className="flex gap-3">
-              <div className="flex border rounded-lg" style={{ borderColor: COLORS.secondary }}>
-                <input
-                  type="date"
-                  value={dateRange.startDate}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  className="px-3 py-2 text-sm border-0 focus:ring-0 focus:outline-none"
-                  style={{ color: COLORS.dark }}
-                />
-                <span className="self-center px-2" style={{ color: COLORS.secondary }}>to</span>
-                <input
-                  type="date"
-                  value={dateRange.endDate}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  className="px-3 py-2 text-sm border-0 focus:ring-0 focus:outline-none"
-                  style={{ color: COLORS.dark }}
-                />
+            <div className="flex items-center gap-3">
+              {/* Date Range Picker */}
+              <div className="flex items-center border rounded-xl bg-white" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex items-center divide-x" style={{ borderColor: '#eaeef2' }}>
+                  <input
+                    type="date"
+                    value={dateRange.startDate}
+                    onChange={(e) => handleDateChange('startDate', e.target.value)}
+                    className="px-4 py-2.5 text-sm border-0 focus:ring-0 focus:outline-none rounded-l-xl"
+                    style={{ color: '#1a2634' }}
+                  />
+                  <input
+                    type="date"
+                    value={dateRange.endDate}
+                    onChange={(e) => handleDateChange('endDate', e.target.value)}
+                    className="px-4 py-2.5 text-sm border-0 focus:ring-0 focus:outline-none rounded-r-xl"
+                    style={{ color: '#1a2634' }}
+                  />
+                </div>
               </div>
               
+              {/* Export Button */}
               <button
                 onClick={exportToExcel}
                 disabled={exportLoading}
-                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
-                style={{ backgroundColor: COLORS.primary, color: 'white' }}
+                className="px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all hover:opacity-90"
+                style={{ backgroundColor: '#4a90e2', color: 'white' }}
               >
                 {exportLoading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                     <span>Exporting...</span>
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    <span>Export Excel</span>
+                    <span>Export Report</span>
                   </>
                 )}
               </button>
               
+              {/* Refresh Button */}
               <button
                 onClick={fetchAllData}
-                className="px-4 py-2 rounded-lg flex items-center gap-2 border transition-all"
-                style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                className="p-2.5 rounded-xl border hover:bg-gray-50 transition-all"
+                style={{ borderColor: '#eaeef2', color: '#6b7a88' }}
               >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
+                <RefreshCw className="w-5 h-5" />
               </button>
             </div>
           </div>
           
           {/* Navigation Tabs */}
-          <div className="mt-6 border-b" style={{ borderColor: COLORS.secondary }}>
-            <nav className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'overview'
-                    ? `border-${COLORS.primary} text-${COLORS.primary}`
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                style={{ 
-                  borderBottomColor: activeTab === 'overview' ? COLORS.primary : 'transparent',
-                  color: activeTab === 'overview' ? COLORS.primary : COLORS.secondary
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Overview
-                </div>
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('transactions')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'transactions'
-                    ? `border-${COLORS.primary} text-${COLORS.primary}`
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                style={{ 
-                  borderBottomColor: activeTab === 'transactions' ? COLORS.primary : 'transparent',
-                  color: activeTab === 'transactions' ? COLORS.primary : COLORS.secondary
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  All Transactions
-                </div>
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'analytics'
-                    ? `border-${COLORS.primary} text-${COLORS.primary}`
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                style={{ 
-                  borderBottomColor: activeTab === 'analytics' ? COLORS.primary : 'transparent',
-                  color: activeTab === 'analytics' ? COLORS.primary : COLORS.secondary
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <TrendingUpIcon2 className="w-4 h-4" />
-                  Analytics
-                </div>
-              </button>
+          <div className="flex items-center justify-between">
+            <nav className="flex space-x-1">
+              {[
+                { id: 'overview', label: 'Overview', icon: BarChart3 },
+                { id: 'transactions', label: 'Transactions', icon: FileText },
+                { id: 'analytics', label: 'Analytics', icon: TrendingUpIcon2 },
+                { id: 'systems', label: 'All Systems', icon: Layers }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all`}
+                    style={{ 
+                      backgroundColor: isActive ? '#4a90e210' : 'transparent',
+                      color: isActive ? '#4a90e2' : '#6b7a88'
+                    }}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={2} />
+                    {tab.label}
+                  </button>
+                );
+              })}
             </nav>
+            
+            {/* Time Range Quick Select */}
+            <div className="flex items-center gap-1 p-1 rounded-xl" style={{ backgroundColor: '#f0f2f4' }}>
+              {['day', 'week', 'month', 'year'].map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all`}
+                  style={{ 
+                    backgroundColor: timeRange === range ? 'white' : 'transparent',
+                    color: timeRange === range ? '#4a90e2' : '#6b7a88',
+                    boxShadow: timeRange === range ? '0 2px 8px rgba(0,0,0,0.04)' : 'none'
+                  }}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* DIGITAL PAYMENT OVERVIEW */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <>
-            {/* TOP SUMMARY METRICS */}
+            {/* Key Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Total Amount */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
-                    <Wallet2 className="w-5 h-5" style={{ color: COLORS.primary }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>TOTAL COLLECTION</p>
-                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.total_amount)}</p>
-                  </div>
-                </div>
-                <div className="text-xs mt-2" style={{ color: COLORS.success }}>
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>₱164K in January 2026</span>
-                  </div>
-                </div>
-              </div>
+              <StatCard
+                title="Total Collection"
+                value={formatCurrency(displayStats.total_amount)}
+                icon={Wallet2}
+                color="#4a90e2"
+                subtitle={`${formatNumber(displayStats.total_transactions)} transactions`}
+              />
               
-              {/* Total Transactions */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.success}15` }}>
-                    <FileText className="w-5 h-5" style={{ color: COLORS.success }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>TRANSACTIONS</p>
-                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatNumber(displayStats.total_transactions)}</p>
-                  </div>
-                </div>
-                <div className="text-xs mt-2" style={{ color: COLORS.dark }}>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" style={{ color: COLORS.success }} />
-                    <span>35 successful • 1 failed</span>
-                  </div>
-                </div>
-              </div>
+              <StatCard
+                title="Successful Payments"
+                value={formatNumber(displayStats.paid_count)}
+                icon={CheckCircle2}
+                color="#4caf50"
+                subtitle={`${displayStats.success_rate}% success rate`}
+              />
               
-              {/* Success Rate */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
-                    <TargetIcon className="w-5 h-5" style={{ color: COLORS.warning }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>SUCCESS RATE</p>
-                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{displayStats.success_rate || 0}%</p>
-                  </div>
-                </div>
-                <div className="w-full h-2 rounded-full mt-2" style={{ backgroundColor: `${COLORS.secondary}30` }}>
-                  <div 
-                    className="h-full rounded-full"
-                    style={{ 
-                      width: `${displayStats.success_rate || 0}%`,
-                      backgroundColor: COLORS.warning
-                    }}
-                  ></div>
-                </div>
-              </div>
+              <StatCard
+                title="Pending"
+                value={formatNumber(displayStats.pending_count)}
+                icon={Clock}
+                color="#ff9800"
+                subtitle="Awaiting confirmation"
+              />
               
-              {/* Average Transaction */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
-                    <TrendingUpIcon className="w-5 h-5" style={{ color: COLORS.info }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: COLORS.secondary }}>AVERAGE TX</p>
-                    <p className="text-xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.average_amount)}</p>
-                  </div>
-                </div>
-                <div className="text-xs mt-2" style={{ color: COLORS.info }}>
-                  <div className="flex items-center gap-1">
-                    <ArrowUpRight2 className="w-3 h-3" />
-                    <span>₱4.6K average per payment</span>
-                  </div>
-                </div>
-              </div>
+              <StatCard
+                title="Average Transaction"
+                value={formatCurrency(displayStats.average_amount)}
+                icon={TrendingUpIcon}
+                color="#2196f3"
+              />
             </div>
 
-            {/* REVENUE SYSTEMS BREAKDOWN */}
-            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold" style={{ color: COLORS.dark }}>Revenue Systems Breakdown</h3>
-                <span className="text-sm" style={{ color: COLORS.secondary }}>4 Connected Systems</span>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* System Details */}
-                <div>
-                  <h4 className="text-xs font-medium mb-4 uppercase tracking-wider" style={{ color: COLORS.secondary }}>DETAILED BREAKDOWN</h4>
-                  <div className="space-y-4">
-                    {/* RPT */}
-                    <div className="p-4 border rounded-xl" 
-                         style={{ 
-                           borderColor: `${COLORS.indigo}30`, 
-                           backgroundColor: `${COLORS.indigo}10` 
-                         }}>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
-                            <Home className="w-4 h-4" style={{ color: COLORS.indigo }} />
-                          </div>
-                          <div>
-                            <h5 className="font-bold" style={{ color: COLORS.dark }}>RPT (Real Property Tax)</h5>
-                            <p className="text-sm" style={{ color: COLORS.secondary }}>Real Property Tax Collection</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.rpt?.amount || 0)}</div>
-                          <div className="text-xs font-medium" style={{ color: COLORS.indigo }}>
-                            {displayStats.by_system?.rpt?.amount ? 
-                              ((displayStats.by_system.rpt.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm" style={{ color: COLORS.secondary }}>
-                        <div className="flex justify-between mb-1">
-                          <span>Transactions:</span>
-                          <span className="font-medium">{displayStats.by_system?.rpt?.count || 0} payments</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Business */}
-                    <div className="p-4 border rounded-xl" 
-                         style={{ 
-                           borderColor: `${COLORS.success}30`, 
-                           backgroundColor: `${COLORS.success}10` 
-                         }}>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
-                            <Building className="w-4 h-4" style={{ color: COLORS.success }} />
-                          </div>
-                          <div>
-                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Business Tax</h5>
-                            <p className="text-sm" style={{ color: COLORS.secondary }}>Business Tax Collection</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.business?.amount || 0)}</div>
-                          <div className="text-xs font-medium" style={{ color: COLORS.success }}>
-                            {displayStats.by_system?.business?.amount ? 
-                              ((displayStats.by_system.business.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm" style={{ color: COLORS.secondary }}>
-                        <div className="flex justify-between mb-1">
-                          <span>Transactions:</span>
-                          <span className="font-medium">{displayStats.by_system?.business?.count || 0} payments</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Market Rent */}
-                    <div className="p-4 border rounded-xl" 
-                         style={{ 
-                           borderColor: '#F59E0B30', 
-                           backgroundColor: '#F59E0B10' 
-                         }}>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
-                            <CalendarIcon className="w-4 h-4" style={{ color: '#F59E0B' }} />
-                          </div>
-                          <div>
-                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Market Rent</h5>
-                            <p className="text-sm" style={{ color: COLORS.secondary }}>Monthly Stall Rentals</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.market_rent?.amount || 0)}</div>
-                          <div className="text-xs font-medium" style={{ color: '#F59E0B' }}>
-                            {displayStats.by_system?.market_rent?.amount ? 
-                              ((displayStats.by_system.market_rent.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm" style={{ color: COLORS.secondary }}>
-                        <div className="flex justify-between mb-1">
-                          <span>Transactions:</span>
-                          <span className="font-medium">{displayStats.by_system?.market_rent?.count || 0} monthly rents</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Market Stall */}
-                    <div className="p-4 border rounded-xl" 
-                         style={{ 
-                           borderColor: `${COLORS.warning}30`, 
-                           backgroundColor: `${COLORS.warning}10` 
-                         }}>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'white' }}>
-                            <Store className="w-4 h-4" style={{ color: COLORS.warning }} />
-                          </div>
-                          <div>
-                            <h5 className="font-bold" style={{ color: COLORS.dark }}>Market Stall Rights</h5>
-                            <p className="text-sm" style={{ color: COLORS.secondary }}>Stall Rental Fees</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(displayStats.by_system?.market?.amount || 0)}</div>
-                          <div className="text-xs font-medium" style={{ color: COLORS.warning }}>
-                            {displayStats.by_system?.market?.amount ? 
-                              ((displayStats.by_system.market.amount / displayStats.total_amount * 100).toFixed(1)) : 0}% of total
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm" style={{ color: COLORS.secondary }}>
-                        <div className="flex justify-between mb-1">
-                          <span>Transactions:</span>
-                          <span className="font-medium">{displayStats.by_system?.market?.count || 0} stall fees</span>
-                        </div>
-                      </div>
+            {/* Revenue Overview & System Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Daily Revenue Chart */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: '#1a2634' }}>
+                      <Activity className="w-5 h-5" style={{ color: '#4a90e2' }} />
+                      Revenue Trend
+                    </h3>
+                    <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                      Daily transaction volume and amount
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex p-1 rounded-lg" style={{ backgroundColor: '#f0f2f4' }}>
+                      {['bar', 'line', 'area'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setChartType(type)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all`}
+                          style={{ 
+                            backgroundColor: chartType === type ? 'white' : 'transparent',
+                            color: chartType === type ? '#4a90e2' : '#6b7a88',
+                            boxShadow: chartType === type ? '0 2px 4px rgba(0,0,0,0.02)' : 'none'
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
                 
-                {/* System Chart */}
-                <div>
-                  <h4 className="text-xs font-medium mb-4 uppercase tracking-wider" style={{ color: COLORS.secondary }}>DISTRIBUTION BY SYSTEM</h4>
-                  <div className="h-[400px]">
-                    {getSystemChartData().length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={getSystemChartData()}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent, amount }) => 
-                              `${name}: ${(percent * 100).toFixed(1)}%\n${formatCurrency(amount)}`
-                            }
-                            outerRadius={120}
-                            fill="#8884d8"
-                            dataKey="amount"
-                          >
-                            {getSystemChartData().map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value, name, props) => [
-                              formatCurrency(value), 
-                              props.payload.name
-                            ]}
+                <div className="h-80">
+                  {dailyTrendData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      {chartType === 'bar' ? (
+                        <BarChart data={dailyTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eaeef2" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
                           />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
-                        <PieChartIcon className="w-12 h-12 mb-2" />
-                        <p>No system data available</p>
+                          <YAxis 
+                            yAxisId="left"
+                            orientation="left"
+                            stroke="#4a90e2"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
+                          />
+                          <YAxis 
+                            yAxisId="right"
+                            orientation="right"
+                            stroke="#4caf50"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            iconType="circle"
+                            iconSize={8}
+                          />
+                          <Bar 
+                            yAxisId="left"
+                            dataKey="amount" 
+                            name="Amount" 
+                            fill="#4a90e2"
+                            radius={[4, 4, 0, 0]}
+                            barSize={24}
+                          />
+                          <Bar 
+                            yAxisId="right"
+                            dataKey="count" 
+                            name="Transactions" 
+                            fill="#4caf50"
+                            radius={[4, 4, 0, 0]}
+                            barSize={24}
+                          />
+                        </BarChart>
+                      ) : chartType === 'line' ? (
+                        <LineChart data={dailyTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eaeef2" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                          />
+                          <YAxis 
+                            yAxisId="left"
+                            orientation="left"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
+                          />
+                          <YAxis 
+                            yAxisId="right"
+                            orientation="right"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            iconType="circle"
+                            iconSize={8}
+                          />
+                          <Line 
+                            yAxisId="left"
+                            type="monotone" 
+                            dataKey="amount" 
+                            name="Amount" 
+                            stroke="#4a90e2"
+                            strokeWidth={2.5}
+                            dot={{ r: 4, fill: '#4a90e2', strokeWidth: 2, stroke: 'white' }}
+                            activeDot={{ r: 6, fill: '#4a90e2', strokeWidth: 2, stroke: 'white' }}
+                          />
+                          <Line 
+                            yAxisId="right"
+                            type="monotone" 
+                            dataKey="count" 
+                            name="Transactions" 
+                            stroke="#4caf50"
+                            strokeWidth={2.5}
+                            dot={{ r: 4, fill: '#4caf50', strokeWidth: 2, stroke: 'white' }}
+                            activeDot={{ r: 6, fill: '#4caf50', strokeWidth: 2, stroke: 'white' }}
+                          />
+                        </LineChart>
+                      ) : (
+                        <AreaChart data={dailyTrendData}>
+                          <defs>
+                            <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#4a90e2" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="#4a90e2" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eaeef2" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                          />
+                          <YAxis 
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#6b7a88', fontSize: 12 }}
+                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            iconType="circle"
+                            iconSize={8}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="amount" 
+                            name="Amount" 
+                            stroke="#4a90e2"
+                            strokeWidth={2.5}
+                            fill="url(#amountGradient)"
+                            dot={{ r: 4, fill: '#4a90e2', strokeWidth: 2, stroke: 'white' }}
+                            activeDot={{ r: 6, fill: '#4a90e2', strokeWidth: 2, stroke: 'white' }}
+                          />
+                        </AreaChart>
+                      )}
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full" style={{ color: '#6b7a88' }}>
+                      <LineChartIcon className="w-12 h-12 mb-3" strokeWidth={1.5} />
+                      <p className="font-medium">No transaction data available</p>
+                      <p className="text-sm mt-1">Try adjusting your date range</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* System Distribution */}
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <h3 className="text-lg font-semibold flex items-center gap-2 mb-6" style={{ color: '#1a2634' }}>
+                  <PieChartIcon className="w-5 h-5" style={{ color: '#9c27b0' }} />
+                  Revenue by System
+                </h3>
+                
+                <div className="h-48">
+                  {systemChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={systemChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={4}
+                          dataKey="amount"
+                        >
+                          {systemChartData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.color}
+                              stroke="white"
+                              strokeWidth={2}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value, name, props) => [
+                            formatCurrency(value),
+                            props.payload.name
+                          ]}
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: `1px solid #eaeef2`,
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                            padding: '8px 12px'
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full" style={{ color: '#6b7a88' }}>
+                      <PieChartIcon className="w-12 h-12 mb-3" strokeWidth={1.5} />
+                      <p className="font-medium">No system data</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 space-y-3 max-h-48 overflow-y-auto">
+                  {systemChartData.slice(0, 5).map((system) => (
+                    <div key={system.system} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: system.color }} />
+                        <span className="text-sm" style={{ color: '#6b7a88' }}>
+                          {system.name}
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium" style={{ color: '#1a2634' }}>
+                          {formatCurrency(system.amount)}
+                        </span>
+                        <span className="text-xs" style={{ color: '#6b7a88' }}>
+                          ({displayStats.total_amount ? ((system.amount / displayStats.total_amount) * 100).toFixed(1) : 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {systemChartData.length > 5 && (
+                    <p className="text-xs text-center pt-2" style={{ color: '#6b7a88' }}>
+                      +{systemChartData.length - 5} more systems
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* PAYMENT METHOD OVERVIEW */}
-            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-              <h3 className="font-bold mb-6" style={{ color: COLORS.dark }}>Payment Method Overview</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* GCash */}
-                <div className="p-6 border rounded-xl" 
-                     style={{ 
-                       borderColor: `${COLORS.primary}30`,
-                       backgroundColor: `${COLORS.primary}10` 
-                     }}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
-                      <SmartphoneIcon className="w-6 h-6" style={{ color: COLORS.primary }} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold" style={{ color: COLORS.dark }}>GCash</h4>
-                      <p className="text-sm" style={{ color: COLORS.secondary }}>Mobile Wallet</p>
-                    </div>
+            {/* Payment Methods & Recent Transactions */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Payment Methods */}
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold" style={{ color: '#1a2634' }}>
+                      Payment Methods
+                    </h3>
+                    <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                      Digital wallet usage
+                    </p>
                   </div>
-                  <div className="mb-4">
-                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.gcash_count || 0)}</div>
-                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
-                  </div>
-                  <div className="text-sm" style={{ color: COLORS.dark }}>
-                    <div className="flex justify-between">
-                      <span>Market Share:</span>
-                      <span className="font-bold" style={{ color: COLORS.primary }}>100%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Usage:</span>
-                      <span className="font-medium">All 36 transactions</span>
-                    </div>
-                  </div>
+                  <Smartphone2 className="w-5 h-5" style={{ color: '#4a90e2' }} strokeWidth={1.5} />
                 </div>
-                
-                {/* Maya */}
-                <div className="p-6 border rounded-xl" 
-                     style={{ 
-                       borderColor: `${COLORS.purple}30`,
-                       backgroundColor: `${COLORS.purple}10` 
-                     }}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
-                      <WalletIcon className="w-6 h-6" style={{ color: COLORS.purple }} />
+
+                <div className="space-y-5">
+                  {methodChartData.length > 0 ? (
+                    methodChartData.map((method) => (
+                      <div key={method.name} className="p-4 rounded-xl" style={{ backgroundColor: `${method.color}10` }}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-white">
+                              {method.name === 'GCash' && <Smartphone2 className="w-5 h-5" style={{ color: method.color }} />}
+                              {method.name === 'Maya' && <Wallet2 className="w-5 h-5" style={{ color: method.color }} />}
+                              {method.name === 'Card' && <CreditCard2 className="w-5 h-5" style={{ color: method.color }} />}
+                            </div>
+                            <div>
+                              <span className="font-medium" style={{ color: '#1a2634' }}>{method.name}</span>
+                              <p className="text-xs mt-0.5" style={{ color: '#6b7a88' }}>
+                                {formatNumber(method.value)} transactions
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold" style={{ color: method.color }}>
+                            {displayStats.total_transactions ? ((method.value / displayStats.total_transactions) * 100).toFixed(0) : 0}%
+                          </span>
+                        </div>
+                        <ProgressBar 
+                          value={method.value} 
+                          max={displayStats.total_transactions} 
+                          color={method.color} 
+                          showLabel={false}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8" style={{ color: '#6b7a88' }}>
+                      <CreditCard2 className="w-12 h-12 mx-auto mb-3" strokeWidth={1.5} />
+                      <p>No payment method data</p>
                     </div>
-                    <div>
-                      <h4 className="font-bold" style={{ color: COLORS.dark }}>Maya</h4>
-                      <p className="text-sm" style={{ color: COLORS.secondary }}>Digital Wallet</p>
-                    </div>
-                  </div>
-                  <div className="mb-4">
-                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.maya_count || 0)}</div>
-                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
-                  </div>
-                  <div className="text-sm" style={{ color: COLORS.dark }}>
-                    <div className="flex justify-between">
-                      <span>Market Share:</span>
-                      <span className="font-bold" style={{ color: COLORS.purple }}>0%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className="font-medium">No transactions yet</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
-                
-                {/* Card */}
-                <div className="p-6 border rounded-xl" 
-                     style={{ 
-                       borderColor: `${COLORS.info}30`,
-                       backgroundColor: `${COLORS.info}10` 
-                     }}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'white' }}>
-                      <CreditCardIcon className="w-6 h-6" style={{ color: COLORS.info }} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold" style={{ color: COLORS.dark }}>Card</h4>
-                      <p className="text-sm" style={{ color: COLORS.secondary }}>Credit/Debit Cards</p>
-                    </div>
+              </div>
+
+              {/* Recent Transactions */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold" style={{ color: '#1a2634' }}>
+                      Recent Transactions
+                    </h3>
+                    <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                      Latest payment activities across all systems
+                    </p>
                   </div>
-                  <div className="mb-4">
-                    <div className="text-2xl font-bold" style={{ color: COLORS.dark }}>{formatNumber(displayStats.card_count || 0)}</div>
-                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Transactions</p>
-                  </div>
-                  <div className="text-sm" style={{ color: COLORS.dark }}>
-                    <div className="flex justify-between">
-                      <span>Market Share:</span>
-                      <span className="font-bold" style={{ color: COLORS.info }}>0%</span>
+                  <button 
+                    onClick={() => setActiveTab('transactions')}
+                    className="text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all"
+                    style={{ color: '#4a90e2' }}
+                  >
+                    View All
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {payments.slice(0, 8).map((payment) => (
+                    <div 
+                      key={payment.id} 
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div 
+                          className="p-2 rounded-lg"
+                          style={{ backgroundColor: `${SYSTEM_CONFIG[payment.client_system]?.color || '#9aa5b1'}10` }}
+                        >
+                          {React.createElement(SYSTEM_CONFIG[payment.client_system]?.icon || Package, { 
+                            className: "w-4 h-4", 
+                            style: { color: SYSTEM_CONFIG[payment.client_system]?.color || '#9aa5b1' } 
+                          })}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm" style={{ color: '#1a2634' }}>
+                              {SYSTEM_CONFIG[payment.client_system]?.label || payment.client_system}
+                            </span>
+                            <StatusBadge status={payment.payment_status} />
+                          </div>
+                          <p className="text-xs mt-1" style={{ color: '#6b7a88' }}>
+                            {payment.purpose?.substring(0, 40)}...
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <MethodBadge method={payment.payment_method} />
+                            <span className="text-xs" style={{ color: '#6b7a88' }}>
+                              {formatShortDate(payment.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold" style={{ color: '#1a2634' }}>
+                          {formatCurrency(payment.amount)}
+                        </span>
+                        {payment.paid_at && (
+                          <p className="text-xs mt-1" style={{ color: '#4caf50' }}>
+                            <CheckCircle className="w-3 h-3 inline mr-1" />
+                            {formatShortDate(payment.paid_at)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className="font-medium">No transactions yet</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -996,58 +1423,59 @@ export default function DigiDashboard() {
 
         {/* TRANSACTIONS TAB */}
         {activeTab === 'transactions' && (
-          <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: COLORS.secondary }}>
-            <div className="p-6 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}10` }}>
+          <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#eaeef2' }}>
+            {/* Filters Bar */}
+            <div className="p-6 border-b" style={{ borderColor: '#eaeef2' }}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h3 className="font-bold" style={{ color: COLORS.dark }}>Payment Transactions</h3>
-                  <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
-                    Showing {payments.length} transactions • Total: {formatCurrency(displayStats.total_amount)}
+                  <h3 className="text-lg font-semibold" style={{ color: '#1a2634' }}>
+                    Payment Transactions
+                  </h3>
+                  <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                    Showing {payments.length} of {displayStats.total_transactions} total transactions
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                
+                <div className="flex items-center gap-3">
+                  {/* Search */}
                   <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#6b7a88' }} />
                     <input
                       type="text"
-                      placeholder="Search payments..."
+                      placeholder="Search transactions..."
                       value={filters.search}
                       onChange={(e) => handleFilterChange('search', e.target.value)}
-                      className="pl-10 pr-4 py-2 border rounded-lg text-sm"
-                      style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                      className="pl-10 pr-4 py-2.5 border rounded-xl text-sm w-64"
+                      style={{ borderColor: '#eaeef2', color: '#1a2634' }}
                     />
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                      <Search className="w-4 h-4" style={{ color: COLORS.secondary }} />
-                    </div>
                   </div>
+                  
+                  {/* Filter Toggle */}
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="px-4 py-2 border rounded-lg flex items-center gap-2"
-                    style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                    className="px-4 py-2.5 border rounded-xl flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                    style={{ borderColor: '#eaeef2', color: '#1a2634' }}
                   >
-                    <Filter className="w-4 h-4" />
+                    <Sliders className="w-4 h-4" />
                     Filters
                     {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               
-              {/* Filters Panel */}
+              {/* Advanced Filters */}
               {showFilters && (
-                <div className="mt-4 p-4 border rounded-lg" 
-                     style={{ 
-                       borderColor: COLORS.secondary, 
-                       backgroundColor: `${COLORS.secondary}10` 
-                     }}>
+                <div className="mt-6 p-5 rounded-xl" style={{ backgroundColor: '#f0f2f4' }}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
+                      <label className="block text-xs font-medium mb-2" style={{ color: '#6b7a88' }}>
                         Payment Method
                       </label>
                       <select
                         value={filters.payment_method}
                         onChange={(e) => handleFilterChange('payment_method', e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                        className="w-full px-3 py-2.5 border rounded-xl text-sm bg-white"
+                        style={{ borderColor: '#eaeef2', color: '#1a2634' }}
                       >
                         <option value="all">All Methods</option>
                         <option value="gcash">GCash</option>
@@ -1057,14 +1485,14 @@ export default function DigiDashboard() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
+                      <label className="block text-xs font-medium mb-2" style={{ color: '#6b7a88' }}>
                         Payment Status
                       </label>
                       <select
                         value={filters.payment_status}
                         onChange={(e) => handleFilterChange('payment_status', e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                        className="w-full px-3 py-2.5 border rounded-xl text-sm bg-white"
+                        style={{ borderColor: '#eaeef2', color: '#1a2634' }}
                       >
                         <option value="all">All Statuses</option>
                         <option value="paid">Paid</option>
@@ -1074,20 +1502,21 @@ export default function DigiDashboard() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.secondary }}>
+                      <label className="block text-xs font-medium mb-2" style={{ color: '#6b7a88' }}>
                         Client System
                       </label>
                       <select
                         value={filters.client_system}
                         onChange={(e) => handleFilterChange('client_system', e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                        style={{ borderColor: COLORS.secondary, color: COLORS.dark }}
+                        className="w-full px-3 py-2.5 border rounded-xl text-sm bg-white"
+                        style={{ borderColor: '#eaeef2', color: '#1a2634' }}
                       >
                         <option value="all">All Systems</option>
-                        <option value="rpt">RPT</option>
-                        <option value="business">Business</option>
-                        <option value="market">Market</option>
-                        <option value="market_rent">Market Rent</option>
+                        {uniqueSystems.map(system => (
+                          <option key={system} value={system}>
+                            {SYSTEM_CONFIG[system]?.label || system}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1095,20 +1524,21 @@ export default function DigiDashboard() {
               )}
             </div>
             
+            {/* Transactions Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${COLORS.secondary}`, backgroundColor: `${COLORS.secondary}10` }}>
-                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
-                      Payment Details
+                  <tr style={{ backgroundColor: '#f0f2f4' }}>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a88' }}>
+                      Transaction Details
                     </th>
-                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a88' }}>
                       Amount
                     </th>
-                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a88' }}>
                       Method & Status
                     </th>
-                    <th className="p-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.secondary }}>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a88' }}>
                       Date & Time
                     </th>
                   </tr>
@@ -1116,47 +1546,54 @@ export default function DigiDashboard() {
                 <tbody>
                   {payments.length > 0 ? (
                     payments.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-gray-50 transition-colors" 
-                          style={{ borderBottom: `1px solid ${COLORS.secondary}30` }}>
-                        <td className="p-4">
+                      <tr 
+                        key={payment.id} 
+                        className="hover:bg-gray-50 transition-colors border-b"
+                        style={{ borderColor: '#eaeef2' }}
+                      >
+                        <td className="px-6 py-4">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              {getSystemBadge(payment.client_system)}
-                              <span className="font-medium" style={{ color: COLORS.dark }}>
+                              <SystemBadge system={payment.client_system} />
+                              <span className="text-xs font-mono" style={{ color: '#6b7a88' }}>
                                 {payment.payment_id}
                               </span>
                             </div>
-                            <p className="text-sm" style={{ color: COLORS.secondary }}>{payment.purpose}</p>
-                            <div className="flex items-center gap-2 text-xs" style={{ color: COLORS.secondary }}>
+                            <p className="text-sm font-medium" style={{ color: '#1a2634' }}>
+                              {payment.purpose}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs" style={{ color: '#6b7a88' }}>
                               <Receipt className="w-3 h-3" />
                               {payment.receipt_number || 'No receipt'}
                               <span className="mx-1">•</span>
                               <Smartphone className="w-3 h-3" />
                               {payment.phone}
                             </div>
-                            <p className="text-xs" style={{ color: COLORS.secondary }}>Ref: {payment.client_reference}</p>
+                            <p className="text-xs" style={{ color: '#6b7a88' }}>
+                              Ref: {payment.client_reference}
+                            </p>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="font-bold" style={{ color: COLORS.dark }}>
+                        <td className="px-6 py-4">
+                          <span className="text-base font-bold" style={{ color: '#1a2634' }}>
                             {formatCurrency(payment.amount)}
-                          </div>
+                          </span>
                         </td>
-                        <td className="p-4">
+                        <td className="px-6 py-4">
                           <div className="space-y-2">
-                            <div>{getMethodBadge(payment.payment_method)}</div>
-                            <div>{getStatusBadge(payment.payment_status)}</div>
+                            <MethodBadge method={payment.payment_method} />
+                            <StatusBadge status={payment.payment_status} />
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="px-6 py-4">
                           <div className="space-y-1">
-                            <div className="text-sm" style={{ color: COLORS.dark }}>
+                            <div className="text-sm font-medium" style={{ color: '#1a2634' }}>
                               {formatDate(payment.created_at)}
                             </div>
                             {payment.paid_at && (
-                              <div className="text-xs flex items-center gap-1" style={{ color: COLORS.success }}>
+                              <div className="text-xs flex items-center gap-1" style={{ color: '#4caf50' }}>
                                 <CheckCircle className="w-3 h-3" />
-                                Paid: {payment.paid_at.split(' ')[0]}
+                                Paid: {formatShortDate(payment.paid_at)}
                               </div>
                             )}
                           </div>
@@ -1165,11 +1602,13 @@ export default function DigiDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center" style={{ color: COLORS.secondary }}>
+                      <td colSpan="4" className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center">
-                          <Database className="w-12 h-12 mb-2" />
-                          <p>No payment transactions found</p>
-                          <p className="text-sm mt-1">Try adjusting your filters or date range</p>
+                          <Database className="w-16 h-16 mb-4" style={{ color: '#6b7a88' }} strokeWidth={1.5} />
+                          <p className="text-base font-medium" style={{ color: '#1a2634' }}>No transactions found</p>
+                          <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                            Try adjusting your filters or date range
+                          </p>
                         </div>
                       </td>
                     </tr>
@@ -1177,183 +1616,395 @@ export default function DigiDashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {payments.length > 0 && (
+              <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: '#eaeef2' }}>
+                <p className="text-sm" style={{ color: '#6b7a88' }}>
+                  Showing <span className="font-medium">{payments.length}</span> of{' '}
+                  <span className="font-medium">{displayStats.total_transactions}</span> transactions
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: '#eaeef2' }}
+                  >
+                    <ChevronLeft className="w-5 h-5" style={{ color: '#6b7a88' }} />
+                  </button>
+                  <span className="px-4 py-2 text-sm" style={{ color: '#1a2634' }}>
+                    Page {currentPage}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="p-2 rounded-lg border hover:bg-gray-50"
+                    style={{ borderColor: '#eaeef2' }}
+                  >
+                    <ChevronRightIcon className="w-5 h-5" style={{ color: '#6b7a88' }} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* ANALYTICS TAB */}
         {activeTab === 'analytics' && (
-          <>
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Daily Trend Chart */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold flex items-center gap-2" style={{ color: COLORS.dark }}>
-                    <Activity className="w-5 h-5" style={{ color: COLORS.primary }} />
-                    Daily Transaction Trend
-                  </h3>
-                  <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: `${COLORS.secondary}15` }}>
-                    <button
-                      onClick={() => setChartType('bar')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'bar' ? 'bg-white' : ''}`}
-                      style={{ color: chartType === 'bar' ? COLORS.dark : COLORS.secondary }}
-                    >
-                      Bar
-                    </button>
-                    <button
-                      onClick={() => setChartType('line')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'line' ? 'bg-white' : ''}`}
-                      style={{ color: chartType === 'line' ? COLORS.dark : COLORS.secondary }}
-                    >
-                      Line
-                    </button>
-                    <button
-                      onClick={() => setChartType('area')}
-                      className={`px-3 py-1 text-sm rounded-md ${chartType === 'area' ? 'bg-white' : ''}`}
-                      style={{ color: chartType === 'area' ? COLORS.dark : COLORS.secondary }}
-                    >
-                      Area
-                    </button>
+          <div className="space-y-6">
+            {/* Performance Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium mb-1" style={{ color: '#6b7a88' }}>Success Rate</p>
+                    <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>
+                      {displayStats.success_rate || 0}%
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: '#4caf5010' }}>
+                    <Target className="w-6 h-6" style={{ color: '#4caf50' }} />
                   </div>
                 </div>
-                <div className="h-72">
-                  {getDailyTrendData().length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      {chartType === 'bar' ? (
-                        <BarChart data={getDailyTrendData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" />
-                          <YAxis 
-                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
-                          />
-                          <Tooltip 
-                            formatter={(value, name) => {
-                              if (name === 'amount') return [formatCurrency(value), 'Amount'];
-                              return [value, 'Count'];
-                            }}
-                          />
-                          <Legend />
-                          <Bar dataKey="amount" fill={COLORS.primary} name="Amount" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      ) : chartType === 'line' ? (
-                        <LineChart data={getDailyTrendData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" />
-                          <YAxis 
-                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
-                          />
-                          <Tooltip 
-                            formatter={(value, name) => {
-                              if (name === 'amount') return [formatCurrency(value), 'Amount'];
-                              return [value, 'Count'];
-                            }}
-                          />
-                          <Legend />
-                          <Line type="monotone" dataKey="amount" stroke={COLORS.primary} name="Amount" strokeWidth={2} dot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="count" stroke={COLORS.success} name="Count" strokeWidth={2} dot={{ r: 4 }} />
-                        </LineChart>
-                      ) : (
-                        <AreaChart data={getDailyTrendData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" />
-                          <YAxis 
-                            tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
-                          />
-                          <Tooltip 
-                            formatter={(value, name) => {
-                              if (name === 'amount') return [formatCurrency(value), 'Amount'];
-                              return [value, 'Count'];
-                            }}
-                          />
-                          <Legend />
-                          <Area type="monotone" dataKey="amount" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.3} name="Amount" />
-                        </AreaChart>
-                      )}
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
-                      <LineChartIcon className="w-12 h-12 mb-2" />
-                      <p>No transaction data available</p>
+                <div className="mt-4">
+                  <ProgressBar 
+                    value={displayStats.success_rate || 0} 
+                    max={100} 
+                    color="#4caf50"
+                    label="Target: 95%"
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium mb-1" style={{ color: '#6b7a88' }}>Total Volume</p>
+                    <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>
+                      {formatCurrency(displayStats.total_amount)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: '#4a90e210' }}>
+                    <DollarSign className="w-6 h-6" style={{ color: '#4a90e2' }} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium mb-1" style={{ color: '#6b7a88' }}>Total Transactions</p>
+                    <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>
+                      {formatNumber(displayStats.total_transactions)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: '#ff980010' }}>
+                    <FileText className="w-6 h-6" style={{ color: '#ff9800' }} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium mb-1" style={{ color: '#6b7a88' }}>Systems Used</p>
+                    <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>
+                      {uniqueSystems.length}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: '#9c27b010' }}>
+                    <Layers className="w-6 h-6" style={{ color: '#9c27b0' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* System Performance Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* System Performance Chart */}
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <h3 className="text-lg font-semibold mb-6" style={{ color: '#1a2634' }}>
+                  System Performance
+                </h3>
+                <div className="space-y-5 max-h-96 overflow-y-auto pr-2">
+                  {systemChartData.map((system) => (
+                    <div key={system.system} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: system.color }} />
+                          <span className="text-sm font-medium" style={{ color: '#1a2634' }}>
+                            {system.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold" style={{ color: '#1a2634' }}>
+                            {formatCurrency(system.amount)}
+                          </span>
+                          <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${system.color}10`, color: system.color }}>
+                            {system.count} txns
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar 
+                        value={system.amount} 
+                        max={displayStats.total_amount} 
+                        color={system.color}
+                        showLabel={false}
+                      />
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
-              {/* Payment Methods Distribution */}
-              <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold flex items-center gap-2" style={{ color: COLORS.dark }}>
-                    <PieChartIcon className="w-5 h-5" style={{ color: COLORS.purple }} />
-                    Payment Methods Distribution
+              {/* Payment Methods Analytics */}
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <h3 className="text-lg font-semibold mb-6" style={{ color: '#1a2634' }}>
+                  Payment Methods
+                </h3>
+                <div className="space-y-5">
+                  {methodChartData.map((method) => (
+                    <div key={method.name} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: method.color }} />
+                          <span className="text-sm font-medium" style={{ color: '#1a2634' }}>
+                            {method.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold" style={{ color: '#1a2634' }}>
+                            {formatCurrency(method.amount)}
+                          </span>
+                          <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${method.color}10`, color: method.color }}>
+                            {method.value} txns
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar 
+                        value={method.amount} 
+                        max={displayStats.total_amount} 
+                        color={method.color}
+                        showLabel={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Status Distribution */}
+            <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+              <h3 className="text-lg font-semibold mb-6" style={{ color: '#1a2634' }}>
+                Transaction Status
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 rounded-xl" style={{ backgroundColor: '#e8f5e9' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-white">
+                      <CheckCircle2 className="w-5 h-5" style={{ color: '#4caf50' }} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" style={{ color: '#1a2634' }}>
+                        {formatNumber(displayStats.paid_count)}
+                      </p>
+                      <p className="text-sm" style={{ color: '#4caf50' }}>Paid</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: '#fff3e0' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-white">
+                      <Clock className="w-5 h-5" style={{ color: '#ff9800' }} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" style={{ color: '#1a2634' }}>
+                        {formatNumber(displayStats.pending_count)}
+                      </p>
+                      <p className="text-sm" style={{ color: '#ff9800' }}>Pending</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl" style={{ backgroundColor: '#ffebee' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-white">
+                      <AlertOctagon className="w-5 h-5" style={{ color: '#f44336' }} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" style={{ color: '#1a2634' }}>
+                        {formatNumber(displayStats.failed_count)}
+                      </p>
+                      <p className="text-sm" style={{ color: '#f44336' }}>Failed</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SYSTEMS TAB - Shows ALL systems from your database */}
+        {activeTab === 'systems' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold" style={{ color: '#1a2634' }}>
+                    All Connected Systems
                   </h3>
+                  <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                    {uniqueSystems.length} systems with payment transactions
+                  </p>
                 </div>
-                <div className="h-72">
-                  {getMethodChartData().length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={getMethodChartData()}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {getMethodChartData().map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value, name) => [`${value} transactions`, name]}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
-                      <PieChartIcon className="w-12 h-12 mb-2" />
-                      <p>No payment method data available</p>
-                    </div>
-                  )}
+                <div className="px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#4a90e210', color: '#4a90e2' }}>
+                  <Layers className="w-4 h-4 inline mr-1" />
+                  {uniqueSystems.length} Active
                 </div>
               </div>
+
+              {/* Systems Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {systemChartData.map((system) => {
+                  const config = SYSTEM_CONFIG[system.system] || SYSTEM_CONFIG.default;
+                  const Icon = config.icon;
+                  
+                  return (
+                    <div 
+                      key={system.system} 
+                      className="bg-white rounded-xl border p-5 hover:shadow-lg transition-all"
+                      style={{ borderColor: `${system.color}30` }}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="p-3 rounded-xl"
+                            style={{ backgroundColor: `${system.color}10` }}
+                          >
+                            <Icon className="w-5 h-5" style={{ color: system.color }} />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold" style={{ color: '#1a2634' }}>
+                              {system.name}
+                            </h4>
+                            <p className="text-xs mt-0.5" style={{ color: '#6b7a88' }}>
+                              {config.category}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: '#e8f5e9', color: '#4caf50' }}>
+                          Active
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm" style={{ color: '#6b7a88' }}>Revenue</span>
+                          <span className="text-lg font-bold" style={{ color: system.color }}>
+                            {formatCurrency(system.amount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm" style={{ color: '#6b7a88' }}>Transactions</span>
+                          <span className="font-medium" style={{ color: '#1a2634' }}>
+                            {formatNumber(system.count)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm" style={{ color: '#6b7a88' }}>Avg. Transaction</span>
+                          <span className="font-medium" style={{ color: '#1a2634' }}>
+                            {formatCurrency(system.count > 0 ? system.amount / system.count : 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm" style={{ color: '#6b7a88' }}>Success Rate</span>
+                          <span className="font-medium" style={{ color: system.count > 0 ? '#4caf50' : '#6b7a88' }}>
+                            {system.count > 0 ? ((system.paidAmount / system.amount) * 100).toFixed(1) : 0}%
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t" style={{ borderColor: '#eaeef2' }}>
+                        <ProgressBar 
+                          value={system.amount} 
+                          max={displayStats.total_amount} 
+                          color={system.color}
+                          label="Share of Total"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* If no systems found */}
+              {systemChartData.length === 0 && (
+                <div className="text-center py-12">
+                  <Layers className="w-16 h-16 mx-auto mb-4" style={{ color: '#6b7a88' }} strokeWidth={1.5} />
+                  <p className="text-base font-medium" style={{ color: '#1a2634' }}>No system data available</p>
+                  <p className="text-sm mt-1" style={{ color: '#6b7a88' }}>
+                    No payment transactions found for the selected period
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Summary Stats */}
-            <div className="bg-white border rounded-xl p-6" style={{ borderColor: COLORS.secondary }}>
-              <h3 className="font-bold mb-6" style={{ color: COLORS.dark }}>Digital Payment Summary</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.primary}10`, border: `1px solid ${COLORS.primary}30` }}>
-                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.primary }}>Period</div>
-                  <div className="font-bold" style={{ color: COLORS.dark }}>January 2026</div>
-                </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.success}10`, border: `1px solid ${COLORS.success}30` }}>
-                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.success }}>Peak Day</div>
-                  <div className="font-bold" style={{ color: COLORS.dark }}>Jan 19 ({formatCurrency(93614)})</div>
-                </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.indigo}10`, border: `1px solid ${COLORS.indigo}30` }}>
-                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.indigo }}>Top System</div>
-                  <div className="font-bold" style={{ color: COLORS.dark }}>RPT ({formatCurrency(88320)})</div>
-                </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${COLORS.warning}10`, border: `1px solid ${COLORS.warning}30` }}>
-                  <div className="text-xs font-medium mb-1" style={{ color: COLORS.warning }}>Top Payment</div>
-                  <div className="font-bold" style={{ color: COLORS.dark }}>{formatCurrency(52800)} (RPT Annual)</div>
-                </div>
+            {/* System Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <p className="text-sm font-medium mb-2" style={{ color: '#6b7a88' }}>Total Systems</p>
+                <p className="text-3xl font-bold" style={{ color: '#1a2634' }}>{uniqueSystems.length}</p>
+                <p className="text-xs mt-2" style={{ color: '#6b7a88' }}>Connected to payment gateway</p>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <p className="text-sm font-medium mb-2" style={{ color: '#6b7a88' }}>Most Active</p>
+                <p className="text-xl font-bold" style={{ color: systemChartData[0]?.color || '#1a2634' }}>
+                  {systemChartData[0]?.name || 'N/A'}
+                </p>
+                <p className="text-xs mt-2" style={{ color: '#6b7a88' }}>
+                  {systemChartData[0] ? `${formatCurrency(systemChartData[0].amount)} collected` : ''}
+                </p>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <p className="text-sm font-medium mb-2" style={{ color: '#6b7a88' }}>Total Revenue</p>
+                <p className="text-2xl font-bold" style={{ color: '#1a2634' }}>
+                  {formatCurrency(displayStats.total_amount)}
+                </p>
+                <p className="text-xs mt-2" style={{ color: '#6b7a88' }}>
+                  Across all systems
+                </p>
+              </div>
+              
+              <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#eaeef2' }}>
+                <p className="text-sm font-medium mb-2" style={{ color: '#6b7a88' }}>Total Transactions</p>
+                <p className="text-2xl font-bold" style={{ color: '#1a2634' }}>
+                  {formatNumber(displayStats.total_transactions)}
+                </p>
+                <p className="text-xs mt-2" style={{ color: '#6b7a88' }}>
+                  System-wide
+                </p>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* Footer */}
-        <div className="text-center text-sm pt-6 border-t" style={{ color: COLORS.secondary, borderColor: COLORS.secondary }}>
-          <p>Digital Payment Gateway Dashboard • {formatCurrency(displayStats.total_amount)} collected from {formatNumber(displayStats.total_transactions)} transactions</p>
-          <p className="text-xs mt-1">
-            Last updated: {new Date().toLocaleTimeString()}
-          </p>
+        <div className="text-center pt-6 border-t" style={{ borderColor: '#eaeef2' }}>
+          <div className="flex items-center justify-center gap-6 text-sm" style={{ color: '#6b7a88' }}>
+            <span>Digital Payment Gateway Dashboard</span>
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+            <span>{formatCurrency(displayStats.total_amount)} collected</span>
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+            <span>{formatNumber(displayStats.total_transactions)} transactions</span>
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+            <span>{uniqueSystems.length} active systems</span>
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eaeef2' }} />
+            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export { DigiDashboard };
