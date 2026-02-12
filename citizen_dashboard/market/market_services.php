@@ -1,5 +1,6 @@
 <?php
 // revenue2/citizen_dashboard/market/market_services.php
+ob_start(); // MUST BE FIRST - prevents header errors
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -13,7 +14,7 @@ $user_id = $_SESSION['user_id'];
 // Include database connection
 include_once '../../db/Market/market_db.php';
 
-// Status counters - UPDATED: Added 'interviewed' status
+// Status counters
 $status_counts = [
     'pending' => 0,
     'interview_scheduled' => 0,
@@ -65,7 +66,7 @@ try {
     error_log("Market services error: " . $e->getMessage());
 }
 
-// Determine which page to use for "View All" based on priority - UPDATED
+// Determine which page to use for "View All" based on priority
 $view_all_page = 'pending.php'; // Default
 $priority_order = [
     'need_correction' => 1,
@@ -82,11 +83,11 @@ $priority_order = [
 foreach ($priority_order as $status => $priority) {
     if ($status_counts[$status] > 0) {
         $view_all_page = $status . '.php';
-        break; // Stop at first found status
+        break;
     }
 }
 
-// Get the base URL for the background image - FIXED VERSION
+// Get the base URL for the background image
 $scheme = 'http';
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
     $scheme = 'https';
@@ -96,6 +97,9 @@ if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
 
 $base_url = $scheme . '://' . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
+
+// We'll get the logout handler URL from navbar.php after it's included
+$logout_handler_url = '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -122,7 +126,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        /* Background image with blur - same as login */
         body::after {
             content: '';
             position: fixed;
@@ -137,7 +140,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             filter: blur(1px);
         }
         
-        /* Animated background particles - same as login */
         body::before {
             content: '';
             position: fixed;
@@ -159,7 +161,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             66% { transform: translateY(10px) rotate(-1deg); }
         }
 
-        /* Header box styles - same as other pages */
         .header-box {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
@@ -271,16 +272,156 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             color: var(--accent);
         }
 
-        /* Added for card alignment */
         .status-list-container {
             flex-grow: 1;
             margin-bottom: 1rem;
+        }
+        
+        /* Logout Modal Styles */
+        .logout-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(74, 144, 226, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .logout-modal.active {
+            display: flex;
+        }
+
+        .logout-modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 400px;
+            width: 90%;
+            animation: modalSlideIn 0.3s ease-out;
+            border: 2px solid #4a90e2;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .logout-modal-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+        }
+
+        .logout-modal-icon i {
+            font-size: 1.5rem;
+            color: #ef4444;
+        }
+
+        .logout-modal-title {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #4a90e2;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .logout-modal-message {
+            text-align: center;
+            color: #9aa5b1;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .logout-modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .logout-modal-btn {
+            padding: 0.625rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 0.875rem;
+            min-width: 100px;
+            letter-spacing: 0.3px;
+        }
+
+        .logout-modal-btn.cancel {
+            background-color: #9aa5b1;
+            color: white;
+            border: 1px solid #9aa5b1;
+        }
+
+        .logout-modal-btn.cancel:hover {
+            background-color: #7b8794;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(154, 165, 177, 0.3);
+        }
+
+        .logout-modal-btn.confirm {
+            background-color: #4caf50;
+            color: white;
+            border: 1px solid #4caf50;
+        }
+
+        .logout-modal-btn.confirm:hover {
+            background-color: #3d8b40;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
         }
     </style>
 </head>
 
 <body class="flex flex-col min-h-screen">
-<?php include '../../citizen_dashboard/navbar.php'; ?>
+
+<!-- Logout Confirmation Modal -->
+<div class="logout-modal" id="logoutModal">
+    <div class="logout-modal-content">
+        <div class="logout-modal-icon">
+            <i class="fas fa-sign-out-alt"></i>
+        </div>
+        <h3 class="logout-modal-title">Logout Confirmation</h3>
+        <p class="logout-modal-message">Are you sure you want to logout from your account? You'll need to sign in again to access your dashboard.</p>
+        <div class="logout-modal-actions">
+            <button class="logout-modal-btn cancel" onclick="hideLogoutModal()">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </button>
+            <button class="logout-modal-btn confirm" onclick="performLogout()">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+        </div>
+    </div>
+</div>
+
+<?php 
+include '../../citizen_dashboard/navbar.php';
+// Now we can use the build_url function from navbar.php
+$logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
+?>
 
 <main class="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
 
@@ -298,7 +439,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 <p class="text-gray-600">
                     Manage your market stall rentals, track applications, and make payments
                 </p>
-                <!-- Divider -->
                 <div class="h-1 w-20 rounded-full mt-4" style="background-color: var(--primary);"></div>
             </div>
         </div>
@@ -389,7 +529,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     </div>
     <?php endif; ?>
 
-    <!-- MAIN SERVICES GRID - UPDATED TO MATCH RPT LAYOUT -->
+    <!-- MAIN SERVICES GRID -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         
         <!-- RENT STALL CARD -->
@@ -427,7 +567,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             </div>
         </a>
 
-        <!-- APPLICATION STATUS CARD - FIXED TO MATCH RPT -->
+        <!-- APPLICATION STATUS CARD -->
         <div class="service-card bg-white">
             <div class="h-48 overflow-hidden relative">
                 <?php 
@@ -453,7 +593,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 </div>
                 <p class="text-gray-600 text-sm mb-4">Track your submitted applications.</p>
                 
-                <!-- Status list area - FIXED LIKE RPT -->
                 <div class="status-list-container">
                     <?php if ($total_applications > 0): ?>
                         <div class="space-y-2">
@@ -483,7 +622,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                     <?php endif; ?>
                 </div>
                 
-                <!-- "Check Status" link - ALIGNED WITH OTHER CARDS -->
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <span class="font-medium text-orange-600">Check Status</span>
                     <i class="fas fa-arrow-right service-arrow text-orange-600"></i>
@@ -651,11 +789,10 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 
 </main>
 
-<!-- FOOTER - UPDATED TO MATCH GO SERVEPH STYLE -->
+<!-- FOOTER -->
 <footer class="bg-white border-t border-gray-200 mt-16">
     <div class="container mx-auto px-6 py-12 max-w-7xl">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
-            <!-- Brand -->
             <div class="col-span-1">
                 <div class="flex items-center space-x-2 mb-4 text-2xl font-bold">
                     <span style="color: #4a90e2;">Go</span>
@@ -667,7 +804,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 </p>
             </div>
             
-            <!-- Portal Links -->
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Portal</h4>
                 <ul class="space-y-3 text-gray-600">
@@ -677,7 +813,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 </ul>
             </div>
 
-            <!-- Contact -->
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Contact</h4>
                 <ul class="space-y-3 text-gray-600">
@@ -687,7 +822,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 </ul>
             </div>
 
-            <!-- Social -->
             <div>
                 <h4 class="font-bold text-gray-800 mb-4 uppercase text-sm tracking-wider">Connect</h4>
                 <div class="flex space-x-4 text-2xl">
@@ -701,7 +835,6 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             </div>
         </div>
         
-        <!-- Copyright -->
         <div class="border-t border-gray-200 mt-10 pt-8">
             <p class="text-sm text-gray-500 text-center">
                 &copy; 2026 GoServePH Local Government Unit. Republic of the Philippines.
@@ -711,10 +844,43 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 </footer>
 
 <script>
+// Logout Modal Functions
+function showLogoutModal() {
+    document.getElementById('logoutModal').classList.add('active');
+}
+
+function hideLogoutModal() {
+    document.getElementById('logoutModal').classList.remove('active');
+}
+
+function performLogout() {
+    window.location.href = '<?php echo $logout_handler_url; ?>';
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('logoutModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideLogoutModal();
+            }
+        });
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('logoutModal').classList.contains('active')) {
+        hideLogoutModal();
+    }
+});
+
 // Debug logging
 console.log('Market Services Loaded');
 console.log('View All Page: <?php echo $view_all_page; ?>');
 console.log('Total Applications: <?php echo $total_applications; ?>');
 </script>
+<?php ob_end_flush(); ?>
 </body>
 </html>

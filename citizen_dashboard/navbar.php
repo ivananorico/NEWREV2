@@ -12,46 +12,9 @@ if (!isset($_SESSION['user_id'])) {
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
     
-    // Check if we're on localhost or domain
     if (strpos($host, 'localhost') !== false) {
-        // Localhost: index.php is inside /revenue2/
         $login_url = $protocol . "://" . $host . "/revenue2/index.php";
     } else {
-        // Domain: index.php is at root level
-        $login_url = $protocol . "://" . $host . "/index.php";
-    }
-    
-    header('Location: ' . $login_url);
-    exit();
-}
-
-// Handle logout if logout parameter is set
-if (isset($_GET['logout']) && $_GET['logout'] == 'true') {
-    // Destroy all session data
-    $_SESSION = array();
-    
-    // If it's desired to kill the session, also delete the session cookie
-    if (ini_get("session.use_cookies")) {
-        $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000,
-            $params["path"], $params["domain"],
-            $params["secure"], $params["httponly"]
-        );
-    }
-    
-    // Finally, destroy the session
-    session_destroy();
-    
-    // Get base URL dynamically for redirect
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-    $host = $_SERVER['HTTP_HOST'];
-    
-    // Check if we're on localhost or domain
-    if (strpos($host, 'localhost') !== false) {
-        // Localhost: index.php is inside /revenue2/
-        $login_url = $protocol . "://" . $host . "/revenue2/index.php";
-    } else {
-        // Domain: index.php is at root level
         $login_url = $protocol . "://" . $host . "/index.php";
     }
     
@@ -68,10 +31,8 @@ function build_url($relative_path) {
     $host = $_SERVER['HTTP_HOST'];
     
     if (strpos($host, 'localhost') !== false) {
-        // Localhost: Add /revenue2/ prefix
         return $protocol . "://" . $host . "/revenue2" . $relative_path;
     } else {
-        // Domain: Direct path (no /revenue2/)
         return $protocol . "://" . $host . $relative_path;
     }
 }
@@ -175,123 +136,6 @@ $settings_path = build_url('/citizen_dashboard/settings.php');
     object-fit: contain;
 }
 
-/* Logout Modal Styles */
-.logout-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(74, 144, 226, 0.7);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(2px);
-}
-
-.logout-modal.active {
-    display: flex;
-}
-
-.logout-modal-content {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    max-width: 400px;
-    width: 90%;
-    animation: modalSlideIn 0.3s ease-out;
-    border: 2px solid #4a90e2;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.logout-modal-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 50%;
-    margin: 0 auto 1rem;
-    background-color: rgba(239, 68, 68, 0.1);
-    border: 2px solid #ef4444;
-}
-
-.logout-modal-icon i {
-    font-size: 1.5rem;
-    color: #ef4444;
-}
-
-.logout-modal-title {
-    text-align: center;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #4a90e2;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.logout-modal-message {
-    text-align: center;
-    color: #9aa5b1;
-    margin-bottom: 1.5rem;
-    line-height: 1.6;
-}
-
-.logout-modal-actions {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-}
-
-.logout-modal-btn {
-    padding: 0.625rem 1.5rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-size: 0.875rem;
-    min-width: 100px;
-    letter-spacing: 0.3px;
-}
-
-.logout-modal-btn.cancel {
-    background-color: #9aa5b1;
-    color: white;
-    border: 1px solid #9aa5b1;
-}
-
-.logout-modal-btn.cancel:hover {
-    background-color: #7b8794;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(154, 165, 177, 0.3);
-}
-
-.logout-modal-btn.confirm {
-    background-color: #4caf50;
-    color: white;
-    border: 1px solid #4caf50;
-}
-
-.logout-modal-btn.confirm:hover {
-    background-color: #3d8b40;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
-}
-
 /* Navbar specific styles */
 nav {
     background-color: #fbfbfb;
@@ -372,25 +216,6 @@ nav {
 }
 </style>
 
-<!-- Logout Confirmation Modal -->
-<div class="logout-modal" id="logoutModal">
-    <div class="logout-modal-content">
-        <div class="logout-modal-icon">
-            <i class="fas fa-sign-out-alt"></i>
-        </div>
-        <h3 class="logout-modal-title">Logout Confirmation</h3>
-        <p class="logout-modal-message">Are you sure you want to logout from your account? You'll need to sign in again to access your dashboard.</p>
-        <div class="logout-modal-actions">
-            <button class="logout-modal-btn cancel" onclick="hideLogoutModal()">
-                <i class="fas fa-times mr-2"></i>Cancel
-            </button>
-            <button class="logout-modal-btn confirm" onclick="performLogout()">
-                <i class="fas fa-sign-out-alt mr-2"></i>Logout
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Navigation Bar -->
 <nav>
     <div class="container mx-auto px-6">
@@ -399,7 +224,6 @@ nav {
             <!-- Logo and Brand -->
             <div class="flex items-center space-x-3">
                 <a href="<?php echo htmlspecialchars($dashboard_path); ?>" class="flex items-center space-x-3 no-underline">
-                    <!-- Logo Image -->
                     <img src="<?php echo htmlspecialchars($logo_path); ?>" 
                          alt="GoServePH Logo" 
                          class="logo-img"
@@ -439,7 +263,7 @@ nav {
                             <i class="fas fa-user-cog mr-2"></i>Profile & Settings
                         </a>
                         <div class="divider"></div>
-                        <button onclick="showLogoutModal()" class="dropdown-link logout">
+                        <button onclick="parent.showLogoutModal ? parent.showLogoutModal() : showLogoutModal()" class="dropdown-link logout">
                             <i class="fas fa-sign-out-alt mr-2"></i>Logout
                         </button>
                     </div>
@@ -451,59 +275,31 @@ nav {
 </nav>
 
 <script>
-// Logout Modal Functions
+// Fallback logout modal functions if parent doesn't have them
 function showLogoutModal() {
-    document.getElementById('logoutModal').classList.add('active');
-}
-
-function hideLogoutModal() {
-    document.getElementById('logoutModal').classList.remove('active');
-}
-
-function performLogout() {
-    // Get current path without query parameters
-    var currentUrl = window.location.href.split('?')[0];
-    // Add logout parameter
-    var separator = currentUrl.indexOf('?') === -1 ? '?' : '&';
-    window.location.href = currentUrl + separator + 'logout=true';
-}
-
-// Close modal when clicking outside
-document.getElementById('logoutModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideLogoutModal();
+    // Try to call parent function first
+    if (window.parent && typeof window.parent.showLogoutModal === 'function') {
+        window.parent.showLogoutModal();
+    } else if (window.opener && typeof window.opener.showLogoutModal === 'function') {
+        window.opener.showLogoutModal();
+    } else {
+        console.error('Logout modal function not found');
+        // Fallback direct logout
+        window.location.href = '<?php echo $logout_handler_url ?? "../logout_handler.php"; ?>';
     }
-});
+}
 
-// Close modal with Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && document.getElementById('logoutModal').classList.contains('active')) {
-        hideLogoutModal();
-    }
-});
-
-// Add some interactive effects
+// Add hover effects
 document.addEventListener('DOMContentLoaded', function() {
     const userAvatar = document.querySelector('.user-avatar');
-    const dropdownLinks = document.querySelectorAll('.dropdown-link');
-    
-    // Add hover sound effect simulation
-    userAvatar.addEventListener('mouseenter', function() {
-        this.style.transform = 'rotate(5deg) scale(1.1)';
-    });
-    
-    userAvatar.addEventListener('mouseleave', function() {
-        this.style.transform = 'rotate(0deg) scale(1)';
-    });
-    
-    // Add ripple effect to dropdown links
-    dropdownLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            if(this.classList.contains('logout')) {
-                e.preventDefault();
-                showLogoutModal();
-            }
+    if (userAvatar) {
+        userAvatar.addEventListener('mouseenter', function() {
+            this.style.transform = 'rotate(5deg) scale(1.1)';
         });
-    });
+        
+        userAvatar.addEventListener('mouseleave', function() {
+            this.style.transform = 'rotate(0deg) scale(1)';
+        });
+    }
 });
 </script>
