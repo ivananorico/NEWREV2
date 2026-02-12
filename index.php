@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="Login/styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="Login/images/GSM_logo.png">
+     <link rel="icon" type="image/png" href="Login/images/GSM_logo.png">
     <style>
+        /* Custom styles for better modal handling */
         .modal-container {
             position: fixed;
             inset: 0;
@@ -39,10 +40,12 @@
             max-width: 48rem;
         }
         
+        /* Hide scrollbar when modal is open */
         body.modal-open {
             overflow: hidden;
         }
         
+        /* Notification styles */
         .notification {
             position: fixed;
             top: 1rem;
@@ -60,6 +63,7 @@
             transform: translateX(0);
         }
         
+        /* Animation for OTP inputs */
         .otp-input {
             transition: all 0.2s ease;
         }
@@ -69,11 +73,13 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
+        /* OTP input focus styling */
         .otp-input.filled {
             background-color: #f0f9ff;
             border-color: #3b82f6;
         }
         
+        /* Password strength indicator */
         .password-strength {
             height: 4px;
             border-radius: 2px;
@@ -110,7 +116,12 @@
             font-size: 0.6rem;
         }
         
+        /* Fix for background image on both localhost and domain */
         .bg-custom-bg {
+            /* First try the relative path */
+            background-image: url('Login/images/bg.jpg');
+            /* Fallback for domain if relative path doesn't work */
+            background-image: url('/Login/images/bg.jpg'), url('Login/images/bg.jpg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -118,6 +129,15 @@
             min-height: 100vh;
         }
         
+        /* If both relative paths fail, use absolute path based on current domain */
+        @media (min-width: 1px) {
+            .bg-custom-bg {
+                /* This will override with the correct path based on JavaScript detection */
+                background-image: var(--custom-bg-image, url('Login/images/bg.jpg'));
+            }
+        }
+        
+        /* Custom scrollbar for terms modal */
         .terms-content::-webkit-scrollbar {
             width: 8px;
         }
@@ -560,8 +580,10 @@
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
                                        minlength="6" id="regPassword">
                                 
+                                <!-- Password strength indicator -->
                                 <div id="passwordStrength" class="password-strength"></div>
                                 
+                                <!-- Password requirements -->
                                 <div id="passwordRequirements" class="password-requirements">
                                     <div class="requirement unmet" id="reqLength">
                                         <i class="fas fa-circle"></i>
@@ -905,46 +927,14 @@
 
     <script>
         // ============================================
-        // CONFIGURATION - AUTO-DETECT EVERY ENVIRONMENT!
+        // CONFIGURATION
         // ============================================
-        const hostname = window.location.hostname;
-        let basePath = '';
-        let API_ENDPOINT = '';
-
-        // DOMAIN - goserveph.com (API is in /Login, NOT in /revenue2)
-        if (hostname.includes('goserveph.com')) {
-            basePath = '';
-            API_ENDPOINT = '/Login/api/auth.php';
-            console.log('🌐 DOMAIN MODE DETECTED');
-            console.log('📍 API Endpoint:', API_ENDPOINT);
-            console.log('📍 Base Path:', basePath);
-        } 
-        // IP ADDRESS - 192.168.1.10 (files are in /revenue2)
-        else if (hostname === '192.168.1.10') {
-            basePath = '/revenue2';
-            API_ENDPOINT = '/revenue2/Login/api/auth.php';
-            console.log('🖥️ IP MODE DETECTED');
-            console.log('📍 API Endpoint:', API_ENDPOINT);
-            console.log('📍 Base Path:', basePath);
-        }
-        // LOCALHOST - localhost, 127.0.0.1 (files are in /revenue2)
-        else if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            basePath = '/revenue2';
-            API_ENDPOINT = '/revenue2/Login/api/auth.php';
-            console.log('💻 LOCALHOST MODE DETECTED');
-            console.log('📍 API Endpoint:', API_ENDPOINT);
-            console.log('📍 Base Path:', basePath);
-        }
-        // FALLBACK - assume root
-        else {
-            basePath = '';
-            API_ENDPOINT = '/Login/api/auth.php';
-            console.log('⚠️ FALLBACK MODE DETECTED');
-            console.log('📍 API Endpoint:', API_ENDPOINT);
-            console.log('📍 Base Path:', basePath);
-        }
-
-        console.log('✅ Using API Endpoint:', API_ENDPOINT);
+        // ============================================
+// CONFIGURATION - FIXED
+// ============================================
+// Always use /revenue2 since that's where your app is located
+const basePath = '/revenue2';
+const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         
         let currentUserId = null;
         let otpTimer = null;
@@ -961,65 +951,67 @@
             fixBackgroundImage();
         });
         
-        function fixBackgroundImage() {
-            console.log('🖼️ Fixing background image...');
-            const bgElement = document.querySelector('.bg-custom-bg');
-            if (!bgElement) return;
-            
-            let imagePath;
-            
-            // Domain uses /Login/images/, Local/IP uses /revenue2/Login/images/
-            if (hostname.includes('goserveph.com')) {
-                imagePath = '/Login/images/bg.jpg';
-            } else {
-                imagePath = '/revenue2/Login/images/bg.jpg';
-            }
-            
-            // Try to load the image
-            const testImage = new Image();
-            testImage.onload = function() {
-                bgElement.style.backgroundImage = `url('${imagePath}')`;
-                bgElement.style.backgroundSize = 'cover';
-                bgElement.style.backgroundPosition = 'center';
-                bgElement.style.backgroundRepeat = 'no-repeat';
-                bgElement.style.backgroundAttachment = 'fixed';
-                console.log('✅ Background image loaded successfully:', imagePath);
-            };
-            
-            testImage.onerror = function() {
-                console.log('❌ Background image failed to load:', imagePath);
-                // Fallback color - dark blue
-                bgElement.style.backgroundColor = '#1e3a8a';
-                bgElement.style.backgroundImage = 'none';
-                bgElement.style.backgroundSize = 'cover';
-                bgElement.style.backgroundPosition = 'center';
-                console.log('✅ Using fallback background color (dark blue)');
-            };
-            
-            testImage.src = imagePath;
-        }
+       function fixBackgroundImage() {
+    console.log('🖼️ Fixing background image...');
+    const bgElement = document.querySelector('.bg-custom-bg');
+    if (!bgElement) return;
+    
+    // AUTO-DETECT CORRECT PATH BASED ON ENVIRONMENT
+    let imagePath;
+    const hostname = window.location.hostname;
+    
+    if (hostname.includes('goserveph.com')) {
+        imagePath = '/Login/images/bg.jpg';  // Domain: no /revenue2
+    } else {
+        imagePath = '/revenue2/Login/images/bg.jpg';  // Local/IP: with /revenue2
+    }
+    
+    // Set the background image directly
+    bgElement.style.backgroundImage = `url('${imagePath}')`;
+    bgElement.style.backgroundSize = 'cover';
+    bgElement.style.backgroundPosition = 'center';
+    bgElement.style.backgroundRepeat = 'no-repeat';
+    bgElement.style.backgroundAttachment = 'fixed';
+    
+    // Verify if image loads
+    const testImage = new Image();
+    testImage.onload = function() {
+        console.log('✅ Background image loaded successfully:', imagePath);
+    };
+    testImage.onerror = function() {
+        console.log('❌ Background image failed to load:', imagePath);
+        // NO BACKGROUND COLOR CHANGE - just log the error
+        console.log('⚠️ Please add background image at:', imagePath);
+    };
+    testImage.src = imagePath;
+}
         
         function setupEventListeners() {
+            // Login form
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
                 loginForm.addEventListener('submit', handleLoginSubmit);
             }
             
+            // Register form
             const registerForm = document.getElementById('registerForm');
             if (registerForm) {
                 registerForm.addEventListener('submit', handleRegisterSubmit);
             }
             
+            // Show register form
             const showRegister = document.getElementById('showRegister');
             if (showRegister) {
                 showRegister.addEventListener('click', showRegisterForm);
             }
             
+            // Cancel register buttons
             const cancelRegister = document.getElementById('cancelRegister');
             const cancelRegisterBtn = document.getElementById('cancelRegisterBtn');
             if (cancelRegister) cancelRegister.addEventListener('click', hideRegisterForm);
             if (cancelRegisterBtn) cancelRegisterBtn.addEventListener('click', hideRegisterForm);
             
+            // OTP buttons
             const cancelOtp = document.getElementById('cancelOtp');
             const resendOtp = document.getElementById('resendOtp');
             const submitOtp = document.getElementById('submitOtp');
@@ -1030,6 +1022,7 @@
             if (submitOtp) submitOtp.onclick = handleVerifyOtp;
             if (closeOtpModal) closeOtpModal.onclick = closeOtpModalFunc;
             
+            // OTP form submit
             const otpForm = document.getElementById('otpForm');
             if (otpForm) {
                 otpForm.addEventListener('submit', function(e) {
@@ -1038,6 +1031,7 @@
                 });
             }
             
+            // Terms and Privacy modals
             const closeTermsModal = document.getElementById('closeTermsModal');
             const closePrivacyModal = document.getElementById('closePrivacyModal');
             const agreeTermsModal = document.getElementById('agreeTermsModal');
@@ -1048,6 +1042,7 @@
             if (agreeTermsModal) agreeTermsModal.addEventListener('click', agreeToTerms);
             if (agreePrivacyModal) agreePrivacyModal.addEventListener('click', agreeToPrivacy);
             
+            // Terms and Privacy buttons in register form
             const showTermsButtons = document.querySelectorAll('.show-terms-modal');
             const showPrivacyButtons = document.querySelectorAll('.show-privacy-modal');
             
@@ -1059,6 +1054,7 @@
                 button.addEventListener('click', showPrivacyModal);
             });
             
+            // Footer buttons
             const footerTerms = document.getElementById('footerTerms');
             const footerPrivacy = document.getElementById('footerPrivacy');
             
@@ -1070,6 +1066,7 @@
                 footerPrivacy.addEventListener('click', showPrivacyModal);
             }
             
+            // Modal background clicks
             const registerModal = document.getElementById('registerFormContainer');
             const otpModalElement = document.getElementById('otpModal');
             const termsModalElement = document.getElementById('termsModal');
@@ -1136,10 +1133,12 @@
             const inputs = document.querySelectorAll('.otp-input');
             
             inputs.forEach((input, index) => {
+                // Handle input event
                 input.addEventListener('input', function(e) {
                     const value = e.target.value.replace(/[^0-9]/g, '');
                     
                     if (value) {
+                        // Auto-advance to next input
                         e.target.value = value.charAt(0);
                         e.target.classList.add('filled');
                         
@@ -1147,22 +1146,27 @@
                             inputs[index + 1].focus();
                             inputs[index + 1].select();
                         } else {
+                            // If last input, blur it
                             e.target.blur();
                         }
                     } else {
                         e.target.classList.remove('filled');
                     }
                     
+                    // Auto-submit if all inputs are filled
                     const allFilled = Array.from(inputs).every(input => input.value.length === 1);
                     if (allFilled) {
+                        // Small delay to let the last input be filled
                         setTimeout(() => {
                             handleVerifyOtp();
                         }, 100);
                     }
                 });
                 
+                // Handle backspace
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Backspace') {
+                        // If current input is empty, go to previous input
                         if (!e.target.value && index > 0) {
                             e.preventDefault();
                             inputs[index - 1].focus();
@@ -1171,6 +1175,7 @@
                         }
                     }
                     
+                    // Handle left/right arrow keys for navigation
                     if (e.key === 'ArrowLeft' && index > 0) {
                         e.preventDefault();
                         inputs[index - 1].focus();
@@ -1183,12 +1188,14 @@
                         inputs[index + 1].select();
                     }
                     
+                    // Handle delete key
                     if (e.key === 'Delete') {
                         e.target.value = '';
                         e.target.classList.remove('filled');
                     }
                 });
                 
+                // Handle paste
                 input.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
@@ -1201,12 +1208,14 @@
                         }
                     });
                     
+                    // Focus on next empty input or last input
                     const nextIndex = digits.length < 6 ? digits.length : 5;
                     if (inputs[nextIndex]) {
                         inputs[nextIndex].focus();
                         inputs[nextIndex].select();
                     }
                     
+                    // Auto-submit if all filled
                     if (digits.length === 6) {
                         setTimeout(() => {
                             handleVerifyOtp();
@@ -1214,16 +1223,21 @@
                     }
                 });
                 
+                // Handle focus to select all text
                 input.addEventListener('focus', function() {
                     this.select();
                 });
                 
+                // Handle click to select all text
                 input.addEventListener('click', function() {
                     this.select();
                 });
             });
         }
         
+        // ============================================
+        // PASSWORD VALIDATION FUNCTIONS
+        // ============================================
         function checkPasswordStrength(password) {
             const strengthBar = document.getElementById('passwordStrength');
             const requirements = {
@@ -1234,17 +1248,20 @@
                 special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
             };
             
+            // Update requirement indicators
             document.getElementById('reqLength').className = requirements.length ? 'requirement met' : 'requirement unmet';
             document.getElementById('reqUppercase').className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
             document.getElementById('reqLowercase').className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
             document.getElementById('reqNumber').className = requirements.number ? 'requirement met' : 'requirement unmet';
             document.getElementById('reqSpecial').className = requirements.special ? 'requirement met' : 'requirement unmet';
             
+            // Calculate strength score
             let score = 0;
             Object.values(requirements).forEach(met => {
                 if (met) score++;
             });
             
+            // Update strength bar
             let strengthClass = '';
             let strengthText = '';
             
@@ -1297,6 +1314,7 @@
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
+            // Check password requirements
             const hasMinLength = password.length >= 8;
             const hasUppercase = /[A-Z]/.test(password);
             const hasLowercase = /[a-z]/.test(password);
@@ -1306,6 +1324,7 @@
             
             const isStrongPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
             
+            // Enable button only if all requirements are met and passwords match
             if (isStrongPassword && passwordsMatch) {
                 registerSubmitBtn.disabled = false;
             } else {
@@ -1313,6 +1332,9 @@
             }
         }
         
+        // ============================================
+        // MAIN HANDLER FUNCTIONS
+        // ============================================
         async function handleLoginSubmit(e) {
             e.preventDefault();
             console.log('🔐 Login form submitted');
@@ -1321,6 +1343,7 @@
             const password = document.getElementById('password').value.trim();
             const loginBtn = document.getElementById('loginBtn');
             
+            // Validation
             if (!email || !password) {
                 showNotification('Please enter both email and password', 'error');
                 return;
@@ -1334,7 +1357,7 @@
             setButtonLoading(loginBtn, true, 'Logging in...');
             
             try {
-                console.log('📤 Sending login request to:', API_ENDPOINT);
+                console.log('📤 Sending login request...');
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -1348,7 +1371,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Raw response:', responseText.substring(0, 200));
+                console.log('📥 Raw response:', responseText);
                 
                 let data;
                 try {
@@ -1369,11 +1392,7 @@
                         showNotification('Admin login successful! Redirecting...', 'success');
                         
                         setTimeout(() => {
-                            if (hostname.includes('goserveph.com')) {
-                                window.location.href = '/dist/index.html';
-                            } else {
-                                window.location.href = '/revenue2/dist/index.html';
-                            }
+                            window.location.href = basePath + '/dist/index.html';
                         }, 1000);
                     } else {
                         currentUserId = data.user_id;
@@ -1406,6 +1425,7 @@
             const data = Object.fromEntries(formData.entries());
             const registerBtn = document.querySelector('#registerForm button[type="submit"]');
             
+            // Validation
             const requiredFields = [
                 'firstName', 'lastName', 'regEmail', 'regPassword', 
                 'confirmPassword', 'birthdate', 'mobile', 'houseNumber', 
@@ -1434,7 +1454,6 @@
                 return;
             }
             
-            // ✅ FIXED: City must be Caloocan City
             if (data.city !== 'Caloocan City') {
                 showNotification('City must be Caloocan City', 'error');
                 return;
@@ -1460,6 +1479,7 @@
                 return;
             }
             
+            // Check password strength
             const hasMinLength = data.regPassword.length >= 8;
             const hasUppercase = /[A-Z]/.test(data.regPassword);
             const hasLowercase = /[a-z]/.test(data.regPassword);
@@ -1474,7 +1494,7 @@
             setButtonLoading(registerBtn, true, 'Creating Account...');
             
             try {
-                console.log('📤 Sending registration request to:', API_ENDPOINT);
+                console.log('📤 Sending registration request...');
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -1487,7 +1507,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Raw response:', responseText.substring(0, 200));
+                console.log('📥 Raw response:', responseText);
                 
                 let result;
                 try {
@@ -1551,7 +1571,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 OTP verification raw response:', responseText.substring(0, 200));
+                console.log('📥 OTP verification raw response:', responseText);
                 
                 let data;
                 try {
@@ -1570,17 +1590,9 @@
                     
                     setTimeout(() => {
                         if (data.redirect_url) {
-                            if (hostname.includes('goserveph.com')) {
-                                window.location.href = '/' + data.redirect_url;
-                            } else {
-                                window.location.href = '/revenue2/' + data.redirect_url;
-                            }
+                            window.location.href = basePath + '/' + data.redirect_url;
                         } else {
-                            if (hostname.includes('goserveph.com')) {
-                                window.location.href = '/citizen_dashboard/citizen_dashboard.php';
-                            } else {
-                                window.location.href = '/revenue2/citizen_dashboard/citizen_dashboard.php';
-                            }
+                            window.location.href = basePath + '/citizen_dashboard/citizen_dashboard.php';
                         }
                     }, 1500);
                 } else {
@@ -1615,7 +1627,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Resend OTP raw response:', responseText.substring(0, 200));
+                console.log('📥 Resend OTP raw response:', responseText);
                 
                 let data;
                 try {
@@ -1647,11 +1659,15 @@
             }
         }
         
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
         function showRegisterForm() {
             const container = document.getElementById('registerFormContainer');
             if (container) {
                 container.classList.remove('hidden');
                 document.body.classList.add('modal-open');
+                // Reset password validation
                 checkPasswordStrength('');
                 checkPasswordMatch();
                 validateRegisterForm();
@@ -1728,6 +1744,7 @@
                 resetOtpInputs();
                 startOtpTimer();
                 hideOtpError();
+                // Focus on first OTP input
                 const firstInput = document.querySelector('.otp-input[data-index="0"]');
                 if (firstInput) {
                     setTimeout(() => {
@@ -1752,6 +1769,9 @@
             }
         }
         
+        // ============================================
+        // OTP FUNCTIONS
+        // ============================================
         function getOtpCode() {
             const inputs = document.querySelectorAll('.otp-input');
             const code = Array.from(inputs).map(input => input.value).join('');
@@ -1823,6 +1843,7 @@
                 errorElement.textContent = message;
                 errorElement.classList.remove('hidden');
                 
+                // Highlight OTP inputs in red
                 const inputs = document.querySelectorAll('.otp-input');
                 inputs.forEach(input => {
                     input.classList.add('border-red-500');
@@ -1835,6 +1856,7 @@
             if (errorElement) {
                 errorElement.classList.add('hidden');
                 
+                // Remove red border from OTP inputs
                 const inputs = document.querySelectorAll('.otp-input');
                 inputs.forEach(input => {
                     input.classList.remove('border-red-500');
@@ -1842,6 +1864,9 @@
             }
         }
         
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
         function updateDateTime() {
             const now = new Date();
             const options = { 
@@ -1876,6 +1901,7 @@
         }
         
         function showNotification(message, type = 'info') {
+            // Remove existing notifications
             const existing = document.querySelectorAll('.notification');
             existing.forEach(notif => notif.remove());
             
@@ -1902,10 +1928,12 @@
             
             document.body.appendChild(notification);
             
+            // Animate in
             setTimeout(() => {
                 notification.classList.add('show');
             }, 100);
             
+            // Auto remove after 5 seconds
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.classList.remove('show');
@@ -1923,6 +1951,7 @@
             return emailRegex.test(email);
         }
         
+        // Make functions globally available
         window.showNotification = showNotification;
         window.closeOtpModalFunc = closeOtpModalFunc;
     </script>
