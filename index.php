@@ -185,7 +185,7 @@
             <!-- Left Section - Features -->
             <div class="text-center lg:text-left mt-2">
                 <h2 class="text-4xl lg:text-5xl font-bold mb-4 animated-gradient ml-2 lg:ml-4">
-                    Abot-Kamay mo ang Serbisyong Publiko!
+                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Abot-Kamay mo ang &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Serbisyong Publiko!
                 </h2>
             </div>
 
@@ -929,10 +929,12 @@
         // ============================================
         // CONFIGURATION
         // ============================================
-        const isLocalhost = window.location.hostname === 'localhost' || 
-                           window.location.hostname === '127.0.0.1';
-        const basePath = isLocalhost ? '/revenue2' : '';
-        const API_ENDPOINT = basePath + '/Login/api/auth.php';
+        // ============================================
+// CONFIGURATION - FIXED
+// ============================================
+// Always use /revenue2 since that's where your app is located
+const basePath = '/revenue2';
+const API_ENDPOINT = '/revenue2/Login/api/auth.php';
         
         let currentUserId = null;
         let otpTimer = null;
@@ -950,75 +952,32 @@
         });
         
         function fixBackgroundImage() {
-            // Try multiple paths to find the correct background image
-            const pathsToTest = [
-                'Login/images/bg.jpg',           // Relative path from current location
-                '/Login/images/bg.jpg',          // Absolute path from root
-                basePath + '/Login/images/bg.jpg', // With base path
-                '/revenue2/Login/images/bg.jpg', // Hardcoded path
-                'images/bg.jpg',                 // Just from images folder
-                '/images/bg.jpg'                 // Absolute from images folder
-            ];
-            
-            const bgElement = document.querySelector('.bg-custom-bg');
-            if (!bgElement) return;
-            
-            // First, check if the background is already working
-            const computedStyle = window.getComputedStyle(bgElement);
-            const bgImage = computedStyle.backgroundImage;
-            
-            // If background image is not set or is showing "none", fix it
-            if (!bgImage || bgImage === 'none' || bgImage.includes('url("")')) {
-                console.log('🖼️ Background image not found, trying different paths...');
-                
-                // Test each path
-                let foundPath = null;
-                const testImage = new Image();
-                
-                // Function to test a single path
-                function testPath(path, callback) {
-                    testImage.onload = function() {
-                        console.log('✅ Found background image at:', path);
-                        foundPath = path;
-                        callback(true);
-                    };
-                    testImage.onerror = function() {
-                        callback(false);
-                    };
-                    testImage.src = path;
-                }
-                
-                // Test paths sequentially
-                let index = 0;
-                function testNextPath() {
-                    if (index >= pathsToTest.length) {
-                        // If no path works, use a default background color
-                        console.log('❌ No background image found, using fallback');
-                        bgElement.style.backgroundColor = '#f3f4f6';
-                        bgElement.style.backgroundImage = 'none';
-                        return;
-                    }
-                    
-                    const path = pathsToTest[index];
-                    console.log('🔍 Testing path:', path);
-                    
-                    testPath(path, function(success) {
-                        if (success) {
-                            // Apply the found path
-                            document.documentElement.style.setProperty('--custom-bg-image', `url('${path}')`);
-                            bgElement.style.backgroundImage = `url('${path}')`;
-                        } else {
-                            index++;
-                            setTimeout(testNextPath, 100);
-                        }
-                    });
-                }
-                
-                testNextPath();
-            } else {
-                console.log('✅ Background image is already working:', bgImage);
-            }
-        }
+    console.log('🖼️ Fixing background image...');
+    const bgElement = document.querySelector('.bg-custom-bg');
+    if (!bgElement) return;
+    
+    // Direct path to your background image - this is the correct path
+    const correctPath = '/revenue2/Login/images/bg.jpg';
+    
+    // Set the background image directly
+    bgElement.style.backgroundImage = `url('${correctPath}')`;
+    bgElement.style.backgroundSize = 'cover';
+    bgElement.style.backgroundPosition = 'center';
+    bgElement.style.backgroundRepeat = 'no-repeat';
+    bgElement.style.backgroundAttachment = 'fixed';
+    
+    // Verify if image loads
+    const testImage = new Image();
+    testImage.onload = function() {
+        console.log('✅ Background image loaded successfully:', correctPath);
+    };
+    testImage.onerror = function() {
+        console.log('❌ Background image failed to load:', correctPath);
+        // Fallback color
+        bgElement.style.backgroundColor = '#f3f4f6';
+    };
+    testImage.src = correctPath;
+}
         
         function setupEventListeners() {
             // Login form

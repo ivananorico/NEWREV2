@@ -420,7 +420,7 @@ export default function BusinessTaxConfig() {
     }
   };
 
-  // Edit Handlers - Keeping your exact functions
+  // Edit Handlers - Fixed for regulatory
   const handleBusinessEdit = (config) => {
     setBusinessForm({
       business_type: config.business_type || '',
@@ -431,6 +431,7 @@ export default function BusinessTaxConfig() {
     });
     setEditingId(config.id);
     setEditingType('business');
+    setShowForm(true);
   };
 
   const handleCapitalEdit = (config) => {
@@ -444,6 +445,7 @@ export default function BusinessTaxConfig() {
     });
     setEditingId(config.id);
     setEditingType('capital');
+    setShowForm(true);
   };
 
   const handleRegulatoryEdit = (config) => {
@@ -456,6 +458,7 @@ export default function BusinessTaxConfig() {
     });
     setEditingId(config.id);
     setEditingType('regulatory');
+    setShowForm(true);
   };
 
   const handlePenaltyEdit = (config) => {
@@ -467,6 +470,7 @@ export default function BusinessTaxConfig() {
     });
     setEditingId(config.id);
     setEditingType('penalty');
+    setShowForm(true);
   };
 
   const handleDiscountEdit = (config) => {
@@ -478,6 +482,7 @@ export default function BusinessTaxConfig() {
     });
     setEditingId(config.id);
     setEditingType('discount');
+    setShowForm(true);
   };
 
   // Delete Handler - Keeping your exact function
@@ -951,8 +956,8 @@ export default function BusinessTaxConfig() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      setShowForm(!showForm);
-                      if (editingId) {
+                      if (showForm) {
+                        // If form is showing, reset the current form
                         switch(activeTab) {
                           case 'business': resetBusinessForm(); break;
                           case 'capital': resetCapitalForm(); break;
@@ -960,6 +965,11 @@ export default function BusinessTaxConfig() {
                           case 'penalty': resetPenaltyForm(); break;
                           case 'discount': resetDiscountForm(); break;
                         }
+                      } else {
+                        // Show form with fresh state
+                        setShowForm(true);
+                        setEditingId(null);
+                        setEditingType(null);
                       }
                     }}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all hover:shadow-sm"
@@ -1005,10 +1015,10 @@ export default function BusinessTaxConfig() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
                   <Edit2 className="w-5 h-5" style={{ color: COLORS.primary }} />
-                  {editingType ? `Edit ${getTabTitle(activeTab)}` : `New ${getTabTitle(activeTab)}`}
+                  {editingId ? `Edit ${getTabTitle(activeTab)}` : `New ${getTabTitle(activeTab)}`}
                 </h3>
                 <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                  {editingType ? 'Editing Mode' : 'Create Mode'}
+                  {editingId ? 'Editing Mode' : 'Create Mode'}
                 </span>
               </div>
               
@@ -1140,7 +1150,7 @@ export default function BusinessTaxConfig() {
                   </div>
                 )}
 
-                {/* Regulatory Configuration Form */}
+                {/* Regulatory Configuration Form - Fixed to remove percent symbol */}
                 {activeTab === 'regulatory' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1309,8 +1319,8 @@ export default function BusinessTaxConfig() {
                         disabled={submitting}
                       />
                       <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: COLORS.secondary }} />
-                      <div className="text-xs text-gray-500 mt-1">Leave empty if no expiration</div>
                     </div>
+                    <div className="text-xs text-gray-500 mt-1">Leave empty if no expiration</div>
                   </div>
                 </div>
 
@@ -1347,7 +1357,7 @@ export default function BusinessTaxConfig() {
                   />
                 </div>
 
-                {/* Preview Section */}
+                {/* Preview Section - Fixed for regulatory to show amount only */}
                 {activeTab === 'business' && businessForm.tax_percent && (
                   <div className="p-4 rounded-lg" style={{ backgroundColor: `${COLORS.primary}05`, border: `1px solid ${COLORS.primary}20` }}>
                     <h4 className="font-medium mb-2 flex items-center gap-2" style={{ color: COLORS.primary }}>
@@ -1397,6 +1407,27 @@ export default function BusinessTaxConfig() {
                   </div>
                 )}
 
+                {activeTab === 'regulatory' && regulatoryForm.amount && (
+                  <div className="p-4 rounded-lg" style={{ backgroundColor: `${COLORS.success}05`, border: `1px solid ${COLORS.success}20` }}>
+                    <h4 className="font-medium mb-2 flex items-center gap-2" style={{ color: COLORS.success }}>
+                      <Receipt className="w-4 h-4" />
+                      Regulatory Fee Preview
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium" style={{ color: COLORS.secondary }}>Fee Name:</span>
+                        <div className="font-medium" style={{ color: COLORS.dark }}>{regulatoryForm.fee_name || 'Not specified'}</div>
+                      </div>
+                      <div>
+                        <span className="font-medium" style={{ color: COLORS.secondary }}>Amount:</span>
+                        <div className="font-medium" style={{ color: COLORS.dark }}>
+                          ₱{parseFloat(regulatoryForm.amount || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Form Actions */}
                 <div className="flex gap-3 pt-4">
                   <button
@@ -1410,7 +1441,7 @@ export default function BusinessTaxConfig() {
                     }}
                   >
                     <CheckCircle className="w-4 h-4" />
-                    {submitting ? 'Saving...' : (editingType ? 'Update Configuration' : 'Create Configuration')}
+                    {submitting ? 'Saving...' : (editingId ? 'Update Configuration' : 'Create Configuration')}
                   </button>
                   <button
                     type="button"
@@ -1568,14 +1599,24 @@ export default function BusinessTaxConfig() {
                                       </div>
                                     </>
                                   )}
-                                  {(activeTab === 'regulatory' || activeTab === 'penalty' || activeTab === 'discount') && (
+                                  {activeTab === 'regulatory' && (
                                     <div className="text-sm">
-                                      <span style={{ color: COLORS.secondary }}>
-                                        {activeTab === 'regulatory' ? 'Amount: ' : 'Rate: '}
-                                      </span>
+                                      <span style={{ color: COLORS.secondary }}>Amount: </span>
                                       <span className="font-medium" style={{ color: COLORS.dark }}>
-                                        {activeTab === 'regulatory' ? '₱' + parseFloat(config.amount || 0).toLocaleString() : config.penalty_percent || config.discount_percent}%
+                                        ₱{parseFloat(config.amount || 0).toLocaleString()}
                                       </span>
+                                    </div>
+                                  )}
+                                  {activeTab === 'penalty' && (
+                                    <div className="text-sm">
+                                      <span style={{ color: COLORS.secondary }}>Rate: </span>
+                                      <span className="font-medium" style={{ color: COLORS.dark }}>{config.penalty_percent}%</span>
+                                    </div>
+                                  )}
+                                  {activeTab === 'discount' && (
+                                    <div className="text-sm">
+                                      <span style={{ color: COLORS.secondary }}>Rate: </span>
+                                      <span className="font-medium" style={{ color: COLORS.dark }}>{config.discount_percent}%</span>
                                     </div>
                                   )}
                                 </div>

@@ -1,5 +1,5 @@
 <?php
-// revenue2/backend/config/database.php
+// revenue2/backend/Treasury/db_config.php
 
 class Database {
     private static $instances = [];
