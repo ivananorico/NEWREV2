@@ -1,15 +1,13 @@
 <?php
 // revenue2/citizen_dashboard/market/market_portal_services/apply_rental.php
+ob_start(); // MUST BE FIRST - prevents header errors
 
-// Remove session_start() and replace with navbar include
-// The navbar will handle session checking and logout functionality
+// Include navbar once - this handles session checking and provides build_url()
 require_once '../../../citizen_dashboard/navbar.php';
 
-// Check if user is logged in (already handled in navbar.php, but double-check)
-if (!isset($_SESSION['user_id'])) {
-    // This should not happen if navbar.php is included properly
-    exit('Session error. Please try logging in again.');
-}
+// Now we can safely use session variables since navbar.php already checked
+$user_id = $_SESSION['user_id'];
+$user_name = $_SESSION['user_name'] ?? 'Citizen';
 
 if (!isset($_GET['map_id'])) {
     header('Location: market_portal_services.php');
@@ -57,17 +55,13 @@ $prices = array_column($stalls, 'price');
 $min_price = count($prices) > 0 ? min($prices) : 0;
 $max_price = count($prices) > 0 ? max($prices) : 0;
 
-$user_name = $_SESSION['user_name'] ?? 'Citizen';
-
 // Get the base URL for the background image
-// Get base URL for background image - FIXED: Using reliable method
-if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
-    $protocol = 'https://';
-} else {
-    $protocol = 'http://';
-}
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
 $base_url = $protocol . $_SERVER['HTTP_HOST'];
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
+
+// Get logout handler URL using the build_url function from navbar.php
+$logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -244,7 +238,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         }
         
         .status-maintenance {
-            background: #808080; /* Gray for Maintenance */
+            background: #808080;
         }
         
         .stall-marker.selected {
@@ -554,6 +548,112 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             margin-top: 16px;
         }
 
+        /* Logout Modal Styles */
+        .logout-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(74, 144, 226, 0.7);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .logout-modal.active {
+            display: flex;
+        }
+
+        .logout-modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 400px;
+            width: 90%;
+            animation: modalSlideIn 0.3s ease-out;
+            border: 2px solid #4a90e2;
+        }
+
+        .logout-modal-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+        }
+
+        .logout-modal-icon i {
+            font-size: 1.5rem;
+            color: #ef4444;
+        }
+
+        .logout-modal-title {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #4a90e2;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .logout-modal-message {
+            text-align: center;
+            color: #9aa5b1;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .logout-modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .logout-modal-btn {
+            padding: 0.625rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 0.875rem;
+            min-width: 100px;
+            letter-spacing: 0.3px;
+        }
+
+        .logout-modal-btn.cancel {
+            background-color: #9aa5b1;
+            color: white;
+            border: 1px solid #9aa5b1;
+        }
+
+        .logout-modal-btn.cancel:hover {
+            background-color: #7b8794;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(154, 165, 177, 0.3);
+        }
+
+        .logout-modal-btn.confirm {
+            background-color: #4caf50;
+            color: white;
+            border: 1px solid #4caf50;
+        }
+
+        .logout-modal-btn.confirm:hover {
+            background-color: #3d8b40;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(76, 175, 80, 0.3);
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .market-map {
@@ -600,9 +700,29 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     </style>
 </head>
 <body>
-    <!-- No need to include navbar.php again since it's already included at the top -->
+    <!-- Logout Confirmation Modal -->
+    <div class="logout-modal" id="logoutModal">
+        <div class="logout-modal-content">
+            <div class="logout-modal-icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h3 class="logout-modal-title">Logout Confirmation</h3>
+            <p class="logout-modal-message">Are you sure you want to logout from your account? You'll need to sign in again to access your dashboard.</p>
+            <div class="logout-modal-actions">
+                <button class="logout-modal-btn cancel" onclick="hideLogoutModal()">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button class="logout-modal-btn confirm" onclick="performLogout()">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Modal -->
+    <!-- Navbar is already included via require_once at the top -->
+    <!-- No need to include navbar.php again here -->
+
+    <!-- Stall Details Modal -->
     <div id="stallModal" class="modal-overlay">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
@@ -874,6 +994,33 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
     <script>
         let selectedStall = null;
         const modal = document.getElementById('stallModal');
+        const logoutModal = document.getElementById('logoutModal');
+
+        // Logout Modal Functions
+        function showLogoutModal() {
+            if (document.getElementById('logoutModal')) {
+                document.getElementById('logoutModal').classList.add('active');
+            }
+        }
+
+        function hideLogoutModal() {
+            if (document.getElementById('logoutModal')) {
+                document.getElementById('logoutModal').classList.remove('active');
+            }
+        }
+
+        function performLogout() {
+            window.location.href = '<?php echo $logout_handler_url; ?>';
+        }
+
+        // Close logout modal when clicking outside
+        if (logoutModal) {
+            logoutModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideLogoutModal();
+                }
+            });
+        }
 
         function showStallModal(stallElement) {
             const isAvailable = stallElement.dataset.stallAvailable === 'true';
@@ -1022,13 +1169,18 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         }
 
         // Close modal when clicking outside
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
-        });
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal();
+            });
+        }
         
         // Close on Escape key
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+            if (e.key === 'Escape') {
+                if (modal && modal.style.display === 'flex') closeModal();
+                if (logoutModal && logoutModal.classList.contains('active')) hideLogoutModal();
+            }
         });
 
         // Handle image errors
@@ -1036,7 +1188,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             const marketMap = document.getElementById('marketMap');
             if (marketMap) {
                 const bgImage = marketMap.style.backgroundImage;
-                if (bgImage) {
+                if (bgImage && bgImage !== 'none') {
                     const img = new Image();
                     img.src = bgImage.replace(/url\(['"]?(.*?)['"]?\)/i, '$1');
                     img.onerror = function() {
@@ -1052,6 +1204,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 }
             }
         });
-    </script> 
+    </script>
+    <?php ob_end_flush(); ?>
 </body>
 </html>

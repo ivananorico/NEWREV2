@@ -37,6 +37,9 @@ function build_url($relative_path) {
     }
 }
 
+// Build logout handler URL
+$logout_handler_url = build_url('/citizen_dashboard/logout_handler.php');
+
 // Build URLs for different resources
 $logo_path = build_url('/citizen_dashboard/images/GSM_logo.png');
 $dashboard_path = build_url('/citizen_dashboard/citizen_dashboard.php');
@@ -71,7 +74,8 @@ $settings_path = build_url('/citizen_dashboard/settings.php');
     z-index: 50;
 }
 
-.dropdown-container:hover .dropdown-menu {
+.dropdown-container:hover .dropdown-menu,
+.dropdown-container:focus-within .dropdown-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
@@ -263,7 +267,7 @@ nav {
                             <i class="fas fa-user-cog mr-2"></i>Profile & Settings
                         </a>
                         <div class="divider"></div>
-                        <button onclick="parent.showLogoutModal ? parent.showLogoutModal() : showLogoutModal()" class="dropdown-link logout">
+                        <button onclick="showLogoutModal()" class="dropdown-link logout">
                             <i class="fas fa-sign-out-alt mr-2"></i>Logout
                         </button>
                     </div>
@@ -275,18 +279,56 @@ nav {
 </nav>
 
 <script>
-// Fallback logout modal functions if parent doesn't have them
+// Global function to show logout modal
 function showLogoutModal() {
-    // Try to call parent function first
-    if (window.parent && typeof window.parent.showLogoutModal === 'function') {
-        window.parent.showLogoutModal();
-    } else if (window.opener && typeof window.opener.showLogoutModal === 'function') {
-        window.opener.showLogoutModal();
-    } else {
-        console.error('Logout modal function not found');
-        // Fallback direct logout
-        window.location.href = '<?php echo $logout_handler_url ?? "../logout_handler.php"; ?>';
+    // Check if we're in an iframe
+    if (window.self !== window.top) {
+        // Try to call parent's showLogoutModal
+        try {
+            if (window.parent && typeof window.parent.showLogoutModal === 'function') {
+                window.parent.showLogoutModal();
+                return;
+            }
+        } catch(e) {
+            console.log('Cannot access parent frame');
+        }
     }
+    
+    // Try to find the modal in the current document
+    const modal = document.getElementById('logoutModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        // If modal doesn't exist in current page, try to find it in parent
+        try {
+            if (window.parent) {
+                const parentModal = window.parent.document.getElementById('logoutModal');
+                if (parentModal) {
+                    parentModal.classList.add('active');
+                    return;
+                }
+            }
+        } catch(e) {
+            console.log('Cannot access parent document');
+        }
+        
+        // Fallback direct logout
+        console.warn('Logout modal not found, redirecting directly');
+        window.location.href = '<?php echo $logout_handler_url; ?>';
+    }
+}
+
+// Hide modal function (for parent pages)
+function hideLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Perform logout function (for parent pages)
+function performLogout() {
+    window.location.href = '<?php echo $logout_handler_url; ?>';
 }
 
 // Add hover effects
@@ -299,6 +341,24 @@ document.addEventListener('DOMContentLoaded', function() {
         
         userAvatar.addEventListener('mouseleave', function() {
             this.style.transform = 'rotate(0deg) scale(1)';
+        });
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const dropdown = document.querySelector('.dropdown-container');
+        const menu = document.querySelector('.dropdown-menu');
+        if (dropdown && !dropdown.contains(e.target) && menu) {
+            menu.style.opacity = '0';
+            menu.style.visibility = 'hidden';
+        }
+    });
+    
+    // Prevent dropdown from closing when clicking inside
+    const dropdown = document.querySelector('.dropdown-container');
+    if (dropdown) {
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
         });
     }
 });
