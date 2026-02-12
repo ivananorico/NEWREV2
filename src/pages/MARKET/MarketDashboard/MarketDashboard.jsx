@@ -223,6 +223,32 @@ export default function MarketRPTDashboard() {
     }
   };
 
+  const exportMapCollectionReport = () => {
+    if (!dashboardData?.map_collection) return;
+    
+    setExportLoading(true);
+    try {
+      const mapData = dashboardData.map_collection.map(m => ({
+        'Map Name': m.map_name,
+        'Total Stalls': formatNumber(m.total_stalls),
+        'Collected Revenue': formatCurrency(m.collected_revenue),
+        'Collection Rate': formatPercent(m.collection_rate),
+        'Pending Payments': formatNumber(m.pending_payments),
+        'Pending Amount': formatCurrency(m.pending_amount),
+        'Overdue Amount': formatCurrency(m.overdue_amount),
+        'Occupied Stalls': formatNumber(m.occupied_stalls),
+        'Available Stalls': formatNumber(m.available_stalls)
+      }));
+
+      exportToExcel(mapData, `Map_Collection_Report_${selectedYear}`, 'Map Collection');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Error exporting map collection report');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const exportCompleteDashboardReport = () => {
     if (!dashboardData) return;
     
@@ -294,6 +320,23 @@ export default function MarketRPTDashboard() {
         const ws3 = XLSX.utils.json_to_sheet(quarterlyData);
         XLSX.utils.book_append_sheet(wb, ws3, 'Quarterly Analysis');
       }
+
+      // Map Collection Data
+      if (dashboardData.map_collection && dashboardData.map_collection.length > 0) {
+        const mapCollectionData = dashboardData.map_collection.map(m => ({
+          'Map Name': m.map_name,
+          'Total Stalls': formatNumber(m.total_stalls),
+          'Occupied Stalls': formatNumber(m.occupied_stalls),
+          'Available Stalls': formatNumber(m.available_stalls),
+          'Collected Revenue': formatCurrency(m.collected_revenue),
+          'Collection Rate': formatPercent(m.collection_rate),
+          'Pending Payments': formatNumber(m.pending_payments),
+          'Pending Amount': formatCurrency(m.pending_amount),
+          'Overdue Amount': formatCurrency(m.overdue_amount)
+        }));
+        const ws4 = XLSX.utils.json_to_sheet(mapCollectionData);
+        XLSX.utils.book_append_sheet(wb, ws4, 'Map Collection');
+      }
       
       XLSX.writeFile(wb, `Market_Dashboard_Report_${selectedYear}_${dateStr}.xlsx`);
       
@@ -361,7 +404,7 @@ export default function MarketRPTDashboard() {
     revenue_stats = {},
     quarterly_analysis = [],
     top_stalls = [],
-    payment_analysis = {},
+    map_collection = [],
     recent_activities = {},
     business_distribution = {},
     current_quarter: dataCurrentQuarter,
@@ -385,7 +428,6 @@ export default function MarketRPTDashboard() {
   const totalOutstanding = safeParseFloat(revenue_stats.outstanding?.total_outstanding);
 
   const quarterlyData = revenue_stats.quarterly || [];
-  const paymentTimingData = payment_analysis.payment_timing || [];
   const businessTypesData = business_distribution.business_types || [];
 
   const getActivitiesForTab = () => {
@@ -545,6 +587,19 @@ export default function MarketRPTDashboard() {
             >
               <StoreIcon className="w-4 h-4" />
               Stall Report
+            </button>
+            <button
+              onClick={exportMapCollectionReport}
+              disabled={exportLoading || !map_collection.length}
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+              style={{ 
+                borderColor: COLORS.secondary, 
+                color: COLORS.dark,
+                backgroundColor: 'white'
+              }}
+            >
+              <Map className="w-4 h-4" />
+              Map Collection Report
             </button>
             <button
               onClick={exportCompleteDashboardReport}
@@ -832,6 +887,156 @@ export default function MarketRPTDashboard() {
           </div>
         </div>
 
+        {/* Map Collection Performance Section - REPLACES PAYMENT ANALYSIS */}
+        <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
+          <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Map className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Collection Performance by Map {selectedYear}
+                </h3>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  {map_collection.length} maps • Revenue collection analysis per market map
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportMapCollectionReport}
+                  disabled={exportLoading || map_collection.length === 0}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all"
+                  style={{ 
+                    borderColor: COLORS.secondary, 
+                    color: COLORS.dark,
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {map_collection.length > 0 ? (
+              <div className="space-y-6">
+                {/* Map Collection Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {map_collection.map((map, index) => {
+                    const collectionRate = safeParseFloat(map.collection_rate);
+                    const collectedAmount = safeParseFloat(map.collected_revenue);
+                    const pendingAmount = safeParseFloat(map.pending_amount);
+                    const overdueAmount = safeParseFloat(map.overdue_amount);
+                    
+                    return (
+                      <div key={index} 
+                           className="border rounded-lg p-5 hover:shadow-md transition-all"
+                           style={{ borderColor: COLORS.secondary }}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                              <MapPin className="w-4 h-4" style={{ color: COLORS.primary }} />
+                            </div>
+                            <h4 className="font-semibold" style={{ color: COLORS.dark }}>{map.map_name}</h4>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            collectionRate >= 90 ? 'bg-green-100 text-green-800' :
+                            collectionRate >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {formatPercent(collectionRate)}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <p className="text-xs" style={{ color: COLORS.secondary }}>Total Stalls</p>
+                            <p className="text-lg font-bold" style={{ color: COLORS.dark }}>{formatNumber(map.total_stalls)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs" style={{ color: COLORS.secondary }}>Collected</p>
+                            <p className="text-lg font-bold" style={{ color: COLORS.success }}>{formatCurrency(collectedAmount)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span style={{ color: COLORS.secondary }}>Collection Progress</span>
+                            <span className="font-medium">{formatPercent(collectionRate)}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="h-2 rounded-full transition-all duration-500"
+                              style={{ 
+                                width: `${Math.min(collectionRate, 100)}%`,
+                                backgroundColor: collectionRate >= 90 ? COLORS.success :
+                                               collectionRate >= 70 ? COLORS.warning : COLORS.danger
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-xs" 
+                             style={{ borderColor: COLORS.secondary }}>
+                          <div>
+                            <span className="block" style={{ color: COLORS.secondary }}>Pending</span>
+                            <span className="font-medium" style={{ color: COLORS.warning }}>
+                              {formatCurrency(pendingAmount)}
+                            </span>
+                            <span className="block text-xs text-gray-400">
+                              ({formatNumber(map.pending_payments)} bills)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block" style={{ color: COLORS.secondary }}>Overdue</span>
+                            <span className="font-medium" style={{ color: COLORS.danger }}>
+                              {formatCurrency(overdueAmount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Summary Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t" 
+                     style={{ borderColor: COLORS.secondary }}>
+                  <div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Maps</p>
+                    <p className="text-2xl font-bold" style={{ color: COLORS.dark }}>{map_collection.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Collected</p>
+                    <p className="text-2xl font-bold" style={{ color: COLORS.success }}>
+                      {formatCurrency(map_collection.reduce((sum, map) => sum + safeParseFloat(map.collected_revenue), 0))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Pending</p>
+                    <p className="text-2xl font-bold" style={{ color: COLORS.warning }}>
+                      {formatCurrency(map_collection.reduce((sum, map) => sum + safeParseFloat(map.pending_amount), 0))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm" style={{ color: COLORS.secondary }}>Total Overdue</p>
+                    <p className="text-2xl font-bold" style={{ color: COLORS.danger }}>
+                      {formatCurrency(map_collection.reduce((sum, map) => sum + safeParseFloat(map.overdue_amount), 0))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8" style={{ color: COLORS.secondary }}>
+                <Map className="w-12 h-12 mx-auto mb-2" />
+                <p>No map collection data available for {selectedYear}</p>
+                <p className="text-sm mt-1">Collection data per map will appear here once recorded</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Top Performing Stalls Section */}
         <div className="bg-white border rounded-xl shadow-sm" style={{ borderColor: COLORS.secondary }}>
           <div className="p-6 border-b" style={{ borderColor: COLORS.secondary }}>
@@ -1032,6 +1237,66 @@ export default function MarketRPTDashboard() {
               </div>
             </div>
 
+            {/* Map Collection Chart - ADDED TO CHARTS SECTION */}
+            <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
+                  <Map className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Map Collection Performance {selectedYear}
+                </h3>
+                <button
+                  onClick={exportMapCollectionReport}
+                  disabled={exportLoading || map_collection.length === 0}
+                  className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
+                  style={{ color: COLORS.secondary }}
+                >
+                  Export
+                </button>
+              </div>
+              <div className="h-72">
+                {map_collection.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart 
+                      data={map_collection.map(m => ({
+                        name: m.map_name.length > 15 ? m.map_name.substring(0, 15) + '...' : m.map_name,
+                        collected: safeParseFloat(m.collected_revenue),
+                        pending: safeParseFloat(m.pending_amount),
+                        overdue: safeParseFloat(m.overdue_amount),
+                        collection_rate: safeParseFloat(m.collection_rate)
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="name" />
+                      <YAxis 
+                        tickFormatter={(value) => formatCurrency(value).replace('₱', '')}
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => {
+                          if (name === 'collection_rate') return [`${value.toFixed(1)}%`, 'Collection Rate'];
+                          return [formatCurrency(value), name.charAt(0).toUpperCase() + name.slice(1)];
+                        }}
+                        contentStyle={{ 
+                          backgroundColor: 'white',
+                          borderColor: COLORS.secondary,
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="collected" fill={COLORS.success} name="Collected" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="pending" fill={COLORS.warning} name="Pending" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="overdue" fill={COLORS.danger} name="Overdue" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full" style={{ color: COLORS.secondary }}>
+                    <Map className="w-12 h-12 mb-2" />
+                    <p>No map collection data available for {selectedYear}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Business Types Chart */}
             <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
@@ -1147,16 +1412,16 @@ export default function MarketRPTDashboard() {
               </div>
             </div>
 
-            {/* Payment Analysis Cards */}
+            {/* Map Collection Summary Cards - REPLACES PAYMENT ANALYSIS CARDS */}
             <div className="bg-white border rounded-xl p-6 shadow-sm" style={{ borderColor: COLORS.secondary }}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold flex items-center gap-2" style={{ color: COLORS.dark }}>
-                  <CreditCard className="w-5 h-5" style={{ color: COLORS.primary }} />
-                  Payment Analysis {selectedYear}
+                  <Map className="w-5 h-5" style={{ color: COLORS.primary }} />
+                  Map Collection Summary {selectedYear}
                 </h3>
                 <button
-                  onClick={exportCompleteDashboardReport}
-                  disabled={exportLoading || !payment_analysis}
+                  onClick={exportMapCollectionReport}
+                  disabled={exportLoading || map_collection.length === 0}
                   className="text-sm hover:text-gray-700 disabled:opacity-50 transition-all"
                   style={{ color: COLORS.secondary }}
                 >
@@ -1164,31 +1429,56 @@ export default function MarketRPTDashboard() {
                 </button>
               </div>
               <div className="space-y-4">
-                {paymentTimingData.map((item, index) => (
+                {map_collection.slice(0, 5).map((map, index) => (
                   <div key={index} 
-                       className="p-4 border rounded-lg transition-all hover:shadow-sm"
+                       className="p-4 border rounded-lg hover:bg-gray-50 transition-all"
                        style={{ borderColor: COLORS.secondary }}>
                     <div className="flex justify-between items-center mb-2">
-                      <span className={`font-medium ${
-                        item.payment_timing.includes('Early') ? 'text-green-700' :
-                        item.payment_timing.includes('On Time') ? 'text-blue-700' :
-                        'text-red-700'
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" style={{ color: COLORS.primary }} />
+                        <span className="font-medium" style={{ color: COLORS.dark }}>{map.map_name}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        safeParseFloat(map.collection_rate) >= 90 ? 'bg-green-100 text-green-800' :
+                        safeParseFloat(map.collection_rate) >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                       }`}>
-                        {item.payment_timing}
-                      </span>
-                      <span className="text-sm" style={{ color: COLORS.secondary }}>
-                        {safeParseFloat(item.count)} payments
+                        {formatPercent(map.collection_rate)}
                       </span>
                     </div>
-                    <p className={`text-2xl font-bold ${
-                      item.payment_timing.includes('Early') ? 'text-green-600' :
-                      item.payment_timing.includes('On Time') ? 'text-blue-600' :
-                      'text-red-600'
-                    }`}>
-                      {formatCurrency(item.amount)}
-                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-sm" style={{ color: COLORS.secondary }}>
+                      <div>
+                        <p className="font-medium text-xs">Collected</p>
+                        <p className="text-sm font-semibold" style={{ color: COLORS.success }}>
+                          {formatCurrency(map.collected_revenue)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-xs">Pending</p>
+                        <p className="text-sm font-semibold" style={{ color: COLORS.warning }}>
+                          {formatCurrency(map.pending_amount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-xs">Overdue</p>
+                        <p className="text-sm font-semibold" style={{ color: COLORS.danger }}>
+                          {formatCurrency(map.overdue_amount)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs">
+                      <span style={{ color: COLORS.secondary }}>Stalls: </span>
+                      <span className="font-medium">{formatNumber(map.occupied_stalls)}/{formatNumber(map.total_stalls)} occupied</span>
+                    </div>
                   </div>
                 ))}
+                
+                {map_collection.length === 0 && (
+                  <div className="text-center py-8" style={{ color: COLORS.secondary }}>
+                    <Map className="w-12 h-12 mx-auto mb-2" />
+                    <p>No map collection data available for {selectedYear}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

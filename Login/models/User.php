@@ -5,7 +5,7 @@ class User {
 
     public $id;
     public $email;
-    public $password_hash;
+    public $password_hash;  // This stores the FINAL hashed password
     public $first_name;
     public $last_name;
     public $middle_name;
@@ -94,7 +94,13 @@ class User {
     }
 
     // Create new user (with district)
-    public function create() {
+    public function create($plain_password = null) {
+        // Check if password is provided
+        if ($plain_password === null || $plain_password === '') {
+            error_log("User creation failed: Password cannot be empty");
+            return false;
+        }
+
         $query = "INSERT INTO " . $this->table_name . "
                 SET email=:email, 
                     password_hash=:password_hash, 
@@ -132,12 +138,13 @@ class User {
         $this->province = htmlspecialchars(strip_tags($this->province));
         $this->zip_code = htmlspecialchars(strip_tags($this->zip_code));
 
-        // Hash password
-        $this->password_hash = password_hash($this->password_hash, PASSWORD_DEFAULT);
+        // Hash the password - use the parameter, not the property
+        $hashed_password = password_hash($plain_password, PASSWORD_DEFAULT);
+        $this->password_hash = $hashed_password; // Store the hash in the property
 
         // Bind parameters
         $stmt->bindParam(":email", $this->email);
-        $stmt->bindParam(":password_hash", $this->password_hash);
+        $stmt->bindParam(":password_hash", $hashed_password); // Bind the variable, not the property
         $stmt->bindParam(":first_name", $this->first_name);
         $stmt->bindParam(":last_name", $this->last_name);
         $stmt->bindParam(":middle_name", $this->middle_name);
@@ -159,6 +166,15 @@ class User {
         
         error_log("User creation failed: " . implode(", ", $stmt->errorInfo()));
         return false;
+    }
+
+    // Set password method for backward compatibility
+    public function setPassword($password) {
+        if ($password === null || $password === '') {
+            throw new Exception('Password cannot be empty');
+        }
+        $this->password_hash = password_hash($password, PASSWORD_DEFAULT);
+        return $this;
     }
 
     // Activate account after OTP verification

@@ -96,7 +96,7 @@ if ($action === 'dashboard') {
             'revenue_stats' => [],
             'quarterly_analysis' => [],
             'top_stalls' => [],
-            'payment_analysis' => [],
+            'map_collection' => [], // REPLACED payment_analysis with map_collection
             'recent_activities' => [],
             'business_distribution' => [],
             'current_quarter' => getCurrentQuarter(),
@@ -132,8 +132,8 @@ if ($action === 'dashboard') {
         // 5. Top Stalls
         $response['top_stalls'] = getTopStalls($pdo, $year);
         
-        // 6. Payment Analysis
-        $response['payment_analysis'] = getPaymentAnalysis($pdo, $year);
+        // 6. Map Collection - REPLACES Payment Analysis
+        $response['map_collection'] = getMapCollection($pdo, $year);
         
         // 7. Recent Activities
         $response['recent_activities'] = getRecentActivities($pdo, $year);
@@ -313,10 +313,10 @@ function getRevenueStats($pdo, $year) {
             $target = $targetStmt ? (float)$targetStmt->fetchColumn() : 0;
             
             // Collected revenue
-            $collectedQuery = "SELECT COALESCE(SUM(amount_paid), 0) as collected 
-                              FROM market_payment_logs 
-                              WHERE YEAR(payment_date) = ?
-                              AND MONTH(payment_date) BETWEEN ? AND ?";
+            $collectedQuery = "SELECT COALESCE(SUM(mpl.amount_paid), 0) as collected 
+                              FROM market_payment_logs mpl
+                              WHERE YEAR(mpl.payment_date) = ?
+                              AND MONTH(mpl.payment_date) BETWEEN ? AND ?";
             $collectedStmt = $pdo->prepare($collectedQuery);
             $collectedStmt->execute([$year, $startMonth, $endMonth]);
             $collected = $collectedStmt ? (float)$collectedStmt->fetchColumn() : 0;
@@ -344,10 +344,10 @@ function getRevenueStats($pdo, $year) {
         $targetStmt = $pdo->query($query);
         $target = $targetStmt ? (float)$targetStmt->fetchColumn() : 0;
         
-        $collectedQuery = "SELECT COALESCE(SUM(amount_paid), 0) as current_quarter_collected 
-                          FROM market_payment_logs 
-                          WHERE YEAR(payment_date) = ?
-                          AND MONTH(payment_date) BETWEEN ? AND ?";
+        $collectedQuery = "SELECT COALESCE(SUM(mpl.amount_paid), 0) as current_quarter_collected 
+                          FROM market_payment_logs mpl
+                          WHERE YEAR(mpl.payment_date) = ?
+                          AND MONTH(mpl.payment_date) BETWEEN ? AND ?";
         $collectedStmt = $pdo->prepare($collectedQuery);
         $collectedStmt->execute([$year, $startMonth, $endMonth]);
         $collected = $collectedStmt ? (float)$collectedStmt->fetchColumn() : 0;
@@ -405,10 +405,10 @@ function getQuarterlyAnalysis($pdo, $year) {
             $target = $targetStmt ? (float)$targetStmt->fetchColumn() : 0;
             
             // Collected revenue
-            $collectedQuery = "SELECT COALESCE(SUM(amount_paid), 0) as collected 
-                              FROM market_payment_logs 
-                              WHERE YEAR(payment_date) = ?
-                              AND MONTH(payment_date) BETWEEN ? AND ?";
+            $collectedQuery = "SELECT COALESCE(SUM(mpl.amount_paid), 0) as collected 
+                              FROM market_payment_logs mpl
+                              WHERE YEAR(mpl.payment_date) = ?
+                              AND MONTH(mpl.payment_date) BETWEEN ? AND ?";
             $collectedStmt = $pdo->prepare($collectedQuery);
             $collectedStmt->execute([$year, $startMonth, $endMonth]);
             $collected = $collectedStmt ? (float)$collectedStmt->fetchColumn() : 0;
@@ -416,12 +416,12 @@ function getQuarterlyAnalysis($pdo, $year) {
             // Payment counts
             $paymentQuery = "SELECT 
                               COUNT(*) as total_payments,
-                              SUM(CASE WHEN DAY(payment_date) <= 10 THEN 1 ELSE 0 END) as early_payments,
-                              SUM(CASE WHEN DAY(payment_date) > 10 AND DAY(payment_date) <= 20 THEN 1 ELSE 0 END) as ontime_payments,
-                              SUM(CASE WHEN DAY(payment_date) > 20 THEN 1 ELSE 0 END) as late_payments
-                            FROM market_payment_logs 
-                            WHERE YEAR(payment_date) = ?
-                            AND MONTH(payment_date) BETWEEN ? AND ?";
+                              SUM(CASE WHEN DAY(mpl.payment_date) <= 10 THEN 1 ELSE 0 END) as early_payments,
+                              SUM(CASE WHEN DAY(mpl.payment_date) > 10 AND DAY(mpl.payment_date) <= 20 THEN 1 ELSE 0 END) as ontime_payments,
+                              SUM(CASE WHEN DAY(mpl.payment_date) > 20 THEN 1 ELSE 0 END) as late_payments
+                            FROM market_payment_logs mpl
+                            WHERE YEAR(mpl.payment_date) = ?
+                            AND MONTH(mpl.payment_date) BETWEEN ? AND ?";
             
             $paymentStmt = $pdo->prepare($paymentQuery);
             $paymentStmt->execute([$year, $startMonth, $endMonth]);
@@ -484,68 +484,77 @@ function getTopStalls($pdo, $year) {
     }
 }
 
-function getPaymentAnalysis($pdo, $year) {
-    $analysis = [
-        'payment_timing' => [],
-        'discount_penalty' => [],
-        'delinquency' => []
-    ];
+// NEW FUNCTION: Get Map Collection Data
+function getMapCollection($pdo, $year) {
+    $mapCollection = [];
     
     try {
-        // Payment timing analysis
         $query = "SELECT 
-                    CASE 
-                        WHEN DAY(payment_date) <= 10 THEN 'Early Payment (1-10)'
-                        WHEN DAY(payment_date) <= 20 THEN 'On Time (11-20)'
-                        ELSE 'Late Payment (21+)'
-                    END as payment_timing,
-                    COUNT(*) as count,
-                    SUM(amount_paid) as amount
-                  FROM market_payment_logs 
-                  WHERE YEAR(payment_date) = ?
-                  GROUP BY 
-                    CASE 
-                        WHEN DAY(payment_date) <= 10 THEN 'Early Payment (1-10)'
-                        WHEN DAY(payment_date) <= 20 THEN 'On Time (11-20)'
-                        ELSE 'Late Payment (21+)'
-                    END
-                  ORDER BY FIELD(payment_timing, 'Early Payment (1-10)', 'On Time (11-20)', 'Late Payment (21+)')";
+                    m.id as map_id,
+                    m.name as map_name,
+                    COUNT(DISTINCT s.id) as total_stalls,
+                    COUNT(DISTINCT CASE WHEN s.status = 'occupied' THEN s.id END) as occupied_stalls,
+                    COUNT(DISTINCT CASE WHEN s.status = 'available' THEN s.id END) as available_stalls,
+                    COALESCE(SUM(CASE 
+                        WHEN mrb.payment_status = 'paid' 
+                        AND YEAR(mrb.payment_date) = ? 
+                        THEN mrb.total_amount_due 
+                        ELSE 0 
+                    END), 0) as collected_revenue,
+                    COALESCE(SUM(CASE 
+                        WHEN mrb.payment_status = 'pending' 
+                        AND YEAR(mrb.due_date) = ? 
+                        THEN mrb.total_amount_due 
+                        ELSE 0 
+                    END), 0) as pending_amount,
+                    COALESCE(SUM(CASE 
+                        WHEN mrb.payment_status = 'overdue' 
+                        AND YEAR(mrb.due_date) = ? 
+                        THEN mrb.total_amount_due 
+                        ELSE 0 
+                    END), 0) as overdue_amount,
+                    COUNT(DISTINCT CASE 
+                        WHEN mrb.payment_status = 'pending' 
+                        AND YEAR(mrb.due_date) = ? 
+                        THEN mrb.id 
+                    END) as pending_payments,
+                    COALESCE(SUM(CASE 
+                        WHEN s.status = 'occupied' AND rs.status = 'active'
+                        THEN s.price 
+                        ELSE 0 
+                    END * 12), 0) as total_potential
+                  FROM maps m
+                  LEFT JOIN stalls s ON m.id = s.map_id
+                  LEFT JOIN rent_stall rs ON s.id = rs.stall_id AND rs.status = 'active'
+                  LEFT JOIN rent_totals rt ON rs.id = rt.rent_stall_id
+                  LEFT JOIN monthly_rent_billing mrb ON rt.id = mrb.rent_total_id 
+                      AND YEAR(mrb.due_date) = ?
+                  GROUP BY m.id, m.name
+                  ORDER BY m.name";
         
         $stmt = $pdo->prepare($query);
-        $stmt->execute([$year]);
-        if ($stmt) {
-            $analysis['payment_timing'] = $stmt->fetchAll() ?: [];
-        }
+        $stmt->execute([$year, $year, $year, $year, $year]);
+        $mapCollection = $stmt->fetchAll() ?: [];
         
-        // Discount vs penalty analysis
-        $query = "SELECT 
-                    COALESCE(SUM(mrb.discount_amount), 0) as total_discounts_given,
-                    COALESCE(SUM(mrb.penalty_amount), 0) as total_penalties_collected,
-                    COUNT(CASE WHEN mrb.discount_amount > 0 THEN 1 END) as discount_count,
-                    COUNT(CASE WHEN mrb.penalty_amount > 0 THEN 1 END) as penalty_count
-                  FROM monthly_rent_billing mrb
-                  WHERE YEAR(mrb.due_date) = ?
-                  AND mrb.payment_status = 'paid'";
-        
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$year]);
-        if ($stmt) {
-            $row = $stmt->fetch();
-            if ($row) {
-                $analysis['discount_penalty'] = [
-                    'total_discounts_given' => (float)$row['total_discounts_given'],
-                    'total_penalties_collected' => (float)$row['total_penalties_collected'],
-                    'discount_count' => (int)$row['discount_count'],
-                    'penalty_count' => (int)$row['penalty_count']
-                ];
-            }
+        // Calculate collection rates for each map
+        foreach ($mapCollection as &$map) {
+            $totalPotential = (float)($map['total_potential'] ?? 0);
+            $collectedRevenue = (float)($map['collected_revenue'] ?? 0);
+            
+            $map['collection_rate'] = $totalPotential > 0 
+                ? round(($collectedRevenue / $totalPotential) * 100, 1) 
+                : 0;
+            $map['total_stalls'] = (int)($map['total_stalls'] ?? 0);
+            $map['occupied_stalls'] = (int)($map['occupied_stalls'] ?? 0);
+            $map['available_stalls'] = (int)($map['available_stalls'] ?? 0);
+            $map['pending_payments'] = (int)($map['pending_payments'] ?? 0);
         }
         
     } catch (Exception $e) {
-        error_log("Payment analysis error: " . $e->getMessage());
+        error_log("Map collection error: " . $e->getMessage());
     }
     
-    return $analysis;
+    return $mapCollection;
 }
 
 function getRecentActivities($pdo, $year) {
