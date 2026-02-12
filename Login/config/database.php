@@ -9,7 +9,6 @@ class Database {
     public $conn;
 
     public function __construct() {
-        // Get configuration based on environment
         $config = $this->getConfig();
         
         $this->host = $config['host'];
@@ -20,30 +19,44 @@ class Database {
     }
 
     private function getConfig() {
-        // Check if we're on production (domain) or localhost
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         
-        // For your domain
-        $isProduction = $host === 'revenuetreasury.goserveph.com' || 
-                       $host === 'www.revenuetreasury.goserveph.com';
-        
-        if ($isProduction) {
-            // PRODUCTION SETTINGS (Domain)
+        // ============================================
+        // PRODUCTION - DOMAIN SETUP (goserveph.com)
+        // ============================================
+        if (strpos($host, 'goserveph.com') !== false) {
             return [
                 'host' => 'localhost',
-                'port' => 3306,  // Production usually uses default port
+                'port' => 3306,
                 'dbname' => 'reve_users',
                 'user' => 'reve_users',
                 'pass' => 'sr7ExFuyk@h-9#bh'
             ];
-        } else {
-            // LOCALHOST SETTINGS (XAMPP)
+        }
+        
+        // ============================================
+        // PHYSICAL SERVER (192.168.1.10)
+        // ============================================
+        else if ($host === '192.168.1.10' || $host === '192.168.1.10:80') {
             return [
                 'host' => 'localhost',
-                'port' => 3307,  // XAMPP default port
-                'dbname' => 'users',
-                'user' => 'root',  // XAMPP default user
-                'pass' => ''       // XAMPP default password (empty)
+                'port' => 3306,  // Physical server MySQL port
+                'dbname' => 'reve_users',  // Your production DB name
+                'user' => 'reve_users',     // Your production username
+                'pass' => 'sr7ExFuyk@h-9#bh' // Your production password
+            ];
+        }
+        
+        // ============================================
+        // LOCALHOST (127.0.0.1, localhost) - YOUR XAMPP WITH PORT 3307
+        // ============================================
+        else {
+            return [
+                'host' => 'localhost',
+                'port' => 3307,  // ✅ YOUR LOCAL MySQL port is 3307
+                'dbname' => 'reve_users', // Use same DB name everywhere
+                'user' => 'root',
+                'pass' => ''  // XAMPP default password is empty
             ];
         }
     }
@@ -63,18 +76,19 @@ class Database {
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             $this->conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
             
-            // Log successful connection (for debugging)
+            // Log successful connection
             error_log("✅ Database connected to: " . $this->db_name . 
                      " on " . $this->host . ":" . $this->port);
             
         } catch(PDOException $exception) {
-            // Log the error but don't expose details
+            // Log the error
             $error_msg = "Database connection failed: " . $exception->getMessage();
             error_log($error_msg);
             
-            // For debugging on localhost, you can see the error
+            // Show error only on localhost for debugging
             if ($_SERVER['HTTP_HOST'] === 'localhost' || 
-                $_SERVER['HTTP_HOST'] === '127.0.0.1') {
+                $_SERVER['HTTP_HOST'] === '127.0.0.1' ||
+                $_SERVER['HTTP_HOST'] === '192.168.1.10') {
                 echo "<script>console.error('Database Error: " . addslashes($exception->getMessage()) . "')</script>";
             }
         }
@@ -82,10 +96,11 @@ class Database {
         return $this->conn;
     }
 
-    // Helper method to check if database exists
+    /**
+     * Check if database exists
+     */
     public function checkDatabaseExists() {
         try {
-            // Try to connect to MySQL server without database
             $dsn = "mysql:host=" . $this->host . ";port=" . $this->port;
             $temp_conn = new PDO($dsn, $this->username, $this->password);
             $temp_conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -99,7 +114,9 @@ class Database {
         }
     }
 
-    // Helper method to create database if it doesn't exist
+    /**
+     * Create database if it doesn't exist
+     */
     public function createDatabaseIfNotExists() {
         if (!$this->checkDatabaseExists()) {
             try {
