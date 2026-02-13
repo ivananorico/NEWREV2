@@ -34,6 +34,12 @@ export default function Anomaly() {
     market: {}
   });
 
+  // FIXED: API Base URL for both localhost and production
+  const isProduction = window.location.hostname.includes('goserveph.com');
+  const API_BASE = isProduction 
+    ? "/revenue2/backend/Treasury"
+    : "http://localhost/revenue2/backend/Treasury";
+
   // Color palette
   const colors = {
     primary: '#2c7da0',      // Teal blue - RPT
@@ -61,14 +67,16 @@ export default function Anomaly() {
       let url = '';
       
       if (activeSystem === 'rpt') {
-        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=rpt&action=detect';
+        url = `${API_BASE}/anomaly_detection.php?system=rpt&action=detect`;
       } else if (activeSystem === 'business') {
-        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=business&action=detect';
+        url = `${API_BASE}/anomaly_detection.php?system=business&action=detect`;
       } else if (activeSystem === 'market') {
-        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=market&action=detect';
+        url = `${API_BASE}/anomaly_detection.php?system=market&action=detect`;
       } else if (activeSystem === 'all') {
-        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=all&action=detect';
+        url = `${API_BASE}/anomaly_detection.php?system=all&action=detect`;
       }
+      
+      console.log('Fetching from:', url); // Debug log
       
       const response = await fetch(url);
       const data = await response.json();
@@ -435,12 +443,11 @@ export default function Anomaly() {
     );
   };
 
-  // Render Market Rent Content - FULLY ENABLED
+  // Render Market Rent Content
   const renderMarketContent = () => {
     const stats = systemStats.market || {};
     return (
       <>
-        {/* Monthly Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg border p-4">
             <div className="flex items-center justify-between mb-2">
@@ -505,7 +512,6 @@ export default function Anomaly() {
           </div>
         </div>
 
-        {/* Top Late Barangays */}
         {stats.top_late_barangays?.length > 0 && (
           <div className="mb-6 p-4 bg-white rounded-lg border">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -525,7 +531,6 @@ export default function Anomaly() {
           </div>
         )}
 
-        {/* Stall Class Performance */}
         {stats.stall_classes?.length > 0 && (
           <div className="mb-6 p-4 bg-white rounded-lg border">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
