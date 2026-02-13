@@ -317,6 +317,15 @@ $current_month_name = date('F');
             border-radius: 6px;
             font-weight: 500;
         }
+
+        /* Annual paid banner */
+        .annual-paid-banner {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -423,42 +432,7 @@ $current_month_name = date('F');
                 echo '<div class="space-y-6">';
                 
                 foreach ($stalls as $stall) {
-                    // Get monthly rent billing
-                    $billingQuery = "
-                        SELECT 
-                            mrb.*,
-                            DATE_FORMAT(mrb.due_date, '%M %d, %Y') as formatted_due_date
-                        FROM monthly_rent_billing mrb
-                        WHERE mrb.rent_total_id = :rent_total_id
-                        ORDER BY mrb.billing_year, mrb.billing_month
-                    ";
-                    
-                    $billingStmt = $pdo->prepare($billingQuery);
-                    $billingStmt->bindParam(':rent_total_id', $stall['rent_total_id'], PDO::PARAM_INT);
-                    $billingStmt->execute();
-                    $monthly_bills = $billingStmt->fetchAll(PDO::FETCH_ASSOC);
-                    
-                    // Calculate statistics
-                    $paidMonths = 0;
-                    $overdueMonths = 0;
-                    $pendingMonths = 0;
-                    $totalPenalty = 0;
-                    $totalRent = 0;
-                    
-                    foreach ($monthly_bills as $bill) {
-                        $totalRent += $bill['base_rent'] ?? 0;
-                        $totalPenalty += ($bill['penalty_amount'] ?? 0);
-                        
-                        if ($bill['payment_status'] == 'paid') {
-                            $paidMonths++;
-                        } elseif ($bill['payment_status'] == 'overdue') {
-                            $overdueMonths++;
-                        } else {
-                            $pendingMonths++;
-                        }
-                    }
-                    
-                    // Check annual payment
+                    // Check annual payment FIRST - before monthly bills
                     $annual_payment_query = "
                         SELECT 
                             ap.*,
@@ -477,9 +451,66 @@ $current_month_name = date('F');
                     ]);
                     $annualPayment = $annual_stmt->fetch(PDO::FETCH_ASSOC);
                     
+                    // Determine if annual is paid
+                    $isAnnualPaid = ($annualPayment && $annualPayment['payment_status'] == 'paid');
+                    
+                    // Only get monthly bills if annual is NOT paid
+                    $monthly_bills = [];
+                    $paidMonths = 0;
+                    $overdueMonths = 0;
+                    $pendingMonths = 0;
+                    $totalPenalty = 0;
+                    $totalRent = 0;
+                    
+                    if (!$isAnnualPaid) {
+                        $billingQuery = "
+                            SELECT 
+                                mrb.*,
+                                DATE_FORMAT(mrb.due_date, '%M %d, %Y') as formatted_due_date
+                            FROM monthly_rent_billing mrb
+                            WHERE mrb.rent_total_id = :rent_total_id
+                            ORDER BY mrb.billing_year, mrb.billing_month
+                        ";
+                        
+                        $billingStmt = $pdo->prepare($billingQuery);
+                        $billingStmt->bindParam(':rent_total_id', $stall['rent_total_id'], PDO::PARAM_INT);
+                        $billingStmt->execute();
+                        $monthly_bills = $billingStmt->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        foreach ($monthly_bills as $bill) {
+                            $totalRent += $bill['base_rent'] ?? 0;
+                            $totalPenalty += ($bill['penalty_amount'] ?? 0);
+                            
+                            if ($bill['payment_status'] == 'paid') {
+                                $paidMonths++;
+                            } elseif ($bill['payment_status'] == 'overdue') {
+                                $overdueMonths++;
+                            } else {
+                                $pendingMonths++;
+                            }
+                        }
+                    }
+                    
                     echo '
                     <!-- Stall Card -->
-                    <div class="simple-card">
+                    <div class="simple-card">';
+                    
+                    // Show annual paid banner if applicable
+                    if ($isAnnualPaid) {
+                        echo '
+                        <!-- Annual Paid Banner -->
+                        <div class="annual-paid-banner">
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-2xl mr-3"></i>
+                                <div>
+                                    <h3 class="font-bold text-lg">Annual Payment Completed for ' . $current_year . '</h3>
+                                    <p class="text-green-100 text-sm">You have paid your annual rent. All monthly bills for this year are covered.</p>
+                                </div>
+                            </div>
+                        </div>';
+                    }
+                    
+                    echo '
                         <!-- Stall Header -->
                         <div class="p-6 border-b border-gray-100">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -503,8 +534,8 @@ $current_month_name = date('F');
                             </div>
                         </div>';
                         
-                        // Annual Payment Option
-                        if ($annualPayment) {
+                        // Annual Payment Option - Only show if NOT paid yet
+                        if ($annualPayment && !$isAnnualPaid) {
                             $showDiscount = ($is_january && $discount_rate > 0);
                             echo '
                         <div class="p-6 border-b border-gray-100 ' . ($showDiscount ? 'bg-green-50' : '') . '">
@@ -550,34 +581,42 @@ $current_month_name = date('F');
                                         echo '
                                     </div>';
                                     
-                                    if ($annualPayment['payment_status'] == 'paid') {
-                                        echo '
-                                        <div class="paid-indicator">
-                                            <i class="fas fa-check-circle"></i>
-                                            Paid
-                                        </div>';
-                                    } else {
-                                        $purpose_text = 'MARKET ANNUAL ' . $current_year . ' - ' . $stall['business_name'];
-                                        $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
-                                        
-                                        echo '
-                                        <form method="POST" 
-                                              action="../../digital/index.php" 
-                                              target="_blank">
-                                            <input type="hidden" name="system" value="market_rent">
-                                            <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['reference_number'] . '">
-                                            <input type="hidden" name="amount" value="' . $annualPayment['final_amount'] . '">
-                                            <input type="hidden" name="purpose" value="' . $purpose_text . '">
-                                            <input type="hidden" name="callback" value="' . $market_callback_url . '">
-                                            <input type="hidden" name="registration_id" value="' . $stall['registration_id'] . '">
-                                            
-                                            <button type="submit" 
-                                                    class="btn btn-success">
-                                                <i class="fas fa-external-link-alt mr-2"></i> Pay Annual
-                                            </button>
-                                        </form>';
-                                    }
+                                    $purpose_text = 'MARKET ANNUAL ' . $current_year . ' - ' . $stall['business_name'];
+                                    $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
+                                    
                                     echo '
+                                    <form method="POST" 
+                                          action="../../digital/index.php" 
+                                          target="_blank">
+                                        <input type="hidden" name="system" value="market_rent">
+                                        <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['reference_number'] . '">
+                                        <input type="hidden" name="amount" value="' . $annualPayment['final_amount'] . '">
+                                        <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                        <input type="hidden" name="callback" value="' . $market_callback_url . '">
+                                        <input type="hidden" name="registration_id" value="' . $stall['registration_id'] . '">
+                                        
+                                        <button type="submit" 
+                                                class="btn btn-success">
+                                            <i class="fas fa-external-link-alt mr-2"></i> Pay Annual
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>';
+                        } elseif ($isAnnualPaid) {
+                            // Show that annual is already paid
+                            echo '
+                        <div class="p-6 border-b border-gray-100 bg-green-50">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="font-medium text-gray-900">
+                                        <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                                        Annual Payment ' . $current_year . '
+                                    </h4>
+                                    <p class="text-sm text-gray-600 mt-1">You have already paid your annual rent for this year.</p>
+                                </div>
+                                <div class="paid-indicator">
+                                    <i class="fas fa-check-circle mr-2"></i> Paid
                                 </div>
                             </div>
                         </div>';
@@ -585,7 +624,22 @@ $current_month_name = date('F');
                         
                         echo '
                         <!-- Monthly Payments -->
-                        <div class="p-6">
+                        <div class="p-6">';
+                        
+                        if ($isAnnualPaid) {
+                            // Show simplified view for annual paid
+                            echo '
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                                <i class="fas fa-check-circle text-green-600 text-4xl mb-3"></i>
+                                <h4 class="font-semibold text-gray-800 text-lg mb-2">All Monthly Payments Covered</h4>
+                                <p class="text-gray-600 mb-4">Your annual payment for ' . $current_year . ' has been completed. No further payments are needed for this year.</p>
+                                <div class="text-sm text-gray-500">
+                                    <i class="fas fa-calendar-alt mr-1"></i> Payment covers January - December ' . $current_year . '
+                                </div>
+                            </div>';
+                        } else {
+                            // Show monthly bills table
+                            echo '
                             <h4 class="section-title">
                                 <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
                                 Monthly Rent Payments
@@ -749,7 +803,8 @@ $current_month_name = date('F');
                                 </table>
                             </div>';
                             }
-                            echo '
+                        }
+                        echo '
                         </div>
                     </div>';
                 }

@@ -1,5 +1,5 @@
 <?php
-// citizen_details.php
+// revenue2/backend/Market/MarketStatus/citizen_details.php
 header('Content-Type: application/json');
 
 // CORS headers

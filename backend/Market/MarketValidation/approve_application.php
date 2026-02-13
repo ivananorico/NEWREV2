@@ -115,12 +115,7 @@ try {
     $start = new DateTime($start_date);
     $end = new DateTime($end_date);
     $interval = $start->diff($end);
-    $total_months = ($interval->y * 12) + $interval->m;
-    
-    // Add one month if there are any days
-    if ($interval->d > 0 || $interval->m > 0 || $interval->y > 0) {
-        $total_months += 1;
-    }
+    $total_months = ($interval->y * 12) + $interval->m + 1; // +1 to include both start and end months
     
     // Calculate monthly_totals (monthly rent × number of months)
     $monthly_totals = $monthly_rent * $total_months;
@@ -195,7 +190,7 @@ try {
         $total_annual_amount += $monthly_rent;
     }
     
-    // 5. CREATE ANNUAL PAYMENT RECORD
+    // 5. CREATE ANNUAL PAYMENT RECORD (WITH PENDING STATUS)
     // Generate annual reference number
     $annual_reference = 'ANNUAL-' . date('Ymd-His') . '-' . $app_id;
     
@@ -229,17 +224,15 @@ try {
     // Calculate final amount after discount
     $final_annual_amount = $total_annual_amount - $discount_amount;
     
-    // Insert into market_annual_payments
+    // Insert into market_annual_payments - CHANGED STATUS TO 'pending'
     $sql = "INSERT INTO market_annual_payments (
             reference_number, property_total_id, registration_id, payment_year,
-            base_amount, discount_percent, discount_amount, final_amount,
-            payment_status, payment_date, receipt_number, transaction_id,
-            status
+            base_amount, penalty_amount, discount_percent, discount_amount, final_amount,
+            payment_status, status
         ) VALUES (
             :reference, :property_total_id, :registration_id, :payment_year,
-            :base_amount, :discount_percent, :discount_amount, :final_amount,
-            'paid', CURDATE(), :receipt_number, :transaction_id,
-            'active'
+            :base_amount, 0.00, :discount_percent, :discount_amount, :final_amount,
+            'pending', 'active'
         )";
     
     $stmt = $pdo->prepare($sql);
@@ -251,9 +244,7 @@ try {
         ':base_amount' => $total_annual_amount,
         ':discount_percent' => $discount_percent,
         ':discount_amount' => $discount_amount,
-        ':final_amount' => $final_annual_amount,
-        ':receipt_number' => $payment_reference, // Use the original payment reference
-        ':transaction_id' => $annual_reference // Use annual reference as transaction ID
+        ':final_amount' => $final_annual_amount
     ]);
     
     $annual_payment_id = $pdo->lastInsertId();
@@ -289,6 +280,7 @@ try {
             'rent_total_id' => $rent_total_id,
             'annual_payment_id' => $annual_payment_id,
             'annual_reference' => $annual_reference,
+            'annual_status' => 'pending', // Added this to show it's pending
             'monthly_rent' => $monthly_rent,
             'monthly_totals' => $monthly_totals,
             'total_months' => $total_months,

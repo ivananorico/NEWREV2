@@ -13,18 +13,17 @@ const MarketValidationInfo = () => {
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
   
   // Form states
   const [interviewer, setInterviewer] = useState("");
   const [interviewDate, setInterviewDate] = useState("");
-  const [interviewNotes, setInterviewNotes] = useState("");
   const [rejectionNotes, setRejectionNotes] = useState("");
   const [correctionNotes, setCorrectionNotes] = useState("");
-  const [paymentReference, setPaymentReference] = useState("");
-  const [paymentNotes, setPaymentNotes] = useState("");
-  const [approvalNotes, setApprovalNotes] = useState("");
+  
+  // Interviewer list - RPT Style
+  const [interviewers, setInterviewers] = useState([]);
+  const [loadingInterviewers, setLoadingInterviewers] = useState(false);
   
   const [actionLoading, setActionLoading] = useState(false);
   const [showDocumentPreview, setShowDocumentPreview] = useState(null);
@@ -86,6 +85,44 @@ const MarketValidationInfo = () => {
       // Assume it's a relative path, prepend with base URL
       const API_BASE = getApiBaseUrl();
       return `${API_BASE}/${filePath.replace(/^\//, '')}`;
+    }
+  };
+
+  // Fetch interviewers list - RPT Style
+  const fetchInterviewers = async () => {
+    setLoadingInterviewers(true);
+    try {
+      const API_BASE = getApiBaseUrl();
+      const url = `${API_BASE}/Market/MarketValidation/get_interviewers.php`;
+      
+      console.log("Fetching interviewers from:", url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Interviewers response:", data);
+      
+      if (data.status === 'success') {
+        setInterviewers(data.data || []);
+      } else {
+        console.error("Failed to fetch interviewers:", data.message);
+        setInterviewers([]);
+      }
+    } catch (err) {
+      console.error("Error fetching interviewers:", err);
+      setInterviewers([]);
+    } finally {
+      setLoadingInterviewers(false);
     }
   };
 
@@ -169,26 +206,28 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Handle Schedule Interview
+  // Handle Schedule Interview - RPT Style
   const handleScheduleInterview = async () => {
-    if (!interviewer.trim()) {
-      alert("Please enter interviewer name");
+    if (!interviewer) {
+      alert("Please select an interviewer");
       return;
     }
     
     try {
+      // Find the selected interviewer's name
+      const selectedInterviewer = interviewers.find(i => i.id.toString() === interviewer.toString());
+      const interviewerName = selectedInterviewer ? selectedInterviewer.name : interviewer;
+      
       await callApi("set_interview.php", {
         application_id: parseInt(application.id),
-        interviewer: interviewer,
-        interview_date: interviewDate || new Date().toISOString().slice(0, 16).replace('T', ' '),
-        interview_notes: interviewNotes || ""
+        interviewer: interviewerName,
+        interview_date: interviewDate || new Date().toISOString().slice(0, 16).replace('T', ' ')
       });
       
       alert("Interview scheduled!");
       setShowInterviewModal(false);
       setInterviewer("");
       setInterviewDate("");
-      setInterviewNotes("");
       fetchData();
     } catch (error) {
       alert("Failed to schedule interview: " + error.message);
@@ -267,41 +306,15 @@ const MarketValidationInfo = () => {
     }
   };
 
-  // Handle Mark as Paid
-  const handleMarkAsPaid = async () => {
-    if (!paymentReference.trim()) {
-      alert("Please enter payment reference");
-      return;
-    }
-    
-    try {
-      await callApi("mark_as_paid.php", {
-        application_id: parseInt(application.id),
-        reference_number: paymentReference,
-        payment_notes: paymentNotes || ""
-      });
-      
-      alert("Payment recorded!");
-      setShowPaymentModal(false);
-      setPaymentReference("");
-      setPaymentNotes("");
-      fetchData();
-    } catch (error) {
-      alert("Failed to record payment: " + error.message);
-    }
-  };
-
-  // Handle Approve
+  // Handle Approve - No notes
   const handleApprove = async () => {
     try {
       await callApi("approve_application.php", {
-        application_id: parseInt(application.id),
-        approval_notes: approvalNotes || ""
+        application_id: parseInt(application.id)
       });
       
       alert("Application approved!");
       setShowApproveModal(false);
-      setApprovalNotes("");
       fetchData();
     } catch (error) {
       alert("Failed to approve application: " + error.message);
@@ -341,6 +354,24 @@ const MarketValidationInfo = () => {
     console.log('Generated URL for preview:', url);
     setPreviewUrl(url);
     setShowDocumentPreview(docType);
+  };
+
+  // Handle reset to pending (for interview_scheduled status)
+  const handleResetToPending = async () => {
+    if (!window.confirm("Are you sure you want to reset this application to pending status?")) {
+      return;
+    }
+    
+    try {
+      await callApi("reset_to_pending.php", {
+        application_id: parseInt(application.id)
+      });
+      
+      alert("Application reset to pending!");
+      fetchData();
+    } catch (error) {
+      alert("Failed to reset to pending: " + error.message);
+    }
   };
 
   useEffect(() => {
@@ -472,7 +503,10 @@ const MarketValidationInfo = () => {
         return (
           <div className="space-y-3">
             <button
-              onClick={() => setShowInterviewModal(true)}
+              onClick={() => {
+                fetchInterviewers(); // Refresh interviewers list when opening modal
+                setShowInterviewModal(true);
+              }}
               disabled={actionLoading}
               className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow"
             >
@@ -552,7 +586,7 @@ const MarketValidationInfo = () => {
           </div>
         );
       
-      // PAYING: Can mark as paid, needs correction, or reject
+      // PAYING: No actions available - just show amount due
       case 'paying':
         return (
           <div className="space-y-3">
@@ -560,30 +594,9 @@ const MarketValidationInfo = () => {
               <p className="text-sm font-medium text-amber-800 mb-1">Waiting for Payment</p>
               <p className="text-xl font-bold text-blue-700">{formatCurrency(application.total_amount_due)}</p>
             </div>
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow"
-            >
-              <i className="fas fa-money-bill-wave"></i>
-              Mark as Paid
-            </button>
-            <button
-              onClick={() => setShowCorrectionModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow"
-            >
-              <i className="fas fa-edit"></i>
-              Needs Correction
-            </button>
-            <button
-              onClick={() => setShowRejectModal(true)}
-              disabled={actionLoading}
-              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow"
-            >
-              <i className="fas fa-times-circle"></i>
-              Reject Application
-            </button>
+            <div className="text-center py-2">
+              <p className="text-gray-500 text-sm">No actions available while waiting for payment</p>
+            </div>
           </div>
         );
       
@@ -646,7 +659,10 @@ const MarketValidationInfo = () => {
         return (
           <div className="space-y-3">
             <button
-              onClick={() => setShowInterviewModal(true)}
+              onClick={() => {
+                fetchInterviewers();
+                setShowInterviewModal(true);
+              }}
               disabled={actionLoading}
               className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow"
             >
@@ -679,24 +695,6 @@ const MarketValidationInfo = () => {
             <p className="text-gray-500 text-sm">No actions available</p>
           </div>
         );
-    }
-  };
-
-  // Handle reset to pending (for interview_scheduled status)
-  const handleResetToPending = async () => {
-    if (!window.confirm("Are you sure you want to reset this application to pending status?")) {
-      return;
-    }
-    
-    try {
-      await callApi("reset_to_pending.php", {
-        application_id: parseInt(application.id)
-      });
-      
-      alert("Application reset to pending!");
-      fetchData();
-    } catch (error) {
-      alert("Failed to reset to pending: " + error.message);
     }
   };
 
@@ -973,14 +971,6 @@ const MarketValidationInfo = () => {
                       <p className="font-medium text-gray-900">{application.interviewer || 'N/A'}</p>
                     </div>
                   </div>
-                  {application.interview_notes && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Interview Notes</label>
-                      <div className="mt-1 p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-700">
-                        {application.interview_notes}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1309,7 +1299,7 @@ const MarketValidationInfo = () => {
         </div>
       )}
 
-      {/* Schedule Interview Modal */}
+      {/* Schedule Interview Modal - RPT Style */}
       {showInterviewModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
@@ -1327,16 +1317,36 @@ const MarketValidationInfo = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Interviewer Name *
+                    Select Interviewer *
                   </label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={interviewer}
                     onChange={(e) => setInterviewer(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter interviewer name"
                     required
-                  />
+                  >
+                    <option value="">-- Select Interviewer --</option>
+                    {loadingInterviewers ? (
+                      <option value="" disabled>Loading interviewers...</option>
+                    ) : (
+                      interviewers.map((interviewerItem) => (
+                        <option 
+                          key={interviewerItem.id} 
+                          value={interviewerItem.id}
+                          disabled={interviewerItem.status === 'not_available'}
+                          className={interviewerItem.status === 'not_available' ? 'text-gray-400' : ''}
+                        >
+                          {interviewerItem.name} 
+                          {interviewerItem.status === 'available' 
+                            ? ' ✓' 
+                            : ' (Not Available)'}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {interviewers.length === 0 && !loadingInterviewers && (
+                    <p className="text-sm text-red-500 mt-2">No interviewers available. Please add interviewers first.</p>
+                  )}
                 </div>
                 
                 <div>
@@ -1352,18 +1362,6 @@ const MarketValidationInfo = () => {
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Interview Notes (Optional)
-                  </label>
-                  <textarea 
-                    value={interviewNotes}
-                    onChange={(e) => setInterviewNotes(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-28"
-                    placeholder="Enter any notes for the interview..."
-                  />
-                </div>
-                
                 <div className="flex gap-3 pt-4">
                   <button 
                     onClick={() => setShowInterviewModal(false)} 
@@ -1374,76 +1372,10 @@ const MarketValidationInfo = () => {
                   </button>
                   <button 
                     onClick={handleScheduleInterview} 
-                    disabled={actionLoading || !interviewer.trim() || !interviewDate}
+                    disabled={actionLoading || !interviewer || !interviewDate || interviewers.length === 0}
                     className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200"
                   >
                     {actionLoading ? 'Processing...' : 'Schedule Interview'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg text-gray-900">Record Payment</h3>
-                <button 
-                  onClick={() => setShowPaymentModal(false)} 
-                  className="text-gray-400 hover:text-gray-600 text-xl"
-                  disabled={actionLoading}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="font-semibold text-green-800 mb-1">Payment Amount</p>
-                  <p className="text-2xl font-bold text-green-700">{formatCurrency(application.total_amount_due)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Payment Reference Number *
-                  </label>
-                  <input 
-                    type="text" 
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter payment reference number"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Payment Notes (Optional)
-                  </label>
-                  <textarea 
-                    value={paymentNotes}
-                    onChange={(e) => setPaymentNotes(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-24"
-                    placeholder="Enter any payment notes..."
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    onClick={() => setShowPaymentModal(false)} 
-                    disabled={actionLoading}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleMarkAsPaid} 
-                    disabled={actionLoading || !paymentReference.trim()}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-medium disabled:opacity-50 transition-all duration-200"
-                  >
-                    {actionLoading ? 'Processing...' : 'Mark as Paid'}
                   </button>
                 </div>
               </div>
@@ -1502,7 +1434,7 @@ const MarketValidationInfo = () => {
         </div>
       )}
 
-      {/* Approve Modal */}
+      {/* Approve Modal - No notes */}
       {showApproveModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
@@ -1531,21 +1463,13 @@ const MarketValidationInfo = () => {
                     </p>
                     <p className="flex items-center gap-2">
                       <i className="fas fa-money-check text-emerald-600"></i>
-                      <span>Payment: <strong>{formatCurrency(application.total_amount_due)}</strong> (Paid)</span>
+                      <span>Payment: <strong>{formatCurrency(application.total_amount_due)}</strong></span>
                     </p>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">
-                    Approval Notes (Optional)
-                  </label>
-                  <textarea 
-                    value={approvalNotes}
-                    onChange={(e) => setApprovalNotes(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-24"
-                    placeholder="Enter any approval notes..."
-                  />
-                </div>
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to approve this application?
+                </p>
                 <div className="flex gap-3 pt-4">
                   <button 
                     onClick={() => setShowApproveModal(false)} 
