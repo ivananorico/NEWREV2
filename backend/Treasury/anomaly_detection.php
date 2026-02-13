@@ -10,7 +10,7 @@ class AnomalyDetection {
         $this->thresholds = [
             'business' => [
                 'payment_spike' => 50, // 50% increase
-                'payment_drop' => 40,  // 40% decrease
+                'payment_drop' => 40,  // 40% adecrease
                 'application_spike' => 60,
                 'application_drop' => 50
             ],
