@@ -26,9 +26,16 @@ import ProfileCard from './ProfileCard'
 
 // Environment-based URL configuration
 const isProduction = window.location.hostname.includes('goserveph.com');
+
+// Logout URLs
 const LOGOUT_URL = isProduction 
-  ? "/index.php"  // Production domain - root path
-  : "http://localhost/revenue2/index.php"; // Local development
+  ? "/index.php"  // Production domain - root path (public_html)
+  : "http://localhost/revenue2/index.php"; // Local development - your PHP backend
+
+// Avatar URL - construct dynamically based on environment
+const AVATAR_URL = isProduction 
+  ? "/admin.jpg"  // Production - root directory (public_html)
+  : "/admin.jpg"; // Local - React dev server serves from public folder at root
 
 // Map module IDs to specific icons
 const moduleIcons = {
@@ -72,6 +79,7 @@ function Sidebar({ collapsed }) {
   const navigate = useNavigate()
   const [expandedItem, setExpandedItem] = React.useState(new Set())
   const [hoveredItem, setHoveredItem] = React.useState(null)
+  const [imageError, setImageError] = React.useState(false)
 
   React.useEffect(() => {
     const newExpanded = new Set()
@@ -114,6 +122,13 @@ function Sidebar({ collapsed }) {
     window.location.href = LOGOUT_URL
   }
 
+  // Handle image error - try alternative path
+  const handleImageError = () => {
+    if (!imageError) {
+      setImageError(true);
+    }
+  }
+
   // Get module icon with fallback
   const getModuleIcon = (itemId, itemIcon) => {
     if (moduleIcons[itemId]) {
@@ -134,6 +149,17 @@ function Sidebar({ collapsed }) {
       return <IconComponent className="w-4 h-4" />
     }
     return <FileText className="w-4 h-4" />
+  }
+
+  // Get the correct avatar URL with fallback
+  const getAvatarUrl = () => {
+    if (imageError) {
+      // If image failed to load, try the alternative path
+      return isProduction 
+        ? "/revenue2/admin.jpg" // Try with /revenue2 prefix on production as fallback
+        : "/admin.jpg"; // Already at root on local, this is the fallback
+    }
+    return AVATAR_URL;
   }
 
   return (
@@ -336,13 +362,14 @@ function Sidebar({ collapsed }) {
         <div className='h-px bg-gradient-to-r from-transparent via-[#9aa5b1]/20 to-transparent'></div>
       </div>
       
-      {/* Profile Card - FIXED: Simple path for public folder image */}
+      {/* Profile Card - with environment-aware path */}
       <div className='p-4 pt-3'>
         <ProfileCard 
           collapsed={collapsed} 
           name="ADMIN" 
           role="Administrator" 
-          avatarUrl="/admin.jpg" 
+          avatarUrl={getAvatarUrl()}
+          onError={handleImageError}
         />
       </div>
     </div>
