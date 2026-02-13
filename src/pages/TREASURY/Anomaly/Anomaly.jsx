@@ -35,10 +35,11 @@ export default function Anomaly() {
   });
 
   // FIXED: API Base URL for both localhost and production
-  const isProduction = window.location.hostname.includes('goserveph.com');
-  const API_BASE = isProduction 
-    ? "/revenue2/backend/Treasury"
-    : "http://localhost/revenue2/backend/Treasury";
+ // Find this section in your code (around line 30-40)
+const isProduction = window.location.hostname.includes('goserveph.com');
+const API_BASE = isProduction 
+  ? "/backend/Treasury"  // ✅ CORRECT - matches your working URL
+  : "http://localhost/revenue2/backend/Treasury";
 
   // Color palette
   const colors = {
