@@ -29,17 +29,13 @@ const isProduction = window.location.hostname.includes('goserveph.com');
 
 // Detect the base path dynamically
 const getBasePath = () => {
-  // For production on goserveph.com
   if (isProduction) {
-    // Check if we're in a subdirectory (e.g., /revenue2/, /admin/, etc.)
     const pathParts = window.location.pathname.split('/');
-    // If there's a subdirectory after the domain, use it as base path
     if (pathParts.length > 1 && pathParts[1] !== '') {
-      return `/${pathParts[1]}`; // e.g., /revenue2, /admin, etc.
+      return `/${pathParts[1]}`;
     }
-    return ''; // Root directory
+    return '';
   }
-  // Local development - React dev server serves from root
   return '';
 }
 
@@ -47,47 +43,58 @@ const BASE_PATH = getBasePath();
 
 // Logout URLs
 const LOGOUT_URL = isProduction 
-  ? "/index.php"  // Production domain - root path (public_html)
-  : "http://localhost/revenue2/index.php"; // Local development
+  ? "/index.php"
+  : "http://localhost/revenue2/index.php";
 
-// Avatar URL - construct dynamically based on environment and base path
+// Avatar URL
 const AVATAR_URL = isProduction 
-  ? `${BASE_PATH}/admin.jpg`  // Production - with detected subdirectory
-  : "/admin.jpg"; // Local - React dev server serves from public folder at root
+  ? `${BASE_PATH}/admin.jpg`
+  : "/admin.jpg";
+
+// Color palette
+const colors = {
+  primary: '#4a90e2',
+  primaryLight: 'rgba(74, 144, 226, 0.1)',
+  primaryExtraLight: 'rgba(74, 144, 226, 0.05)',
+  secondary: '#4caf50',
+  secondaryLight: 'rgba(76, 175, 80, 0.1)',
+  textPrimary: '#64748b',
+  textSecondary: '#9aa5b1',
+  background: '#fbfbfb',
+  white: '#ffffff',
+  border: 'rgba(154, 165, 177, 0.2)',
+  hover: 'rgba(74, 144, 226, 0.08)',
+  danger: '#ef4444',
+  dangerLight: 'rgba(239, 68, 68, 0.1)',
+}
 
 // Map module IDs to specific icons
 const moduleIcons = {
   dashboard: Home,
-  module1: Landmark, // Real Property - Landmark/Building icon
-  module2: Briefcase, // Business Tax - Briefcase for business
-  module4: BarChart3, // Treasury Dashboard - Analytics
-  module5: CreditCard, // Digital Payment - Credit card
-  module6: Store, // Market Stall - Store icon
+  module1: Landmark,
+  module2: Briefcase,
+  module4: BarChart3,
+  module5: CreditCard,
+  module6: Store,
   settings: Settings,
 }
 
 // Map subitem icons
 const subItemIcons = {
-  // RPT subitems
   rpt1: LayoutDashboard,
   rpt2: Settings,
   rpt3: CheckCircle,
   rpt4: AlertCircle,
-  // Business subitems
   BusinessTaxDashboard: LayoutDashboard,
   BusinessTaxConfig: Settings,
   BusinessValidation: CheckCircle,
   BusinessStatus: AlertCircle,
-  // Treasury subitems
   Revenue: BarChart3,
-  // Digital subitems
   digidashboard: LayoutDashboard,
-  // Market subitems
   market1: LayoutDashboard,
-  market2: MapPin, // Map Creator gets MapPin icon
+  market2: MapPin,
   market3: CheckCircle,
   market4: AlertCircle,
-  // Settings subitems
   'general-settings': Settings,
   'security-settings': Shield,
 }
@@ -98,6 +105,7 @@ function Sidebar({ collapsed }) {
   const [expandedItem, setExpandedItem] = React.useState(new Set())
   const [hoveredItem, setHoveredItem] = React.useState(null)
   const [imageError, setImageError] = React.useState(false)
+  const [showLogout, setShowLogout] = React.useState(false)
 
   React.useEffect(() => {
     const newExpanded = new Set()
@@ -120,7 +128,6 @@ function Sidebar({ collapsed }) {
       newExpanded.delete(item.id)
     } else {
       newExpanded.add(item.id)
-      // If the item has subItems and none are currently active, navigate to the first subitem
       if (item.subItems && item.subItems.length > 0 && !item.subItems.some(sub => sub.path === location.pathname)) {
         navigate(item.subItems[0].path)
       }
@@ -128,19 +135,14 @@ function Sidebar({ collapsed }) {
     setExpandedItem(newExpanded)
   }
 
-  // Handle logout with environment-based URL
   const handleLogout = () => {
-    // Clear any authentication tokens, user data, etc.
     localStorage.removeItem('authToken')
     localStorage.removeItem('userData')
     localStorage.removeItem('userRole')
     sessionStorage.clear()
-    
-    // Redirect based on environment
     window.location.href = LOGOUT_URL
   }
 
-  // Handle image error - try alternative path
   const handleImageError = () => {
     if (!imageError) {
       console.log('Image failed to load, trying alternative path...');
@@ -148,7 +150,6 @@ function Sidebar({ collapsed }) {
     }
   }
 
-  // Get module icon with fallback
   const getModuleIcon = (itemId, itemIcon) => {
     if (moduleIcons[itemId]) {
       const IconComponent = moduleIcons[itemId]
@@ -161,7 +162,6 @@ function Sidebar({ collapsed }) {
     return <LayoutDashboard className="w-5 h-5" />
   }
 
-  // Get subitem icon
   const getSubItemIcon = (subItemId) => {
     if (subItemIcons[subItemId]) {
       const IconComponent = subItemIcons[subItemId]
@@ -170,31 +170,40 @@ function Sidebar({ collapsed }) {
     return <FileText className="w-4 h-4" />
   }
 
-  // Get the correct avatar URL with fallback
   const getAvatarUrl = () => {
     if (imageError) {
-      // If image failed to load, try the alternative path
-      if (isProduction) {
-        // Try root path as fallback
-        return "/admin.jpg";
-      } else {
-        return "/admin.jpg";
-      }
+      return isProduction ? "/admin.jpg" : "/admin.jpg";
     }
     return AVATAR_URL;
   }
 
-  // Log the URLs for debugging
+  const toggleLogout = () => {
+    setShowLogout(!showLogout);
+  }
+
+  // Close logout when clicking outside
   React.useEffect(() => {
-    console.log('Environment:', isProduction ? 'Production' : 'Local');
-    console.log('Base Path:', BASE_PATH);
-    console.log('Avatar URL:', AVATAR_URL);
-    console.log('Logout URL:', LOGOUT_URL);
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.profile-container')) {
+        setShowLogout(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
   }, []);
 
   return (
-    <div className={`${collapsed ? 'w-20' : 'w-72'} bg-gradient-to-b from-white to-[#fbfbfb] border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out shadow-sm`}>
-      {/* Logo */}
+    <div 
+      className={`${collapsed ? 'w-20' : 'w-72'} flex flex-col transition-all duration-300 ease-in-out shadow-sm`}
+      style={{ 
+        backgroundColor: colors.background,
+        borderRight: `1px solid ${colors.border}`
+      }}
+    >
+      {/* Logo Section - Simplified */}
       <div className='p-6 pb-4'>
         <NavLink 
           to="/" 
@@ -202,21 +211,31 @@ function Sidebar({ collapsed }) {
           onMouseEnter={() => setHoveredItem('logo')}
           onMouseLeave={() => setHoveredItem(null)}
         >
-          <div className={`w-12 h-12 bg-gradient-to-br from-[#4a90e2] to-[#357ae8] rounded-2xl flex items-center justify-center text-white text-xl font-bold transition-all duration-300 group-hover:scale-105 group-hover:shadow-md ${hoveredItem === 'logo' ? 'ring-2 ring-[#4a90e2]/20' : ''}`}>
+          <div 
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold transition-all duration-300 group-hover:scale-105 group-hover:shadow-md`}
+            style={{ 
+              background: `linear-gradient(135deg, ${colors.primary} 0%, #357ae8 100%)`,
+              boxShadow: hoveredItem === 'logo' ? `0 0 0 2px ${colors.primaryLight}` : 'none'
+            }}
+          >
             <Globe className='w-7 h-7' />
           </div>
           {!collapsed && (
             <div className='transition-all duration-300'>
-              <div className='flex items-center space-x-2'>
-                <h1 className='text-2xl font-bold bg-gradient-to-r from-gray-900 to-[#4a90e2] bg-clip-text text-transparent'>GSM</h1>
-                <div className='px-2 py-0.5 bg-gradient-to-r from-[#4caf50]/10 to-[#4a90e2]/10 rounded-lg border border-[#4caf50]/20'>
-                  <p className='text-xs font-semibold text-[#4caf50] flex items-center'>
-                    <Sparkles className='w-3 h-3 mr-1' />
-                    PRO
-                  </p>
-                </div>
-              </div>
-              <p className='text-xs text-[#9aa5b1] mt-1 font-medium'>Government System Management</p>
+              <h1 
+                className='text-2xl font-bold'
+                style={{ 
+                  background: `linear-gradient(135deg, #1e293b 0%, ${colors.primary} 100%)`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
+                GSM
+              </h1>
+              <p style={{ color: colors.textSecondary }} className='text-xs mt-0.5 font-medium'>
+                Government System Management
+              </p>
             </div>
           )}
         </NavLink>
@@ -224,11 +243,11 @@ function Sidebar({ collapsed }) {
 
       {/* Divider */}
       <div className='px-6 pb-4'>
-        <div className='h-px bg-gradient-to-r from-transparent via-[#9aa5b1]/20 to-transparent'></div>
+        <div style={{ backgroundColor: colors.border }} className='h-px'></div>
       </div>
 
       {/* Navigation Links */}
-      <nav className='flex-1 px-3 pb-6 space-y-1 overflow-y-auto'>
+      <nav className='flex-1 px-3 pb-6 space-y-0.5 overflow-y-auto'>
         {sidebarItems.map((item) => {
           const isActive = item.path === location.pathname || 
             (item.subItems && item.subItems.some(
@@ -236,57 +255,70 @@ function Sidebar({ collapsed }) {
             ))
 
           const isExpanded = expandedItem.has(item.id)
-          const IconComponent = item.icon
 
           return (
             <div key={item.id} className='relative'>
               {item.subItems ? (
                 <>
                   <button
-                    className={`w-full flex justify-between items-center p-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#4a90e2]/10 to-[#4a90e2]/5 text-[#4a90e2] font-semibold shadow-sm'
-                        : 'text-[#64748b] hover:bg-gradient-to-r hover:from-slate-50 hover:to-white hover:text-gray-800 hover:shadow-sm'
-                    }`}
+                    className={`w-full flex justify-between items-center p-3 rounded-xl transition-all duration-200 group relative overflow-hidden`}
+                    style={{
+                      backgroundColor: isActive ? colors.primaryLight : 'transparent',
+                      color: isActive ? colors.primary : colors.textPrimary,
+                      fontWeight: isActive ? 600 : 400,
+                    }}
                     onClick={() => toggleExpanded(item)}
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
                   >
                     {/* Active indicator */}
                     {isActive && !collapsed && (
-                      <div className='absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-[#4a90e2] to-[#357ae8] rounded-r-full'></div>
+                      <div 
+                        className='absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full'
+                        style={{ background: `linear-gradient(to bottom, ${colors.primary}, #357ae8)` }}
+                      ></div>
                     )}
                     
                     <div className='flex items-center space-x-3'>
-                      <div className={`relative transition-all duration-300 ${isActive ? 'text-[#4a90e2]' : 'text-[#9aa5b1] group-hover:text-[#4a90e2]'}`}>
+                      <div 
+                        className={`relative transition-all duration-200`}
+                        style={{ color: isActive ? colors.primary : colors.textSecondary }}
+                      >
                         {getModuleIcon(item.id, item.icon)}
-                        {isActive && (
-                          <div className='absolute -top-1 -right-1 w-2 h-2 bg-[#4caf50] rounded-full'></div>
-                        )}
                       </div>
                       {!collapsed && (
-                        <span className='text-sm font-medium text-left flex-1'>{item.label}</span>
+                        <span className='text-sm text-left flex-1'>{item.label}</span>
                       )}
                     </div>
                     
                     {!collapsed && item.subItems && (
-                      <ChevronDown className={`w-4 h-4 transition-all duration-300 flex-shrink-0 ${
-                        isExpanded 
-                          ? 'text-[#4a90e2] rotate-180' 
-                          : 'text-[#9aa5b1] group-hover:text-[#4a90e2]'
-                      }`} />
+                      <ChevronDown 
+                        className={`w-4 h-4 transition-all duration-200 flex-shrink-0`}
+                        style={{ 
+                          color: isExpanded ? colors.primary : colors.textSecondary,
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                        }} 
+                      />
                     )}
                     
                     {/* Hover effect */}
                     {hoveredItem === item.id && !isActive && (
-                      <div className='absolute inset-0 bg-gradient-to-r from-[#4a90e2]/5 to-transparent'></div>
+                      <div 
+                        className='absolute inset-0'
+                        style={{ backgroundColor: colors.hover }}
+                      ></div>
                     )}
                   </button>
 
                   {!collapsed && item.subItems && isExpanded && (
                     <div className='ml-10 mt-1 space-y-0.5 pl-4 relative'>
                       {/* Vertical line */}
-                      <div className='absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#4a90e2]/20 via-[#4a90e2]/10 to-transparent'></div>
+                      <div 
+                        className='absolute left-0 top-0 bottom-0 w-0.5'
+                        style={{ 
+                          background: `linear-gradient(to bottom, ${colors.primaryLight}, rgba(74, 144, 226, 0.05), transparent)`
+                        }}
+                      ></div>
                       
                       {item.subItems.map((subitem) => {
                         const isSubActive = location.pathname === subitem.path
@@ -296,16 +328,15 @@ function Sidebar({ collapsed }) {
                           <NavLink
                             key={subitem.id}
                             to={subitem.path}
-                            className={({ isActive }) => 
-                              `block w-full text-sm text-left p-2.5 rounded-xl transition-all duration-200 relative ${
-                                isActive
-                                  ? 'bg-gradient-to-r from-[#4a90e2]/15 to-transparent text-[#4a90e2] font-semibold shadow-sm'
-                                  : 'text-[#64748b] hover:bg-gradient-to-r hover:from-slate-50 hover:to-white hover:text-gray-800'
-                              }`
-                            }
+                            className={({ isActive }) => `block w-full text-sm text-left p-2.5 rounded-lg transition-all duration-200 relative`}
+                            style={({ isActive }) => ({
+                              backgroundColor: isActive ? colors.primaryExtraLight : 'transparent',
+                              color: isActive ? colors.primary : colors.textPrimary,
+                              fontWeight: isActive ? 500 : 400,
+                            })}
                           >
                             <div className='flex items-center space-x-3'>
-                              <div className={`${isSubActive ? 'text-[#4a90e2]' : 'text-[#9aa5b1]'}`}>
+                              <div style={{ color: isSubActive ? colors.primary : colors.textSecondary }}>
                                 {SubIcon}
                               </div>
                               <span>{subitem.label}</span>
@@ -319,39 +350,40 @@ function Sidebar({ collapsed }) {
               ) : (
                 <NavLink
                   to={item.path}
-                  className={({ isActive }) => 
-                    `w-full flex items-center p-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#4a90e2]/10 to-[#4a90e2]/5 text-[#4a90e2] font-semibold shadow-sm'
-                        : 'text-[#64748b] hover:bg-gradient-to-r hover:from-slate-50 hover:to-white hover:text-gray-800 hover:shadow-sm'
-                    }`
-                  }
+                  className={({ isActive }) => `w-full flex items-center p-3 rounded-xl transition-all duration-200 group relative overflow-hidden`}
+                  style={({ isActive }) => ({
+                    backgroundColor: isActive ? colors.primaryLight : 'transparent',
+                    color: isActive ? colors.primary : colors.textPrimary,
+                    fontWeight: isActive ? 600 : 400,
+                  })}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
                   {/* Active indicator */}
-                  {!collapsed && (
-                    <>
-                      {isActive && (
-                        <div className='absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-[#4a90e2] to-[#357ae8] rounded-r-full'></div>
-                      )}
-                      
-                      {/* Hover effect */}
-                      {hoveredItem === item.id && !isActive && (
-                        <div className='absolute inset-0 bg-gradient-to-r from-[#4a90e2]/5 to-transparent'></div>
-                      )}
-                    </>
+                  {!collapsed && isActive && (
+                    <div 
+                      className='absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full'
+                      style={{ background: `linear-gradient(to bottom, ${colors.primary}, #357ae8)` }}
+                    ></div>
+                  )}
+                  
+                  {/* Hover effect */}
+                  {hoveredItem === item.id && !isActive && (
+                    <div 
+                      className='absolute inset-0'
+                      style={{ backgroundColor: colors.hover }}
+                    ></div>
                   )}
 
                   <div className='flex items-center space-x-3'>
-                    <div className={`relative transition-all duration-300 ${isActive ? 'text-[#4a90e2]' : 'text-[#9aa5b1] group-hover:text-[#4a90e2]'}`}>
+                    <div 
+                      className={`relative transition-all duration-200`}
+                      style={{ color: isActive ? colors.primary : colors.textSecondary }}
+                    >
                       {getModuleIcon(item.id, item.icon)}
-                      {isActive && (
-                        <div className='absolute -top-1 -right-1 w-2 h-2 bg-[#4caf50] rounded-full'></div>
-                      )}
                     </div>
                     {!collapsed && (
-                      <span className='text-sm font-medium'>{item.label}</span>
+                      <span className='text-sm'>{item.label}</span>
                     )}
                   </div>
                 </NavLink>
@@ -361,46 +393,121 @@ function Sidebar({ collapsed }) {
         })}
       </nav>
       
-      {/* Logout Button - Placed above profile card */}
-      <div className='px-3 pt-2'>
-        <button
-          onClick={handleLogout}
-          className={`w-full flex items-center p-3 rounded-2xl transition-all duration-300 group relative overflow-hidden text-[#64748b] hover:bg-gradient-to-r hover:from-red-50 hover:to-white hover:text-red-600 hover:shadow-sm ${
-            collapsed ? 'justify-center' : ''
-          }`}
-          onMouseEnter={() => setHoveredItem('logout')}
-          onMouseLeave={() => setHoveredItem(null)}
-        >
-          {/* Hover effect */}
-          {hoveredItem === 'logout' && (
-            <div className='absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent'></div>
-          )}
-          
-          <div className='flex items-center space-x-3'>
-            <div className='text-[#9aa5b1] group-hover:text-red-500 transition-all duration-300'>
-              <LogOut className='w-5 h-5' />
-            </div>
-            {!collapsed && (
-              <span className='text-sm font-medium'>Logout</span>
-            )}
-          </div>
-        </button>
-      </div>
-      
       {/* Bottom divider */}
       <div className='px-6 pt-2'>
-        <div className='h-px bg-gradient-to-r from-transparent via-[#9aa5b1]/20 to-transparent'></div>
+        <div style={{ backgroundColor: colors.border }} className='h-px'></div>
       </div>
       
-      {/* Profile Card - with environment-aware path */}
-      <div className='p-4 pt-3'>
-        <ProfileCard 
-          collapsed={collapsed} 
-          name="ADMIN" 
-          role="Administrator" 
-          avatarUrl={getAvatarUrl()}
-          onError={handleImageError}
-        />
+      {/* Profile Section with Clickable Admin and Dropdown Logout */}
+      <div className='p-4 pt-3 profile-container'>
+        {/* Clickable Profile Card */}
+        <div 
+          onClick={toggleLogout}
+          className={`cursor-pointer transition-all duration-200 ${showLogout ? 'rounded-b-none' : ''}`}
+          style={{
+            borderRadius: showLogout ? '0.75rem 0.75rem 0 0' : '0.75rem',
+            border: showLogout ? `1px solid ${colors.border}` : 'none',
+            borderBottom: showLogout ? 'none' : 'none',
+          }}
+        >
+          <ProfileCard 
+            collapsed={collapsed} 
+            name="ADMIN" 
+            role="Administrator" 
+            avatarUrl={getAvatarUrl()}
+            onError={handleImageError}
+          />
+        </div>
+        
+        {/* Logout Dropdown - appears when admin is clicked */}
+        {showLogout && !collapsed && (
+          <div 
+            className="overflow-hidden transition-all duration-200 rounded-b-lg"
+            style={{
+              border: `1px solid ${colors.border}`,
+              borderTop: 'none',
+              backgroundColor: colors.white,
+            }}
+          >
+            <button
+              onClick={handleLogout}
+              className='w-full flex items-center justify-center space-x-2 p-3 transition-all duration-200 group relative overflow-hidden'
+              style={{
+                color: colors.textPrimary,
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={() => setHoveredItem('logout')}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              {/* Hover effect */}
+              {hoveredItem === 'logout' && (
+                <div 
+                  className='absolute inset-0'
+                  style={{ backgroundColor: colors.dangerLight }}
+                ></div>
+              )}
+              
+              <div 
+                className='transition-all duration-200 group-hover:scale-110'
+                style={{ color: hoveredItem === 'logout' ? colors.danger : colors.textSecondary }}
+              >
+                <LogOut className='w-4 h-4' />
+              </div>
+              <span 
+                className='text-sm font-medium transition-all duration-200'
+                style={{ color: hoveredItem === 'logout' ? colors.danger : colors.textPrimary }}
+              >
+                Sign out
+              </span>
+            </button>
+          </div>
+        )}
+        
+        {/* Collapsed state - show logout popup when admin is clicked */}
+        {collapsed && showLogout && (
+          <div className='absolute bottom-20 left-16 z-50'>
+            <div 
+              className="rounded-lg shadow-lg overflow-hidden"
+              style={{
+                backgroundColor: colors.white,
+                border: `1px solid ${colors.border}`,
+                minWidth: '140px'
+              }}
+            >
+              <button
+                onClick={handleLogout}
+                className='w-full flex items-center justify-center space-x-2 p-3 transition-all duration-200 group relative overflow-hidden'
+                style={{
+                  color: colors.textPrimary,
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={() => setHoveredItem('logout')}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                {/* Hover effect */}
+                {hoveredItem === 'logout' && (
+                  <div 
+                    className='absolute inset-0'
+                    style={{ backgroundColor: colors.dangerLight }}
+                  ></div>
+                )}
+                
+                <div 
+                  className='transition-all duration-200 group-hover:scale-110'
+                  style={{ color: hoveredItem === 'logout' ? colors.danger : colors.textSecondary }}
+                >
+                  <LogOut className='w-4 h-4' />
+                </div>
+                <span 
+                  className='text-sm font-medium transition-all duration-200'
+                  style={{ color: hoveredItem === 'logout' ? colors.danger : colors.textPrimary }}
+                >
+                  Sign out
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

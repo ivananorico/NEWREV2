@@ -143,6 +143,77 @@
         .terms-content::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        
+        /* Lockout modal styles */
+        .lockout-modal {
+            max-width: 24rem;
+        }
+        
+        .lockout-timer {
+            font-family: monospace;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ef4444;
+        }
+        
+        .attempts-counter {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .attempts-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .attempts-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .disabled-input {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        /* Session timeout indicator */
+        .timeout-indicator {
+            border-top: 3px solid #ef4444;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Attempts badge */
+        .attempts-badge {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .attempts-badge.warning {
+            border-left-color: #f59e0b;
+        }
+        
+        .attempts-badge.danger {
+            border-left-color: #ef4444;
+        }
     </style>
 </head>
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -175,6 +246,15 @@
                 <h2 class="text-4xl lg:text-5xl font-bold mb-4 animated-gradient ml-2 lg:ml-4">
                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Abot-Kamay mo ang &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Serbisyong Publiko!
                 </h2>
+                
+                <!-- Login Attempts Display - ALWAYS VISIBLE when attempts > 0 -->
+                <div id="attemptsDisplay" class="mt-4 ml-4">
+                    <div id="attemptsBadge" class="inline-flex items-center px-4 py-2 rounded-lg bg-white shadow-md border-l-4 border-blue-500 hidden">
+                        <span class="text-sm font-medium text-gray-700 mr-2">⚠️ Failed Attempts:</span>
+                        <span id="attemptCount" class="attempts-counter attempts-warning">0/3</span>
+                        <span id="attemptsRemainingBadge" class="ml-2 text-xs text-gray-600"></span>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Section - Login Form -->
@@ -182,6 +262,18 @@
                 <div class="text-center mb-4">
                     <span class="text-2xl font-bold text-custom-secondary border-b-2 border-custom-secondary pb-2">Login</span>
                 </div>
+                
+                <!-- Lockout Message (shown when account is locked) -->
+                <div id="lockoutMessage" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm hidden">
+                    <div class="flex items-center">
+                        <i class="fas fa-lock mr-2"></i>
+                        <span id="lockoutText">Account temporarily locked. Please try again later.</span>
+                    </div>
+                    <div id="lockoutCountdown" class="mt-2 text-center font-bold text-red-600">
+                        Time remaining: <span id="lockoutTimerDisplay">15:00</span>
+                    </div>
+                </div>
+                
                 <form id="loginForm" class="space-y-5">
                     <div>
                         <input 
@@ -191,6 +283,7 @@
                             placeholder="Enter e-mail address"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200"
                             required
+                            autocomplete="email"
                         >
                     </div>
                     
@@ -202,12 +295,17 @@
                             placeholder="Enter password"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200"
                             required
+                            autocomplete="current-password"
                         >
+                    </div>
+                    
+                    <div id="attemptsLeft" class="text-xs text-right hidden">
+                        <span id="attemptsLeftText" class="font-semibold"></span>
                     </div>
                     
                     <button 
                         type="submit" 
-                        class="w-full bg-custom-secondary text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                        class="w-full bg-custom-secondary text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                         id="loginBtn"
                     >
                         Login
@@ -503,6 +601,9 @@
                     </div>
                     
                     <div id="otpError" class="text-red-500 text-sm text-center hidden"></div>
+                    <div id="otpAttempts" class="text-xs text-center text-gray-600 hidden">
+                        Failed attempts: <span id="otpAttemptCount">0</span>/3
+                    </div>
                     
                     <div class="flex justify-between items-center">
                         <button type="button" id="resendOtp" class="text-custom-secondary hover:underline disabled:text-gray-400 disabled:cursor-not-allowed" disabled>
@@ -518,6 +619,45 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Lockout Modal (shown after 3 failed attempts) -->
+    <div id="lockoutModal" class="modal-container hidden">
+        <div class="modal-content lockout-modal">
+            <div class="p-6">
+                <div class="text-center mb-4">
+                    <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-lock text-red-600 text-3xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-red-600 mb-2">Account Locked</h2>
+                    <p class="text-gray-600 mb-2">Too many failed login attempts</p>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600 mb-2">Please wait before trying again</p>
+                        <div id="lockoutTimer" class="lockout-timer">15:00</div>
+                        <p class="text-xs text-gray-500 mt-2">This is a security measure to protect your account</p>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-shield-alt text-yellow-600 mt-0.5 mr-2"></i>
+                        <div class="text-xs text-yellow-800">
+                            <p class="font-semibold mb-1">Security Recommendation:</p>
+                            <p>If you've forgotten your password, please use the "Forgot Password" option or contact our support team at helpdesk@gov.ph</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center">
+                    <button type="button" id="closeLockoutModal" class="bg-custom-secondary text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        I Understand
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -737,21 +877,31 @@
 
     <script>
         // ============================================
-        // CONFIGURATION - FIXED
+        // CONFIGURATION
         // ============================================
-        // Auto-detect the correct base path
         const basePath = window.location.pathname.includes('/revenue2/') ? '/revenue2' : '';
-        const API_ENDPOINT = 'Login/api/auth.php'; // Relative path - works in all environments
+        const API_ENDPOINT = 'Login/api/auth.php';
         
         let currentUserId = null;
         let otpTimer = null;
         let otpTimeLeft = 180;
         
+        // ============================================
+        // LOGIN ATTEMPT TRACKING - FIXED VERSION
+        // ============================================
+        const MAX_LOGIN_ATTEMPTS = 3;
+        const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds
+        
+        // Track attempts separately for login and OTP
+        let loginAttempts = 0;
+        let otpAttempts = 0;
+        let isLockedOut = false;
+        let lockoutTimer = null;
+        let lockoutTimeLeft = LOCKOUT_DURATION;
+        
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOM loaded, initializing app...');
-            console.log('📡 API Endpoint:', API_ENDPOINT);
-            console.log('📍 Base Path:', basePath);
             
             updateDateTime();
             setInterval(updateDateTime, 1000);
@@ -759,61 +909,429 @@
             setupOTPInputs();
             setupPasswordValidation();
             fixBackgroundImage();
+            
+            // Load saved attempts from localStorage
+            loadSavedAttempts();
+            
+            // TEST: Uncomment to test the lockout feature
+            // testLockoutFeature();
         });
-        
+
+        // ============================================
+        // ATTEMPT MANAGEMENT - FIXED
+        // ============================================
+        function loadSavedAttempts() {
+            try {
+                // Load login attempts
+                const savedLoginAttempts = localStorage.getItem('loginAttempts');
+                if (savedLoginAttempts) {
+                    loginAttempts = parseInt(savedLoginAttempts);
+                    console.log(`📊 Loaded ${loginAttempts} saved login attempt(s)`);
+                }
+                
+                // Load OTP attempts
+                const savedOtpAttempts = localStorage.getItem('otpAttempts');
+                if (savedOtpAttempts) {
+                    otpAttempts = parseInt(savedOtpAttempts);
+                    console.log(`📊 Loaded ${otpAttempts} saved OTP attempt(s)`);
+                }
+                
+                // Check lockout status
+                const lockoutUntil = localStorage.getItem('lockoutUntil');
+                if (lockoutUntil) {
+                    const lockoutTime = parseInt(lockoutUntil);
+                    const now = Date.now();
+                    
+                    if (now < lockoutTime) {
+                        // Still locked out
+                        const remainingSeconds = Math.ceil((lockoutTime - now) / 1000);
+                        console.log(`🔒 Account is locked. ${remainingSeconds}s remaining`);
+                        
+                        loginAttempts = MAX_LOGIN_ATTEMPTS;
+                        isLockedOut = true;
+                        lockoutTimeLeft = remainingSeconds;
+                        
+                        disableLoginForm(true);
+                        showLockoutMessage();
+                        startLockoutTimer(remainingSeconds);
+                    } else {
+                        // Lockout expired
+                        localStorage.removeItem('lockoutUntil');
+                        resetAllAttempts();
+                    }
+                }
+                
+                // Update displays
+                updateAttemptsDisplay();
+                updateOtpAttemptsDisplay();
+                
+            } catch (e) {
+                console.error('Error loading attempts:', e);
+            }
+        }
+
+        function incrementLoginAttempts() {
+            loginAttempts++;
+            console.log(`⚠️ Failed login attempt #${loginAttempts} of ${MAX_LOGIN_ATTEMPTS}`);
+            
+            // Save to localStorage
+            localStorage.setItem('loginAttempts', loginAttempts.toString());
+            
+            // Update display
+            updateAttemptsDisplay();
+            
+            // Show warning
+            const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
+            
+            if (remaining === 1) {
+                showNotification(`⚠️ WARNING: Last attempt before account lockout!`, 'warning');
+            } else if (remaining === 2) {
+                showNotification(`⚠️ ${remaining} attempts remaining before account lockout`, 'warning');
+            }
+            
+            // Check if we've reached max attempts
+            if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+                console.log('🔒 Max failed attempts reached! Locking account...');
+                triggerAccountLockout();
+            }
+            
+            return loginAttempts;
+        }
+
+        function incrementOtpAttempts() {
+            otpAttempts++;
+            console.log(`⚠️ Failed OTP attempt #${otpAttempts} of ${MAX_LOGIN_ATTEMPTS}`);
+            
+            // Save to localStorage
+            localStorage.setItem('otpAttempts', otpAttempts.toString());
+            
+            // Update display
+            updateOtpAttemptsDisplay();
+            
+            // Show warning
+            const remaining = MAX_LOGIN_ATTEMPTS - otpAttempts;
+            
+            if (remaining === 1) {
+                showNotification(`⚠️ WARNING: Last OTP attempt before session lock!`, 'warning');
+            } else if (remaining === 2) {
+                showNotification(`⚠️ ${remaining} OTP attempts remaining`, 'warning');
+            }
+            
+            // Check if we've reached max attempts
+            if (otpAttempts >= MAX_LOGIN_ATTEMPTS) {
+                console.log('🔒 Max OTP attempts reached! Closing session...');
+                handleMaxOtpAttempts();
+            }
+            
+            return otpAttempts;
+        }
+
+        function handleMaxOtpAttempts() {
+            showNotification('Too many invalid OTP attempts. Please login again.', 'error');
+            
+            // Close OTP modal
+            closeOtpModalFunc();
+            
+            // Clear OTP attempts
+            otpAttempts = 0;
+            localStorage.removeItem('otpAttempts');
+            
+            // Clear current user ID
+            currentUserId = null;
+        }
+
+        function resetAllAttempts() {
+            console.log('🔄 Resetting all attempts');
+            loginAttempts = 0;
+            otpAttempts = 0;
+            isLockedOut = false;
+            
+            localStorage.removeItem('loginAttempts');
+            localStorage.removeItem('otpAttempts');
+            localStorage.removeItem('lockoutUntil');
+            
+            updateAttemptsDisplay();
+            updateOtpAttemptsDisplay();
+            disableLoginForm(false);
+            hideLockoutMessage();
+            hideLockoutModal();
+            
+            if (lockoutTimer) {
+                clearInterval(lockoutTimer);
+                lockoutTimer = null;
+            }
+        }
+
+        function triggerAccountLockout() {
+            console.log('🔒 Triggering account lockout for 15 minutes');
+            
+            isLockedOut = true;
+            lockoutTimeLeft = LOCKOUT_DURATION;
+            
+            const lockoutUntil = Date.now() + (LOCKOUT_DURATION * 1000);
+            localStorage.setItem('lockoutUntil', lockoutUntil.toString());
+            localStorage.setItem('loginAttempts', MAX_LOGIN_ATTEMPTS.toString());
+            
+            disableLoginForm(true);
+            showLockoutMessage();
+            showLockoutModal();
+            startLockoutTimer(LOCKOUT_DURATION);
+            
+            const passwordInput = document.getElementById('password');
+            if (passwordInput) passwordInput.value = '';
+        }
+
+        // ============================================
+        // DISPLAY FUNCTIONS - FIXED
+        // ============================================
+        function updateAttemptsDisplay() {
+            const attemptsBadge = document.getElementById('attemptsBadge');
+            const attemptCount = document.getElementById('attemptCount');
+            const attemptsLeft = document.getElementById('attemptsLeft');
+            const attemptsLeftText = document.getElementById('attemptsLeftText');
+            const attemptsRemainingBadge = document.getElementById('attemptsRemainingBadge');
+            
+            if (!attemptsBadge || !attemptCount) return;
+            
+            // ALWAYS show if there are attempts OR if we're testing
+            if (loginAttempts > 0 && !isLockedOut) {
+                attemptsBadge.classList.remove('hidden');
+                
+                // Update count
+                attemptCount.textContent = `${loginAttempts}/${MAX_LOGIN_ATTEMPTS}`;
+                
+                // Update remaining attempts badge
+                const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
+                if (attemptsRemainingBadge) {
+                    attemptsRemainingBadge.textContent = `${remaining} attempt${remaining !== 1 ? 's' : ''} left`;
+                }
+                
+                // Change color based on remaining attempts
+                if (remaining <= 1) {
+                    attemptsBadge.className = 'inline-flex items-center px-4 py-2 rounded-lg bg-white shadow-md border-l-4 border-red-500';
+                    attemptCount.className = 'attempts-counter attempts-danger';
+                } else {
+                    attemptsBadge.className = 'inline-flex items-center px-4 py-2 rounded-lg bg-white shadow-md border-l-4 border-yellow-500';
+                    attemptCount.className = 'attempts-counter attempts-warning';
+                }
+                
+                // Show attempts left text
+                if (attemptsLeft && attemptsLeftText) {
+                    attemptsLeft.classList.remove('hidden');
+                    attemptsLeftText.textContent = `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining`;
+                    attemptsLeftText.className = remaining <= 1 ? 'text-red-600 font-semibold' : 'text-orange-600';
+                }
+            } else {
+                attemptsBadge.classList.add('hidden');
+                if (attemptsLeft) attemptsLeft.classList.add('hidden');
+            }
+        }
+
+        function updateOtpAttemptsDisplay() {
+            const otpAttemptsElement = document.getElementById('otpAttempts');
+            const otpAttemptCount = document.getElementById('otpAttemptCount');
+            
+            if (!otpAttemptsElement || !otpAttemptCount) return;
+            
+            if (otpAttempts > 0) {
+                otpAttemptsElement.classList.remove('hidden');
+                otpAttemptCount.textContent = otpAttempts;
+                
+                // Change color based on attempts
+                const remaining = MAX_LOGIN_ATTEMPTS - otpAttempts;
+                if (remaining <= 1) {
+                    otpAttemptsElement.className = 'text-xs text-center text-red-600 font-semibold';
+                } else {
+                    otpAttemptsElement.className = 'text-xs text-center text-orange-600';
+                }
+            } else {
+                otpAttemptsElement.classList.add('hidden');
+            }
+        }
+
+        function disableLoginForm(disabled) {
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('loginBtn');
+            const showRegisterBtn = document.getElementById('showRegister');
+            
+            if (disabled) {
+                console.log('🔒 Disabling login form');
+                
+                if (emailInput) {
+                    emailInput.disabled = true;
+                    emailInput.classList.add('disabled-input');
+                    emailInput.placeholder = 'Login disabled - account locked';
+                }
+                
+                if (passwordInput) {
+                    passwordInput.disabled = true;
+                    passwordInput.classList.add('disabled-input');
+                    passwordInput.placeholder = 'Login disabled - account locked';
+                }
+                
+                if (loginBtn) {
+                    loginBtn.disabled = true;
+                    loginBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    loginBtn.innerHTML = '<i class="fas fa-lock mr-2"></i> Account Locked (15:00)';
+                }
+                
+                if (showRegisterBtn) {
+                    showRegisterBtn.disabled = true;
+                    showRegisterBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            } else {
+                console.log('🔓 Enabling login form');
+                
+                if (emailInput) {
+                    emailInput.disabled = false;
+                    emailInput.classList.remove('disabled-input');
+                    emailInput.placeholder = 'Enter e-mail address';
+                }
+                
+                if (passwordInput) {
+                    passwordInput.disabled = false;
+                    passwordInput.classList.remove('disabled-input');
+                    passwordInput.placeholder = 'Enter password';
+                }
+                
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    loginBtn.innerHTML = 'Login';
+                }
+                
+                if (showRegisterBtn) {
+                    showRegisterBtn.disabled = false;
+                    showRegisterBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        function showLockoutMessage() {
+            const lockoutMessage = document.getElementById('lockoutMessage');
+            const lockoutCountdown = document.getElementById('lockoutCountdown');
+            
+            if (lockoutMessage) {
+                lockoutMessage.classList.remove('hidden');
+            }
+            if (lockoutCountdown) {
+                lockoutCountdown.classList.remove('hidden');
+            }
+        }
+
+        function hideLockoutMessage() {
+            const lockoutMessage = document.getElementById('lockoutMessage');
+            if (lockoutMessage) {
+                lockoutMessage.classList.add('hidden');
+            }
+        }
+
+        function showLockoutModal() {
+            const modal = document.getElementById('lockoutModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            }
+        }
+
+        function hideLockoutModal() {
+            const modal = document.getElementById('lockoutModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        function startLockoutTimer(duration) {
+            lockoutTimeLeft = duration;
+            
+            const timerElement = document.getElementById('lockoutTimer');
+            const lockoutTimerDisplay = document.getElementById('lockoutTimerDisplay');
+            const lockoutText = document.getElementById('lockoutText');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // Update displays
+            if (timerElement) timerElement.textContent = formatTime(lockoutTimeLeft);
+            if (lockoutTimerDisplay) lockoutTimerDisplay.textContent = formatTime(lockoutTimeLeft);
+            if (lockoutText) lockoutText.textContent = `Account locked. Please try again in ${formatTime(lockoutTimeLeft)}.`;
+            if (loginBtn) loginBtn.innerHTML = `<i class="fas fa-lock mr-2"></i> Account Locked (${formatTime(lockoutTimeLeft)})`;
+            
+            if (lockoutTimer) clearInterval(lockoutTimer);
+            
+            lockoutTimer = setInterval(() => {
+                lockoutTimeLeft--;
+                
+                // Update displays
+                if (timerElement) timerElement.textContent = formatTime(lockoutTimeLeft);
+                if (lockoutTimerDisplay) lockoutTimerDisplay.textContent = formatTime(lockoutTimeLeft);
+                if (lockoutText) lockoutText.textContent = `Account locked. Please try again in ${formatTime(lockoutTimeLeft)}.`;
+                if (loginBtn) loginBtn.innerHTML = `<i class="fas fa-lock mr-2"></i> Account Locked (${formatTime(lockoutTimeLeft)})`;
+                
+                if (lockoutTimeLeft <= 0) {
+                    clearInterval(lockoutTimer);
+                    console.log('🔓 Lockout expired, resetting account');
+                    resetAllAttempts();
+                    hideLockoutModal();
+                    showNotification('Account unlocked. You may now try logging in again.', 'success');
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            if (seconds < 0) seconds = 0;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // ============================================
+        // TEST FUNCTION
+        // ============================================
+        function testLockoutFeature() {
+            console.log('🧪 TEST MODE: Setting login attempts to 2/3');
+            loginAttempts = 2;
+            localStorage.setItem('loginAttempts', '2');
+            updateAttemptsDisplay();
+            showNotification('TEST MODE: 2 failed attempts. One more to lock account.', 'warning');
+        }
+
+        // ============================================
+        // BACKGROUND IMAGE
+        // ============================================
         function fixBackgroundImage() {
             console.log('🖼️ Fixing background image...');
             const bgElement = document.querySelector('.bg-custom-bg');
             if (!bgElement) return;
             
-            // Auto-detect correct path for background image
-            let imagePath;
-            const currentPath = window.location.pathname;
-            
-            if (currentPath.includes('/revenue2/')) {
-                imagePath = 'Login/images/bg.jpg'; // Relative path when in /revenue2/
-            } else {
-                imagePath = 'Login/images/bg.jpg'; // Same relative path works everywhere
-            }
-            
-            // Set the background image
+            const imagePath = 'Login/images/bg.jpg';
             bgElement.style.backgroundImage = `url('${imagePath}')`;
             bgElement.style.backgroundSize = 'cover';
             bgElement.style.backgroundPosition = 'center';
             bgElement.style.backgroundRepeat = 'no-repeat';
             bgElement.style.backgroundAttachment = 'fixed';
             
-            // Test if image loads
             const testImage = new Image();
-            testImage.onload = function() {
-                console.log('✅ Background image loaded successfully:', imagePath);
-            };
-            testImage.onerror = function() {
-                console.warn('⚠️ Background image not found at:', imagePath);
-                console.log('💡 Please add background image at: /revenue2/Login/images/bg.jpg');
-                // Don't change background color, just log the warning
-            };
+            testImage.onload = () => console.log('✅ Background image loaded successfully:', imagePath);
+            testImage.onerror = () => console.warn('⚠️ Background image not found at:', imagePath);
             testImage.src = imagePath;
         }
-        
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
         function setupEventListeners() {
             // Login form
             const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLoginSubmit);
-            }
+            if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
             
             // Register form
             const registerForm = document.getElementById('registerForm');
-            if (registerForm) {
-                registerForm.addEventListener('submit', handleRegisterSubmit);
-            }
+            if (registerForm) registerForm.addEventListener('submit', handleRegisterSubmit);
             
             // Show register form
             const showRegister = document.getElementById('showRegister');
-            if (showRegister) {
-                showRegister.addEventListener('click', showRegisterForm);
-            }
+            if (showRegister) showRegister.addEventListener('click', showRegisterForm);
             
             // Cancel register buttons
             const cancelRegister = document.getElementById('cancelRegister');
@@ -827,18 +1345,24 @@
             const submitOtp = document.getElementById('submitOtp');
             const closeOtpModal = document.getElementById('closeOtpModal');
             
-            if (cancelOtp) cancelOtp.onclick = closeOtpModalFunc;
-            if (resendOtp) resendOtp.onclick = handleResendOtp;
-            if (submitOtp) submitOtp.onclick = handleVerifyOtp;
-            if (closeOtpModal) closeOtpModal.onclick = closeOtpModalFunc;
+            if (cancelOtp) cancelOtp.addEventListener('click', closeOtpModalFunc);
+            if (resendOtp) resendOtp.addEventListener('click', handleResendOtp);
+            if (submitOtp) submitOtp.addEventListener('click', handleVerifyOtp);
+            if (closeOtpModal) closeOtpModal.addEventListener('click', closeOtpModalFunc);
             
             // OTP form submit
             const otpForm = document.getElementById('otpForm');
             if (otpForm) {
-                otpForm.addEventListener('submit', function(e) {
+                otpForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     handleVerifyOtp();
                 });
+            }
+            
+            // Lockout modal close button
+            const closeLockoutModal = document.getElementById('closeLockoutModal');
+            if (closeLockoutModal) {
+                closeLockoutModal.addEventListener('click', hideLockoutModal);
             }
             
             // Terms and Privacy modals
@@ -853,60 +1377,62 @@
             if (agreePrivacyModal) agreePrivacyModal.addEventListener('click', agreeToPrivacy);
             
             // Terms and Privacy buttons in register form
-            const showTermsButtons = document.querySelectorAll('.show-terms-modal');
-            const showPrivacyButtons = document.querySelectorAll('.show-privacy-modal');
-            
-            showTermsButtons.forEach(button => {
-                button.addEventListener('click', showTermsModal);
+            document.querySelectorAll('.show-terms-modal').forEach(btn => {
+                btn.addEventListener('click', showTermsModal);
             });
             
-            showPrivacyButtons.forEach(button => {
-                button.addEventListener('click', showPrivacyModal);
+            document.querySelectorAll('.show-privacy-modal').forEach(btn => {
+                btn.addEventListener('click', showPrivacyModal);
             });
             
             // Footer buttons
             const footerTerms = document.getElementById('footerTerms');
             const footerPrivacy = document.getElementById('footerPrivacy');
             
-            if (footerTerms) {
-                footerTerms.addEventListener('click', showTermsModal);
-            }
-            
-            if (footerPrivacy) {
-                footerPrivacy.addEventListener('click', showPrivacyModal);
-            }
+            if (footerTerms) footerTerms.addEventListener('click', showTermsModal);
+            if (footerPrivacy) footerPrivacy.addEventListener('click', showPrivacyModal);
             
             // Modal background clicks
             const registerModal = document.getElementById('registerFormContainer');
             const otpModalElement = document.getElementById('otpModal');
             const termsModalElement = document.getElementById('termsModal');
             const privacyModalElement = document.getElementById('privacyModal');
+            const lockoutModalElement = document.getElementById('lockoutModal');
             
             if (registerModal) {
-                registerModal.addEventListener('click', function(e) {
+                registerModal.addEventListener('click', (e) => {
                     if (e.target === this) hideRegisterForm();
                 });
             }
             
             if (otpModalElement) {
-                otpModalElement.addEventListener('click', function(e) {
+                otpModalElement.addEventListener('click', (e) => {
                     if (e.target === this) closeOtpModalFunc();
                 });
             }
             
             if (termsModalElement) {
-                termsModalElement.addEventListener('click', function(e) {
+                termsModalElement.addEventListener('click', (e) => {
                     if (e.target === this) hideTermsModal();
                 });
             }
             
             if (privacyModalElement) {
-                privacyModalElement.addEventListener('click', function(e) {
+                privacyModalElement.addEventListener('click', (e) => {
                     if (e.target === this) hidePrivacyModal();
                 });
             }
+            
+            if (lockoutModalElement) {
+                lockoutModalElement.addEventListener('click', (e) => {
+                    if (e.target === this) hideLockoutModal();
+                });
+            }
         }
-        
+
+        // ============================================
+        // PASSWORD VALIDATION
+        // ============================================
         function setupPasswordValidation() {
             const passwordInput = document.getElementById('regPassword');
             const confirmInput = document.getElementById('confirmPassword');
@@ -919,10 +1445,8 @@
                     validateRegisterForm();
                 });
                 
-                passwordInput.addEventListener('focus', function() {
-                    if (requirementsDiv) {
-                        requirementsDiv.style.display = 'block';
-                    }
+                passwordInput.addEventListener('focus', () => {
+                    if (requirementsDiv) requirementsDiv.style.display = 'block';
                 });
                 
                 passwordInput.addEventListener('blur', function() {
@@ -941,12 +1465,97 @@
                 });
             }
         }
-        
+
+        function checkPasswordStrength(password) {
+            const strengthBar = document.getElementById('passwordStrength');
+            if (!strengthBar) return;
+            
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                number: /\d/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+            };
+            
+            const reqLength = document.getElementById('reqLength');
+            const reqUppercase = document.getElementById('reqUppercase');
+            const reqLowercase = document.getElementById('reqLowercase');
+            const reqNumber = document.getElementById('reqNumber');
+            const reqSpecial = document.getElementById('reqSpecial');
+            
+            if (reqLength) reqLength.className = requirements.length ? 'requirement met' : 'requirement unmet';
+            if (reqUppercase) reqUppercase.className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
+            if (reqLowercase) reqLowercase.className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
+            if (reqNumber) reqNumber.className = requirements.number ? 'requirement met' : 'requirement unmet';
+            if (reqSpecial) reqSpecial.className = requirements.special ? 'requirement met' : 'requirement unmet';
+            
+            let score = Object.values(requirements).filter(Boolean).length;
+            
+            let strengthClass = '';
+            if (password.length === 0) {
+                strengthClass = '';
+            } else if (password.length < 6) {
+                strengthClass = 'strength-weak';
+            } else if (score <= 2) {
+                strengthClass = 'strength-fair';
+            } else if (score <= 4) {
+                strengthClass = 'strength-good';
+            } else {
+                strengthClass = 'strength-strong';
+            }
+            
+            strengthBar.className = `password-strength ${strengthClass}`;
+        }
+
+        function checkPasswordMatch() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+            const matchElement = document.getElementById('passwordMatch');
+            const mismatchElement = document.getElementById('passwordMismatch');
+            
+            if (confirmPassword.length === 0) {
+                if (matchElement) matchElement.classList.add('hidden');
+                if (mismatchElement) mismatchElement.classList.add('hidden');
+                return false;
+            }
+            
+            if (password === confirmPassword) {
+                if (matchElement) matchElement.classList.remove('hidden');
+                if (mismatchElement) mismatchElement.classList.add('hidden');
+                return true;
+            } else {
+                if (matchElement) matchElement.classList.add('hidden');
+                if (mismatchElement) mismatchElement.classList.remove('hidden');
+                return false;
+            }
+        }
+
+        function validateRegisterForm() {
+            const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+            const password = document.getElementById('regPassword')?.value || '';
+            
+            if (!registerSubmitBtn) return;
+            
+            const hasMinLength = password.length >= 8;
+            const hasUppercase = /[A-Z]/.test(password);
+            const hasLowercase = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            const passwordsMatch = checkPasswordMatch();
+            
+            const isStrongPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
+            
+            registerSubmitBtn.disabled = !(isStrongPassword && passwordsMatch);
+        }
+
+        // ============================================
+        // OTP SETUP
+        // ============================================
         function setupOTPInputs() {
             const inputs = document.querySelectorAll('.otp-input');
             
             inputs.forEach((input, index) => {
-                // Handle input event
                 input.addEventListener('input', function(e) {
                     const value = e.target.value.replace(/[^0-9]/g, '');
                     
@@ -957,23 +1566,17 @@
                         if (index < inputs.length - 1) {
                             inputs[index + 1].focus();
                             inputs[index + 1].select();
-                        } else {
-                            e.target.blur();
                         }
                     } else {
                         e.target.classList.remove('filled');
                     }
                     
-                    // Auto-submit if all inputs are filled
                     const allFilled = Array.from(inputs).every(input => input.value.length === 1);
                     if (allFilled) {
-                        setTimeout(() => {
-                            handleVerifyOtp();
-                        }, 100);
+                        setTimeout(() => handleVerifyOtp(), 100);
                     }
                 });
                 
-                // Handle backspace
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Backspace') {
                         if (!e.target.value && index > 0) {
@@ -1002,7 +1605,6 @@
                     }
                 });
                 
-                // Handle paste
                 input.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
@@ -1022,113 +1624,26 @@
                     }
                     
                     if (digits.length === 6) {
-                        setTimeout(() => {
-                            handleVerifyOtp();
-                        }, 100);
+                        setTimeout(() => handleVerifyOtp(), 100);
                     }
                 });
                 
-                input.addEventListener('focus', function() {
-                    this.select();
-                });
-                
-                input.addEventListener('click', function() {
-                    this.select();
-                });
+                input.addEventListener('focus', function() { this.select(); });
+                input.addEventListener('click', function() { this.select(); });
             });
         }
-        
-        function checkPasswordStrength(password) {
-            const strengthBar = document.getElementById('passwordStrength');
-            if (!strengthBar) return;
-            
-            const requirements = {
-                length: password.length >= 8,
-                uppercase: /[A-Z]/.test(password),
-                lowercase: /[a-z]/.test(password),
-                number: /\d/.test(password),
-                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-            };
-            
-            // Update requirement indicators
-            const reqLength = document.getElementById('reqLength');
-            const reqUppercase = document.getElementById('reqUppercase');
-            const reqLowercase = document.getElementById('reqLowercase');
-            const reqNumber = document.getElementById('reqNumber');
-            const reqSpecial = document.getElementById('reqSpecial');
-            
-            if (reqLength) reqLength.className = requirements.length ? 'requirement met' : 'requirement unmet';
-            if (reqUppercase) reqUppercase.className = requirements.uppercase ? 'requirement met' : 'requirement unmet';
-            if (reqLowercase) reqLowercase.className = requirements.lowercase ? 'requirement met' : 'requirement unmet';
-            if (reqNumber) reqNumber.className = requirements.number ? 'requirement met' : 'requirement unmet';
-            if (reqSpecial) reqSpecial.className = requirements.special ? 'requirement met' : 'requirement unmet';
-            
-            let score = 0;
-            Object.values(requirements).forEach(met => {
-                if (met) score++;
-            });
-            
-            let strengthClass = '';
-            
-            if (password.length === 0) {
-                strengthClass = '';
-            } else if (password.length < 6) {
-                strengthClass = 'strength-weak';
-            } else if (score <= 2) {
-                strengthClass = 'strength-fair';
-            } else if (score <= 4) {
-                strengthClass = 'strength-good';
-            } else {
-                strengthClass = 'strength-strong';
-            }
-            
-            strengthBar.className = `password-strength ${strengthClass}`;
-        }
-        
-        function checkPasswordMatch() {
-            const password = document.getElementById('regPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const matchElement = document.getElementById('passwordMatch');
-            const mismatchElement = document.getElementById('passwordMismatch');
-            
-            if (confirmPassword.length === 0) {
-                if (matchElement) matchElement.classList.add('hidden');
-                if (mismatchElement) mismatchElement.classList.add('hidden');
-                return false;
-            }
-            
-            if (password === confirmPassword) {
-                if (matchElement) matchElement.classList.remove('hidden');
-                if (mismatchElement) mismatchElement.classList.add('hidden');
-                return true;
-            } else {
-                if (matchElement) matchElement.classList.add('hidden');
-                if (mismatchElement) mismatchElement.classList.remove('hidden');
-                return false;
-            }
-        }
-        
-        function validateRegisterForm() {
-            const registerSubmitBtn = document.getElementById('registerSubmitBtn');
-            const password = document.getElementById('regPassword').value;
-            
-            if (!registerSubmitBtn) return;
-            
-            const hasMinLength = password.length >= 8;
-            const hasUppercase = /[A-Z]/.test(password);
-            const hasLowercase = /[a-z]/.test(password);
-            const hasNumber = /\d/.test(password);
-            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-            const passwordsMatch = checkPasswordMatch();
-            
-            const isStrongPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
-            
-            registerSubmitBtn.disabled = !(isStrongPassword && passwordsMatch);
-        }
-        
+
+        // ============================================
+        // LOGIN HANDLER - FIXED
+        // ============================================
         async function handleLoginSubmit(e) {
             e.preventDefault();
             console.log('🔐 Login form submitted');
+            
+            if (isLockedOut) {
+                showNotification('Account is temporarily locked. Please try again later.', 'error');
+                return;
+            }
             
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -1147,13 +1662,9 @@
             setButtonLoading(loginBtn, true, 'Logging in...');
             
             try {
-                console.log('📤 Sending login request to:', API_ENDPOINT);
-                
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'login',
                         email: email,
@@ -1162,40 +1673,64 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Raw response:', responseText);
+                console.log('📥 Login response:', responseText);
                 
                 let data;
                 try {
                     data = JSON.parse(responseText);
                 } catch (parseError) {
                     console.error('❌ JSON Parse Error:', parseError);
-                    showNotification('Server returned invalid response. Check if auth.php exists.', 'error');
+                    showNotification('Server returned invalid response', 'error');
                     return;
                 }
                 
                 if (data.success) {
                     console.log('✅ Login successful');
                     
+                    // Reset attempts on successful login
+                    resetAllAttempts();
+                    
                     if (data.user_role === 'admin') {
-                        console.log('👑 Admin user detected');
                         showNotification('Admin login successful! Redirecting...', 'success');
-                        
                         setTimeout(() => {
                             window.location.href = (basePath ? basePath + '/' : '') + 'dist/index.html';
                         }, 1000);
                     } else {
                         currentUserId = data.user_id;
+                        
+                        // Reset OTP attempts for new session
+                        otpAttempts = 0;
+                        localStorage.removeItem('otpAttempts');
+                        
                         if (data.debug_otp) {
                             console.log('🔑 DEBUG OTP:', data.debug_otp);
                             showNotification('Login successful! OTP: ' + data.debug_otp, 'success');
                         } else {
                             showNotification('Login successful! OTP sent to your email.', 'success');
                         }
+                        
+                        // Clear password field
+                        document.getElementById('password').value = '';
+                        
                         openOtpModal();
                     }
                 } else {
                     console.log('❌ Login failed:', data.message);
-                    showNotification(data.message || 'Invalid email or password', 'error');
+                    
+                    // INCREMENT ATTEMPTS ON FAILED LOGIN
+                    incrementLoginAttempts();
+                    
+                    // Show error with remaining attempts
+                    if (!isLockedOut) {
+                        const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
+                        let errorMessage = data.message || 'Invalid email or password';
+                        
+                        if (remaining > 0) {
+                            errorMessage += ` (${remaining} attempt${remaining !== 1 ? 's' : ''} remaining)`;
+                        }
+                        
+                        showNotification(errorMessage, 'error');
+                    }
                 }
             } catch (error) {
                 console.error('🚨 Login error:', error);
@@ -1204,7 +1739,10 @@
                 setButtonLoading(loginBtn, false, 'Login');
             }
         }
-        
+
+        // ============================================
+        // REGISTER HANDLER
+        // ============================================
         async function handleRegisterSubmit(e) {
             e.preventDefault();
             console.log('📝 Register form submitted');
@@ -1282,13 +1820,9 @@
             setButtonLoading(registerBtn, true, 'Creating Account...');
             
             try {
-                console.log('📤 Sending registration request to:', API_ENDPOINT);
-                
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'register',
                         ...data
@@ -1296,7 +1830,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Raw response:', responseText);
+                console.log('📥 Registration response:', responseText);
                 
                 let result;
                 try {
@@ -1329,9 +1863,13 @@
                 setButtonLoading(registerBtn, false, 'Create Account');
             }
         }
-        
+
+        // ============================================
+        // OTP HANDLER - FIXED
+        // ============================================
         async function handleVerifyOtp() {
             console.log('🔑 Verifying OTP...');
+            
             const otpCode = getOtpCode();
             const submitBtn = document.getElementById('submitOtp');
             const errorElement = document.getElementById('otpError');
@@ -1347,9 +1885,7 @@
             try {
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'verify_otp',
                         user_id: currentUserId,
@@ -1358,7 +1894,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 OTP verification raw response:', responseText);
+                console.log('📥 OTP verification response:', responseText);
                 
                 let data;
                 try {
@@ -1370,6 +1906,12 @@
                 }
                 
                 if (data.success) {
+                    console.log('✅ OTP verified successfully');
+                    
+                    // Reset OTP attempts on success
+                    otpAttempts = 0;
+                    localStorage.removeItem('otpAttempts');
+                    
                     showNotification('OTP verified successfully!', 'success');
                     closeOtpModalFunc();
                     
@@ -1381,7 +1923,19 @@
                         }
                     }, 1500);
                 } else {
-                    showOtpError(data.message || 'Invalid OTP');
+                    console.log('❌ OTP verification failed:', data.message);
+                    
+                    // INCREMENT OTP ATTEMPTS ON FAILED VERIFICATION
+                    incrementOtpAttempts();
+                    
+                    // Show error with remaining attempts
+                    const remaining = MAX_LOGIN_ATTEMPTS - otpAttempts;
+                    let errorMessage = data.message || 'Invalid OTP';
+                    
+                    if (remaining > 0 && otpAttempts < MAX_LOGIN_ATTEMPTS) {
+                        errorMessage += ` (${remaining} attempt${remaining !== 1 ? 's' : ''} remaining)`;
+                        showOtpError(errorMessage);
+                    }
                 }
             } catch (error) {
                 console.error('OTP verification error:', error);
@@ -1390,7 +1944,7 @@
                 setButtonLoading(submitBtn, false, 'Verify');
             }
         }
-        
+
         async function handleResendOtp() {
             console.log('🔄 Resending OTP...');
             const resendBtn = document.getElementById('resendOtp');
@@ -1402,9 +1956,7 @@
             try {
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'resend_otp',
                         user_id: currentUserId
@@ -1412,7 +1964,7 @@
                 });
                 
                 const responseText = await response.text();
-                console.log('📥 Resend OTP raw response:', responseText);
+                console.log('📥 Resend OTP response:', responseText);
                 
                 let data;
                 try {
@@ -1430,6 +1982,12 @@
                     } else {
                         showNotification('New OTP sent to your email', 'success');
                     }
+                    
+                    // Reset OTP attempts on resend
+                    otpAttempts = 0;
+                    localStorage.removeItem('otpAttempts');
+                    updateOtpAttemptsDisplay();
+                    
                     startOtpTimer();
                 } else {
                     showNotification(data.message || 'Failed to resend OTP', 'error');
@@ -1441,7 +1999,7 @@
                 setButtonLoading(resendBtn, false, 'Resend OTP');
             }
         }
-        
+
         // ============================================
         // MODAL FUNCTIONS
         // ============================================
@@ -1528,6 +2086,9 @@
                 startOtpTimer();
                 hideOtpError();
                 
+                // Update OTP attempts display
+                updateOtpAttemptsDisplay();
+                
                 const firstInput = document.querySelector('.otp-input[data-index="0"]');
                 if (firstInput) {
                     setTimeout(() => {
@@ -1535,9 +2096,6 @@
                         firstInput.select();
                     }, 100);
                 }
-                console.log('✅ OTP modal opened successfully');
-            } else {
-                console.error('❌ OTP modal element not found!');
             }
         }
         
@@ -1557,8 +2115,7 @@
         // ============================================
         function getOtpCode() {
             const inputs = document.querySelectorAll('.otp-input');
-            const code = Array.from(inputs).map(input => input.value).join('');
-            return code;
+            return Array.from(inputs).map(input => input.value).join('');
         }
         
         function resetOtpInputs() {
@@ -1585,9 +2142,7 @@
             
             updateTimerDisplay();
             
-            if (otpTimer) {
-                clearInterval(otpTimer);
-            }
+            if (otpTimer) clearInterval(otpTimer);
             
             otpTimer = setInterval(() => {
                 otpTimeLeft--;
@@ -1707,17 +2262,13 @@
             
             document.body.appendChild(notification);
             
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 100);
+            setTimeout(() => notification.classList.add('show'), 100);
             
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.classList.remove('show');
                     setTimeout(() => {
-                        if (notification.parentNode) {
-                            notification.remove();
-                        }
+                        if (notification.parentNode) notification.remove();
                     }, 300);
                 }
             }, 5000);
@@ -1731,6 +2282,8 @@
         // Make functions globally available
         window.showNotification = showNotification;
         window.closeOtpModalFunc = closeOtpModalFunc;
+        window.resetAllAttempts = resetAllAttempts;
+        window.testLockoutFeature = testLockoutFeature;
     </script>
 </body>
 </html>
