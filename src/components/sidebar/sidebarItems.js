@@ -1,12 +1,12 @@
 import { LayoutDashboard, Settings } from 'lucide-react'
 
 const sidebarItems = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    path: "/dashboard",
-  },
+  //{
+    //id: "dashboard",
+    //label: "Dashboard",
+    //icon: LayoutDashboard,
+    //path: "/dashboard",
+  //},
   {
     id: "module1",
     label: "Real Property Tax Collection System",
@@ -64,15 +64,15 @@ const sidebarItems = [
       { id: "market4", label: "Market Status", path: "/MARKET/MarketStatus" },
     ]
   },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: Settings,
-    subItems: [
-      { id: "general-settings", label: "General", path: "/settings/general" },
-      { id: "security-settings", label: "Security", path: "/settings/security" }
-    ]
-  }
+  //{
+    //id: "settings",
+    //label: "Settings",
+   // icon: Settings,
+   // subItems: [
+    //  { id: "general-settings", label: "General", path: "/settings/general" },
+     // { id: "security-settings", label: "Security", path: "/settings/security" }
+   // ]
+  //}
 ]
 
 export default sidebarItems

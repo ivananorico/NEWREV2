@@ -6,40 +6,100 @@ import {
   Activity, Zap, Shield, Target,
   ArrowUp, ArrowDown, AlertCircle,
   CheckCircle, Clock, BarChart3,
-  PieChart, LineChart, Users,
-  MapPin, Bell, Settings, X
+  PieChart, Users, MapPin, Bell, 
+  Settings, X, FileText, Map,
+  Landmark, Info, Eye, AlertOctagon,
+  ChevronRight, Filter, Search,
+  CreditCard, Timer, Percent, Flag,
+  ShoppingCart, Coffee, Utensils, Beef
 } from 'lucide-react';
 
 export default function Anomaly() {
-  const [anomalies, setAnomalies] = useState(null);
+  const [anomalies, setAnomalies] = useState({
+    rpt: null,
+    business: null,
+    market: null
+  });
   const [loading, setLoading] = useState(true);
-  const [activeSystem, setActiveSystem] = useState('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [activeSystem, setActiveSystem] = useState('rpt');
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedAnomaly, setSelectedAnomaly] = useState(null);
+  const [severityFilter, setSeverityFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [systemStats, setSystemStats] = useState({
+    rpt: {},
+    business: {},
+    market: {}
+  });
 
   // Color palette
   const colors = {
-    primary: '#4a90e2',    // Blue
-    secondary: '#9aa5b1',   // Gray
-    success: '#4caf50',     // Green
-    background: '#fbfbfb'   // Off-white
+    primary: '#2c7da0',      // Teal blue - RPT
+    business: '#4a90e2',     // Blue - Business
+    market: '#8fbc8f',       // Green - Market
+    secondary: '#6c757d',    // Gray
+    success: '#2d6a4f',      // Green
+    warning: '#e9c46a',      // Yellow
+    danger: '#e63946',       // Red
+    background: '#f8f9fa'    // Off-white
   };
 
   useEffect(() => {
     fetchAnomalies();
     
     if (autoRefresh) {
-      const interval = setInterval(fetchAnomalies, 30000);
+      const interval = setInterval(fetchAnomalies, 60000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh]);
+  }, [autoRefresh, activeSystem]);
 
   const fetchAnomalies = async () => {
+    setLoading(true);
     try {
-      const response = await fetch('http://localhost/revenue2/backend/Treasury/anomaly_detection.php?action=detect');
+      let url = '';
+      
+      if (activeSystem === 'rpt') {
+        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=rpt&action=detect';
+      } else if (activeSystem === 'business') {
+        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=business&action=detect';
+      } else if (activeSystem === 'market') {
+        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=market&action=detect';
+      } else if (activeSystem === 'all') {
+        url = 'http://localhost/revenue2/backend/Treasury/anomaly_detection.php?system=all&action=detect';
+      }
+      
+      const response = await fetch(url);
       const data = await response.json();
-      setAnomalies(data);
+      
+      if (activeSystem === 'all') {
+        // Handle all systems response
+        setAnomalies({
+          rpt: data.rpt?.anomalies || [],
+          business: data.business?.anomalies || [],
+          market: data.market?.anomalies || []
+        });
+        setSystemStats({
+          rpt: data.rpt?.quarterly_stats || data.rpt?.monthly_stats || {},
+          business: data.business?.quarterly_stats || {},
+          market: data.market?.monthly_stats || {}
+        });
+      } else {
+        // Handle single system response
+        setAnomalies(prev => ({
+          ...prev,
+          [activeSystem]: data.anomalies || []
+        }));
+        
+        // Handle different stat names (quarterly_stats for RPT/Business, monthly_stats for Market)
+        const stats = data.quarterly_stats || data.monthly_stats || {};
+        setSystemStats(prev => ({
+          ...prev,
+          [activeSystem]: stats
+        }));
+      }
+      
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching anomalies:', error);
@@ -48,40 +108,58 @@ export default function Anomaly() {
     }
   };
 
+  const getSeverityColor = (severity) => {
+    switch(severity?.toLowerCase()) {
+      case 'critical': 
+        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'warning': 
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+      default: 
+        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+    }
+  };
+
+  const getSeverityBadge = (severity) => {
+    switch(severity?.toLowerCase()) {
+      case 'critical': 
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+      case 'warning': 
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      default: 
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    }
+  };
+
   const getSystemIcon = (system) => {
     switch(system) {
-      case 'Business Tax': return <Building className="w-5 h-5" style={{ color: colors.primary }} />;
-      case 'Real Property Tax': return <Home className="w-5 h-5" style={{ color: colors.primary }} />;
-      case 'Market Rent': return <Store className="w-5 h-5" style={{ color: colors.primary }} />;
-      default: return <Activity className="w-5 h-5" style={{ color: colors.secondary }} />;
+      case 'RPT': return <Home className="w-4 h-4" />;
+      case 'Business': return <Building className="w-4 h-4" />;
+      case 'Market': return <Store className="w-4 h-4" />;
+      default: return <Activity className="w-4 h-4" />;
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch(severity) {
-      case 'critical': 
-        return 'bg-red-50 text-red-700 border-red-200';
-      case 'warning': 
-        return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      default: 
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-    }
-  };
-
-  const getSeverityDarkColor = (severity) => {
-    switch(severity) {
-      case 'critical': 
-        return 'dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
-      case 'warning': 
-        return 'dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
-      default: 
-        return 'dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
-    }
+  const getTypeIcon = (type) => {
+    if (!type) return <AlertTriangle className="w-5 h-5" />;
+    
+    if (type.includes('LATE') || type.includes('CHRONIC')) return <Timer className="w-5 h-5" />;
+    if (type.includes('PATTERN')) return <Activity className="w-5 h-5" />;
+    if (type.includes('DISCOUNT')) return <Percent className="w-5 h-5" />;
+    if (type.includes('CLUSTER')) return <MapPin className="w-5 h-5" />;
+    if (type.includes('CRITICAL')) return <AlertOctagon className="w-5 h-5" />;
+    if (type.includes('MISSED')) return <Clock className="w-5 h-5" />;
+    if (type.includes('CAPITAL')) return <DollarSign className="w-5 h-5" />;
+    return <AlertTriangle className="w-5 h-5" />;
   };
 
   const getTypeColor = (type) => {
-    if (type.includes('SPIKE') || type.includes('SURGE')) return 'text-green-600 dark:text-green-400';
-    if (type.includes('DROP') || type.includes('LOW')) return 'text-red-600 dark:text-red-400';
+    if (!type) return 'text-yellow-600';
+    if (type.includes('CRITICAL') || type.includes('CHRONIC')) return 'text-red-600 dark:text-red-400';
+    if (type.includes('LATE')) return 'text-orange-600 dark:text-orange-400';
+    if (type.includes('CLUSTER')) return 'text-purple-600 dark:text-purple-400';
+    if (type.includes('DISCOUNT')) return 'text-green-600 dark:text-green-400';
+    if (type.includes('PATTERN')) return 'text-blue-600 dark:text-blue-400';
+    if (type.includes('CAPITAL')) return 'text-yellow-600 dark:text-yellow-400';
     return 'text-yellow-600 dark:text-yellow-400';
   };
 
@@ -89,41 +167,388 @@ export default function Anomaly() {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP',
-      minimumFractionDigits: 2
-    }).format(amount);
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
   };
 
-  const filteredAnomalies = () => {
-    if (!anomalies) return [];
-    
-    if (activeSystem === 'all') {
-      return [
-        ...(anomalies.business || []),
-        ...(anomalies.rpt || []),
-        ...(anomalies.market || [])
-      ].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en-PH').format(num || 0);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
     }
-    
+  };
+
+  const getCurrentAnomalies = () => {
+    if (activeSystem === 'all') {
+      // For all systems, flatten all anomalies with system label
+      return [
+        ...(anomalies.rpt || []).map(a => ({ ...a, system: 'RPT' })),
+        ...(anomalies.business || []).map(a => ({ ...a, system: 'Business' })),
+        ...(anomalies.market || []).map(a => ({ ...a, system: 'Market' }))
+      ];
+    }
     return anomalies[activeSystem] || [];
   };
 
+  const getFilteredAnomalies = () => {
+    const currentAnomalies = getCurrentAnomalies();
+    let filtered = [...currentAnomalies];
+    
+    if (severityFilter !== 'all') {
+      filtered = filtered.filter(a => a.severity?.toLowerCase() === severityFilter.toLowerCase());
+    }
+    
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(a => a.type?.includes(typeFilter));
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(a => 
+        (a.owner || a.business_name || a.renter || '')?.toLowerCase().includes(term) ||
+        a.barangay?.toLowerCase().includes(term) ||
+        (a.owner_code || a.applicant_id || a.renter_code || a.stall_no || '')?.toLowerCase().includes(term)
+      );
+    }
+    
+    return filtered.sort((a, b) => {
+      if (a.severity === 'critical' && b.severity !== 'critical') return -1;
+      if (a.severity !== 'critical' && b.severity === 'critical') return 1;
+      return (b.days_late || 0) - (a.days_late || 0);
+    });
+  };
+
   const getAnomalyStats = () => {
-    if (!anomalies) return { critical: 0, warning: 0, total: 0 };
-    
-    const all = [
-      ...(anomalies.business || []),
-      ...(anomalies.rpt || []),
-      ...(anomalies.market || [])
-    ];
-    
+    const currentAnomalies = getCurrentAnomalies();
     return {
-      critical: all.filter(a => a.severity === 'critical').length,
-      warning: all.filter(a => a.severity === 'warning').length,
-      total: all.length
+      critical: currentAnomalies.filter(a => a.severity === 'critical').length,
+      warning: currentAnomalies.filter(a => a.severity === 'warning').length,
+      info: currentAnomalies.filter(a => a.severity === 'info').length,
+      total: currentAnomalies.length
     };
   };
 
   const stats = getAnomalyStats();
+  const filteredAnomalies = getFilteredAnomalies();
+
+  // Render RPT Content
+  const renderRPTContent = () => {
+    const stats = systemStats.rpt || {};
+    return (
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Current Quarter</p>
+              <Calendar className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-bold" style={{ color: colors.primary }}>
+              {stats.current_quarter?.quarter || 'Q1'} {stats.current_quarter?.year || '2026'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_quarter?.total || 0} assessments
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Collection Rate</p>
+              <DollarSign className="w-4 h-4 text-green-600" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.current_quarter?.collection_rate || 0}%
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.quarter_over_quarter_change > 0 ? '+' : ''}
+              {stats.quarter_over_quarter_change || 0}% vs last quarter
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Overdue</p>
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            <p className="text-2xl font-bold text-red-600">
+              {stats.current_quarter?.overdue || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_quarter?.overdue_rate || 0}% of total
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Avg Days Late</p>
+              <Timer className="w-4 h-4 text-orange-500" />
+            </div>
+            <p className="text-2xl font-bold text-orange-600">
+              {stats.current_quarter?.avg_days_late || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">days</p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Total Penalties</p>
+              <Percent className="w-4 h-4 text-purple-500" />
+            </div>
+            <p className="text-lg font-bold text-purple-600">
+              {formatCurrency(stats.current_quarter?.total_penalties || 0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">this quarter</p>
+          </div>
+        </div>
+
+        {stats.top_late_barangays?.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg border">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4" style={{ color: colors.primary }} />
+              Top 5 Barangays with Highest Late Payment Rates
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {stats.top_late_barangays.map((barangay, idx) => (
+                <div key={idx} className="p-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">{barangay.barangay}</p>
+                  <p className="text-xs text-gray-500">{barangay.overdue_count} of {barangay.total_payments} payments</p>
+                  <p className="text-sm font-bold text-red-600">{barangay.overdue_rate}% late</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Render Business Tax Content
+  const renderBusinessContent = () => {
+    const stats = systemStats.business || {};
+    return (
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Current Quarter</p>
+              <Calendar className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-bold" style={{ color: colors.business }}>
+              {stats.current_quarter?.quarter || 'Q1'} {stats.current_quarter?.year || '2026'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_quarter?.total || 0} assessments
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Collection Rate</p>
+              <DollarSign className="w-4 h-4 text-green-600" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.current_quarter?.collection_rate || 0}%
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.quarter_over_quarter_change > 0 ? '+' : ''}
+              {stats.quarter_over_quarter_change || 0}% vs last quarter
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Overdue</p>
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            <p className="text-2xl font-bold text-red-600">
+              {stats.current_quarter?.overdue || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_quarter?.overdue_rate || 0}% of total
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Avg Days Late</p>
+              <Timer className="w-4 h-4 text-orange-500" />
+            </div>
+            <p className="text-2xl font-bold text-orange-600">
+              {stats.current_quarter?.avg_days_late || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">days</p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Total Penalties</p>
+              <Percent className="w-4 h-4 text-purple-500" />
+            </div>
+            <p className="text-lg font-bold text-purple-600">
+              {formatCurrency(stats.current_quarter?.total_penalties || 0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">this quarter</p>
+          </div>
+        </div>
+
+        {stats.top_late_barangays?.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg border">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4" style={{ color: colors.business }} />
+              Top 5 Barangays with Highest Business Tax Delinquency
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {stats.top_late_barangays.map((barangay, idx) => (
+                <div key={idx} className="p-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">{barangay.barangay}</p>
+                  <p className="text-xs text-gray-500">{barangay.overdue_count} of {barangay.total_payments} payments</p>
+                  <p className="text-sm font-bold text-red-600">{barangay.overdue_rate}% late</p>
+                  <p className="text-xs text-gray-500">Avg {barangay.avg_days_late} days late</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {stats.business_types?.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg border">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Building className="w-4 h-4" style={{ color: colors.business }} />
+              Top Business Types
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {stats.business_types.map((type, idx) => (
+                <div key={idx} className="p-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">{type.business_nature}</p>
+                  <p className="text-xs text-gray-500">{type.count} businesses</p>
+                  <p className="text-sm font-bold" style={{ color: colors.business }}>
+                    {formatCurrency(type.avg_tax)} avg
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Render Market Rent Content - FULLY ENABLED
+  const renderMarketContent = () => {
+    const stats = systemStats.market || {};
+    return (
+      <>
+        {/* Monthly Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Current Month</p>
+              <Calendar className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-bold" style={{ color: colors.market }}>
+              {stats.current_month?.month || 'February'} {stats.current_month?.year || '2026'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_month?.total || 0} billings
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Collection Rate</p>
+              <DollarSign className="w-4 h-4 text-green-600" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.current_month?.collection_rate || 0}%
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.month_over_month_change > 0 ? '+' : ''}
+              {stats.month_over_month_change || 0}% vs last month
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Overdue</p>
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            <p className="text-2xl font-bold text-red-600">
+              {stats.current_month?.overdue || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.current_month?.overdue_rate || 0}% of total
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Avg Days Late</p>
+              <Timer className="w-4 h-4 text-orange-500" />
+            </div>
+            <p className="text-2xl font-bold text-orange-600">
+              {stats.current_month?.avg_days_late || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">days</p>
+          </div>
+
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-500">Total Collection</p>
+              <Store className="w-4 h-4 text-purple-500" />
+            </div>
+            <p className="text-lg font-bold text-purple-600">
+              {formatCurrency(stats.current_month?.total_collection || 0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">this month</p>
+          </div>
+        </div>
+
+        {/* Top Late Barangays */}
+        {stats.top_late_barangays?.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg border">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4" style={{ color: colors.market }} />
+              Top 5 Barangays with Highest Rent Delinquency
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {stats.top_late_barangays.map((barangay, idx) => (
+                <div key={idx} className="p-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">{barangay.barangay}</p>
+                  <p className="text-xs text-gray-500">{barangay.overdue_count} of {barangay.total_payments} payments</p>
+                  <p className="text-sm font-bold text-red-600">{barangay.overdue_rate}% late</p>
+                  <p className="text-xs text-gray-500">{barangay.stall_count} stalls</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stall Class Performance */}
+        {stats.stall_classes?.length > 0 && (
+          <div className="mb-6 p-4 bg-white rounded-lg border">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Store className="w-4 h-4" style={{ color: colors.market }} />
+              Stall Class Payment Performance
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {stats.stall_classes.map((stallClass, idx) => (
+                <div key={idx} className="p-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">Class {stallClass.class_name}</p>
+                  <p className="text-xs text-gray-500">{stallClass.occupied_stalls} active stalls</p>
+                  <p className="text-sm font-bold" style={{ color: colors.market }}>
+                    {stallClass.payment_rate}% paid
+                  </p>
+                  <p className="text-xs text-gray-500">{stallClass.avg_days_late} days late avg</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <div 
@@ -133,7 +558,7 @@ export default function Anomaly() {
         color: '#1e293b'
       }}
     >
-      {/* Header with AI Status */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div 
@@ -147,10 +572,13 @@ export default function Anomaly() {
               className="text-2xl font-bold"
               style={{ color: colors.primary }}
             >
-              AI Anomaly Detection
+              Tax & Revenue Anomaly Detection System
             </h1>
             <p style={{ color: colors.secondary }}>
-              Real-time monitoring with machine learning pattern recognition
+              {activeSystem === 'rpt' && 'Real Property Tax - Quarterly Payment Monitoring'}
+              {activeSystem === 'business' && 'Business Tax - Quarterly Payment Monitoring'}
+              {activeSystem === 'market' && 'Market Rent - Monthly Payment Monitoring'}
+              {activeSystem === 'all' && 'All Systems - Unified Monitoring'}
             </p>
           </div>
         </div>
@@ -174,7 +602,7 @@ export default function Anomaly() {
               color: autoRefresh ? colors.success : colors.secondary
             }}
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className={`w-5 h-5 ${autoRefresh ? 'animate-spin' : ''}`} />
           </button>
           
           <button
@@ -190,579 +618,424 @@ export default function Anomaly() {
         </div>
       </div>
 
-      {/* AI Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div 
-          className="rounded-lg p-4 text-white"
-          style={{ 
-            background: `linear-gradient(135deg, ${colors.primary} 0%, #357abd 100%)`
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm opacity-90">AI Confidence</p>
-              <p className="text-2xl font-bold mt-1">87%</p>
-              <p className="text-xs opacity-75 mt-1">Pattern recognition accuracy</p>
-            </div>
-            <Brain className="w-10 h-10 opacity-80" />
-          </div>
-        </div>
-
-        <div 
-          className="rounded-lg p-4 border"
-          style={{ 
-            backgroundColor: '#fef2f2',
-            borderColor: '#fee2e2',
-            color: '#991b1b'
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">Critical Anomalies</p>
-              <p className="text-2xl font-bold mt-1">{stats.critical}</p>
-              <p className="text-xs mt-1 opacity-75">Requires immediate attention</p>
-            </div>
-            <AlertTriangle className="w-10 h-10" style={{ color: '#dc2626' }} />
-          </div>
-        </div>
-
-        <div 
-          className="rounded-lg p-4 border"
-          style={{ 
-            backgroundColor: '#fefce8',
-            borderColor: '#fef08a',
-            color: '#854d0e'
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">Warning Anomalies</p>
-              <p className="text-2xl font-bold mt-1">{stats.warning}</p>
-              <p className="text-xs mt-1 opacity-75">Monitor closely</p>
-            </div>
-            <AlertCircle className="w-10 h-10" style={{ color: '#ca8a04' }} />
-          </div>
-        </div>
-
-        <div 
-          className="rounded-lg p-4 border"
-          style={{ 
-            backgroundColor: `${colors.primary}10`,
-            borderColor: colors.primary,
-            color: colors.primary
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">AI Predictions</p>
-              <p className="text-lg font-bold mt-1">Next Month</p>
-              <p className="text-xs mt-1" style={{ color: colors.primary }}>
-                {anomalies?.ai_insights?.revenue_prediction?.next_month?.total 
-                  ? formatCurrency(anomalies.ai_insights.revenue_prediction.next_month.total)
-                  : '₱0.00'}
-              </p>
-            </div>
-            <Target className="w-10 h-10" style={{ color: colors.primary }} />
-          </div>
-        </div>
-      </div>
-
-      {/* System Filters */}
+      {/* System Filters - ALL SYSTEMS LIVE */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+        <button
+          onClick={() => setActiveSystem('rpt')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          style={{ 
+            backgroundColor: activeSystem === 'rpt' ? colors.primary : `${colors.secondary}10`,
+            color: activeSystem === 'rpt' ? 'white' : colors.secondary,
+            border: activeSystem === 'rpt' ? 'none' : '1px solid ' + colors.secondary + '30'
+          }}
+        >
+          <Home className="w-4 h-4" />
+          Real Property Tax
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-500 text-white rounded-full">
+            Live
+          </span>
+        </button>
+        
+        <button
+          onClick={() => setActiveSystem('business')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          style={{ 
+            backgroundColor: activeSystem === 'business' ? colors.business : `${colors.secondary}10`,
+            color: activeSystem === 'business' ? 'white' : colors.business,
+            border: activeSystem === 'business' ? 'none' : '1px solid ' + colors.business + '40'
+          }}
+        >
+          <Building className="w-4 h-4" />
+          Business Tax
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500 text-white rounded-full">
+            Live
+          </span>
+        </button>
+        
+        <button
+          onClick={() => setActiveSystem('market')}
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          style={{ 
+            backgroundColor: activeSystem === 'market' ? colors.market : `${colors.secondary}10`,
+            color: activeSystem === 'market' ? 'white' : colors.market,
+            border: activeSystem === 'market' ? 'none' : '1px solid ' + colors.market + '40'
+          }}
+        >
+          <Store className="w-4 h-4" />
+          Market Rent
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-500 text-white rounded-full">
+            Live
+          </span>
+        </button>
+        
         <button
           onClick={() => setActiveSystem('all')}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           style={{ 
-            backgroundColor: activeSystem === 'all' ? colors.primary : `${colors.secondary}20`,
-            color: activeSystem === 'all' ? 'white' : colors.secondary
+            backgroundColor: activeSystem === 'all' ? colors.secondary : `${colors.secondary}10`,
+            color: activeSystem === 'all' ? 'white' : colors.secondary,
+            border: activeSystem === 'all' ? 'none' : '1px solid ' + colors.secondary + '30'
           }}
         >
           <Activity className="w-4 h-4" />
           All Systems
         </button>
-        
-        <button
-          onClick={() => setActiveSystem('business')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          style={{ 
-            backgroundColor: activeSystem === 'business' ? colors.primary : `${colors.secondary}20`,
-            color: activeSystem === 'business' ? 'white' : colors.secondary
-          }}
-        >
-          <Building className="w-4 h-4" />
-          Business Tax
-        </button>
-        
-        <button
-          onClick={() => setActiveSystem('rpt')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          style={{ 
-            backgroundColor: activeSystem === 'rpt' ? colors.primary : `${colors.secondary}20`,
-            color: activeSystem === 'rpt' ? 'white' : colors.secondary
-          }}
-        >
-          <Home className="w-4 h-4" />
-          Real Property Tax
-        </button>
-        
-        <button
-          onClick={() => setActiveSystem('market')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          style={{ 
-            backgroundColor: activeSystem === 'market' ? colors.primary : `${colors.secondary}20`,
-            color: activeSystem === 'market' ? 'white' : colors.secondary
-          }}
-        >
-          <Store className="w-4 h-4" />
-          Market Rent
-        </button>
-
-        <div className="flex-1" />
-
-        <button 
-          className="p-2 rounded-lg transition-colors"
-          style={{ 
-            backgroundColor: `${colors.secondary}20`,
-            color: colors.secondary
-          }}
-        >
-          <Download className="w-5 h-5" />
-        </button>
-        
-        <button 
-          className="p-2 rounded-lg transition-colors"
-          style={{ 
-            backgroundColor: `${colors.secondary}20`,
-            color: colors.secondary
-          }}
-        >
-          <Settings className="w-5 h-5" />
-        </button>
       </div>
 
-      {/* AI Insights Panel */}
-      {anomalies?.ai_insights && (
-        <div 
-          className="mb-6 p-5 rounded-lg border"
-          style={{ 
-            backgroundColor: `${colors.primary}08`,
-            borderColor: colors.primary
-          }}
-        >
-          <div className="flex items-start gap-3">
-            <div 
-              className="p-2 rounded-lg"
-              style={{ backgroundColor: `${colors.primary}20` }}
-            >
-              <Brain className="w-5 h-5" style={{ color: colors.primary }} />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold mb-2 flex items-center gap-2" style={{ color: colors.primary }}>
-                AI-Generated Insights
-                <span 
-                  className="text-xs px-2 py-1 rounded-full"
-                  style={{ 
-                    backgroundColor: `${colors.primary}20`,
-                    color: colors.primary
-                  }}
-                >
-                  {anomalies.ai_insights.revenue_prediction.next_month.confidence} confidence
-                </span>
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: 'white' }}
-                >
-                  <p className="text-sm" style={{ color: colors.secondary }}>Revenue Prediction</p>
-                  <p className="text-lg font-bold" style={{ color: colors.primary }}>
-                    {formatCurrency(anomalies.ai_insights.revenue_prediction.next_month.total)}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: colors.secondary }}>
-                    Next month forecast
-                  </p>
-                </div>
-                
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: 'white' }}
-                >
-                  <p className="text-sm" style={{ color: colors.secondary }}>Trend Direction</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    {anomalies.ai_insights.revenue_prediction.trend.direction === 'positive' ? (
-                      <>
-                        <TrendingUp className="w-5 h-5" style={{ color: colors.success }} />
-                        <span className="font-medium" style={{ color: colors.success }}>Increasing</span>
-                      </>
-                    ) : anomalies.ai_insights.revenue_prediction.trend.direction === 'negative' ? (
-                      <>
-                        <TrendingDown className="w-5 h-5" style={{ color: '#dc2626' }} />
-                        <span className="font-medium" style={{ color: '#dc2626' }}>Decreasing</span>
-                      </>
-                    ) : (
-                      <>
-                        <Activity className="w-5 h-5" style={{ color: '#ca8a04' }} />
-                        <span className="font-medium" style={{ color: '#ca8a04' }}>Stable</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: 'white' }}
-                >
-                  <p className="text-sm" style={{ color: colors.secondary }}>Risk Assessment</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Shield style={{ 
-                      color: anomalies.ai_insights.risk_assessment.overall_risk_level === 'low' ? colors.success :
-                             anomalies.ai_insights.risk_assessment.overall_risk_level === 'moderate' ? '#ca8a04' :
-                             '#dc2626'
-                    }} />
-                    <span className="font-medium capitalize">
-                      {anomalies.ai_insights.risk_assessment.overall_risk_level}
-                    </span>
-                    <span 
-                      className="text-xs px-2 py-1 rounded-full"
-                      style={{ 
-                        backgroundColor: `${colors.secondary}20`,
-                        color: colors.secondary
-                      }}
-                    >
-                      Score: {anomalies.ai_insights.risk_assessment.risk_score}
-                    </span>
-                  </div>
-                </div>
+      {/* Stats Cards for All Systems */}
+      {activeSystem === 'all' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Anomalies</p>
+                <p className="text-2xl font-bold" style={{ color: colors.primary }}>{stats.total}</p>
               </div>
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
             </div>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Critical</p>
+                <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+              </div>
+              <AlertOctagon className="w-8 h-8 text-red-500" />
+            </div>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Warning</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.warning}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-yellow-500" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System Specific Content - ALL LIVE */}
+      {activeSystem === 'rpt' && renderRPTContent()}
+      {activeSystem === 'business' && renderBusinessContent()}
+      {activeSystem === 'market' && renderMarketContent()}
+
+      {/* Filters - Show for all systems */}
+      {activeSystem !== 'all' && (
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" style={{ color: colors.warning }} />
+              {activeSystem === 'rpt' && 'RPT Anomalies'}
+              {activeSystem === 'business' && 'Business Tax Anomalies'}
+              {activeSystem === 'market' && 'Market Rent Anomalies'}
+              <span 
+                className="text-sm px-2 py-1 rounded-full"
+                style={{ 
+                  backgroundColor: `${colors.secondary}20`,
+                  color: colors.secondary
+                }}
+              >
+                {filteredAnomalies.length} found
+              </span>
+            </h2>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-none md:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: colors.secondary }} />
+              <input
+                type="text"
+                placeholder={
+                  activeSystem === 'rpt' ? "Search owner or barangay..." : 
+                  activeSystem === 'business' ? "Search business or barangay..." : 
+                  "Search stall, renter or barangay..."
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2"
+                style={{ 
+                  borderColor: colors.secondary + '40',
+                  focusRingColor: activeSystem === 'rpt' ? colors.primary : 
+                                  activeSystem === 'business' ? colors.business : 
+                                  colors.market
+                }}
+              />
+            </div>
+            
+            <select 
+              value={severityFilter}
+              onChange={(e) => setSeverityFilter(e.target.value)}
+              className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
+              style={{ 
+                borderColor: colors.secondary + '40',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="all">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="warning">Warning</option>
+              <option value="info">Info</option>
+            </select>
+            
+            <select 
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
+              style={{ 
+                borderColor: colors.secondary + '40',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="all">All Types</option>
+              <option value="LATE">Late Payments</option>
+              <option value="CRITICAL">Critical Late</option>
+              <option value="CHRONIC">Chronic Late</option>
+              <option value="PATTERN">Pattern Change</option>
+              <option value="DISCOUNT">Discount</option>
+              <option value="CLUSTER">Geographic</option>
+            </select>
           </div>
         </div>
       )}
 
       {/* Anomalies List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" style={{ color: '#ca8a04' }} />
-            Detected Anomalies
-            <span 
-              className="text-sm px-2 py-1 rounded-full"
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="relative">
+            <div 
+              className="w-16 h-16 border-4 rounded-full animate-spin"
               style={{ 
-                backgroundColor: `${colors.secondary}20`,
-                color: colors.secondary
+                borderColor: `${colors.secondary}20`,
+                borderTopColor: activeSystem === 'rpt' ? colors.primary : 
+                              activeSystem === 'business' ? colors.business : 
+                              activeSystem === 'market' ? colors.market : 
+                              colors.primary
               }}
-            >
-              {filteredAnomalies().length} found
-            </span>
-          </h2>
-          
-          <select 
-            className="text-sm border rounded-lg px-3 py-2"
-            style={{ 
-              borderColor: colors.secondary,
-              backgroundColor: 'white'
-            }}
-          >
-            <option>All Severities</option>
-            <option>Critical Only</option>
-            <option>Warning Only</option>
-          </select>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="relative">
-              <div 
-                className="w-12 h-12 border-4 rounded-full animate-spin"
-                style={{ 
-                  borderColor: `${colors.secondary}20`,
-                  borderTopColor: colors.primary
-                }}
-              ></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Brain className="w-5 h-5 animate-pulse" style={{ color: colors.primary }} />
-              </div>
+            ></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Brain className="w-6 h-6 animate-pulse" style={{ 
+                color: activeSystem === 'rpt' ? colors.primary : 
+                       activeSystem === 'business' ? colors.business : 
+                       activeSystem === 'market' ? colors.market : 
+                       colors.primary 
+              }} />
             </div>
           </div>
-        ) : filteredAnomalies().length === 0 ? (
-          <div 
-            className="text-center py-12 rounded-lg"
-            style={{ backgroundColor: `${colors.secondary}08` }}
-          >
-            <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: colors.success }} />
-            <p style={{ color: colors.secondary }}>No anomalies detected</p>
-            <p className="text-sm mt-1" style={{ color: colors.secondary }}>
-              All systems operating normally
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredAnomalies().map((anomaly, index) => (
-              <div
-                key={index}
-                onClick={() => setSelectedAnomaly(anomaly)}
-                className={`rounded-lg border p-4 hover:shadow-md transition-all cursor-pointer
-                  ${getSeverityColor(anomaly.severity)} ${getSeverityDarkColor(anomaly.severity)}`}
-              >
-                <div className="flex items-start gap-4">
-                  <div 
-                    className="p-2 rounded-lg"
-                    style={{ 
-                      backgroundColor: anomaly.severity === 'critical' ? '#fee2e2' :
-                                     anomaly.severity === 'warning' ? '#fef9c3' :
-                                     `${colors.primary}20`
-                    }}
-                  >
-                    {getSystemIcon(anomaly.system)}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span 
-                            className={`text-xs font-medium px-2 py-1 rounded-full ${
-                              anomaly.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                              anomaly.severity === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {anomaly.severity?.toUpperCase()}
+        </div>
+      ) : filteredAnomalies.length === 0 ? (
+        <div 
+          className="text-center py-16 rounded-lg"
+          style={{ backgroundColor: `${colors.secondary}08` }}
+        >
+          <CheckCircle className="w-16 h-16 mx-auto mb-4" style={{ color: colors.success }} />
+          <p className="text-lg font-medium" style={{ color: colors.secondary }}>
+            No {activeSystem === 'rpt' ? 'RPT' : activeSystem === 'business' ? 'business tax' : 'market rent'} anomalies detected
+          </p>
+          <p className="text-sm mt-1" style={{ color: colors.secondary }}>
+            All {activeSystem === 'rpt' ? 'quarterly payments' : activeSystem === 'business' ? 'business tax payments' : 'monthly rent payments'} are processing normally
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {filteredAnomalies.map((anomaly, index) => (
+            <div
+              key={anomaly.id || index}
+              className={`rounded-lg border p-5 hover:shadow-lg transition-all cursor-pointer
+                ${getSeverityColor(anomaly.severity)}`}
+              onClick={() => setSelectedAnomaly(selectedAnomaly?.id === anomaly.id ? null : anomaly)}
+            >
+              <div className="flex items-start gap-4">
+                <div 
+                  className="p-3 rounded-lg flex-shrink-0"
+                  style={{ 
+                    backgroundColor: anomaly.severity === 'critical' ? '#fee2e2' :
+                                   anomaly.severity === 'warning' ? '#fef9c3' :
+                                   anomaly.system === 'RPT' ? `${colors.primary}20` : 
+                                   anomaly.system === 'Business' ? `${colors.business}20` : 
+                                   anomaly.system === 'Market' ? `${colors.market}20` : 
+                                   `${colors.primary}20`
+                  }}
+                >
+                  {getTypeIcon(anomaly.type)}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getSeverityBadge(anomaly.severity)}`}>
+                          {anomaly.severity?.toUpperCase()}
+                        </span>
+                        {anomaly.system && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 flex items-center gap-1">
+                            {getSystemIcon(anomaly.system)}
+                            {anomaly.system}
                           </span>
-                          <span className={`text-sm font-medium ${getTypeColor(anomaly.type)}`}>
-                            {anomaly.type?.replace(/_/g, ' ')}
+                        )}
+                        <span className={`text-sm font-medium ${getTypeColor(anomaly.type)}`}>
+                          {anomaly.type?.replace(/_/g, ' ')}
+                        </span>
+                        {anomaly.quarter && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            <Calendar className="w-3 h-3" />
+                            {anomaly.quarter} {anomaly.year}
                           </span>
-                        </div>
-                        
-                        <h3 className="font-medium text-lg mb-1">
-                          {anomaly.system}: {anomaly.description}
-                        </h3>
-                        
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
-                          {anomaly.date && (
-                            <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
-                              <Calendar className="w-4 h-4" />
-                              {new Date(anomaly.date).toLocaleDateString()}
-                            </span>
-                          )}
-                          
-                          {anomaly.change_percent && (
-                            <span className={`flex items-center gap-1 font-medium ${
-                              anomaly.change_percent > 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {anomaly.change_percent > 0 ? (
-                                <ArrowUp className="w-4 h-4" />
-                              ) : (
-                                <ArrowDown className="w-4 h-4" />
-                              )}
-                              {Math.abs(anomaly.change_percent)}% variance
-                            </span>
-                          )}
-                          
-                          {anomaly.value && (
-                            <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
-                              <DollarSign className="w-4 h-4" />
-                              {formatCurrency(anomaly.value)}
-                            </span>
-                          )}
-                          
-                          {anomaly.occupancy_rate && (
-                            <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
-                              <Users className="w-4 h-4" />
-                              Occupancy: {anomaly.occupancy_rate}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {anomaly.ai_analysis && (
-                          <div 
-                            className="mt-3 p-3 rounded-lg border"
-                            style={{ 
-                              backgroundColor: `${colors.primary}08`,
-                              borderColor: colors.primary
-                            }}
-                          >
-                            <div className="flex items-start gap-2">
-                              <Brain className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: colors.primary }} />
-                              <p className="text-sm" style={{ color: colors.primary }}>
-                                {anomaly.ai_analysis}
-                              </p>
-                            </div>
-                          </div>
+                        )}
+                        {anomaly.month && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            <Calendar className="w-3 h-3" />
+                            Month {anomaly.month}/{anomaly.year}
+                          </span>
+                        )}
+                        {anomaly.barangay && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            <MapPin className="w-3 h-3" />
+                            {anomaly.barangay}
+                          </span>
                         )}
                       </div>
                       
-                      <button 
-                        className="p-1 rounded-lg transition-colors hover:opacity-70"
-                        style={{ color: colors.secondary }}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <h3 className="font-semibold text-base mb-2">
+                        {anomaly.title || anomaly.description}
+                      </h3>
+                      
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1 text-sm">
+                        {/* Business Name */}
+                        {anomaly.business_name && (
+                          <span className="flex items-center gap-1 font-medium" style={{ 
+                            color: anomaly.system === 'Business' ? colors.business : 
+                                   anomaly.system === 'Market' ? colors.market : 
+                                   colors.secondary 
+                          }}>
+                            {anomaly.system === 'Market' ? <Store className="w-4 h-4" /> : <Building className="w-4 h-4" />}
+                            {anomaly.business_name}
+                          </span>
+                        )}
+                        
+                        {/* Renter Name (Market) */}
+                        {anomaly.renter && (
+                          <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
+                            <Users className="w-4 h-4" />
+                            {anomaly.renter}
+                          </span>
+                        )}
+                        
+                        {/* Owner Name (RPT/Business) */}
+                        {anomaly.owner && !anomaly.renter && (
+                          <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
+                            <Users className="w-4 h-4" />
+                            {anomaly.owner}
+                          </span>
+                        )}
+                        
+                        {/* Stall Number (Market) */}
+                        {anomaly.stall_no && (
+                          <span className="flex items-center gap-1 font-mono text-xs" style={{ color: colors.secondary }}>
+                            <Store className="w-4 h-4" />
+                            {anomaly.stall_no}
+                          </span>
+                        )}
+                        
+                        {/* Stall Class (Market) */}
+                        {anomaly.stall_class && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            Class {anomaly.stall_class}
+                          </span>
+                        )}
+                        
+                        {/* Days Late */}
+                        {anomaly.days_late && (
+                          <span className="flex items-center gap-1 font-medium text-red-600">
+                            <Timer className="w-4 h-4" />
+                            {anomaly.days_late} days late
+                          </span>
+                        )}
+                        
+                        {/* Amount */}
+                        {(anomaly.tax_amount || anomaly.rent_amount) && (
+                          <span className="flex items-center gap-1" style={{ color: colors.secondary }}>
+                            <DollarSign className="w-4 h-4" />
+                            {formatCurrency(anomaly.tax_amount || anomaly.rent_amount)}
+                          </span>
+                        )}
+                        
+                        {/* Penalty */}
+                        {anomaly.penalty_amount > 0 && (
+                          <span className="flex items-center gap-1 font-medium text-orange-600">
+                            <Percent className="w-4 h-4" />
+                            Penalty: {formatCurrency(anomaly.penalty_amount)}
+                          </span>
+                        )}
+                        
+                        {/* Discount Rate */}
+                        {anomaly.discount_rate && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <Percent className="w-4 h-4" />
+                            {anomaly.discount_rate}% discount rate
+                          </span>
+                        )}
+                        
+                        {/* Chronic Late Rate */}
+                        {anomaly.chronic_late_rate && (
+                          <span className="flex items-center gap-1 text-red-600">
+                            <AlertOctagon className="w-4 h-4" />
+                            {anomaly.chronic_late_rate}% chronic late rate
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* AI Analysis */}
+                      {anomaly.ai_analysis && (
+                        <div 
+                          className="mt-4 p-3 rounded-lg border text-sm"
+                          style={{ 
+                            backgroundColor: anomaly.system === 'RPT' ? `${colors.primary}08` : 
+                                          anomaly.system === 'Business' ? `${colors.business}08` : 
+                                          anomaly.system === 'Market' ? `${colors.market}08` : 
+                                          `${colors.primary}08`,
+                            borderColor: anomaly.system === 'RPT' ? colors.primary + '40' : 
+                                        anomaly.system === 'Business' ? colors.business + '40' : 
+                                        anomaly.system === 'Market' ? colors.market + '40' : 
+                                        colors.primary + '40'
+                          }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Brain className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ 
+                              color: anomaly.system === 'RPT' ? colors.primary : 
+                                    anomaly.system === 'Business' ? colors.business : 
+                                    anomaly.system === 'Market' ? colors.market : 
+                                    colors.primary 
+                            }} />
+                            <p className="text-sm" style={{ 
+                              color: anomaly.system === 'RPT' ? colors.primary : 
+                                    anomaly.system === 'Business' ? colors.business : 
+                                    anomaly.system === 'Market' ? colors.market : 
+                                    colors.primary 
+                            }}>
+                              {anomaly.ai_analysis}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Recommendation */}
+                      {anomaly.recommendation && (
+                        <div className="mt-3 flex items-start gap-2 text-sm">
+                          <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: colors.secondary }} />
+                          <span style={{ color: colors.secondary }}>
+                            <span className="font-medium">Recommendation:</span> {anomaly.recommendation}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* AI Recommendations */}
-      {anomalies?.ai_insights?.recommendations && anomalies.ai_insights.recommendations.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: colors.primary }}>
-            <Target className="w-5 h-5" style={{ color: colors.primary }} />
-            AI-Generated Recommendations
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {anomalies.ai_insights.recommendations.map((rec, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg border p-4"
-                style={{ 
-                  borderLeftWidth: '4px',
-                  borderLeftColor: rec.priority === 'high' ? '#dc2626' : '#ca8a04'
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div 
-                    className="p-2 rounded-lg"
-                    style={{ 
-                      backgroundColor: rec.priority === 'high' ? '#fee2e2' : '#fef9c3'
-                    }}
-                  >
-                    {rec.category === 'collection' ? 
-                      <DollarSign className="w-5 h-5" style={{ color: rec.priority === 'high' ? '#dc2626' : '#ca8a04' }} /> :
-                     rec.category === 'marketing' ? 
-                      <Users className="w-5 h-5" style={{ color: rec.priority === 'high' ? '#dc2626' : '#ca8a04' }} /> :
-                     rec.category === 'assessment' ? 
-                      <Home className="w-5 h-5" style={{ color: rec.priority === 'high' ? '#dc2626' : '#ca8a04' }} /> :
-                      <Activity className="w-5 h-5" style={{ color: rec.priority === 'high' ? '#dc2626' : '#ca8a04' }} />}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span 
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          rec.priority === 'high' 
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {rec.priority.toUpperCase()} PRIORITY
-                      </span>
-                      <span 
-                        className="text-xs px-2 py-1 rounded-full"
-                        style={{ 
-                          backgroundColor: `${colors.primary}20`,
-                          color: colors.primary
-                        }}
-                      >
-                        AI Confidence: {rec.ai_confidence}
-                      </span>
-                    </div>
-                    
-                    <h3 className="font-medium mb-1">{rec.title}</h3>
-                    <p className="text-sm mb-2" style={{ color: colors.secondary }}>
-                      {rec.description}
-                    </p>
-                    <p className="text-xs" style={{ color: colors.secondary }}>
-                      Potential impact: {rec.potential_impact}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
-
-      {/* Pattern Analysis */}
-      {anomalies?.ai_insights?.pattern_recognition && (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: colors.primary }}>
-            <BarChart3 className="w-5 h-5" style={{ color: colors.primary }} />
-            Pattern Recognition Analysis
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: colors.secondary }}>
-                <Calendar className="w-4 h-4" />
-                Weekly Patterns
-              </h3>
-              <div className="space-y-2">
-                {anomalies.ai_insights.pattern_recognition.weekly_patterns?.map((day, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span style={{ color: colors.secondary }}>
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day.day_of_week - 1]}
-                    </span>
-                    <span className="font-medium" style={{ color: colors.primary }}>
-                      {formatCurrency(day.avg_payment)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: colors.secondary }}>
-                <Clock className="w-4 h-4" />
-                Monthly Patterns
-              </h3>
-              <div className="space-y-2">
-                {anomalies.ai_insights.pattern_recognition.monthly_patterns?.map((month, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span style={{ color: colors.secondary }}>
-                      Month {month.month}
-                    </span>
-                    <span className="font-medium" style={{ color: colors.primary }}>
-                      {month.avg_days_late} days late
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg border p-4">
-              <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: colors.secondary }}>
-                <PieChart className="w-4 h-4" />
-                Correlations
-              </h3>
-              <div className="space-y-2">
-                {Object.entries(anomalies.ai_insights.pattern_recognition.correlations || {}).map(([key, value], i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span className="capitalize" style={{ color: colors.secondary }}>
-                      {key.replace(/_/g, ' ')}
-                    </span>
-                    <span className={`font-medium ${
-                      parseFloat(value) > 0.7 ? 'text-green-600' :
-                      parseFloat(value) > 0.4 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dark mode styles */}
-      <style jsx>{`
-        @media (prefers-color-scheme: dark) {
-          .dark-bg {
-            background-color: #0f172a;
-          }
-          .dark-text {
-            color: #e2e8f0;
-          }
-        }
-      `}</style>
     </div>
   );
 }
