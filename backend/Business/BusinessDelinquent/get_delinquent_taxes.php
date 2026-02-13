@@ -29,14 +29,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
  * DB CONNECTION
  * ======================================
  */
-$host = 'localhost:3307';
-$dbname = 'business_tax';
-$username = 'root';
-$password = '';
+// Check if database file exists
+$dbPath = __DIR__ . '/../../../db/Business/business_db.php';
+
+if (!file_exists($dbPath)) {
+    echo json_encode([
+        "success" => false,
+        "error" => "Database configuration not found",
+        "details" => "Database config not found at: " . $dbPath,
+        "timestamp" => date('Y-m-d H:i:s')
+    ], JSON_PRETTY_PRINT);
+    exit();
+}
+
+require_once $dbPath;
+
+// Get database connection
+$pdo = getDatabaseConnection();
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Check connection
+    if (!$pdo) {
+        throw new Exception("Database connection failed");
+    }
     
     // Query to get ONLY OVERDUE business taxes
     $sql = "
