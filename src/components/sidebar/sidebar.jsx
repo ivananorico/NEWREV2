@@ -18,10 +18,17 @@ import {
   Database,
   MapPin,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  LogOut
 } from 'lucide-react'
 import sidebarItems from './sidebarItems'
 import ProfileCard from './ProfileCard'
+
+// Environment-based URL configuration
+const isProduction = window.location.hostname.includes('goserveph.com');
+const LOGOUT_URL = isProduction 
+  ? "/index.php"  // Production domain - root path
+  : "http://localhost/revenue2/index.php"; // Local development
 
 // Map module IDs to specific icons
 const moduleIcons = {
@@ -93,6 +100,18 @@ function Sidebar({ collapsed }) {
       }
     }
     setExpandedItem(newExpanded)
+  }
+
+  // Handle logout with environment-based URL
+  const handleLogout = () => {
+    // Clear any authentication tokens, user data, etc.
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('userData')
+    localStorage.removeItem('userRole')
+    sessionStorage.clear()
+    
+    // Redirect based on environment
+    window.location.href = LOGOUT_URL
   }
 
   // Get module icon with fallback
@@ -285,6 +304,32 @@ function Sidebar({ collapsed }) {
           )
         })}
       </nav>
+      
+      {/* Logout Button - Placed above profile card */}
+      <div className='px-3 pt-2'>
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center p-3 rounded-2xl transition-all duration-300 group relative overflow-hidden text-[#64748b] hover:bg-gradient-to-r hover:from-red-50 hover:to-white hover:text-red-600 hover:shadow-sm ${
+            collapsed ? 'justify-center' : ''
+          }`}
+          onMouseEnter={() => setHoveredItem('logout')}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          {/* Hover effect */}
+          {hoveredItem === 'logout' && (
+            <div className='absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent'></div>
+          )}
+          
+          <div className='flex items-center space-x-3'>
+            <div className='text-[#9aa5b1] group-hover:text-red-500 transition-all duration-300'>
+              <LogOut className='w-5 h-5' />
+            </div>
+            {!collapsed && (
+              <span className='text-sm font-medium'>Logout</span>
+            )}
+          </div>
+        </button>
+      </div>
       
       {/* Bottom divider */}
       <div className='px-6 pt-2'>
