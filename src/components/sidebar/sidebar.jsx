@@ -27,14 +27,32 @@ import ProfileCard from './ProfileCard'
 // Environment-based URL configuration
 const isProduction = window.location.hostname.includes('goserveph.com');
 
+// Detect the base path dynamically
+const getBasePath = () => {
+  // For production on goserveph.com
+  if (isProduction) {
+    // Check if we're in a subdirectory (e.g., /revenue2/, /admin/, etc.)
+    const pathParts = window.location.pathname.split('/');
+    // If there's a subdirectory after the domain, use it as base path
+    if (pathParts.length > 1 && pathParts[1] !== '') {
+      return `/${pathParts[1]}`; // e.g., /revenue2, /admin, etc.
+    }
+    return ''; // Root directory
+  }
+  // Local development - React dev server serves from root
+  return '';
+}
+
+const BASE_PATH = getBasePath();
+
 // Logout URLs
 const LOGOUT_URL = isProduction 
   ? "/index.php"  // Production domain - root path (public_html)
-  : "http://localhost/revenue2/index.php"; // Local development - your PHP backend
+  : "http://localhost/revenue2/index.php"; // Local development
 
-// Avatar URL - construct dynamically based on environment
+// Avatar URL - construct dynamically based on environment and base path
 const AVATAR_URL = isProduction 
-  ? "/admin.jpg"  // Production - root directory (public_html)
+  ? `${BASE_PATH}/admin.jpg`  // Production - with detected subdirectory
   : "/admin.jpg"; // Local - React dev server serves from public folder at root
 
 // Map module IDs to specific icons
@@ -125,6 +143,7 @@ function Sidebar({ collapsed }) {
   // Handle image error - try alternative path
   const handleImageError = () => {
     if (!imageError) {
+      console.log('Image failed to load, trying alternative path...');
       setImageError(true);
     }
   }
@@ -155,12 +174,23 @@ function Sidebar({ collapsed }) {
   const getAvatarUrl = () => {
     if (imageError) {
       // If image failed to load, try the alternative path
-      return isProduction 
-        ? "/revenue2/admin.jpg" // Try with /revenue2 prefix on production as fallback
-        : "/admin.jpg"; // Already at root on local, this is the fallback
+      if (isProduction) {
+        // Try root path as fallback
+        return "/admin.jpg";
+      } else {
+        return "/admin.jpg";
+      }
     }
     return AVATAR_URL;
   }
+
+  // Log the URLs for debugging
+  React.useEffect(() => {
+    console.log('Environment:', isProduction ? 'Production' : 'Local');
+    console.log('Base Path:', BASE_PATH);
+    console.log('Avatar URL:', AVATAR_URL);
+    console.log('Logout URL:', LOGOUT_URL);
+  }, []);
 
   return (
     <div className={`${collapsed ? 'w-20' : 'w-72'} bg-gradient-to-b from-white to-[#fbfbfb] border-r border-slate-100 flex flex-col transition-all duration-300 ease-in-out shadow-sm`}>
