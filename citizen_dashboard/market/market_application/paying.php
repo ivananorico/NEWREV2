@@ -21,6 +21,9 @@ $base_url = $is_localhost
 // Market payment callback URL - dynamically generated
 $market_callback_url = $base_url . '/citizen_dashboard/market/api/stall_rights_pay_api.php';
 
+// Get the base URL for the background image - reuse the existing base_url logic
+$bg_image_path = $base_url . '/Login/images/gsmbg.png';
+
 // Get applications with 'paying' status
 $applications = [];
 $total_applications = 0;
@@ -80,10 +83,6 @@ try {
 } catch(PDOException $e) {
     $error_message = "Database error: " . $e->getMessage();
 }
-
-// Get the base URL for the background image
-$base_url_bg = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'];
-$bg_image_path = $base_url_bg . '/revenue2/Login/images/gsmbg.png';
 ?>
 
 <!DOCTYPE html>
