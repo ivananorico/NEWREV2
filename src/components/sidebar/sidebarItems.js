@@ -13,7 +13,7 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "rpt1", label: "RPT Dashboard", path: "/RPT/RPTDashboard" },
-      //{ id: "rptanomaly", label: "RPT Delinquent", path: "/RPT/RPTDelinquent" },
+      { id: "rptanomaly", label: "RPT Delinquent", path: "/RPT/RPTDelinquent" },
       { id: "rpt2", label: "RPT Configuration", path: "/RPT/RPTConfig" },
       { id: "rpt3", label: "RPT Validation", path: "/RPT/RPTValidationTable" },
       { id: "rpt4", label: "RPT Status", path: "/RPT/RPTStatus" },
@@ -26,7 +26,7 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "BusinessTaxDashboard", label: "Business Tax Dashboard", path: "/BUSINESS/BusinessTaxDashboard" },
-      //{ id: "BusinessAnomaly", label: "Business Deliquent", path: "/BUSINESS/BusinessDelinquent" },
+      { id: "BusinessAnomaly", label: "Business Deliquent", path: "/BUSINESS/BusinessDelinquent" },
       { id: "BusinessTaxConfig", label: "Business Tax Configuration", path: "/BUSINESS/BusinessTaxConfig" },
       { id: "BusinessValidation", label: "BusinessValidation", path: "/BUSINESS/BusinessValidation" },
       { id: "BusinessStatus", label: "Business Status", path: "/BUSINESS/BusinessStatus" },
@@ -58,7 +58,7 @@ const sidebarItems = [
     icon: LayoutDashboard,
     subItems: [
       { id: "market1", label: "Market Dashboard", path: "/MARKET/MarketDashboard" },
-      //{ id: "marketanomaly", label: "Market Delinquent", path: "/MARKET/MarketDelinquent" },
+      { id: "marketanomaly", label: "Market Delinquent", path: "/MARKET/MarketDelinquent" },
       { id: "market2", label: "Market Stall Map Creator", path: "/MARKET/MapCreator" },
       { id: "market3", label: "Market Validation", path: "/MARKET/MarketValidation" },
       { id: "market4", label: "Market Status", path: "/MARKET/MarketStatus" },

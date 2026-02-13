@@ -214,6 +214,34 @@
         .attempts-badge.danger {
             border-left-color: #ef4444;
         }
+        
+        /* Service cards styling */
+        .service-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* Tagline styling */
+        .tagline {
+            font-size: 2.5rem;
+            line-height: 1.2;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        @media (min-width: 1024px) {
+            .tagline {
+                font-size: 3.5rem;
+            }
+        }
     </style>
 </head>
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -240,12 +268,66 @@
 
     <!-- Main Content -->
     <main class="container mx-auto px-6 pt-4 pb-12 flex-1">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-            <!-- Left Section - Features -->
+        <div class="grid lg:grid-cols-2 gap-12 items-start">
+            <!-- Left Section - Features and Services -->
             <div class="text-center lg:text-left mt-2">
-                <h2 class="text-4xl lg:text-5xl font-bold mb-4 animated-gradient ml-2 lg:ml-4">
-                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Abot-Kamay mo ang &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Serbisyong Publiko!
+                <!-- Fixed Tagline -->
+                <h2 class="tagline mb-6">
+                    Abot-Kamay mo ang <br>Serbisyong Publiko!
                 </h2>
+                
+                <!-- Our Services Section -->
+                <div class="mt-8 bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
+                    <h3 class="text-2xl font-bold text-custom-secondary mb-6 text-center lg:text-left">Our Services</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Real Property Tax Card -->
+                        <div class="service-card bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border border-blue-100 shadow-md">
+                            <div class="w-14 h-14 bg-custom-secondary/10 rounded-full flex items-center justify-center mb-3 mx-auto lg:mx-0">
+                                <i class="fas fa-home text-custom-secondary text-2xl"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-2 text-center lg:text-left">Real Property Tax</h4>
+                            <p class="text-sm text-gray-600 mb-3 text-center lg:text-left">Pay your real property taxes online quickly and securely</p>
+                            <div class="flex items-center text-xs text-custom-secondary">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                <span>Assessments & Payments</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Business Tax Card -->
+                        <div class="service-card bg-gradient-to-br from-green-50 to-white rounded-xl p-5 border border-green-100 shadow-md">
+                            <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3 mx-auto lg:mx-0">
+                                <i class="fas fa-store text-green-600 text-2xl"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-2 text-center lg:text-left">Business Tax</h4>
+                            <p class="text-sm text-gray-600 mb-3 text-center lg:text-left">Apply for permits and pay business taxes with ease</p>
+                            <div class="flex items-center text-xs text-green-600">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                <span>Pay Business Tax</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Market Stall Rental Card -->
+                        <div class="service-card bg-gradient-to-br from-amber-50 to-white rounded-xl p-5 border border-amber-100 shadow-md">
+                            <div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mb-3 mx-auto lg:mx-0">
+                                <i class="fas fa-store-alt text-amber-600 text-2xl"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-2 text-center lg:text-left">Market Stall Rental</h4>
+                            <p class="text-sm text-gray-600 mb-3 text-center lg:text-left">Manage and pay market stall rentals conveniently</p>
+                            <div class="flex items-center text-xs text-amber-600">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                <span>Stall Applications</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-5 text-center lg:text-left">
+                        <p class="text-sm text-gray-500 flex items-center justify-center lg:justify-start">
+                            <i class="fas fa-shield-alt text-custom-secondary mr-2"></i>
+                            Secure online payment portal for all government services
+                        </p>
+                    </div>
+                </div>
                 
                 <!-- Login Attempts Display - ALWAYS VISIBLE when attempts > 0 -->
                 <div id="attemptsDisplay" class="mt-4 ml-4">
@@ -258,7 +340,7 @@
             </div>
 
             <!-- Right Section - Login Form -->
-            <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-auto w-full glass-card glow-on-hover mt-8">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-auto w-full glass-card glow-on-hover mt-8 lg:mt-0">
                 <div class="text-center mb-4">
                     <span class="text-2xl font-bold text-custom-secondary border-b-2 border-custom-secondary pb-2">Login</span>
                 </div>

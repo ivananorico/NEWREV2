@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search, Filter, Download, RefreshCw, AlertCircle, 
@@ -14,21 +14,19 @@ import {
   PieChart, LineChart, Grid3x3, Compass, Navigation,
   Trophy, Star, Award, Crown, Zap, Package, ShoppingBag,
   ShoppingCart, DoorOpen, Calculator, Table, Layers,
-  Grid, Landmark, Target
+  Grid, Landmark, Target, Eye
 } from "lucide-react";
 
-// Custom colors matching the dashboard
+// Custom colors matching RPTDelinquent and BusinessDelinquent
 const COLORS = {
-  primary: '#3b82f6',
-  secondary: '#6b7280',
-  success: '#10b981',
-  background: '#f9fafb',
-  warning: '#f59e0b',
-  danger: '#ef4444',
-  info: '#06b6d4',
-  dark: '#1f2937',
-  white: '#ffffff',
-  light: '#e5e7eb'
+  primary: '#4a90e2',
+  secondary: '#9aa5b1',
+  success: '#4caf50',
+  background: '#fbfbfb',
+  warning: '#ff9800',
+  danger: '#f44336',
+  info: '#2196f3',
+  dark: '#374151'
 };
 
 export default function MarketDelinquent() {
@@ -36,10 +34,22 @@ export default function MarketDelinquent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
+  const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDelinquent, setSelectedDelinquent] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
+  
+  // Email states
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [selectedDelinquents, setSelectedDelinquents] = useState([]);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTemplate, setEmailTemplate] = useState('standard');
+  const [customMessage, setCustomMessage] = useState('');
+  const [selectAll, setSelectAll] = useState(false);
+  
   const itemsPerPage = 10;
 
   // FIXED: Dynamic API base URL
@@ -89,6 +99,8 @@ export default function MarketDelinquent() {
       
       if (data.status === 'success') {
         setDelinquents(data.data || []);
+        // Reset to first page when new data loads
+        setCurrentPage(1);
       } else {
         throw new Error(data.message || "Failed to fetch delinquent data");
       }
@@ -104,12 +116,156 @@ export default function MarketDelinquent() {
     fetchDelinquents();
   }, []);
 
+  // Generate filtered delinquents using useMemo
+  const filteredDelinquents = useMemo(() => {
+    return delinquents.filter(delinquent => {
+      // Search filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        !searchTerm ||
+        (delinquent.business_name && delinquent.business_name.toLowerCase().includes(searchLower)) ||
+        (delinquent.stall_rights_no && delinquent.stall_rights_no.toLowerCase().includes(searchLower)) ||
+        (delinquent.renter_code && delinquent.renter_code.toLowerCase().includes(searchLower)) ||
+        (delinquent.full_name && delinquent.full_name.toLowerCase().includes(searchLower));
+      
+      // Status filter
+      const daysOverdue = delinquent.days_overdue || 0;
+      let matchesStatus = true;
+      
+      switch (statusFilter) {
+        case 'current':
+          matchesStatus = daysOverdue === 0;
+          break;
+        case 'low':
+          matchesStatus = daysOverdue > 0 && daysOverdue <= 30;
+          break;
+        case 'medium':
+          matchesStatus = daysOverdue > 30 && daysOverdue <= 60;
+          break;
+        case 'high':
+          matchesStatus = daysOverdue > 60 && daysOverdue <= 90;
+          break;
+        case 'critical':
+          matchesStatus = daysOverdue > 90;
+          break;
+        default:
+          matchesStatus = true;
+      }
+      
+      // Month filter
+      const billingMonth = delinquent.billing_month || '';
+      const matchesMonth = monthFilter === 'all' || billingMonth === monthFilter;
+      
+      // Year filter
+      const billingYear = delinquent.billing_year?.toString() || '';
+      const matchesYear = yearFilter === 'all' || billingYear === yearFilter;
+      
+      return matchesSearch && matchesStatus && matchesMonth && matchesYear;
+    });
+  }, [delinquents, searchTerm, statusFilter, monthFilter, yearFilter]);
+
+  // Handle select all
+  useEffect(() => {
+    if (selectAll) {
+      setSelectedDelinquents(filteredDelinquents.map(d => d.id || d.billing_id));
+    } else {
+      setSelectedDelinquents([]);
+    }
+  }, [selectAll, filteredDelinquents]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, monthFilter, yearFilter]);
+
+  // Handle individual selection
+  const handleSelectDelinquent = (id) => {
+    setSelectedDelinquents(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Send email function
+  const sendEmailNotices = async () => {
+    if (selectedDelinquents.length === 0) {
+      setEmailStatus({
+        type: 'error',
+        message: 'Please select at least one delinquent account'
+      });
+      return;
+    }
+
+    setSendingEmail(true);
+    setEmailStatus(null);
+
+    try {
+      const selectedData = delinquents.filter(d => selectedDelinquents.includes(d.id || d.billing_id));
+      
+      const response = await fetch(`${getApiBaseUrl()}/Market/Delinquent/send_delinquent_notices.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          delinquents: selectedData,
+          template: emailTemplate,
+          custom_message: customMessage
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setEmailStatus({
+          type: 'success',
+          message: `Successfully sent ${result.sent_count} email notices`
+        });
+        setShowEmailModal(false);
+        setSelectedDelinquents([]);
+        setSelectAll(false);
+        setCustomMessage('');
+        setEmailTemplate('standard');
+      } else {
+        setEmailStatus({
+          type: 'error',
+          message: result.error || 'Failed to send emails'
+        });
+      }
+    } catch (err) {
+      console.error('Email error:', err);
+      setEmailStatus({
+        type: 'error',
+        message: 'Network error occurred'
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  // Generate years for filter
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 6 }, (_, i) => (currentYear - i).toString());
+  
+  // Get unique months from data
+  const months = [...new Set(delinquents.map(d => d.billing_month).filter(Boolean))];
+  const monthNames = {
+    '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+    '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+    '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+  };
+
   // Format currency
   const formatCurrency = (amount) => {
-    const num = parseFloat(amount) || 0;
-    if (num >= 1000000) return `₱${(num / 1000000).toFixed(2)}M`;
-    if (num >= 1000) return `₱${(num / 1000).toFixed(2)}K`;
-    return `₱${num.toFixed(2)}`;
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2
+    }).format(amount || 0);
   };
 
   // Format date
@@ -135,70 +291,59 @@ export default function MarketDelinquent() {
     }
   };
 
-  // Calculate days overdue
-  const calculateDaysOverdue = (dueDate) => {
-    if (!dueDate || dueDate === '0000-00-00' || dueDate === '0000-00-00 00:00:00') {
-      return 0;
+  // Get overdue status color and icon
+  const getStatusInfo = (daysLate) => {
+    if (daysLate > 0) {
+      const severity = daysLate > 90 ? "critical" : 
+                       daysLate > 60 ? "high" : 
+                       daysLate > 30 ? "medium" : "low";
+      
+      const colorMap = {
+        critical: { 
+          text: "text-red-800", 
+          bg: "bg-red-50", 
+          border: "border-red-200",
+          icon: AlertTriangle
+        },
+        high: { 
+          text: "text-orange-800", 
+          bg: "bg-orange-50", 
+          border: "border-orange-200",
+          icon: AlertTriangle
+        },
+        medium: { 
+          text: "text-yellow-800", 
+          bg: "bg-yellow-50", 
+          border: "border-yellow-200",
+          icon: Clock
+        },
+        low: { 
+          text: "text-blue-800", 
+          bg: "bg-blue-50", 
+          border: "border-blue-200",
+          icon: Clock
+        }
+      };
+      
+      const info = colorMap[severity] || colorMap.low;
+      
+      return {
+        label: `Overdue (${daysLate} days)`,
+        severity,
+        ...info,
+        daysLate
+      };
     }
     
-    const due = new Date(dueDate);
-    const today = new Date();
-    const diffTime = today - due;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays > 0 ? diffDays : 0;
+    return {
+      label: "Current",
+      text: "text-green-800",
+      bg: "bg-green-50",
+      border: "border-green-200",
+      icon: CheckCircle,
+      severity: "current"
+    };
   };
-
-  // Get overdue status color
-  const getOverdueStatusColor = (daysOverdue) => {
-    if (daysOverdue === 0) return 'bg-green-100 text-green-800';
-    if (daysOverdue <= 7) return 'bg-yellow-100 text-yellow-800';
-    if (daysOverdue <= 30) return 'bg-orange-100 text-orange-800';
-    return 'bg-red-100 text-red-800';
-  };
-
-  // Get overdue status text
-  const getOverdueStatusText = (daysOverdue) => {
-    if (daysOverdue === 0) return 'Current';
-    if (daysOverdue <= 7) return 'Mild';
-    if (daysOverdue <= 30) return 'Moderate';
-    return 'Severe';
-  };
-
-  // Filter delinquents based on search and status
-  const filteredDelinquents = delinquents.filter(delinquent => {
-    // Search filter
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      !searchTerm ||
-      (delinquent.business_name && delinquent.business_name.toLowerCase().includes(searchLower)) ||
-      (delinquent.stall_rights_no && delinquent.stall_rights_no.toLowerCase().includes(searchLower)) ||
-      (delinquent.renter_code && delinquent.renter_code.toLowerCase().includes(searchLower)) ||
-      (delinquent.full_name && delinquent.full_name.toLowerCase().includes(searchLower));
-    
-    // Status filter
-    const daysOverdue = calculateDaysOverdue(delinquent.due_date);
-    let matchesStatus = true;
-    
-    switch (selectedStatus) {
-      case 'current':
-        matchesStatus = daysOverdue === 0;
-        break;
-      case 'mild':
-        matchesStatus = daysOverdue > 0 && daysOverdue <= 7;
-        break;
-      case 'moderate':
-        matchesStatus = daysOverdue > 7 && daysOverdue <= 30;
-        break;
-      case 'severe':
-        matchesStatus = daysOverdue > 30;
-        break;
-      default:
-        matchesStatus = true;
-    }
-    
-    return matchesSearch && matchesStatus;
-  });
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredDelinquents.length / itemsPerPage);
@@ -210,23 +355,25 @@ export default function MarketDelinquent() {
   const calculateSummary = () => {
     const totalDelinquents = delinquents.length;
     const totalOverdueAmount = delinquents.reduce((sum, d) => sum + (parseFloat(d.overdue_amount) || 0), 0);
-    const totalDaysOverdue = delinquents.reduce((sum, d) => sum + calculateDaysOverdue(d.due_date), 0);
+    const totalDaysOverdue = delinquents.reduce((sum, d) => sum + (d.days_overdue || 0), 0);
     const averageDaysOverdue = totalDelinquents > 0 ? Math.round(totalDaysOverdue / totalDelinquents) : 0;
     
     // Count by severity
     const severityCounts = {
       current: 0,
-      mild: 0,
-      moderate: 0,
-      severe: 0
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0
     };
     
     delinquents.forEach(d => {
-      const daysOverdue = calculateDaysOverdue(d.due_date);
+      const daysOverdue = d.days_overdue || 0;
       if (daysOverdue === 0) severityCounts.current++;
-      else if (daysOverdue <= 7) severityCounts.mild++;
-      else if (daysOverdue <= 30) severityCounts.moderate++;
-      else severityCounts.severe++;
+      else if (daysOverdue <= 30) severityCounts.low++;
+      else if (daysOverdue <= 60) severityCounts.medium++;
+      else if (daysOverdue <= 90) severityCounts.high++;
+      else severityCounts.critical++;
     });
     
     return {
@@ -240,62 +387,203 @@ export default function MarketDelinquent() {
   const summary = calculateSummary();
 
   // Export to CSV function
-  const exportToExcel = () => {
-    const exportData = filteredDelinquents.map(d => ({
-      'Renter Name': d.full_name || 'N/A',
-      'Renter Code': d.renter_code || 'N/A',
-      'Business Name': d.business_name || 'N/A',
-      'Stall Rights No': d.stall_rights_no || 'N/A',
-      'Stall Class': d.stall_class || 'N/A',
-      'Overdue Amount': formatCurrency(d.overdue_amount || 0),
-      'Due Date': formatDate(d.due_date),
-      'Days Overdue': calculateDaysOverdue(d.due_date),
-      'Status': getOverdueStatusText(calculateDaysOverdue(d.due_date)),
-      'Mobile': d.mobile || 'N/A',
-      'Last Payment': formatDate(d.last_payment_date)
-    }));
-    
+  const handleExportReport = () => {
     const csvContent = [
-      Object.keys(exportData[0] || {}).join(','),
-      ...exportData.map(row => Object.values(row).join(','))
-    ].join('\n');
-    
+      ['Stall Rights No', 'Renter Name', 'Renter Code', 'Business Name', 'Stall Name', 'Stall Class', 'Month', 'Year', 'Amount Due', 'Days Overdue', 'Status', 'Due Date', 'Email', 'Phone'],
+      ...filteredDelinquents.map(d => [
+        d.stall_rights_no || 'N/A',
+        d.full_name || 'N/A',
+        d.renter_code || 'N/A',
+        d.business_name || 'N/A',
+        d.stall_name || 'N/A',
+        d.stall_class || 'N/A',
+        d.billing_month || 'N/A',
+        d.billing_year || 'N/A',
+        d.overdue_amount || '0',
+        d.days_overdue || '0',
+        getStatusInfo(d.days_overdue || 0).label,
+        formatDate(d.due_date),
+        d.email || 'N/A',
+        d.mobile || 'N/A'
+      ])
+    ].map(row => row.join(',')).join('\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `delinquents_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `market_delinquents_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // Email Modal Component
+  const EmailModal = () => {
+    if (!showEmailModal) return null;
+
+    const selectedData = delinquents.filter(d => selectedDelinquents.includes(d.id || d.billing_id));
+    const totalAmount = selectedData.reduce((sum, d) => {
+      return sum + (parseFloat(d.overdue_amount) || 0);
+    }, 0);
+    const avgDaysLate = selectedData.length > 0 
+      ? Math.round(selectedData.reduce((sum, d) => sum + (d.days_overdue || 0), 0) / selectedData.length)
+      : 0;
+
+    // Handle backdrop click
+    const handleBackdropClick = (e) => {
+      if (e.target === e.currentTarget) {
+        setShowEmailModal(false);
+      }
+    };
+
+    // Prevent body scroll when modal is open
+    useEffect(() => {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, []);
+
+    return (
+      <div 
+        className="fixed inset-0 z-50 overflow-y-auto"
+        onClick={handleBackdropClick}
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      >
+        <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+            &#8203;
+          </span>
+
+          <div 
+            className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <Mail className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Send Delinquent Notices
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Sending to <span className="font-semibold">{selectedDelinquents.length}</span> selected delinquent account{selectedDelinquents.length === 1 ? '' : 's'}
+                  </p>
+
+                  <div className="mt-4 space-y-4">
+                    {/* Email Template Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email Template
+                      </label>
+                      <select
+                        value={emailTemplate}
+                        onChange={(e) => setEmailTemplate(e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      >
+                        <option value="standard">Standard Notice</option>
+                        <option value="urgent">Urgent Notice</option>
+                        <option value="final">Final Notice (Stall Reclamation)</option>
+                      </select>
+                    </div>
+
+                    {/* Custom Message */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Custom Message (Optional)
+                      </label>
+                      <textarea
+                        rows="4"
+                        value={customMessage}
+                        onChange={(e) => setCustomMessage(e.target.value)}
+                        placeholder="Add any additional instructions or message..."
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+
+                    {/* Summary */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Summary</h4>
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600 flex justify-between">
+                          <span>Total Amount Due:</span>
+                          <span className="font-semibold">{formatCurrency(totalAmount)}</span>
+                        </p>
+                        <p className="text-sm text-gray-600 flex justify-between">
+                          <span>Average Days Late:</span>
+                          <span className="font-semibold">{avgDaysLate} days</span>
+                        </p>
+                        <p className="text-sm text-gray-600 flex justify-between">
+                          <span>Template:</span>
+                          <span className="font-semibold capitalize">{emailTemplate}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recipient List */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Recipients ({selectedDelinquents.length})
+                      </label>
+                      <div className="max-h-40 overflow-y-auto border rounded-md p-2">
+                        {selectedData.map(d => (
+                          <div key={d.id || d.billing_id} className="text-sm py-1 border-b last:border-0">
+                            <span className="font-medium">{d.business_name || d.full_name}</span>
+                            <span className="text-gray-500 ml-2">({d.email || 'No email'})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={sendEmailNotices}
+                disabled={sendingEmail}
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sendingEmail ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Notices
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(false)}
+                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Render loading state
   if (loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
-        {/* Header */}
-        <div className="border-b bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: COLORS.primary }}>
-                <Store className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold" style={{ color: COLORS.dark }}>Market Revenue System</h1>
-              </div>
-            </div>
+        <div className="flex items-center justify-center p-4 h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4"
+                 style={{ borderColor: COLORS.primary }}></div>
+            <p className="font-medium" style={{ color: COLORS.dark }}>Loading delinquent accounts...</p>
+            <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>Fetching data from server</p>
           </div>
-        </div>
-        
-        <div className="flex flex-col justify-center items-center h-[80vh]">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-4" style={{ borderTopColor: COLORS.primary }}></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Store className="w-6 h-6" style={{ color: COLORS.primary }} />
-            </div>
-          </div>
-          <p className="mt-4 font-medium" style={{ color: COLORS.dark }}>Loading Delinquent Records...</p>
-          <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>Fetching overdue payment data</p>
         </div>
       </div>
     );
@@ -305,35 +593,25 @@ export default function MarketDelinquent() {
   if (error) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
-        {/* Header */}
-        <div className="border-b bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: COLORS.primary }}>
-                <Store className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-center p-4 h-screen">
+          <div className="bg-white rounded-lg border p-6 max-w-md w-full" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" 
+                   style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <AlertCircle className="w-6 h-6" style={{ color: COLORS.danger }} />
               </div>
-              <div>
-                <h1 className="text-lg font-bold" style={{ color: COLORS.dark }}>Market Revenue System</h1>
-              </div>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: COLORS.dark }}>Connection Error</h2>
+              <p className="text-sm mb-4" style={{ color: COLORS.secondary }}>{error}</p>
+              <button
+                onClick={fetchDelinquents}
+                className="w-full px-4 py-2.5 rounded-md font-medium text-white transition duration-200"
+                style={{ backgroundColor: COLORS.primary }}
+              >
+                <RefreshCw className="w-4 h-4 inline-block mr-2" />
+                Retry Connection
+              </button>
             </div>
-          </div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-white border rounded-2xl shadow-sm p-8 text-center max-w-2xl mx-auto" style={{ borderColor: COLORS.light }}>
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-10 h-10" style={{ color: COLORS.danger }} />
-            </div>
-            <h2 className="text-2xl font-bold mb-3" style={{ color: COLORS.dark }}>Unable to Load Data</h2>
-            <p className="text-gray-600 mb-8 max-w-md mx-auto">{error}</p>
-            <button 
-              onClick={fetchDelinquents}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium transition-all hover:shadow-lg"
-              style={{ backgroundColor: COLORS.primary }}
-            >
-              <RefreshCw className="w-5 h-5" />
-              Try Again
-            </button>
           </div>
         </div>
       </div>
@@ -342,35 +620,88 @@ export default function MarketDelinquent() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
-      {/* Header - Clean, no duplicate breadcrumb */}
-      <div className="border-b bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: COLORS.primary }}>
-                <Store className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold" style={{ color: COLORS.dark }}>Market Revenue System</h1>
-              </div>
-              {/* Breadcrumb - Single instance */}
-              <div className="hidden md:flex items-center gap-2 text-sm ml-6">
-                <Link to="/admin/dashboard" className="hover:text-blue-600 transition-colors" style={{ color: COLORS.secondary }}>
-                  Dashboard
-                </Link>
-                <ChevronRight className="w-3 h-3" style={{ color: COLORS.secondary }} />
-                <Link to="/admin/market" className="hover:text-blue-600 transition-colors" style={{ color: COLORS.secondary }}>
-                  Market
-                </Link>
-                <ChevronRight className="w-3 h-3" style={{ color: COLORS.secondary }} />
-                <span style={{ color: COLORS.primary, fontWeight: '500' }}>Delinquents</span>
-              </div>
+      {/* Email Status Toast */}
+      {emailStatus && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          emailStatus.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+        } border`}>
+          <div className="flex items-center">
+            {emailStatus.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+            )}
+            <p className={`text-sm font-medium ${
+              emailStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {emailStatus.message}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Email Modal */}
+      <EmailModal />
+
+      {/* Header */}
+      <div className="border-b bg-white sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
+                Market Delinquent Accounts
+              </h1>
+              <p className="text-sm" style={{ color: COLORS.secondary }}>
+                Track and manage overdue stall rental payments
+              </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
-                <Bell className="w-5 h-5" style={{ color: COLORS.secondary }} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Email Button */}
+              <button
+                onClick={() => {
+                  if (selectedDelinquents.length === 0) {
+                    setEmailStatus({
+                      type: 'error',
+                      message: 'Please select accounts to send email notices'
+                    });
+                    setTimeout(() => setEmailStatus(null), 3000);
+                  } else {
+                    setShowEmailModal(true);
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
+                style={{ 
+                  backgroundColor: COLORS.primary,
+                  opacity: selectedDelinquents.length === 0 ? 0.5 : 1
+                }}
+                disabled={selectedDelinquents.length === 0}
+              >
+                <Mail className="w-4 h-4" />
+                Send Email Notice ({selectedDelinquents.length})
+              </button>
+
+              <button
+                onClick={handleExportReport}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all hover:bg-gray-50"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
+              >
+                <Download className="w-4 h-4" />
+                Export Report
+              </button>
+              <button
+                onClick={fetchDelinquents}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 transition-all hover:bg-gray-50"
+                style={{ 
+                  borderColor: COLORS.secondary,
+                  backgroundColor: 'white'
+                }}
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
               </button>
             </div>
           </div>
@@ -378,536 +709,529 @@ export default function MarketDelinquent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>
-            Delinquent Management
-          </h1>
-          <p className="text-sm" style={{ color: COLORS.secondary }}>
-            Monitor and manage overdue stall rental payments
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Delinquent Accounts */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Delinquent Accounts</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.danger }}>{summary.totalDelinquents}</p>
+              </div>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.danger}15` }}>
+                <Store className="w-5 h-5" style={{ color: COLORS.danger }} />
+              </div>
+            </div>
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              {summary.severityCounts.critical} critical, {summary.severityCounts.high} high risk
+            </div>
+          </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all" style={{ borderColor: COLORS.light }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 rounded-lg" style={{ backgroundColor: `${COLORS.primary}10` }}>
-                <Users className="w-5 h-5" style={{ color: COLORS.primary }} />
+          {/* Total Amount Due */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Total Overdue Amount</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.dark }}>{formatCurrency(summary.totalOverdueAmount)}</p>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full font-medium" 
-                    style={{ backgroundColor: `${COLORS.secondary}10`, color: COLORS.secondary }}>
-                Total
-              </span>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.dark}08` }}>
+                <DollarSign className="w-5 h-5" style={{ color: COLORS.dark }} />
+              </div>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>{summary.totalDelinquents}</p>
-            <p className="text-xs" style={{ color: COLORS.secondary }}>Total Delinquents</p>
-            <div className="mt-3 pt-3 border-t text-xs" style={{ borderColor: COLORS.light, color: COLORS.secondary }}>
-              Overdue accounts requiring attention
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              Unpaid rental fees
             </div>
           </div>
-          
-          <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all" style={{ borderColor: COLORS.light }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 rounded-lg" style={{ backgroundColor: `${COLORS.danger}10` }}>
-                <DollarSign className="w-5 h-5" style={{ color: COLORS.danger }} />
+
+          {/* Average Days Late */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Average Days Late</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.warning }}>{summary.averageDaysOverdue} days</p>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-medium">
-                Outstanding
-              </span>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.warning}15` }}>
+                <Clock className="w-5 h-5" style={{ color: COLORS.warning }} />
+              </div>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>{formatCurrency(summary.totalOverdueAmount)}</p>
-            <p className="text-xs" style={{ color: COLORS.secondary }}>Total Overdue Amount</p>
-            <div className="mt-3 pt-3 border-t text-xs" style={{ borderColor: COLORS.light, color: COLORS.secondary }}>
-              Uncollected rental fees
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              Across all delinquent accounts
             </div>
           </div>
-          
-          <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all" style={{ borderColor: COLORS.light }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 rounded-lg" style={{ backgroundColor: `${COLORS.warning}10` }}>
-                <CalendarDays className="w-5 h-5" style={{ color: COLORS.warning }} />
+
+          {/* Critical Cases */}
+          <div className="bg-white border rounded-xl p-5 shadow-sm transition-all hover:shadow-md" 
+               style={{ borderColor: COLORS.secondary }}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: COLORS.secondary }}>Critical Cases</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: COLORS.info }}>{summary.severityCounts.critical}</p>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full font-medium" 
-                    style={{ backgroundColor: `${COLORS.secondary}10`, color: COLORS.secondary }}>
-                Average
-              </span>
-            </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>{summary.averageDaysOverdue} days</p>
-            <p className="text-xs" style={{ color: COLORS.secondary }}>Average Days Overdue</p>
-            <div className="mt-3 pt-3 border-t text-xs" style={{ borderColor: COLORS.light, color: COLORS.secondary }}>
-              Mean delinquency period
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-5 border shadow-sm hover:shadow-md transition-all" style={{ borderColor: COLORS.light }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 rounded-lg" style={{ backgroundColor: `${COLORS.danger}10` }}>
-                <AlertTriangle className="w-5 h-5" style={{ color: COLORS.danger }} />
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${COLORS.info}15` }}>
+                <AlertTriangle className="w-5 h-5" style={{ color: COLORS.info }} />
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-medium">
-                Critical
-              </span>
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: COLORS.dark }}>{summary.severityCounts.severe}</p>
-            <p className="text-xs" style={{ color: COLORS.secondary }}>Severe Cases</p>
-            <div className="mt-3 pt-3 border-t text-xs" style={{ borderColor: COLORS.light, color: COLORS.secondary }}>
-              30+ days overdue
+            <div className="text-xs" style={{ color: COLORS.secondary }}>
+              90+ days overdue
             </div>
           </div>
         </div>
 
         {/* Filters Section */}
-        <div className="bg-white rounded-xl border shadow-sm mb-8" style={{ borderColor: COLORS.light }}>
-          <div className="p-5">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              <div className="flex-1">
+        <div className="bg-white border rounded-xl p-5 transition-all" style={{ borderColor: COLORS.secondary }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold" style={{ color: COLORS.dark }}>Filter Delinquent Accounts</h3>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-sm"
+              style={{ color: COLORS.primary }}
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
+          </div>
+          
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Search</label>
                 <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
                          style={{ color: COLORS.secondary }} />
                   <input
                     type="text"
+                    placeholder="Search by business, renter, or stall..."
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
-                      setCurrentPage(1);
                     }}
-                    className="block w-full pl-10 pr-4 py-2.5 border rounded-lg bg-white focus:outline-none focus:ring-2 transition-all text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent transition duration-200"
                     style={{ 
-                      borderColor: showFilters ? COLORS.primary : COLORS.light,
-                      color: COLORS.dark,
-                      boxShadow: showFilters ? `0 0 0 3px ${COLORS.primary}15` : 'none'
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
                     }}
-                    placeholder="Search by business name, stall rights no, renter code..."
                   />
                 </div>
               </div>
-              
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
-                  style={{ 
-                    borderColor: showFilters ? COLORS.primary : COLORS.light,
-                    color: showFilters ? COLORS.primary : COLORS.dark,
-                    backgroundColor: showFilters ? `${COLORS.primary}5` : 'transparent'
-                  }}
-                >
-                  <Filter className="w-4 h-4" />
-                  {showFilters ? 'Hide Filters' : 'Filters'}
-                </button>
-                
-                <button
-                  onClick={fetchDelinquents}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 text-sm font-medium"
-                  style={{ borderColor: COLORS.light, color: COLORS.dark }}
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
-                
-                <button 
-                  onClick={exportToExcel}
-                  disabled={filteredDelinquents.length === 0}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: COLORS.primary }}
-                >
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
-              </div>
-            </div>
-            
-            {/* Filter Options */}
-            {showFilters && (
-              <div className="mt-5 pt-5 border-t" style={{ borderColor: COLORS.light }}>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: COLORS.secondary }}>Filter by status:</span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedStatus('all');
-                        setCurrentPage(1);
-                      }}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedStatus === 'all' 
-                          ? 'text-white shadow-sm' 
-                          : 'border hover:bg-gray-50'
-                      }`}
-                      style={{ 
-                        backgroundColor: selectedStatus === 'all' ? COLORS.secondary : 'transparent',
-                        borderColor: selectedStatus === 'all' ? 'transparent' : COLORS.light,
-                        color: selectedStatus === 'all' ? 'white' : COLORS.dark
-                      }}
-                    >
-                      All ({delinquents.length})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedStatus('current');
-                        setCurrentPage(1);
-                      }}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedStatus === 'current' 
-                          ? 'text-white shadow-sm' 
-                          : 'border hover:bg-gray-50'
-                      }`}
-                      style={{ 
-                        backgroundColor: selectedStatus === 'current' ? COLORS.success : 'transparent',
-                        borderColor: selectedStatus === 'current' ? 'transparent' : COLORS.light,
-                        color: selectedStatus === 'current' ? 'white' : COLORS.dark
-                      }}
-                    >
-                      Current ({summary.severityCounts.current})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedStatus('mild');
-                        setCurrentPage(1);
-                      }}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedStatus === 'mild' 
-                          ? 'text-white shadow-sm' 
-                          : 'border hover:bg-gray-50'
-                      }`}
-                      style={{ 
-                        backgroundColor: selectedStatus === 'mild' ? '#f59e0b' : 'transparent',
-                        borderColor: selectedStatus === 'mild' ? 'transparent' : COLORS.light,
-                        color: selectedStatus === 'mild' ? 'white' : COLORS.dark
-                      }}
-                    >
-                      Mild ({summary.severityCounts.mild})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedStatus('moderate');
-                        setCurrentPage(1);
-                      }}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedStatus === 'moderate' 
-                          ? 'text-white shadow-sm' 
-                          : 'border hover:bg-gray-50'
-                      }`}
-                      style={{ 
-                        backgroundColor: selectedStatus === 'moderate' ? COLORS.warning : 'transparent',
-                        borderColor: selectedStatus === 'moderate' ? 'transparent' : COLORS.light,
-                        color: selectedStatus === 'moderate' ? 'white' : COLORS.dark
-                      }}
-                    >
-                      Moderate ({summary.severityCounts.moderate})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedStatus('severe');
-                        setCurrentPage(1);
-                      }}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        selectedStatus === 'severe' 
-                          ? 'text-white shadow-sm' 
-                          : 'border hover:bg-gray-50'
-                      }`}
-                      style={{ 
-                        backgroundColor: selectedStatus === 'severe' ? COLORS.danger : 'transparent',
-                        borderColor: selectedStatus === 'severe' ? 'transparent' : COLORS.light,
-                        color: selectedStatus === 'severe' ? 'white' : COLORS.dark
-                      }}
-                    >
-                      Severe ({summary.severityCounts.severe})
-                    </button>
-                  </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Overdue Status</label>
+                <div className="relative">
+                  <AlertCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                         style={{ color: COLORS.secondary }} />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                    }}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="current">Current</option>
+                    <option value="low">Low (1-30 days)</option>
+                    <option value="medium">Medium (31-60 days)</option>
+                    <option value="high">High (61-90 days)</option>
+                    <option value="critical">Critical (90+ days)</option>
+                  </select>
                 </div>
               </div>
-            )}
+
+              {/* Month Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Month</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={monthFilter}
+                    onChange={(e) => {
+                      setMonthFilter(e.target.value);
+                    }}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Months</option>
+                    {months.sort().map(month => (
+                      <option key={month} value={month}>{monthNames[month] || month}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Year Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>Year</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                           style={{ color: COLORS.secondary }} />
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => {
+                      setYearFilter(e.target.value);
+                    }}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border rounded-lg focus:ring-2 focus:border-transparent appearance-none transition duration-200"
+                    style={{ 
+                      borderColor: COLORS.secondary,
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="all">All Years</option>
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Search Stats */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-sm" style={{ color: COLORS.secondary }}>
+              {filteredDelinquents.length} delinquent account{filteredDelinquents.length === 1 ? '' : 's'} found
+            </div>
+            <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
+              Total overdue: {formatCurrency(
+                filteredDelinquents.reduce((sum, d) => sum + (parseFloat(d.overdue_amount) || 0), 0)
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Severity Stats */}
-        {delinquents.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {[
-              { label: 'Current', count: summary.severityCounts.current, color: COLORS.success, icon: CheckCircle },
-              { label: 'Mild', count: summary.severityCounts.mild, color: '#f59e0b', icon: Clock },
-              { label: 'Moderate', count: summary.severityCounts.moderate, color: COLORS.warning, icon: AlertTriangle },
-              { label: 'Severe', count: summary.severityCounts.severe, color: COLORS.danger, icon: AlertCircle }
-            ].map((item) => {
-              const Icon = item.icon;
-              const percentage = summary.totalDelinquents > 0 
-                ? ((item.count / summary.totalDelinquents) * 100).toFixed(1) 
-                : 0;
-              
-              return (
-                <div key={item.label} className="bg-white rounded-lg p-4 border" style={{ borderColor: COLORS.light }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-md" style={{ backgroundColor: `${item.color}15` }}>
-                        <Icon className="w-4 h-4" style={{ color: item.color }} />
-                      </div>
-                      <span className="text-sm font-medium" style={{ color: COLORS.dark }}>{item.label}</span>
-                    </div>
-                    <span className="text-lg font-bold" style={{ color: item.color }}>{item.count}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div
-                      className="h-1.5 rounded-full transition-all duration-500"
-                      style={{ 
-                        width: `${percentage}%`,
-                        backgroundColor: item.color
-                      }}
-                    ></div>
-                  </div>
-                  <p className="text-xs mt-2" style={{ color: COLORS.secondary }}>{percentage}% of total</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {/* Delinquent Table */}
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: COLORS.light }}>
-          {/* Table Header with Results Count */}
-          <div className="px-6 py-4 border-b bg-gray-50/50 flex items-center justify-between" style={{ borderColor: COLORS.light }}>
-            <div className="flex items-center gap-3">
-              <FileText className="w-4 h-4" style={{ color: COLORS.secondary }} />
-              <span className="text-sm font-medium" style={{ color: COLORS.dark }}>
-                Delinquent Records
-              </span>
-              <span className="px-2 py-0.5 text-xs font-medium rounded-full" 
-                    style={{ backgroundColor: `${COLORS.primary}10`, color: COLORS.primary }}>
-                {filteredDelinquents.length} {filteredDelinquents.length === 1 ? 'result' : 'results'}
-              </span>
+        <div className="bg-white border rounded-xl overflow-hidden shadow-sm transition-all" 
+             style={{ borderColor: COLORS.secondary }}>
+          <div className="px-5 py-4 border-b" style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: COLORS.dark }}>
+                  Delinquent Accounts
+                </h2>
+                <p className="text-sm mt-1" style={{ color: COLORS.secondary }}>
+                  {filteredDelinquents.length} account{filteredDelinquents.length === 1 ? '' : 's'} with overdue payments
+                </p>
+              </div>
+              
+              {/* Selection Controls */}
+              {filteredDelinquents.length > 0 && (
+                <div className="flex items-center gap-4 mt-2 sm:mt-0">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={(e) => setSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span style={{ color: COLORS.dark }}>Select All</span>
+                  </label>
+                  {selectedDelinquents.length > 0 && (
+                    <span className="text-sm font-medium" style={{ color: COLORS.primary }}>
+                      {selectedDelinquents.length} selected
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="text-xs hover:text-blue-600 transition-colors"
-                style={{ color: COLORS.secondary }}
-              >
-                Clear search
-              </button>
-            )}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y" style={{ borderColor: COLORS.light }}>
-              <thead>
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider bg-gray-50/50"
-                      style={{ color: COLORS.secondary }}>
-                    Renter Details
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider bg-gray-50/50"
-                      style={{ color: COLORS.secondary }}>
-                    Stall Information
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider bg-gray-50/50"
-                      style={{ color: COLORS.secondary }}>
-                    Payment Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider bg-gray-50/50"
-                      style={{ color: COLORS.secondary }}>
-                    {/* Actions column removed */}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y" style={{ borderColor: COLORS.light }}>
-                {currentDelinquents.length === 0 ? (
-                  <tr>
-                    <td colSpan="3" className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                          <CheckCircle className="w-8 h-8" style={{ color: COLORS.secondary }} />
-                        </div>
-                        <p className="text-base font-medium mb-1" style={{ color: COLORS.dark }}>No delinquent records found</p>
-                        <p className="text-sm" style={{ color: COLORS.secondary }}>
-                          {searchTerm || selectedStatus !== 'all' 
-                            ? 'Try adjusting your search filters' 
-                            : 'All payments are up to date'}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  currentDelinquents.map((delinquent, index) => {
-                    const daysOverdue = calculateDaysOverdue(delinquent.due_date);
-                    const statusColor = getOverdueStatusColor(daysOverdue);
-                    const statusText = getOverdueStatusText(daysOverdue);
-                    
-                    return (
-                      <tr key={delinquent.id || index} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center"
-                                 style={{ backgroundColor: `${COLORS.primary}10` }}>
-                              <User className="w-4 h-4" style={{ color: COLORS.primary }} />
-                            </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
-                                {delinquent.full_name || 'N/A'}
-                              </div>
-                              <div className="text-xs mt-0.5 font-mono" style={{ color: COLORS.secondary }}>
-                                {delinquent.renter_code || 'N/A'}
-                              </div>
-                              {delinquent.mobile && (
-                                <div className="text-xs mt-1 flex items-center gap-1" style={{ color: COLORS.secondary }}>
-                                  <Phone className="w-3 h-3" />
-                                  {delinquent.mobile}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
-                            {delinquent.business_name || 'N/A'}
-                          </div>
-                          <div className="text-xs mt-1 flex flex-wrap items-center gap-1">
-                            <span className="font-mono" style={{ color: COLORS.secondary }}>
-                              {delinquent.stall_rights_no || 'N/A'}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                            <span style={{ color: COLORS.secondary }}>
-                              {delinquent.stall_name || 'N/A'}
-                            </span>
-                          </div>
-                          <div className="text-xs mt-2">
-                            <span className="px-2 py-0.5 rounded-md" 
-                                  style={{ backgroundColor: `${COLORS.info}10`, color: COLORS.info }}>
-                              Class {delinquent.stall_class || 'N/A'}
-                            </span>
-                          </div>
-                        </td>
-                        
-                        <td className="px-6 py-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs" style={{ color: COLORS.secondary }}>Amount Due:</span>
-                              <span className="text-sm font-semibold" style={{ color: COLORS.danger }}>
-                                {formatCurrency(delinquent.overdue_amount || 0)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs" style={{ color: COLORS.secondary }}>Due Date:</span>
-                              <span className="text-xs" style={{ color: COLORS.dark }}>
-                                {formatDate(delinquent.due_date)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs" style={{ color: COLORS.secondary }}>Overdue:</span>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-                                {daysOverdue} days • {statusText}
-                              </span>
-                            </div>
-                            {delinquent.last_payment_date && (
-                              <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: COLORS.light }}>
-                                <span className="text-xs" style={{ color: COLORS.secondary }}>Last Payment:</span>
-                                <span className="text-xs" style={{ color: COLORS.success }}>
-                                  {formatDate(delinquent.last_payment_date)}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        
-                        {/* Actions column completely removed */}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
           </div>
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t bg-gray-50/50 flex items-center justify-between" style={{ borderColor: COLORS.light }}>
-              <div className="text-xs" style={{ color: COLORS.secondary }}>
-                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredDelinquents.length)} of {filteredDelinquents.length} results
+          {filteredDelinquents.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" 
+                   style={{ backgroundColor: `${COLORS.success}15` }}>
+                <CheckCircle className="w-6 h-6" style={{ color: COLORS.success }} />
               </div>
-              <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium mb-1" style={{ color: COLORS.dark }}>
+                {searchTerm || statusFilter !== "all" || monthFilter !== "all" || yearFilter !== "all"
+                  ? "No delinquent accounts found" 
+                  : "No delinquent accounts at this time"}
+              </h3>
+              <p className="text-sm max-w-xs mx-auto" style={{ color: COLORS.secondary }}>
+                {searchTerm || statusFilter !== "all" || monthFilter !== "all" || yearFilter !== "all"
+                  ? "Try adjusting your search filters"
+                  : "All stall rentals are currently up to date"}
+              </p>
+              {(searchTerm || statusFilter !== "all" || monthFilter !== "all" || yearFilter !== "all") && (
                 <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  style={{ borderColor: COLORS.light }}
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("all");
+                    setMonthFilter("all");
+                    setYearFilter("all");
+                  }}
+                  className="mt-4 text-sm font-medium transition-all"
+                  style={{ color: COLORS.primary }}
                 >
-                  <ChevronLeft className="w-4 h-4" style={{ color: COLORS.dark }} />
+                  Clear all filters
                 </button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      return page === 1 || 
-                             page === totalPages || 
-                             (page >= currentPage - 1 && page <= currentPage + 1);
-                    })
-                    .map((page, index, array) => {
-                      const prevPage = array[index - 1];
-                      if (prevPage && page - prevPage > 1) {
-                        return (
-                          <React.Fragment key={`ellipsis-${page}`}>
-                            <span className="px-3 py-2 text-xs" style={{ color: COLORS.secondary }}>...</span>
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                                currentPage === page 
-                                  ? 'text-white shadow-sm' 
-                                  : 'bg-white hover:bg-gray-50'
-                              }`}
-                              style={{ 
-                                backgroundColor: currentPage === page ? COLORS.primary : 'transparent',
-                                borderColor: currentPage === page ? 'transparent' : COLORS.light,
-                                color: currentPage === page ? 'white' : COLORS.dark
-                              }}
-                            >
-                              {page}
-                            </button>
-                          </React.Fragment>
-                        );
-                      }
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y" style={{ borderColor: COLORS.secondary }}>
+                  <thead style={{ backgroundColor: `${COLORS.background}` }}>
+                    <tr>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary, width: '40px' }}>
+                        <span className="sr-only">Select</span>
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Stall Details
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Renter Information
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Period
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Amount Details
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Status & Due Date
+                      </th>
+                      <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider" 
+                          style={{ color: COLORS.secondary }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y" style={{ borderColor: COLORS.secondary }}>
+                    {currentDelinquents.map((delinquent) => {
+                      const statusInfo = getStatusInfo(delinquent.days_overdue || 0);
+                      const StatusIcon = statusInfo.icon;
+                      const totalDue = parseFloat(delinquent.overdue_amount || 0);
+                      const monthName = monthNames[delinquent.billing_month] || delinquent.billing_month;
                       
                       return (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                            currentPage === page 
-                              ? 'text-white shadow-sm' 
-                              : 'bg-white hover:bg-gray-50'
-                          }`}
-                          style={{ 
-                            backgroundColor: currentPage === page ? COLORS.primary : 'transparent',
-                            borderColor: currentPage === page ? 'transparent' : COLORS.light,
-                            color: currentPage === page ? 'white' : COLORS.dark
-                          }}
-                        >
-                          {page}
-                        </button>
+                        <tr key={delinquent.id || delinquent.billing_id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-5 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedDelinquents.includes(delinquent.id || delinquent.billing_id)}
+                              onChange={() => handleSelectDelinquent(delinquent.id || delinquent.billing_id)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}15` }}>
+                                <Store className="w-4 h-4" style={{ color: COLORS.primary }} />
+                              </div>
+                              <div>
+                                <div className="font-mono text-xs font-semibold" style={{ color: COLORS.dark }}>
+                                  {delinquent.stall_rights_no || 'N/A'}
+                                </div>
+                                <div className="text-sm font-medium mt-0.5" style={{ color: COLORS.dark }}>
+                                  {delinquent.stall_name || 'N/A'}
+                                </div>
+                                <div className="text-xs" style={{ color: COLORS.secondary }}>
+                                  Class {delinquent.stall_class || 'N/A'}
+                                </div>
+                                <div className="text-xs" style={{ color: COLORS.secondary }}>
+                                  {delinquent.business_name || 'No business name'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="px-5 py-4">
+                            <div className="font-medium text-sm" style={{ color: COLORS.dark }}>
+                              {delinquent.full_name || 'N/A'}
+                            </div>
+                            <div className="text-xs truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
+                              Code: {delinquent.renter_code || 'N/A'}
+                            </div>
+                            <div className="text-xs" style={{ color: COLORS.secondary }}>
+                              {delinquent.mobile || 'No phone'}
+                            </div>
+                            <div className="text-xs truncate max-w-[180px]" style={{ color: COLORS.secondary }}>
+                              {delinquent.email || 'No email'}
+                            </div>
+                          </td>
+                          
+                          <td className="px-5 py-4">
+                            <div className="text-center">
+                              <div className="font-bold text-lg" style={{ color: COLORS.dark }}>
+                                {monthName || 'N/A'}
+                              </div>
+                              <div className="text-sm" style={{ color: COLORS.secondary }}>
+                                {delinquent.billing_year || 'N/A'}
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="px-5 py-4">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span style={{ color: COLORS.secondary }}>Monthly Rent:</span>
+                                <span className="font-medium" style={{ color: COLORS.dark }}>
+                                  {formatCurrency(delinquent.monthly_rent || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span style={{ color: COLORS.secondary }}>Base Amount:</span>
+                                <span className="font-medium" style={{ color: COLORS.dark }}>
+                                  {formatCurrency(delinquent.base_rent || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span style={{ color: COLORS.danger }}>Penalty:</span>
+                                <span className="font-medium" style={{ color: COLORS.danger }}>
+                                  {formatCurrency(delinquent.penalty_amount || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm font-bold border-t pt-1" 
+                                   style={{ borderColor: COLORS.secondary }}>
+                                <span style={{ color: COLORS.dark }}>Total Due:</span>
+                                <span className="font-bold" style={{ color: COLORS.dark }}>
+                                  {formatCurrency(totalDue)}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${statusInfo.bg}`}>
+                                <StatusIcon className={`w-4 h-4 ${statusInfo.text}`} />
+                              </div>
+                              <div>
+                                <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusInfo.bg} ${statusInfo.text} border ${statusInfo.border}`}>
+                                  {statusInfo.label}
+                                </span>
+                                <div className="text-xs mt-1" style={{ color: COLORS.secondary }}>
+                                  Due: {formatDate(delinquent.due_date)}
+                                </div>
+                                {delinquent.last_payment_date && (
+                                  <div className="text-xs mt-0.5" style={{ color: COLORS.success }}>
+                                    Last: {formatDate(delinquent.last_payment_date)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="px-5 py-4">
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedDelinquents([delinquent.id || delinquent.billing_id]);
+                                  setShowEmailModal(true);
+                                }}
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  backgroundColor: COLORS.danger, 
+                                  color: 'white'
+                                }}
+                              >
+                                <Bell className="w-3 h-3" />
+                                Send Notice
+                              </button>
+                              <button
+                                onClick={() => setSelectedDelinquent(delinquent)}
+                                className="text-sm font-medium px-3 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all"
+                                style={{ 
+                                  borderColor: COLORS.primary,
+                                  color: COLORS.primary,
+                                  backgroundColor: 'white'
+                                }}
+                              >
+                                <Eye className="w-3 h-3" />
+                                View Details
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })}
-                </div>
-                
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  style={{ borderColor: COLORS.light }}
-                >
-                  <ChevronRight className="w-4 h-4" style={{ color: COLORS.dark }} />
-                </button>
+                  </tbody>
+                </table>
               </div>
-            </div>
+              
+              {/* Table Footer */}
+              <div className="px-5 py-4 border-t" 
+                   style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-sm" style={{ color: COLORS.secondary }}>
+                    Showing <span className="font-semibold" style={{ color: COLORS.dark }}>{filteredDelinquents.length}</span> delinquent account{filteredDelinquents.length === 1 ? '' : 's'}
+                    {selectedDelinquents.length > 0 && (
+                      <span className="ml-2 font-medium" style={{ color: COLORS.primary }}>
+                        ({selectedDelinquents.length} selected)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm font-medium" style={{ color: COLORS.dark }}>
+                    Total Outstanding: {formatCurrency(
+                      filteredDelinquents.reduce((sum, d) => sum + (parseFloat(d.overdue_amount) || 0), 0)
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-5 py-4 border-t" 
+                     style={{ borderColor: COLORS.secondary, backgroundColor: `${COLORS.background}` }}>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs" style={{ color: COLORS.secondary }}>
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{ borderColor: COLORS.secondary }}
+                      >
+                        <ChevronLeft className="w-4 h-4" style={{ color: COLORS.dark }} />
+                      </button>
+                      <span className="text-sm px-3 py-1" style={{ color: COLORS.dark }}>
+                        {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredDelinquents.length)}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        style={{ borderColor: COLORS.secondary }}
+                      >
+                        <ChevronRight className="w-4 h-4" style={{ color: COLORS.dark }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t text-center" style={{ borderColor: COLORS.light }}>
-          <p className="text-xs" style={{ color: COLORS.secondary }}>
-            Market Delinquent Management System • Last updated: {new Date().toLocaleDateString('en-PH', {
-              year: 'numeric',
-              month: 'long',
+        <div className="mt-8 pt-6 border-t text-center text-sm" 
+             style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
+          <p className="font-medium" style={{ color: COLORS.dark }}>Caloocan City Public Market - Delinquent Management</p>
+          <p className="mt-1">Market Revenue Collection System v2.0</p>
+          <p className="mt-1 text-xs">
+            Last updated: {new Date().toLocaleDateString('en-PH', { 
+              year: 'numeric', 
+              month: 'long', 
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
@@ -918,162 +1242,96 @@ export default function MarketDelinquent() {
 
       {/* Delinquent Detail Modal */}
       {selectedDelinquent && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="sticky top-0 bg-white border-b rounded-t-xl px-6 py-4 flex items-center justify-between" style={{ borderColor: COLORS.light }}>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.primary}10` }}>
-                  <Store className="w-5 h-5" style={{ color: COLORS.primary }} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ color: COLORS.dark }}>Delinquent Details</h2>
-                  <p className="text-xs" style={{ color: COLORS.secondary }}>{selectedDelinquent.stall_rights_no}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedDelinquent(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <XCircle className="w-5 h-5" style={{ color: COLORS.secondary }} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Status Badge */}
-              {(() => {
-                const daysOverdue = calculateDaysOverdue(selectedDelinquent.due_date);
-                const statusColor = getOverdueStatusColor(daysOverdue);
-                const statusText = getOverdueStatusText(daysOverdue);
-                
-                return (
-                  <div className={`${statusColor} px-4 py-3 rounded-lg flex items-center gap-3`}>
-                    <AlertCircle className="w-5 h-5" />
-                    <div>
-                      <p className="text-sm font-medium">{statusText} Delinquency • {daysOverdue} days overdue</p>
-                      <p className="text-xs opacity-90">This account has been overdue for {daysOverdue} days</p>
-                    </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+              &#8203;
+            </span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <Store className="h-6 w-6 text-blue-600" />
                   </div>
-                );
-              })()}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Renter Info */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold flex items-center gap-2 pb-2 border-b" 
-                      style={{ color: COLORS.dark, borderColor: COLORS.light }}>
-                    <User className="w-4 h-4" style={{ color: COLORS.primary }} />
-                    Renter Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                           style={{ backgroundColor: `${COLORS.primary}10` }}>
-                        <User className="w-4 h-4" style={{ color: COLORS.primary }} />
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Delinquent Account Details
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {selectedDelinquent.stall_rights_no} - {selectedDelinquent.business_name}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div className="col-span-2 sm:col-span-1">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                          Renter Information
+                        </h4>
+                        <div className="space-y-2">
+                          <p className="text-sm"><span className="font-medium">Name:</span> {selectedDelinquent.full_name}</p>
+                          <p className="text-sm"><span className="font-medium">Code:</span> {selectedDelinquent.renter_code}</p>
+                          <p className="text-sm"><span className="font-medium">Mobile:</span> {selectedDelinquent.mobile}</p>
+                          <p className="text-sm"><span className="font-medium">Email:</span> {selectedDelinquent.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium" style={{ color: COLORS.dark }}>{selectedDelinquent.full_name}</p>
-                        <p className="text-xs mt-0.5 font-mono" style={{ color: COLORS.secondary }}>{selectedDelinquent.renter_code}</p>
+                      
+                      <div className="col-span-2 sm:col-span-1">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                          Stall Information
+                        </h4>
+                        <div className="space-y-2">
+                          <p className="text-sm"><span className="font-medium">Stall:</span> {selectedDelinquent.stall_name}</p>
+                          <p className="text-sm"><span className="font-medium">Class:</span> {selectedDelinquent.stall_class}</p>
+                          <p className="text-sm"><span className="font-medium">Business:</span> {selectedDelinquent.business_name}</p>
+                          <p className="text-sm"><span className="font-medium">Monthly Rent:</span> {formatCurrency(selectedDelinquent.monthly_rent)}</p>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 pl-2">
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Mobile</p>
-                        <p className="text-sm font-medium mt-1" style={{ color: COLORS.dark }}>
-                          {selectedDelinquent.mobile || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Email</p>
-                        <p className="text-sm font-medium mt-1 truncate" style={{ color: COLORS.dark }}>
-                          {selectedDelinquent.email || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Stall Info */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold flex items-center gap-2 pb-2 border-b" 
-                      style={{ color: COLORS.dark, borderColor: COLORS.light }}>
-                    <Store className="w-4 h-4" style={{ color: COLORS.primary }} />
-                    Stall Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs" style={{ color: COLORS.secondary }}>Business Name</p>
-                      <p className="text-sm font-medium mt-1" style={{ color: COLORS.dark }}>
-                        {selectedDelinquent.business_name || 'N/A'}
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Stall Name</p>
-                        <p className="text-sm mt-1" style={{ color: COLORS.dark }}>
-                          {selectedDelinquent.stall_name || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Class</p>
-                        <p className="text-sm mt-1">
-                          <span className="px-2 py-0.5 rounded-md text-xs"
-                                style={{ backgroundColor: `${COLORS.info}10`, color: COLORS.info }}>
-                            Class {selectedDelinquent.stall_class || 'N/A'}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Payment Info */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2 pb-2 border-b" 
-                    style={{ color: COLORS.dark, borderColor: COLORS.light }}>
-                  <DollarSign className="w-4 h-4" style={{ color: COLORS.primary }} />
-                  Payment Information
-                </h3>
-                
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Monthly Rent</p>
-                        <p className="text-lg font-bold mt-1" style={{ color: COLORS.dark }}>
-                          {formatCurrency(selectedDelinquent.monthly_rent || 0)}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-white rounded-lg border" 
-                           style={{ borderColor: COLORS.light }}>
-                        <span className="text-xs" style={{ color: COLORS.secondary }}>Overdue Amount</span>
-                        <span className="text-base font-bold" style={{ color: COLORS.danger }}>
-                          {formatCurrency(selectedDelinquent.overdue_amount || 0)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs" style={{ color: COLORS.secondary }}>Due Date</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Calendar className="w-4 h-4" style={{ color: COLORS.warning }} />
-                          <p className="text-sm font-medium" style={{ color: COLORS.dark }}>
-                            {formatDate(selectedDelinquent.due_date)}
-                          </p>
+                      
+                      <div className="col-span-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                          Payment Details
+                        </h4>
+                        <div className="bg-gray-50 p-3 rounded-lg grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-gray-500">Period</p>
+                            <p className="text-sm font-medium">{monthNames[selectedDelinquent.billing_month]} {selectedDelinquent.billing_year}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Due Date</p>
+                            <p className="text-sm font-medium">{formatDate(selectedDelinquent.due_date)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Base Rent</p>
+                            <p className="text-sm font-medium">{formatCurrency(selectedDelinquent.base_rent)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Penalty</p>
+                            <p className="text-sm font-medium" style={{ color: COLORS.danger }}>{formatCurrency(selectedDelinquent.penalty_amount)}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-xs text-gray-500">Total Overdue</p>
+                            <p className="text-lg font-bold" style={{ color: COLORS.danger }}>{formatCurrency(selectedDelinquent.overdue_amount)}</p>
+                          </div>
                         </div>
                       </div>
                       
                       {selectedDelinquent.last_payment_date && (
-                        <div>
-                          <p className="text-xs" style={{ color: COLORS.secondary }}>Last Payment</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <CheckCircle className="w-4 h-4" style={{ color: COLORS.success }} />
-                            <p className="text-sm font-medium" style={{ color: COLORS.success }}>
-                              {formatDate(selectedDelinquent.last_payment_date)}
+                        <div className="col-span-2">
+                          <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: COLORS.secondary }}>
+                            Last Payment
+                          </h4>
+                          <div className="bg-green-50 p-3 rounded-lg">
+                            <p className="text-sm">
+                              <span className="font-medium">Date:</span> {formatDate(selectedDelinquent.last_payment_date)}
                             </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Amount:</span> {formatCurrency(selectedDelinquent.last_payment_amount)}
+                            </p>
+                            {selectedDelinquent.last_receipt && (
+                              <p className="text-sm">
+                                <span className="font-medium">Receipt:</span> {selectedDelinquent.last_receipt}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1081,17 +1339,15 @@ export default function MarketDelinquent() {
                   </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-gray-50 border-t rounded-b-xl px-6 py-4 flex justify-end gap-3" style={{ borderColor: COLORS.light }}>
-              <button
-                onClick={() => setSelectedDelinquent(null)}
-                className="px-4 py-2 border rounded-lg hover:bg-white transition-colors text-sm font-medium"
-                style={{ borderColor: COLORS.light, color: COLORS.dark }}
-              >
-                Close
-              </button>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDelinquent(null)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

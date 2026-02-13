@@ -16,6 +16,14 @@ if (!$pdo) {
     die("Database connection failed");
 }
 
+// Determine base URL
+$is_localhost = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1');
+$base_url = $is_localhost 
+    ? 'http://localhost/revenue2' 
+    : 'https://revenuetreasury.goserveph.com';
+
+$rpt_callback_url = $base_url . '/citizen_dashboard/rpt/api/rpt_payment_api.php';
+
 // Function to calculate penalties
 function calculatePenalties($quarterly_taxes, $pdo) {
     $current_date = date('Y-m-d');
@@ -193,6 +201,9 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             --secondary: #9aa5b1;
             --accent: #4caf50;
             --background: #fbfbfb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
         }
 
         body {
@@ -348,12 +359,12 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         
         .btn-outline {
             background-color: white;
-            color: var(--dark-gray);
-            border: 1px solid var(--medium-gray);
+            color: #374151;
+            border: 1px solid #d1d5db;
         }
         
         .btn-outline:hover {
-            background-color: var(--light-gray);
+            background-color: #f9fafb;
             transform: translateY(-1px);
         }
         
@@ -428,6 +439,52 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             transform: translateX(-2px);
             border-color: rgba(74, 144, 226, 0.3);
         }
+        
+        /* Paid indicator */
+        .paid-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.4rem 0.8rem;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #065f46;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        
+        /* Payment button */
+        .pay-button {
+            background: linear-gradient(135deg, var(--primary), #3b82c8);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .pay-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+        
+        .pay-button.success {
+            background: linear-gradient(135deg, var(--accent), #3d8b40);
+        }
+        
+        .pay-button.success:hover {
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        
+        .pay-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -469,6 +526,17 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         
         <div class="h-1.5 w-22 rounded-full mt-5 mx-auto" style="background-color: #4a90e2;"></div>
     </div>
+
+    <!-- Payment Success Message -->
+    <?php if (isset($_GET['payment_success']) && $_GET['payment_success'] === 'true'): ?>
+    <div class="notification-slide mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span class="font-medium">Payment Successful!</span>
+        </div>
+        <p class="mt-1 text-sm">Your property tax payment has been processed successfully.</p>
+    </div>
+    <?php endif; ?>
 
     <!-- Properties Section -->
     <?php
@@ -563,6 +631,24 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                 $discountPercent = getDiscountPercentage($pdo);
                 $annualPaymentInfo = calculateAnnualTotal($quarterlyTaxes, $eligibleForDiscount ? $discountPercent : 0);
                 
+                // Check if annual payment exists
+                $annual_payment_query = "
+                    SELECT 
+                        ap.*
+                    FROM annual_payments ap
+                    WHERE ap.property_total_id = :property_total_id 
+                    AND ap.payment_year = :current_year
+                    AND ap.status = 'active'
+                    LIMIT 1
+                ";
+                
+                $annual_stmt = $pdo->prepare($annual_payment_query);
+                $annual_stmt->execute([
+                    ':property_total_id' => $property['property_total_id'],
+                    ':current_year' => $current_year
+                ]);
+                $annualPayment = $annual_stmt->fetch(PDO::FETCH_ASSOC);
+                
                 echo '
                 <div class="property-card overflow-hidden">
                     <!-- Property Header -->
@@ -606,10 +692,88 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                             </div>';
                             }
                         echo '
-                        </div>';
+                        </div>
                         
-                        echo '
                     </div>';
+                    
+                    // Annual Payment Option
+                    if ($annualPayment && $canPayAnnual) {
+                        $isRecommended = $eligibleForDiscount;
+                        echo '
+                    <div class="p-7 border-b border-gray-100 ' . ($isRecommended ? 'bg-green-50' : '') . '">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between">
+                            <div class="mb-4 lg:mb-0">
+                                <div class="flex items-center mb-2">
+                                    <h4 class="font-medium text-gray-900 text-lg">
+                                        <i class="fas fa-calendar-check text-green-600 mr-2"></i>
+                                        Annual Payment
+                                    </h4>';
+                                    if ($eligibleForDiscount) {
+                                        echo '
+                                    <span class="discount-tag ml-3">
+                                        <i class="fas fa-gift mr-1"></i>Save ' . number_format($discountPercent, 2) . '%
+                                    </span>';
+                                    }
+                                    echo '
+                                </div>
+                                <p class="text-sm text-gray-600">
+                                    Pay all 4 quarters in one payment' . ($eligibleForDiscount ? ' with discount' : '') . '
+                                </p>';
+                                if ($eligibleForDiscount) {
+                                    echo '<p class="text-xs text-green-600 mt-1">
+                                        <i class="fas fa-calendar-alt mr-1"></i> Valid until January 31
+                                    </p>';
+                                }
+                                echo '
+                            </div>
+                            
+                            <div class="lg:text-right">
+                                <div class="mb-3">
+                                    <div class="text-2xl font-bold text-gray-900">' . formatCurrency($annualPaymentInfo['total_with_discount']) . '</div>';
+                                    if ($annualPaymentInfo['has_discount']) {
+                                        echo '
+                                    <div class="text-sm text-gray-600 mt-1">
+                                        <span class="line-through">' . formatCurrency($annualPaymentInfo['total_before_discount']) . '</span>
+                                        <span class="text-green-700 font-medium ml-2">
+                                            <i class="fas fa-piggy-bank mr-1"></i>Save ' . formatCurrency($annualPaymentInfo['discount_amount']) . '
+                                        </span>
+                                    </div>';
+                                    }
+                                    echo '
+                                </div>';
+                                
+                                if ($annualPayment['payment_status'] == 'paid') {
+                                    echo '
+                                    <div class="paid-indicator">
+                                        <i class="fas fa-check-circle"></i>
+                                        Paid
+                                    </div>';
+                                } else {
+                                    $purpose_text = 'RPT ANNUAL ' . $current_year . ' - ' . $property['reference_number'];
+                                    $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
+                                    
+                                    echo '
+                                    <form method="POST" 
+                                          action="../../digital/index.php" 
+                                          target="_blank">
+                                        <input type="hidden" name="system" value="rpt">
+                                        <input type="hidden" name="ref" value="ANNUAL-' . $annualPayment['id'] . '">
+                                        <input type="hidden" name="amount" value="' . $annualPaymentInfo['total_with_discount'] . '">
+                                        <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                        <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
+                                        <input type="hidden" name="property_total_id" value="' . $property['property_total_id'] . '">
+                                        
+                                        <button type="submit" 
+                                                class="pay-button success"' . ($canPayAnnual ? '' : ' disabled') . '>
+                                            <i class="fas fa-external-link-alt"></i> Pay Annual
+                                        </button>
+                                    </form>';
+                                }
+                                echo '
+                            </div>
+                        </div>
+                    </div>';
+                    }
                     
                     // Quarterly Payments
                     if (!empty($quarterlyTaxes)) {
@@ -627,6 +791,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                         <th class="py-3.5 px-5 text-left">Penalty</th>
                                         <th class="py-3.5 px-5 text-left">Total</th>
                                         <th class="py-3.5 px-5 text-left">Status</th>
+                                        <th class="py-3.5 px-5 text-left">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>';
@@ -682,6 +847,36 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                             }
                                             echo '
                                         </td>
+                                        <td class="py-4 px-5">';
+                                            if ($status == 'paid') {
+                                                echo '
+                                                <div class="paid-indicator">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    Paid
+                                                </div>';
+                                            } else {
+                                                $purpose_text = 'RPT ' . $tax['quarter'] . ' ' . $tax['year'] . ' - ' . $property['reference_number'];
+                                                $purpose_text = htmlspecialchars($purpose_text, ENT_QUOTES);
+                                                
+                                                echo '
+                                                <form class="inline-block" 
+                                                      method="POST" 
+                                                      action="../../digital/index.php" 
+                                                      target="_blank">
+                                                    <input type="hidden" name="system" value="rpt">
+                                                    <input type="hidden" name="ref" value="' . $tax['id'] . '">
+                                                    <input type="hidden" name="amount" value="' . $totalAmount . '">
+                                                    <input type="hidden" name="purpose" value="' . $purpose_text . '">
+                                                    <input type="hidden" name="callback" value="' . $rpt_callback_url . '">
+                                                    
+                                                    <button type="submit" 
+                                                            class="pay-button btn-sm">
+                                                        <i class="fas fa-external-link-alt"></i> Pay Now
+                                                    </button>
+                                                </form>';
+                                            }
+                                            echo '
+                                        </td>
                                     </tr>';
                                 }
                                 
@@ -692,6 +887,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                         <td class="py-4 px-5 font-bold">' . formatCurrency($totalTax) . '</td>
                                         <td class="py-4 px-5 penalty-amount font-bold">' . formatCurrency($totalPenalty) . '</td>
                                         <td class="py-4 px-5 total-amount font-bold" style="color: var(--primary)">' . formatCurrency($totalTax + $totalPenalty) . '</td>
+                                        <td></td>
                                         <td></td>
                                     </tr>
                                 </tbody>
@@ -793,7 +989,27 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // All payment-related code has been removed
+    document.querySelectorAll('form[target="_blank"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                submitBtn.disabled = true;
+                
+                // Store original HTML for recovery
+                submitBtn.setAttribute('data-original', originalHTML);
+                
+                // Re-enable after 5 seconds if still on page
+                setTimeout(() => {
+                    if (submitBtn) {
+                        submitBtn.innerHTML = originalHTML;
+                        submitBtn.disabled = false;
+                    }
+                }, 5000);
+            }
+        });
+    });
 });
 </script>
 </body>

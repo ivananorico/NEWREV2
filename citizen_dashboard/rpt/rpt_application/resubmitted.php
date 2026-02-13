@@ -376,25 +376,21 @@ body::before {
         <?php endif; ?>
 
         <?php if ($total_applications === 0): ?>
-            <!-- Empty State -->
-            <div class="form-card p-12 text-center">
-                <div class="text-gray-300 mb-6">
-                    <i class="fas fa-inbox text-6xl"></i>
-                </div>
-                <h3 class="text-xl font-semibold text-gray-900 mb-2">No Resubmitted Applications</h3>
-                <p class="text-gray-600 mb-8 max-w-md mx-auto">You don't have any applications that have been resubmitted. Applications requiring corrections will appear here after you make the necessary changes.</p>
-                <div class="space-x-4">
-                    <a href="pending.php" 
-                       class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
-                        <i class="fas fa-clock mr-2"></i> View Pending
-                    </a>
-                    <a href="need_correction.php" 
-                       class="inline-flex items-center px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium transition-colors">
-                        <i class="fas fa-edit mr-2"></i> Check Corrections
-                    </a>
-                </div>
-            </div>
-        <?php else: ?>
+    <!-- Empty State -->
+    <div class="form-card p-12 text-center">
+        <div class="text-gray-300 mb-6">
+            <i class="fas fa-inbox text-6xl"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No Resubmitted Applications</h3>
+        <p class="text-gray-600 mb-8 max-w-md mx-auto">Go back and refresh to see new status.</p>
+        <div class="space-x-4">
+            <a href="javascript:history.back()" 
+               class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Go Back
+            </a>
+        </div>
+    </div>
+<?php else: ?>
             <!-- Applications List -->
             <div class="space-y-8">
                 <?php foreach ($applications as $app): ?>

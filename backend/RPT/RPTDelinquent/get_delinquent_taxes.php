@@ -1,4 +1,5 @@
 <?php
+// revenue2/backend/RPT/RPTDelinquent/get_delinquent_taxes.php
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -31,7 +32,11 @@ if (is_array($dbConnection) && isset($dbConnection['error'])) {
 $pdo = $dbConnection;
 
 try {
-    // Query: Get only overdue taxes (not pending)
+    // Get current date for calculations
+    $currentDate = date('Y-m-d');
+    $currentDateObj = new DateTime();
+    
+    // Query to get all delinquent taxes
     $sql = "
         SELECT 
             qt.id,
@@ -43,7 +48,7 @@ try {
             qt.penalty_amount,
             qt.payment_status,
             qt.payment_date,
-            qt.days_late,
+            qt.days_late as db_days_late,
             qt.created_at,
             qt.discount_amount,
             qt.penalty_percent_used,
@@ -68,14 +73,9 @@ try {
             po.address,
             CONCAT(po.first_name, ' ', po.last_name) as owner_name,
             
-            lp.tdn as land_tdn,
+            lp.tdn,
             lp.property_type,
-            lp.land_area_sqm,
-            
-            COALESCE(
-                (SELECT GROUP_CONCAT(tdn) FROM building_properties WHERE land_id = lp.id),
-                'None'
-            ) as building_tdns
+            lp.land_area_sqm
             
         FROM quarterly_taxes qt
         LEFT JOIN property_totals pt ON qt.property_total_id = pt.id
@@ -83,8 +83,13 @@ try {
         LEFT JOIN property_owners po ON pr.owner_id = po.id
         LEFT JOIN land_properties lp ON pt.land_id = lp.id
         
-        -- CHANGED HERE: Only get overdue, not pending
-        WHERE qt.payment_status = 'overdue'
+        -- Get records that are either:
+        -- 1. Marked as overdue, OR
+        -- 2. Have penalty amount > 0, OR
+        -- 3. Pending with due date in the past
+        WHERE qt.payment_status = 'overdue' 
+           OR qt.penalty_amount > 0
+           OR (qt.payment_status = 'pending' AND qt.due_date < CURDATE())
         
         ORDER BY 
             qt.due_date ASC,
@@ -94,47 +99,38 @@ try {
     $stmt = $pdo->query($sql);
     $delinquents = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate additional information for each delinquent
-    $currentDate = new DateTime();
+    // Calculate correct days late for each record
     foreach ($delinquents as &$delinquent) {
-        // Calculate days late if not already set
+        // Calculate days late based on due date and current date
         if ($delinquent['due_date']) {
             $dueDate = new DateTime($delinquent['due_date']);
-            $interval = $currentDate->diff($dueDate);
+            $today = new DateTime(); // Current date
             
-            // If due date is in the past, calculate days late
-            if ($dueDate < $currentDate) {
+            if ($dueDate < $today) {
+                // Calculate actual days late
+                $interval = $today->diff($dueDate);
                 $delinquent['days_late'] = $interval->days;
-                // Ensure status is overdue
+                
+                // Override status to overdue if it's not already
                 $delinquent['payment_status'] = 'overdue';
             } else {
+                // Not late yet
                 $delinquent['days_late'] = 0;
-            }
-        }
-        
-        // Calculate penalty if overdue and no penalty set
-        if ($delinquent['payment_status'] == 'overdue' && 
-            (!$delinquent['penalty_amount'] || $delinquent['penalty_amount'] == 0)) {
-            
-            if ($delinquent['total_quarterly_tax'] && $delinquent['due_date']) {
-                $dueDate = new DateTime($delinquent['due_date']);
-                if ($dueDate < $currentDate) {
-                    $daysLate = $currentDate->diff($dueDate)->days;
-                    $monthsLate = ceil($daysLate / 30);
-                    $penaltyRate = $delinquent['penalty_percent_used'] ? $delinquent['penalty_percent_used'] / 100 : 0.02;
-                    $delinquent['penalty_amount'] = number_format(
-                        $delinquent['total_quarterly_tax'] * $penaltyRate * $monthsLate, 
-                        2, '.', ''
-                    );
+                
+                // If it has penalty but due date is in future, keep as pending
+                if ($delinquent['penalty_amount'] > 0) {
+                    $delinquent['payment_status'] = 'pending';
                 }
             }
+        } else {
+            $delinquent['days_late'] = intval($delinquent['db_days_late'] ?? 0);
         }
         
         // Calculate total amount due
         $baseTax = floatval($delinquent['total_quarterly_tax'] ?: 0);
         $penalty = floatval($delinquent['penalty_amount'] ?: 0);
         $discount = floatval($delinquent['discount_amount'] ?: 0);
-        $delinquent['total_amount_due'] = number_format($baseTax + $penalty - $discount, 2, '.', '');
+        $delinquent['total_amount_due'] = round($baseTax + $penalty - $discount, 2);
         
         // Format dates
         if ($delinquent['due_date']) {
@@ -145,24 +141,34 @@ try {
             $delinquent['created_at_formatted'] = date('M d, Y H:i', strtotime($delinquent['created_at']));
         }
         
-        // Generate TDN if not exists
+        // Ensure TDN is set
         if (empty($delinquent['tdn'])) {
-            $delinquent['tdn'] = $delinquent['land_tdn'] ?: 'TDN-' . $delinquent['id'];
+            $delinquent['tdn'] = 'TDN-' . $delinquent['id'];
         }
         
         // Ensure owner name
         if (empty($delinquent['owner_name'])) {
-            $delinquent['owner_name'] = trim($delinquent['first_name'] . ' ' . $delinquent['last_name']);
+            $delinquent['owner_name'] = trim(($delinquent['first_name'] ?? '') . ' ' . ($delinquent['last_name'] ?? ''));
         }
     }
+    
+    // Calculate statistics
+    $overdueCount = count(array_filter($delinquents, function($d) { 
+        return $d['days_late'] > 0; 
+    }));
+    
+    $totalAmount = array_sum(array_column($delinquents, 'total_amount_due'));
+    $totalPenalties = array_sum(array_column($delinquents, 'penalty_amount'));
     
     echo json_encode([
         'success' => true,
         'data' => $delinquents,
         'count' => count($delinquents),
+        'overdue_count' => $overdueCount,
+        'total_amount' => $totalAmount,
+        'total_penalties' => $totalPenalties,
         'timestamp' => date('Y-m-d H:i:s'),
-        'current_date' => $currentDate->format('Y-m-d'),
-        'query' => 'payment_status = overdue'  // Updated
+        'current_date' => $currentDate
     ]);
     
 } catch (PDOException $e) {

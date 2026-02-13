@@ -370,15 +370,11 @@ body::before {
                     <i class="fas fa-inbox text-6xl"></i>
                 </div>
                 <h3 class="text-xl font-semibold text-gray-900 mb-2">No Pending Applications</h3>
-                <p class="text-gray-600 mb-8 max-w-md mx-auto">You don't have any applications currently under review. Start a new property registration to begin.</p>
+                <p class="text-gray-600 mb-8 max-w-md mx-auto">You don't have any applications currently under review.</p>
                 <div class="space-x-4">
-                    <a href="../rpt_services.php" 
+                    <a href="javascript:history.back()" 
                        class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
-                        <i class="fas fa-plus mr-2"></i> New Application
-                    </a>
-                    <a href="application_history.php" 
-                       class="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors">
-                        <i class="fas fa-history mr-2"></i> View History
+                        <i class="fas fa-arrow-left mr-2"></i> Go Back
                     </a>
                 </div>
             </div>

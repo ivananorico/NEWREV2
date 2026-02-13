@@ -30,7 +30,11 @@ import {
   Maximize2,
   Hash,
   CalendarDays,
-  Barcode
+  Barcode,
+  Edit2,
+  Save,
+  X,
+  Loader
 } from "lucide-react";
 
 // Enhanced Color Palette - Modern & Professional
@@ -220,6 +224,86 @@ const PropertyTypeBadge = ({ propertyType }) => {
   );
 };
 
+// Editable Field Component
+const EditableField = ({ 
+  label, 
+  value, 
+  fieldName, 
+  isEditing, 
+  onEdit, 
+  type = 'text', 
+  options = [],
+  className = '',
+  icon = null,
+  required = false
+}) => {
+  const handleChange = (e) => {
+    onEdit(fieldName, e.target.value);
+  };
+
+  if (!isEditing) {
+    return (
+      <div className={className}>
+        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>
+          {icon && <span className="inline-block mr-2">{icon}</span>}
+          {label}
+        </p>
+        <p className="text-xl font-bold" style={{ color: COLORS.text.primary }}>{value || 'N/A'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <label className="text-sm font-medium mb-2 block" style={{ color: COLORS.text.secondary }}>
+        {icon && <span className="inline-block mr-2">{icon}</span>}
+        {label} {required && <span style={{ color: COLORS.danger.main }}>*</span>}
+      </label>
+      {type === 'select' ? (
+        <select
+          value={value || ''}
+          onChange={handleChange}
+          className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-all"
+          style={{ 
+            backgroundColor: COLORS.background.card,
+            borderColor: COLORS.border.medium,
+            color: COLORS.text.primary
+          }}
+        >
+          <option value="">Select {label}</option>
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea
+          value={value || ''}
+          onChange={handleChange}
+          rows="3"
+          className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-all"
+          style={{ 
+            backgroundColor: COLORS.background.card,
+            borderColor: COLORS.border.medium,
+            color: COLORS.text.primary
+          }}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value || ''}
+          onChange={handleChange}
+          className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-all"
+          style={{ 
+            backgroundColor: COLORS.background.card,
+            borderColor: COLORS.border.medium,
+            color: COLORS.text.primary
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
 export default function RPTStatusInfo() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -227,6 +311,11 @@ export default function RPTStatusInfo() {
   const [buildings, setBuildings] = useState([]);
   const [quarterlyTaxes, setQuarterlyTaxes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProperty, setEditedProperty] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const API_BASE = window.location.hostname === "localhost" 
     ? "http://localhost/revenue2/backend" 
@@ -251,6 +340,7 @@ export default function RPTStatusInfo() {
       
       if (data.status === "success") {
         setProperty(data.data.property);
+        setEditedProperty(data.data.property);
         setBuildings(data.data.buildings || []);
         setQuarterlyTaxes(data.data.quarterly_taxes || []);
       }
@@ -259,6 +349,55 @@ export default function RPTStatusInfo() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (fieldName, value) => {
+    setEditedProperty(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setSaveError(null);
+      setSaveSuccess(false);
+
+      const res = await fetch(`${API_BASE}/RPT/RPTStatus/update_property.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          id: property.id,
+          ...editedProperty
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.status === "success") {
+        setSaveSuccess(true);
+        setIsEditing(false);
+        setProperty(editedProperty);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setSaveError(data.message || "Failed to update property");
+      }
+    } catch (err) {
+      console.error("Error saving:", err);
+      setSaveError("Network error occurred");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedProperty(property);
+    setIsEditing(false);
+    setSaveError(null);
   };
 
   const formatCurrency = (amount) => {
@@ -433,29 +572,79 @@ export default function RPTStatusInfo() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-md"
-                style={{ 
-                  backgroundColor: COLORS.background.hover,
-                  color: COLORS.text.primary,
-                  border: `1px solid ${COLORS.border.light}`
-                }}
-              >
-                <Printer className="w-4 h-4" />
-                <span className="text-sm font-medium">Print</span>
-              </button>
-              <button
-                onClick={fetchPropertyDetails}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-lg"
-                style={{ 
-                  backgroundColor: COLORS.primary.main,
-                  color: COLORS.text.white
-                }}
-              >
-                <FileText className="w-4 h-4" />
-                <span className="text-sm font-medium">Refresh</span>
-              </button>
+              {saveSuccess && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
+                     style={{ backgroundColor: COLORS.success.bg, color: COLORS.success.main }}>
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Saved successfully!</span>
+                </div>
+              )}
+              {saveError && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
+                     style={{ backgroundColor: COLORS.danger.bg, color: COLORS.danger.main }}>
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">{saveError}</span>
+                </div>
+              )}
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-md"
+                    style={{ 
+                      backgroundColor: COLORS.background.hover,
+                      color: COLORS.text.primary,
+                      border: `1px solid ${COLORS.border.light}`
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="text-sm font-medium">Cancel</span>
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-lg"
+                    style={{ 
+                      backgroundColor: COLORS.success.main,
+                      color: COLORS.text.white
+                    }}
+                  >
+                    {saving ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-medium">{saving ? 'Saving...' : 'Save Changes'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-md"
+                    style={{ 
+                      backgroundColor: COLORS.primary.main,
+                      color: COLORS.text.white
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span className="text-sm font-medium">Edit</span>
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:shadow-md"
+                    style={{ 
+                      backgroundColor: COLORS.background.hover,
+                      color: COLORS.text.primary,
+                      border: `1px solid ${COLORS.border.light}`
+                    }}
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span className="text-sm font-medium">Print</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -561,27 +750,55 @@ export default function RPTStatusInfo() {
                     <span style={{ color: COLORS.text.primary }}>Property Owner</span>
                   </h3>
                   <div className="space-y-6">
-                    <div>
-                      <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Full Name</p>
-                      <p className="text-xl font-bold" style={{ color: COLORS.text.primary }}>{property.owner_name}</p>
-                    </div>
+                    <EditableField
+                      label="Full Name"
+                      value={editedProperty?.owner_name}
+                      fieldName="owner_name"
+                      isEditing={isEditing}
+                      onEdit={handleEdit}
+                      icon={<User className="w-4 h-4" />}
+                      required
+                    />
+                    
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Sex</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>
-                          {property.sex ? property.sex.charAt(0).toUpperCase() + property.sex.slice(1) : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Marital Status</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>
-                          {property.marital_status ? property.marital_status.charAt(0).toUpperCase() + property.marital_status.slice(1) : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Birthdate</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>{formatDate(property.birthdate)}</p>
-                      </div>
+                      <EditableField
+                        label="Sex"
+                        value={editedProperty?.sex}
+                        fieldName="sex"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                        type="select"
+                        options={[
+                          { value: 'male', label: 'Male' },
+                          { value: 'female', label: 'Female' },
+                          { value: 'other', label: 'Other' }
+                        ]}
+                      />
+                      <EditableField
+                        label="Marital Status"
+                        value={editedProperty?.marital_status}
+                        fieldName="marital_status"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                        type="select"
+                        options={[
+                          { value: 'single', label: 'Single' },
+                          { value: 'married', label: 'Married' },
+                          { value: 'divorced', label: 'Divorced' },
+                          { value: 'widowed', label: 'Widowed' }
+                        ]}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <EditableField
+                        label="Birthdate"
+                        value={editedProperty?.birthdate?.split(' ')[0]}
+                        fieldName="birthdate"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                        type="date"
+                      />
                       <div>
                         <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Status</p>
                         <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium"
@@ -594,23 +811,40 @@ export default function RPTStatusInfo() {
                         </span>
                       </div>
                     </div>
+
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-medium mb-3" style={{ color: COLORS.text.secondary }}>Contact Information</p>
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center text-sm">
-                            <Phone className="w-4 h-4 mr-3" style={{ color: COLORS.text.secondary }} />
-                            <span className="font-medium" style={{ color: COLORS.text.primary }}>{property.phone || 'N/A'}</span>
-                          </div>
-                          <div className="flex items-center text-sm">
-                            <Mail className="w-4 h-4 mr-3" style={{ color: COLORS.text.secondary }} />
-                            <span className="font-medium" style={{ color: COLORS.text.primary }}>{property.email || 'N/A'}</span>
-                          </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          <EditableField
+                            label="Phone"
+                            value={editedProperty?.phone}
+                            fieldName="phone"
+                            isEditing={isEditing}
+                            onEdit={handleEdit}
+                            icon={<Phone className="w-4 h-4" />}
+                          />
+                          <EditableField
+                            label="Email"
+                            value={editedProperty?.email}
+                            fieldName="email"
+                            isEditing={isEditing}
+                            onEdit={handleEdit}
+                            type="email"
+                            icon={<Mail className="w-4 h-4" />}
+                          />
                         </div>
                       </div>
                       <div>
                         <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Registered Address</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>{property.owner_address || 'N/A'}</p>
+                        <EditableField
+                          label=""
+                          value={editedProperty?.owner_address}
+                          fieldName="owner_address"
+                          isEditing={isEditing}
+                          onEdit={handleEdit}
+                          type="textarea"
+                        />
                       </div>
                     </div>
                   </div>
@@ -628,29 +862,78 @@ export default function RPTStatusInfo() {
                     <span style={{ color: COLORS.text.primary }}>Property Location</span>
                   </h3>
                   <div className="space-y-6">
-                    <div>
-                      <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Complete Address</p>
-                      <p className="font-medium" style={{ color: COLORS.text.primary }}>{property.lot_location}</p>
-                      <p className="text-sm mt-2" style={{ color: COLORS.text.secondary }}>
-                        {property.barangay}, District {property.district}, {property.city}, {property.province}
-                      </p>
-                    </div>
+                    <EditableField
+                      label="Complete Address"
+                      value={editedProperty?.lot_location}
+                      fieldName="lot_location"
+                      isEditing={isEditing}
+                      onEdit={handleEdit}
+                      type="textarea"
+                    />
+
                     <div className="grid grid-cols-2 gap-4">
+                      <EditableField
+                        label="Barangay"
+                        value={editedProperty?.barangay}
+                        fieldName="barangay"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                      />
+                      <EditableField
+                        label="District"
+                        value={editedProperty?.district}
+                        fieldName="district"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <EditableField
+                        label="City"
+                        value={editedProperty?.city}
+                        fieldName="city"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                      />
+                      <EditableField
+                        label="Province"
+                        value={editedProperty?.province}
+                        fieldName="province"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <EditableField
+                        label="Zip Code"
+                        value={editedProperty?.zip_code}
+                        fieldName="zip_code"
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                      />
                       <div>
                         <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Property Type</p>
-                        <PropertyTypeBadge propertyType={property.property_type || "Residential"} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Land Area</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>{property.land_area_sqm} sqm</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Zip Code</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>{property.zip_code || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2" style={{ color: COLORS.text.secondary }}>Registered</p>
-                        <p className="font-medium" style={{ color: COLORS.text.primary }}>{formatDate(property.created_at)}</p>
+                        {isEditing ? (
+                          <select
+                            value={editedProperty?.property_type || 'Residential'}
+                            onChange={(e) => handleEdit('property_type', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-all"
+                            style={{ 
+                              backgroundColor: COLORS.background.card,
+                              borderColor: COLORS.border.medium,
+                              color: COLORS.text.primary
+                            }}
+                          >
+                            <option value="Residential">Residential</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="Industrial">Industrial</option>
+                            <option value="Agricultural">Agricultural</option>
+                          </select>
+                        ) : (
+                          <PropertyTypeBadge propertyType={property.property_type || "Residential"} />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1277,4 +1560,4 @@ export default function RPTStatusInfo() {
       </div>
     </div>
   );
-} 
+}
