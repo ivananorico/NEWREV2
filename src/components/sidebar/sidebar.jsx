@@ -336,13 +336,13 @@ function Sidebar({ collapsed }) {
         <div className='h-px bg-gradient-to-r from-transparent via-[#9aa5b1]/20 to-transparent'></div>
       </div>
       
-      {/* Profile Card */}
+      {/* Profile Card - FIXED: Simple path for public folder image */}
       <div className='p-4 pt-3'>
         <ProfileCard 
           collapsed={collapsed} 
           name="ADMIN" 
-          role="Super Saiyan" 
-          avatarUrl="/Bartss.png" 
+          role="Administrator" 
+          avatarUrl="/admin.jpg" 
         />
       </div>
     </div>
