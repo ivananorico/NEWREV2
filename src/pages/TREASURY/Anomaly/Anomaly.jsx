@@ -16,9 +16,9 @@ import {
 
 export default function Anomaly() {
   const [anomalies, setAnomalies] = useState({
-    rpt: null,
-    business: null,
-    market: null
+    rpt: [],
+    business: [],
+    market: []
   });
   const [loading, setLoading] = useState(true);
   const [activeSystem, setActiveSystem] = useState('rpt');
@@ -34,12 +34,11 @@ export default function Anomaly() {
     market: {}
   });
 
-  // FIXED: API Base URL for both localhost and production
- // Find this section in your code (around line 30-40)
-const isProduction = window.location.hostname.includes('goserveph.com');
-const API_BASE = isProduction 
-  ? "/backend/Treasury"  // ✅ CORRECT - matches your working URL
-  : "http://localhost/revenue2/backend/Treasury";
+  // API Base URL for both localhost and production
+  const isProduction = window.location.hostname.includes('goserveph.com');
+  const API_BASE = isProduction 
+    ? "/backend/Treasury"
+    : "http://localhost/revenue2/backend/Treasury";
 
   // Color palette
   const colors = {
@@ -65,49 +64,26 @@ const API_BASE = isProduction
   const fetchAnomalies = async () => {
     setLoading(true);
     try {
-      let url = '';
+      // Fetch only the active system
+      const url = `${API_BASE}/anomaly_detection.php?system=${activeSystem}&action=detect`;
       
-      if (activeSystem === 'rpt') {
-        url = `${API_BASE}/anomaly_detection.php?system=rpt&action=detect`;
-      } else if (activeSystem === 'business') {
-        url = `${API_BASE}/anomaly_detection.php?system=business&action=detect`;
-      } else if (activeSystem === 'market') {
-        url = `${API_BASE}/anomaly_detection.php?system=market&action=detect`;
-      } else if (activeSystem === 'all') {
-        url = `${API_BASE}/anomaly_detection.php?system=all&action=detect`;
-      }
-      
-      console.log('Fetching from:', url); // Debug log
+      console.log('Fetching from:', url);
       
       const response = await fetch(url);
       const data = await response.json();
       
-      if (activeSystem === 'all') {
-        // Handle all systems response
-        setAnomalies({
-          rpt: data.rpt?.anomalies || [],
-          business: data.business?.anomalies || [],
-          market: data.market?.anomalies || []
-        });
-        setSystemStats({
-          rpt: data.rpt?.quarterly_stats || data.rpt?.monthly_stats || {},
-          business: data.business?.quarterly_stats || {},
-          market: data.market?.monthly_stats || {}
-        });
-      } else {
-        // Handle single system response
-        setAnomalies(prev => ({
-          ...prev,
-          [activeSystem]: data.anomalies || []
-        }));
-        
-        // Handle different stat names (quarterly_stats for RPT/Business, monthly_stats for Market)
-        const stats = data.quarterly_stats || data.monthly_stats || {};
-        setSystemStats(prev => ({
-          ...prev,
-          [activeSystem]: stats
-        }));
-      }
+      // Update anomalies for the active system
+      setAnomalies(prev => ({
+        ...prev,
+        [activeSystem]: data.anomalies || []
+      }));
+      
+      // Handle different stat names (quarterly_stats for RPT/Business, monthly_stats for Market)
+      const stats = data.quarterly_stats || data.monthly_stats || {};
+      setSystemStats(prev => ({
+        ...prev,
+        [activeSystem]: stats
+      }));
       
       setLastUpdated(new Date());
     } catch (error) {
@@ -199,14 +175,6 @@ const API_BASE = isProduction
   };
 
   const getCurrentAnomalies = () => {
-    if (activeSystem === 'all') {
-      // For all systems, flatten all anomalies with system label
-      return [
-        ...(anomalies.rpt || []).map(a => ({ ...a, system: 'RPT' })),
-        ...(anomalies.business || []).map(a => ({ ...a, system: 'Business' })),
-        ...(anomalies.market || []).map(a => ({ ...a, system: 'Market' }))
-      ];
-    }
     return anomalies[activeSystem] || [];
   };
 
@@ -584,7 +552,6 @@ const API_BASE = isProduction
               {activeSystem === 'rpt' && 'Real Property Tax - Quarterly Payment Monitoring'}
               {activeSystem === 'business' && 'Business Tax - Quarterly Payment Monitoring'}
               {activeSystem === 'market' && 'Market Rent - Monthly Payment Monitoring'}
-              {activeSystem === 'all' && 'All Systems - Unified Monitoring'}
             </p>
           </div>
         </div>
@@ -624,15 +591,15 @@ const API_BASE = isProduction
         </div>
       </div>
 
-      {/* System Filters - ALL SYSTEMS LIVE */}
+      {/* System Filters - Only RPT, Business, and Market */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveSystem('rpt')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           style={{ 
             backgroundColor: activeSystem === 'rpt' ? colors.primary : `${colors.secondary}10`,
-            color: activeSystem === 'rpt' ? 'white' : colors.secondary,
-            border: activeSystem === 'rpt' ? 'none' : '1px solid ' + colors.secondary + '30'
+            color: activeSystem === 'rpt' ? 'white' : colors.primary,
+            border: activeSystem === 'rpt' ? 'none' : '1px solid ' + colors.primary + '40'
           }}
         >
           <Home className="w-4 h-4" />
@@ -644,7 +611,7 @@ const API_BASE = isProduction
         
         <button
           onClick={() => setActiveSystem('business')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           style={{ 
             backgroundColor: activeSystem === 'business' ? colors.business : `${colors.secondary}10`,
             color: activeSystem === 'business' ? 'white' : colors.business,
@@ -660,7 +627,7 @@ const API_BASE = isProduction
         
         <button
           onClick={() => setActiveSystem('market')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 relative"
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           style={{ 
             backgroundColor: activeSystem === 'market' ? colors.market : `${colors.secondary}10`,
             color: activeSystem === 'market' ? 'white' : colors.market,
@@ -673,137 +640,133 @@ const API_BASE = isProduction
             Live
           </span>
         </button>
-        
-        <button
-          onClick={() => setActiveSystem('all')}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          style={{ 
-            backgroundColor: activeSystem === 'all' ? colors.secondary : `${colors.secondary}10`,
-            color: activeSystem === 'all' ? 'white' : colors.secondary,
-            border: activeSystem === 'all' ? 'none' : '1px solid ' + colors.secondary + '30'
-          }}
-        >
-          <Activity className="w-4 h-4" />
-          All Systems
-        </button>
       </div>
 
-      {/* Stats Cards for All Systems */}
-      {activeSystem === 'all' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Anomalies</p>
-                <p className="text-2xl font-bold" style={{ color: colors.primary }}>{stats.total}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+      {/* Stats Cards for current system */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Anomalies</p>
+              <p className="text-2xl font-bold" style={{ 
+                color: activeSystem === 'rpt' ? colors.primary : 
+                       activeSystem === 'business' ? colors.business : 
+                       colors.market 
+              }}>{stats.total}</p>
             </div>
-          </div>
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Critical</p>
-                <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
-              </div>
-              <AlertOctagon className="w-8 h-8 text-red-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Warning</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.warning}</p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-yellow-500" />
-            </div>
+            <AlertTriangle className="w-8 h-8 text-yellow-500" />
           </div>
         </div>
-      )}
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Critical</p>
+              <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+            </div>
+            <AlertOctagon className="w-8 h-8 text-red-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Warning</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.warning}</p>
+            </div>
+            <AlertCircle className="w-8 h-8 text-yellow-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Info</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.info}</p>
+            </div>
+            <Info className="w-8 h-8 text-blue-500" />
+          </div>
+        </div>
+      </div>
 
-      {/* System Specific Content - ALL LIVE */}
+      {/* System Specific Content */}
       {activeSystem === 'rpt' && renderRPTContent()}
       {activeSystem === 'business' && renderBusinessContent()}
       {activeSystem === 'market' && renderMarketContent()}
 
-      {/* Filters - Show for all systems */}
-      {activeSystem !== 'all' && (
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" style={{ color: colors.warning }} />
-              {activeSystem === 'rpt' && 'RPT Anomalies'}
-              {activeSystem === 'business' && 'Business Tax Anomalies'}
-              {activeSystem === 'market' && 'Market Rent Anomalies'}
-              <span 
-                className="text-sm px-2 py-1 rounded-full"
-                style={{ 
-                  backgroundColor: `${colors.secondary}20`,
-                  color: colors.secondary
-                }}
-              >
-                {filteredAnomalies.length} found
-              </span>
-            </h2>
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" style={{ color: colors.warning }} />
+            {activeSystem === 'rpt' && 'RPT Anomalies'}
+            {activeSystem === 'business' && 'Business Tax Anomalies'}
+            {activeSystem === 'market' && 'Market Rent Anomalies'}
+            <span 
+              className="text-sm px-2 py-1 rounded-full"
+              style={{ 
+                backgroundColor: `${colors.secondary}20`,
+                color: colors.secondary
+              }}
+            >
+              {filteredAnomalies.length} found
+            </span>
+          </h2>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-none md:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: colors.secondary }} />
+            <input
+              type="text"
+              placeholder={
+                activeSystem === 'rpt' ? "Search owner or barangay..." : 
+                activeSystem === 'business' ? "Search business or barangay..." : 
+                "Search stall, renter or barangay..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2"
+              style={{ 
+                borderColor: colors.secondary + '40',
+                focusRingColor: activeSystem === 'rpt' ? colors.primary : 
+                                activeSystem === 'business' ? colors.business : 
+                                colors.market
+              }}
+            />
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="relative flex-1 md:flex-none md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: colors.secondary }} />
-              <input
-                type="text"
-                placeholder={
-                  activeSystem === 'rpt' ? "Search owner or barangay..." : 
-                  activeSystem === 'business' ? "Search business or barangay..." : 
-                  "Search stall, renter or barangay..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2"
-                style={{ 
-                  borderColor: colors.secondary + '40',
-                  focusRingColor: activeSystem === 'rpt' ? colors.primary : 
-                                  activeSystem === 'business' ? colors.business : 
-                                  colors.market
-                }}
-              />
-            </div>
-            
-            <select 
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value)}
-              className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
-              style={{ 
-                borderColor: colors.secondary + '40',
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="all">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="warning">Warning</option>
-              <option value="info">Info</option>
-            </select>
-            
-            <select 
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
-              style={{ 
-                borderColor: colors.secondary + '40',
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="all">All Types</option>
-              <option value="LATE">Late Payments</option>
-              <option value="CRITICAL">Critical Late</option>
-              <option value="CHRONIC">Chronic Late</option>
-              <option value="PATTERN">Pattern Change</option>
-              <option value="DISCOUNT">Discount</option>
-              <option value="CLUSTER">Geographic</option>
-            </select>
-          </div>
+          <select 
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+            className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
+            style={{ 
+              borderColor: colors.secondary + '40',
+              backgroundColor: 'white'
+            }}
+          >
+            <option value="all">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="warning">Warning</option>
+            <option value="info">Info</option>
+          </select>
+          
+          <select 
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
+            style={{ 
+              borderColor: colors.secondary + '40',
+              backgroundColor: 'white'
+            }}
+          >
+            <option value="all">All Types</option>
+            <option value="LATE">Late Payments</option>
+            <option value="CRITICAL">Critical Late</option>
+            <option value="CHRONIC">Chronic Late</option>
+            <option value="PATTERN">Pattern Change</option>
+            <option value="DISCOUNT">Discount</option>
+            <option value="CLUSTER">Geographic</option>
+          </select>
         </div>
-      )}
+      </div>
 
       {/* Anomalies List */}
       {loading ? (
@@ -815,16 +778,14 @@ const API_BASE = isProduction
                 borderColor: `${colors.secondary}20`,
                 borderTopColor: activeSystem === 'rpt' ? colors.primary : 
                               activeSystem === 'business' ? colors.business : 
-                              activeSystem === 'market' ? colors.market : 
-                              colors.primary
+                              colors.market
               }}
             ></div>
             <div className="absolute inset-0 flex items-center justify-center">
               <Brain className="w-6 h-6 animate-pulse" style={{ 
                 color: activeSystem === 'rpt' ? colors.primary : 
                        activeSystem === 'business' ? colors.business : 
-                       activeSystem === 'market' ? colors.market : 
-                       colors.primary 
+                       colors.market
               }} />
             </div>
           </div>
@@ -857,10 +818,9 @@ const API_BASE = isProduction
                   style={{ 
                     backgroundColor: anomaly.severity === 'critical' ? '#fee2e2' :
                                    anomaly.severity === 'warning' ? '#fef9c3' :
-                                   anomaly.system === 'RPT' ? `${colors.primary}20` : 
-                                   anomaly.system === 'Business' ? `${colors.business}20` : 
-                                   anomaly.system === 'Market' ? `${colors.market}20` : 
-                                   `${colors.primary}20`
+                                   activeSystem === 'rpt' ? `${colors.primary}20` : 
+                                   activeSystem === 'business' ? `${colors.business}20` : 
+                                   `${colors.market}20`
                   }}
                 >
                   {getTypeIcon(anomaly.type)}
@@ -873,12 +833,6 @@ const API_BASE = isProduction
                         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getSeverityBadge(anomaly.severity)}`}>
                           {anomaly.severity?.toUpperCase()}
                         </span>
-                        {anomaly.system && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 flex items-center gap-1">
-                            {getSystemIcon(anomaly.system)}
-                            {anomaly.system}
-                          </span>
-                        )}
                         <span className={`text-sm font-medium ${getTypeColor(anomaly.type)}`}>
                           {anomaly.type?.replace(/_/g, ' ')}
                         </span>
@@ -910,11 +864,11 @@ const API_BASE = isProduction
                         {/* Business Name */}
                         {anomaly.business_name && (
                           <span className="flex items-center gap-1 font-medium" style={{ 
-                            color: anomaly.system === 'Business' ? colors.business : 
-                                   anomaly.system === 'Market' ? colors.market : 
+                            color: activeSystem === 'business' ? colors.business : 
+                                   activeSystem === 'market' ? colors.market : 
                                    colors.secondary 
                           }}>
-                            {anomaly.system === 'Market' ? <Store className="w-4 h-4" /> : <Building className="w-4 h-4" />}
+                            {activeSystem === 'market' ? <Store className="w-4 h-4" /> : <Building className="w-4 h-4" />}
                             {anomaly.business_name}
                           </span>
                         )}
@@ -996,28 +950,24 @@ const API_BASE = isProduction
                         <div 
                           className="mt-4 p-3 rounded-lg border text-sm"
                           style={{ 
-                            backgroundColor: anomaly.system === 'RPT' ? `${colors.primary}08` : 
-                                          anomaly.system === 'Business' ? `${colors.business}08` : 
-                                          anomaly.system === 'Market' ? `${colors.market}08` : 
-                                          `${colors.primary}08`,
-                            borderColor: anomaly.system === 'RPT' ? colors.primary + '40' : 
-                                        anomaly.system === 'Business' ? colors.business + '40' : 
-                                        anomaly.system === 'Market' ? colors.market + '40' : 
-                                        colors.primary + '40'
+                            backgroundColor: activeSystem === 'rpt' ? `${colors.primary}08` : 
+                                          activeSystem === 'business' ? `${colors.business}08` : 
+                                          `${colors.market}08`,
+                            borderColor: activeSystem === 'rpt' ? colors.primary + '40' : 
+                                        activeSystem === 'business' ? colors.business + '40' : 
+                                        colors.market + '40'
                           }}
                         >
                           <div className="flex items-start gap-2">
                             <Brain className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ 
-                              color: anomaly.system === 'RPT' ? colors.primary : 
-                                    anomaly.system === 'Business' ? colors.business : 
-                                    anomaly.system === 'Market' ? colors.market : 
-                                    colors.primary 
+                              color: activeSystem === 'rpt' ? colors.primary : 
+                                    activeSystem === 'business' ? colors.business : 
+                                    colors.market
                             }} />
                             <p className="text-sm" style={{ 
-                              color: anomaly.system === 'RPT' ? colors.primary : 
-                                    anomaly.system === 'Business' ? colors.business : 
-                                    anomaly.system === 'Market' ? colors.market : 
-                                    colors.primary 
+                              color: activeSystem === 'rpt' ? colors.primary : 
+                                    activeSystem === 'business' ? colors.business : 
+                                    colors.market
                             }}>
                               {anomaly.ai_analysis}
                             </p>

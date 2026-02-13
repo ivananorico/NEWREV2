@@ -92,15 +92,36 @@ function handleLogin($db, $input, &$response) {
         return;
     }
 
+    $email = trim($input['email']);
+    $password = $input['password'];
+
+    // HARDCODED ADMIN ACCOUNT - Check this first
+    if ($email === 'admin@gov.ph' && $password === 'admin123') {
+        // Set admin session variables
+        $_SESSION['user_id'] = 999; // Special ID for hardcoded admin
+        $_SESSION['user_name'] = 'System Administrator';
+        $_SESSION['user_email'] = $email;
+        $_SESSION['user_role'] = 'admin';
+        $_SESSION['logged_in'] = true;
+        
+        $response['success'] = true;
+        $response['message'] = 'Admin login successful';
+        $response['user_role'] = 'admin';
+        $response['user_id'] = 999;
+        $response['redirect_url'] = 'dist/index.html'; // Add redirect URL
+        return;
+    }
+
+    // Continue with regular database login for non-hardcoded accounts
     $user = new User($db);
-    $user->email = trim($input['email']);
+    $user->email = $email;
 
     if (!$user->emailExists()) {
         $response['message'] = 'Invalid email or password';
         return;
     }
 
-    if (!$user->verifyPassword($input['password'])) {
+    if (!$user->verifyPassword($password)) {
         $response['message'] = 'Invalid email or password';
         return;
     }
@@ -116,9 +137,11 @@ function handleLogin($db, $input, &$response) {
         $response['message'] = 'Admin login successful';
         $response['user_role'] = 'admin';
         $response['user_id'] = $user->id;
+        $response['redirect_url'] = 'dist/index.html';
         return;
     }
 
+    // Regular citizen users need OTP
     $otp = new OTP($db);
     $otp_code = $otp->generateOTP();
     $otp->user_id = $user->id;

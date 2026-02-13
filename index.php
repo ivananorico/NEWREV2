@@ -303,7 +303,7 @@
                             <p class="text-sm text-gray-600 mb-3 text-center lg:text-left">Apply for permits and pay business taxes with ease</p>
                             <div class="flex items-center text-xs text-green-600">
                                 <i class="fas fa-check-circle mr-1"></i>
-                                <span>Pay Business Tax</span>
+                                <span>Pay Business</span>
                             </div>
                         </div>
                         
@@ -1483,31 +1483,31 @@
             
             if (registerModal) {
                 registerModal.addEventListener('click', (e) => {
-                    if (e.target === this) hideRegisterForm();
+                    if (e.target === registerModal) hideRegisterForm();
                 });
             }
             
             if (otpModalElement) {
                 otpModalElement.addEventListener('click', (e) => {
-                    if (e.target === this) closeOtpModalFunc();
+                    if (e.target === otpModalElement) closeOtpModalFunc();
                 });
             }
             
             if (termsModalElement) {
                 termsModalElement.addEventListener('click', (e) => {
-                    if (e.target === this) hideTermsModal();
+                    if (e.target === termsModalElement) hideTermsModal();
                 });
             }
             
             if (privacyModalElement) {
                 privacyModalElement.addEventListener('click', (e) => {
-                    if (e.target === this) hidePrivacyModal();
+                    if (e.target === privacyModalElement) hidePrivacyModal();
                 });
             }
             
             if (lockoutModalElement) {
                 lockoutModalElement.addEventListener('click', (e) => {
-                    if (e.target === this) hideLockoutModal();
+                    if (e.target === lockoutModalElement) hideLockoutModal();
                 });
             }
         }
@@ -1716,7 +1716,7 @@
         }
 
         // ============================================
-        // LOGIN HANDLER - FIXED
+        // LOGIN HANDLER - FIXED (Admin bypasses OTP)
         // ============================================
         async function handleLoginSubmit(e) {
             e.preventDefault();
@@ -1774,10 +1774,13 @@
                     
                     if (data.user_role === 'admin') {
                         showNotification('Admin login successful! Redirecting...', 'success');
+                        // Admin bypasses OTP - redirect immediately
+                        const redirectUrl = data.redirect_url || (basePath ? basePath + '/dist/index.html' : 'dist/index.html');
                         setTimeout(() => {
-                            window.location.href = (basePath ? basePath + '/' : '') + 'dist/index.html';
+                            window.location.href = redirectUrl;
                         }, 1000);
                     } else {
+                        // Citizen users need OTP verification
                         currentUserId = data.user_id;
                         
                         // Reset OTP attempts for new session
