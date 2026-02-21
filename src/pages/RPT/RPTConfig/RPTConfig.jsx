@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Landmark, Settings, DollarSign, Percent, AlertTriangle,
   Home, Building2, Calculator, Clock, CheckCircle,
-  Edit2, Trash2, RefreshCw, Plus, Search, Filter,
+  Edit2, RefreshCw, Plus, Search, Filter,
   Calendar, TrendingUp, Shield, Zap, Layers,
   ChevronRight, Download, FileText, Info
 } from 'lucide-react';
@@ -462,33 +462,6 @@ export default function RPTConfig() {
     setShowForm(true);
   };
 
-  // Delete Handler
-  const handleDelete = async (id, type) => {
-    const typeName = type.replace('-configurations', '').replace('-', ' ').replace('-levels', ' levels');
-    if (window.confirm(`Are you sure you want to delete this ${typeName} configuration?`)) {
-      try {
-        const response = await fetch(`${API_BASE}/${type}.php?id=${id}`, { method: 'DELETE' });
-        const result = await response.json();
-        if (response.ok || result.success) {
-          switch(type) {
-            case 'land-configurations': fetchLandConfigurations(); break;
-            case 'property-configurations': fetchPropertyConfigurations(); break;
-            case 'building-assessment-levels': fetchBuildingAssessmentLevels(); break;
-            case 'tax-configurations': fetchTaxConfigurations(); break;
-            case 'discount-configurations': fetchDiscountConfigurations(); break;
-            case 'penalty-configurations': fetchPenaltyConfigurations(); break;
-          }
-          alert(`${typeName} configuration deleted successfully!`);
-        } else {
-          alert('Error: ' + (result.error || 'Failed to delete'));
-        }
-      } catch (error) {
-        console.error(`Error deleting ${type}:`, error);
-        alert('Error deleting configuration: ' + error.message);
-      }
-    }
-  };
-
   // Reset Form Functions
   const resetLandForm = () => {
     setLandFormData({
@@ -621,6 +594,84 @@ export default function RPTConfig() {
            tab === 'building-assessment' ? 'Building Assessment' :
            tab.charAt(0).toUpperCase() + tab.slice(1);
   };
+
+  // Common fields component for dates and status
+  const CommonFormFields = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+          Effective Date *
+        </label>
+        <input
+          type="date"
+          value={currentFormData.effective_date}
+          onChange={(e) => {
+            switch(activeTab) {
+              case 'land': setLandFormData({...landFormData, effective_date: e.target.value}); break;
+              case 'property': setPropertyFormData({...propertyFormData, effective_date: e.target.value}); break;
+              case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, effective_date: e.target.value}); break;
+              case 'tax': setTaxFormData({...taxFormData, effective_date: e.target.value}); break;
+              case 'discount-penalty': 
+                if (editingType === 'discount') setDiscountFormData({...discountFormData, effective_date: e.target.value});
+                else setPenaltyFormData({...penaltyFormData, effective_date: e.target.value});
+                break;
+            }
+          }}
+          className="w-full p-2 border rounded-lg"
+          style={{ borderColor: COLORS.secondary }}
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+          Expiration Date
+        </label>
+        <input
+          type="date"
+          value={currentFormData.expiration_date}
+          onChange={(e) => {
+            switch(activeTab) {
+              case 'land': setLandFormData({...landFormData, expiration_date: e.target.value}); break;
+              case 'property': setPropertyFormData({...propertyFormData, expiration_date: e.target.value}); break;
+              case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, expiration_date: e.target.value}); break;
+              case 'tax': setTaxFormData({...taxFormData, expiration_date: e.target.value}); break;
+              case 'discount-penalty': 
+                if (editingType === 'discount') setDiscountFormData({...discountFormData, expiration_date: e.target.value});
+                else setPenaltyFormData({...penaltyFormData, expiration_date: e.target.value});
+                break;
+            }
+          }}
+          className="w-full p-2 border rounded-lg"
+          style={{ borderColor: COLORS.secondary }}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+          Status
+        </label>
+        <select
+          value={currentFormData.status}
+          onChange={(e) => {
+            switch(activeTab) {
+              case 'land': setLandFormData({...landFormData, status: e.target.value}); break;
+              case 'property': setPropertyFormData({...propertyFormData, status: e.target.value}); break;
+              case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, status: e.target.value}); break;
+              case 'tax': setTaxFormData({...taxFormData, status: e.target.value}); break;
+              case 'discount-penalty': 
+                if (editingType === 'discount') setDiscountFormData({...discountFormData, status: e.target.value});
+                else setPenaltyFormData({...penaltyFormData, status: e.target.value});
+                break;
+            }
+          }}
+          className="w-full p-2 border rounded-lg"
+          style={{ borderColor: COLORS.secondary }}
+        >
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.background }}>
@@ -1004,45 +1055,6 @@ export default function RPTConfig() {
                           required
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                          Status
-                        </label>
-                        <select
-                          value={landFormData.status}
-                          onChange={(e) => setLandFormData({...landFormData, status: e.target.value})}
-                          className="w-full p-2 border rounded-lg"
-                          style={{ borderColor: COLORS.secondary }}
-                        >
-                          <option value="active">Active</option>
-                          <option value="expired">Expired</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                          Effective Date *
-                        </label>
-                        <input
-                          type="date"
-                          value={landFormData.effective_date}
-                          onChange={(e) => setLandFormData({...landFormData, effective_date: e.target.value})}
-                          className="w-full p-2 border rounded-lg"
-                          style={{ borderColor: COLORS.secondary }}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                          Expiration Date
-                        </label>
-                        <input
-                          type="date"
-                          value={landFormData.expiration_date}
-                          onChange={(e) => setLandFormData({...landFormData, expiration_date: e.target.value})}
-                          className="w-full p-2 border rounded-lg"
-                          style={{ borderColor: COLORS.secondary }}
-                        />
-                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
@@ -1057,337 +1069,275 @@ export default function RPTConfig() {
                         placeholder="Additional details..."
                       />
                     </div>
+                    <CommonFormFields />
                   </>
                 )}
 
                 {activeTab === 'property' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Classification *
-                      </label>
-                      <input
-                        type="text"
-                        value={propertyFormData.classification}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, classification: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="e.g., Residential, Commercial"
-                        required
-                      />
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Classification *
+                        </label>
+                        <input
+                          type="text"
+                          value={propertyFormData.classification}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, classification: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="e.g., Residential, Commercial"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Material Type *
+                        </label>
+                        <input
+                          type="text"
+                          value={propertyFormData.material_type}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, material_type: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="e.g., Concrete, Wooden"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Unit Cost (per sqm) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={propertyFormData.unit_cost}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, unit_cost: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Depreciation Rate (%) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={propertyFormData.depreciation_rate}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, depreciation_rate: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Min Value *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={propertyFormData.min_value}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, min_value: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Max Value *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={propertyFormData.max_value}
+                          onChange={(e) => setPropertyFormData({...propertyFormData, max_value: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Material Type *
-                      </label>
-                      <input
-                        type="text"
-                        value={propertyFormData.material_type}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, material_type: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="e.g., Concrete, Wooden"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Unit Cost (per sqm) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={propertyFormData.unit_cost}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, unit_cost: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Depreciation Rate (%) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={propertyFormData.depreciation_rate}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, depreciation_rate: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Min Value *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={propertyFormData.min_value}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, min_value: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Max Value *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={propertyFormData.max_value}
-                        onChange={(e) => setPropertyFormData({...propertyFormData, max_value: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                  </div>
+                    <CommonFormFields />
+                  </>
                 )}
 
                 {activeTab === 'building-assessment' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Classification *
-                      </label>
-                      <select
-                        value={buildingAssessmentFormData.classification}
-                        onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, classification: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        required
-                      >
-                        <option value="">Select Classification</option>
-                        <option value="Commercial">Commercial</option>
-                        <option value="Residential">Residential</option>
-                        <option value="Industrial">Industrial</option>
-                        <option value="Agricultural">Agricultural</option>
-                      </select>
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Classification *
+                        </label>
+                        <select
+                          value={buildingAssessmentFormData.classification}
+                          onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, classification: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          required
+                        >
+                          <option value="">Select Classification</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Residential">Residential</option>
+                          <option value="Industrial">Industrial</option>
+                          <option value="Agricultural">Agricultural</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Minimum Assessed Value *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={buildingAssessmentFormData.min_assessed_value}
+                          onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, min_assessed_value: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Maximum Assessed Value *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={buildingAssessmentFormData.max_assessed_value}
+                          onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, max_assessed_value: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Assessment Level (%) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={buildingAssessmentFormData.level_percent}
+                          onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, level_percent: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Minimum Assessed Value *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={buildingAssessmentFormData.min_assessed_value}
-                        onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, min_assessed_value: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Maximum Assessed Value *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={buildingAssessmentFormData.max_assessed_value}
-                        onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, max_assessed_value: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Assessment Level (%) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={buildingAssessmentFormData.level_percent}
-                        onChange={(e) => setBuildingAssessmentFormData({...buildingAssessmentFormData, level_percent: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                  </div>
+                    <CommonFormFields />
+                  </>
                 )}
 
                 {activeTab === 'tax' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Tax Name *
-                      </label>
-                      <select
-                        value={taxFormData.tax_name}
-                        onChange={(e) => setTaxFormData({...taxFormData, tax_name: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        required
-                      >
-                        <option value="">Select Tax Type</option>
-                        <option value="Basic Tax">Basic Tax</option>
-                        <option value="SEF Tax">SEF Tax</option>
-                      </select>
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Tax Name *
+                        </label>
+                        <select
+                          value={taxFormData.tax_name}
+                          onChange={(e) => setTaxFormData({...taxFormData, tax_name: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          required
+                        >
+                          <option value="">Select Tax Type</option>
+                          <option value="Basic Tax">Basic Tax</option>
+                          <option value="SEF Tax">SEF Tax</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Tax Percentage (%) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={taxFormData.tax_percent}
+                          onChange={(e) => setTaxFormData({...taxFormData, tax_percent: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Tax Percentage (%) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={taxFormData.tax_percent}
-                        onChange={(e) => setTaxFormData({...taxFormData, tax_percent: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                  </div>
+                    <CommonFormFields />
+                  </>
                 )}
 
                 {(activeTab === 'discount-penalty' && editingType === 'discount') && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Discount Percentage (%) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={discountFormData.discount_percent}
-                        onChange={(e) => setDiscountFormData({...discountFormData, discount_percent: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Discount Percentage (%) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={discountFormData.discount_percent}
+                          onChange={(e) => setDiscountFormData({...discountFormData, discount_percent: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
+                    <CommonFormFields />
+                  </>
                 )}
 
                 {(activeTab === 'discount-penalty' && editingType === 'penalty') && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Penalty Percentage (%) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={penaltyFormData.penalty_percent}
-                        onChange={(e) => setPenaltyFormData({...penaltyFormData, penalty_percent: e.target.value})}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        placeholder="0.00"
-                        required
-                      />
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
+                          Penalty Percentage (%) *
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={penaltyFormData.penalty_percent}
+                          onChange={(e) => setPenaltyFormData({...penaltyFormData, penalty_percent: e.target.value})}
+                          className="w-full p-2 border rounded-lg"
+                          style={{ borderColor: COLORS.secondary }}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Common fields for all forms */}
-                {(activeTab !== 'discount-penalty' || (activeTab === 'discount-penalty' && editingType)) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Effective Date *
-                      </label>
-                      <input
-                        type="date"
-                        value={currentFormData.effective_date}
-                        onChange={(e) => {
-                          switch(activeTab) {
-                            case 'land': setLandFormData({...landFormData, effective_date: e.target.value}); break;
-                            case 'property': setPropertyFormData({...propertyFormData, effective_date: e.target.value}); break;
-                            case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, effective_date: e.target.value}); break;
-                            case 'tax': setTaxFormData({...taxFormData, effective_date: e.target.value}); break;
-                            case 'discount-penalty': 
-                              if (editingType === 'discount') setDiscountFormData({...discountFormData, effective_date: e.target.value});
-                              else setPenaltyFormData({...penaltyFormData, effective_date: e.target.value});
-                              break;
-                          }
-                        }}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Expiration Date
-                      </label>
-                      <input
-                        type="date"
-                        value={currentFormData.expiration_date}
-                        onChange={(e) => {
-                          switch(activeTab) {
-                            case 'land': setLandFormData({...landFormData, expiration_date: e.target.value}); break;
-                            case 'property': setPropertyFormData({...propertyFormData, expiration_date: e.target.value}); break;
-                            case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, expiration_date: e.target.value}); break;
-                            case 'tax': setTaxFormData({...taxFormData, expiration_date: e.target.value}); break;
-                            case 'discount-penalty': 
-                              if (editingType === 'discount') setDiscountFormData({...discountFormData, expiration_date: e.target.value});
-                              else setPenaltyFormData({...penaltyFormData, expiration_date: e.target.value});
-                              break;
-                          }
-                        }}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: COLORS.dark }}>
-                        Status
-                      </label>
-                      <select
-                        value={currentFormData.status}
-                        onChange={(e) => {
-                          switch(activeTab) {
-                            case 'land': setLandFormData({...landFormData, status: e.target.value}); break;
-                            case 'property': setPropertyFormData({...propertyFormData, status: e.target.value}); break;
-                            case 'building-assessment': setBuildingAssessmentFormData({...buildingAssessmentFormData, status: e.target.value}); break;
-                            case 'tax': setTaxFormData({...taxFormData, status: e.target.value}); break;
-                            case 'discount-penalty': 
-                              if (editingType === 'discount') setDiscountFormData({...discountFormData, status: e.target.value});
-                              else setPenaltyFormData({...penaltyFormData, status: e.target.value});
-                              break;
-                          }
-                        }}
-                        className="w-full p-2 border rounded-lg"
-                        style={{ borderColor: COLORS.secondary }}
-                      >
-                        <option value="active">Active</option>
-                        <option value="expired">Expired</option>
-                      </select>
-                    </div>
-                  </div>
+                    <CommonFormFields />
+                  </>
                 )}
 
                 <div className="flex gap-3 pt-4">
@@ -1585,13 +1535,6 @@ export default function RPTConfig() {
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => handleDelete(config.id, 'land-configurations')}
-                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                  style={{ color: COLORS.danger }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1654,13 +1597,6 @@ export default function RPTConfig() {
                                   disabled={config.status === 'expired'}
                                 >
                                   <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(config.id, 'property-configurations')}
-                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                  style={{ color: COLORS.danger }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
@@ -1726,13 +1662,6 @@ export default function RPTConfig() {
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => handleDelete(config.id, 'building-assessment-levels')}
-                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                  style={{ color: COLORS.danger }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1788,13 +1717,6 @@ export default function RPTConfig() {
                                   disabled={config.status === 'expired'}
                                 >
                                   <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(config.id, 'tax-configurations')}
-                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                  style={{ color: COLORS.danger }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
@@ -1853,13 +1775,6 @@ export default function RPTConfig() {
                                     >
                                       <Edit2 className="w-4 h-4" />
                                     </button>
-                                    <button
-                                      onClick={() => handleDelete(config.id, 'discount-configurations')}
-                                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                      style={{ color: COLORS.danger }}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -1914,13 +1829,6 @@ export default function RPTConfig() {
                                       disabled={config.status === 'expired'}
                                     >
                                       <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(config.id, 'penalty-configurations')}
-                                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                                      style={{ color: COLORS.danger }}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </td>

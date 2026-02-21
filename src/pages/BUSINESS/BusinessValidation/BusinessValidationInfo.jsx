@@ -5,6 +5,11 @@ const BusinessValidationInfo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [permit, setPermit] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [showUserSelector, setShowUserSelector] = useState(false);
+  const [autoMatchedUser, setAutoMatchedUser] = useState(null);
+  const [isAutoMatching, setIsAutoMatching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [calculatedTax, setCalculatedTax] = useState(null);
   const [quarterlyBreakdown, setQuarterlyBreakdown] = useState(null);
@@ -26,11 +31,81 @@ const BusinessValidationInfo = () => {
     ? "http://localhost/revenue2/backend"
     : "https://revenuetreasury.goserveph.com/backend";
 
+  // Fetch users from the database
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/Business/BusinessValidation/get_users.php`);
+      const responseText = await response.text();
+      
+      if (responseText.includes('<br />') || responseText.includes('<b>') || responseText.trim().startsWith('<')) {
+        console.error('Server error in fetchUsers');
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse Error in fetchUsers:', parseError);
+        return;
+      }
+      
+      if (data.status === 'success') {
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  // Auto-match user by email
+  const autoMatchUserByEmail = async (email) => {
+    if (!email) return null;
+    
+    setIsAutoMatching(true);
+    try {
+      const response = await fetch(`${API_BASE}/Business/BusinessValidation/find_user_by_email.php`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email: email })
+      });
+      
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse Error in autoMatchUserByEmail:', parseError);
+        return null;
+      }
+      
+      if (data.status === 'success' && data.found) {
+        setAutoMatchedUser(data.user);
+        setSelectedUserId(data.user.id.toString());
+        return data.user;
+      } else {
+        setAutoMatchedUser(null);
+        return null;
+      }
+    } catch (err) {
+      console.error('Error auto-matching user:', err);
+      return null;
+    } finally {
+      setIsAutoMatching(false);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         setError('');
+        
+        // Fetch users first
+        await fetchUsers();
         
         if (!id) {
           navigate('/business/validation');
@@ -65,6 +140,17 @@ const BusinessValidationInfo = () => {
         
         console.log('Permit data loaded:', permitData.permit);
         setPermit(permitData.permit);
+        
+        // Try to auto-match user by email if permit has email
+        if (permitData.permit.email_address) {
+          await autoMatchUserByEmail(permitData.permit.email_address);
+        }
+        
+        // If permit already has user_id, use that
+        if (permitData.permit.user_id) {
+          setSelectedUserId(permitData.permit.user_id.toString());
+        }
+        
         setRegulatoryFees(permitData.regulatory_fees || []);
         setTaxConfig(permitData.tax_config || null);
         setDiscountConfig(permitData.discount_config || null);
@@ -388,11 +474,96 @@ const BusinessValidationInfo = () => {
     }
   };
 
+  const handleAssignUser = async () => {
+    if (!selectedUserId) {
+      alert('Please select a user');
+      return;
+    }
+
+    // Validate that selectedUserId is a valid number
+    const userIdNum = parseInt(selectedUserId);
+    if (isNaN(userIdNum)) {
+      alert('Invalid user ID selected');
+      return;
+    }
+
+    console.log('Assigning user - Permit ID:', id, 'User ID:', userIdNum);
+
+    try {
+      const assignUrl = `${API_BASE}/Business/BusinessValidation/assign_user_to_permit.php`;
+      const response = await fetch(assignUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          permit_id: id,
+          user_id: userIdNum
+        })
+      });
+
+      const responseText = await response.text();
+      console.log('Raw server response:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Response that failed to parse:', responseText);
+        throw new Error('Invalid server response: ' + responseText.substring(0, 100));
+      }
+
+      console.log('Parsed response:', result);
+
+      if (result.status === 'success') {
+        alert('User assigned successfully!');
+        setShowUserSelector(false);
+        setAutoMatchedUser(null);
+        
+        // Update the permit with the new user_id
+        setPermit(prev => {
+          const updated = {
+            ...prev,
+            user_id: userIdNum
+          };
+          console.log('Updated permit state:', updated);
+          return updated;
+        });
+        
+        // Keep selectedUserId in sync (as string for radio buttons)
+        setSelectedUserId(selectedUserId);
+        
+      } else {
+        alert('Error: ' + (result.message || 'Failed to assign user'));
+      }
+    } catch (err) {
+      console.error('Error assigning user:', err);
+      alert('Error assigning user: ' + err.message);
+    }
+  };
+
+  const handleRetryAutoMatch = async () => {
+    if (permit && permit.email_address) {
+      await autoMatchUserByEmail(permit.email_address);
+    }
+  };
+
   const handleApprove = async () => {
     if (!window.confirm('Are you sure you want to approve this business permit with the calculated tax?')) return;
     
     if (!calculatedTax || !permit) {
       alert('Tax calculation is not complete');
+      return;
+    }
+
+    // Check both permit.user_id and selectedUserId
+    const finalUserId = permit.user_id || (selectedUserId ? parseInt(selectedUserId) : null);
+    
+    if (!finalUserId) {
+      alert('Please assign a user to this permit before approving');
+      setShowUserSelector(true);
       return;
     }
     
@@ -412,7 +583,8 @@ const BusinessValidationInfo = () => {
         total_tax: calculatedTax.calculation?.total_tax || 0,
         approved_date: new Date().toISOString().split('T')[0],
         tax_status: 'Approved',
-        permit_status: 'APPROVED'
+        permit_status: 'APPROVED',
+        user_id: finalUserId
       };
       
       console.log('Sending approval data:', updateData);
@@ -557,6 +729,20 @@ const BusinessValidationInfo = () => {
     return businessNature || 'General Business';
   };
 
+  const getUserFullName = (user) => {
+    if (!user) return '';
+    const parts = [
+      user.first_name,
+      user.middle_name,
+      user.last_name,
+      user.suffix
+    ].filter(Boolean);
+    return parts.join(' ');
+  };
+
+  // Check if permit is already approved
+  const isPermitApproved = permit?.permit_status === 'APPROVED' || permit?.permit_status === 'ACTIVE';
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -598,6 +784,12 @@ const BusinessValidationInfo = () => {
   const businessTypeDisplay = getBusinessTypeDisplay();
   const isCustomRate = currentRateInfo?.isCustom;
 
+  // Find selected user details
+  const selectedUser = users.find(u => u.id.toString() === selectedUserId) || autoMatchedUser;
+  
+  // Check if user is already assigned (but permit is not approved)
+  const isUserAssigned = (permit.user_id || selectedUserId) && !isPermitApproved;
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
@@ -631,9 +823,170 @@ const BusinessValidationInfo = () => {
               </div>
             </div>
           </div>
+
+          {/* User Assignment Section */}
+          <div className="border-t border-gray-200 pt-4 mt-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <h3 className="font-medium text-gray-900">Citizen Assignment</h3>
+              </div>
+              <div className="flex gap-2">
+                {isAutoMatching && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    Auto-matching...
+                  </div>
+                )}
+                {/* Show Assign Citizen button if permit is NOT approved */}
+                {!isPermitApproved && (
+                  <button
+                    onClick={() => setShowUserSelector(!showUserSelector)}
+                    className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    {permit.user_id || selectedUserId ? 'Change Assignment' : 'Assign Citizen'}
+                  </button>
+                )}
+                {!permit.user_id && !selectedUserId && !isPermitApproved && permit.email_address && (
+                  <button
+                    onClick={handleRetryAutoMatch}
+                    className="inline-flex items-center px-3 py-1 text-sm font-medium text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg"
+                    disabled={isAutoMatching}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Retry Auto-match
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Auto-match status */}
+            {autoMatchedUser && !permit.user_id && !isPermitApproved && (
+              <div className="mt-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">AUTO-MATCHED</span>
+                      <span className="text-sm text-gray-600">Based on email: {permit.email_address}</span>
+                    </div>
+                    <div className="font-medium text-gray-900 mt-2">
+                      {getUserFullName(autoMatchedUser)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Email: {autoMatchedUser.email} | Mobile: {autoMatchedUser.mobile || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Current Assignment - Always show if user is assigned, even if approved */}
+            {(permit.user_id || selectedUserId) && !showUserSelector && (
+              <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start">
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-600">Assigned Citizen:</div>
+                    <div className="font-medium text-gray-900">
+                      {selectedUser ? getUserFullName(selectedUser) : 'Citizen #' + (permit.user_id || selectedUserId)}
+                    </div>
+                    {selectedUser && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Email: {selectedUser.email} | Mobile: {selectedUser.mobile || 'N/A'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    {permit.user_id ? 'Database Assigned' : 'Manually Assigned'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* User Selector - Only show if permit is NOT approved */}
+            {!isPermitApproved && showUserSelector && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Select Citizen</h4>
+                
+                <div className="max-h-64 overflow-y-auto mb-3">
+                  <div className="space-y-2">
+                    {users.length > 0 ? (
+                      users.map(user => (
+                        <label
+                          key={user.id}
+                          className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedUserId === user.id.toString()
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="userSelection"
+                            value={user.id}
+                            checked={selectedUserId === user.id.toString()}
+                            onChange={(e) => setSelectedUserId(e.target.value)}
+                            className="mt-1 mr-3"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{getUserFullName(user)}</div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              Email: {user.email} | Mobile: {user.mobile || 'N/A'}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              ID: {user.id} • Role: {user.role} • Status: {user.status}
+                            </div>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No citizens found in the database</p>
+                        <p className="text-xs mt-1">Please add users to the system first</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowUserSelector(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* No match message */}
+            {!autoMatchedUser && !permit.user_id && !selectedUserId && !showUserSelector && !isPermitApproved && permit.email_address && (
+              <div className="mt-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800">
+                      No citizen found with email: {permit.email_address}
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Please manually assign a citizen from the list.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content Grid - The rest of your code remains exactly the same */}
         <div className="flex flex-col lg:flex-row gap-6">
           
           {/* Left Column */}
@@ -752,7 +1105,7 @@ const BusinessValidationInfo = () => {
                 </button>
               </div>
               
-              {/* Tax Rate Selection Panel - Hidden by default, shows when button clicked */}
+              {/* Tax Rate Selection Panel */}
               {showRateOptions && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h3 className="font-medium text-gray-900 mb-3">Adjust Tax Rate</h3>
@@ -1016,9 +1369,9 @@ const BusinessValidationInfo = () => {
             </div>
           </div>
 
-          {/* Right Column - Only Action Panel with Approve Button */}
+          {/* Right Column - Action Panel */}
           <div className="w-full lg:w-80 space-y-6">
-            {/* Action Panel - Only Approve Button */}
+            {/* Action Panel */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Actions</h2>
               
@@ -1031,24 +1384,34 @@ const BusinessValidationInfo = () => {
                 ) : calculatedTax ? (
                   <button
                     onClick={handleApprove}
-                    disabled={isApproving || permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'}
+                    disabled={isApproving || isPermitApproved || !(permit.user_id || selectedUserId)}
                     className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center ${
-                      permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE'
+                      isPermitApproved
                         ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                        : !(permit.user_id || selectedUserId)
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                         : 'bg-green-600 hover:bg-green-700 text-white'
                     } ${isApproving ? 'opacity-50' : ''}`}
+                    title={!(permit.user_id || selectedUserId) ? 'Please assign a citizen first' : ''}
                   >
                     {isApproving ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Approving...
                       </>
-                    ) : permit.permit_status === 'APPROVED' || permit.permit_status === 'ACTIVE' ? (
+                    ) : isPermitApproved ? (
                       <>
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         Already Approved
+                      </>
+                    ) : !(permit.user_id || selectedUserId) ? (
+                      <>
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Assign Citizen First
                       </>
                     ) : (
                       <>

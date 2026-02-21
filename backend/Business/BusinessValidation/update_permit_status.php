@@ -1,5 +1,11 @@
 <?php
-//revenue2/Business/BusinessValidation/update_permit_status.php
+// revenue2/backend/Business/BusinessValidation/update_permit_status.php
+
+// Enable error logging
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+error_log("=== update_permit_status.php called ===");
 
 // Your common CORS headers
 header("Access-Control-Allow-Origin: *");
@@ -15,12 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // Use your existing database connection
-require_once '../../../db/Business/business_db.php';
+require_once dirname(__DIR__, 3) . '/db/Business/business_db.php';
 
 // Get database connection
 $pdo = getDatabaseConnection();
 
 if (!$pdo) {
+    error_log("Database connection failed");
     echo json_encode([
         'status' => 'error',
         'message' => 'Failed to connect to database'
@@ -46,6 +53,7 @@ function getBusinessTaxRate($business_nature, $taxable_amount, $tax_calculation_
             return 2.00;
         }
     } catch(PDOException $e) {
+        error_log("Error in getBusinessTaxRate: " . $e->getMessage());
         return $tax_calculation_type == 'capital_investment' ? 25.00 : 2.00;
     }
 }
@@ -72,6 +80,7 @@ function getBusinessDiscountPercent($pdo) {
         
         return $result ? floatval($result['discount_percent']) : 0.00;
     } catch (Exception $e) {
+        error_log("Error in getBusinessDiscountPercent: " . $e->getMessage());
         return 0.00;
     }
 }
@@ -86,6 +95,7 @@ function createQuarterlyTaxes($pdo, $permitId, $annualTax, $applicantId, $taxabl
         $exists = $checkStmt->fetch();
         
         if ($exists) {
+            error_log("Quarterly taxes already exist for permit ID: " . $permitId);
             return false;
         }
         
@@ -122,11 +132,13 @@ function createQuarterlyTaxes($pdo, $permitId, $annualTax, $applicantId, $taxabl
                 $taxCalculationType,
                 $taxRate
             ]);
+            error_log("Created quarterly tax for $quarter for permit ID: " . $permitId);
         }
         
         return true;
         
     } catch (Exception $e) {
+        error_log("Error in createQuarterlyTaxes: " . $e->getMessage());
         return false;
     }
 }
@@ -156,6 +168,7 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax, $
         $existing = $check_stmt->fetch();
         
         if ($existing) {
+            error_log("Annual payment already exists for permit ID: " . $business_permit_id . " year: " . $current_year);
             return [
                 'success' => false, 
                 'message' => 'Annual payment already exists for this year',
@@ -187,6 +200,7 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax, $
         ]);
         
         $annual_payment_id = $pdo->lastInsertId();
+        error_log("Created annual payment ID: " . $annual_payment_id . " for permit ID: " . $business_permit_id);
         
         return [
             'success' => true,
@@ -201,6 +215,7 @@ function createAnnualPayment($pdo, $business_permit_id, $user_id, $annual_tax, $
         ];
         
     } catch (Exception $e) {
+        error_log("Error in createAnnualPayment: " . $e->getMessage());
         return [
             'success' => false, 
             'message' => 'Failed to create annual payment: ' . $e->getMessage()
@@ -231,6 +246,7 @@ function createTaxSummary($pdo, $permitId, $year = null) {
         $business = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$business) {
+            error_log("Business permit not found for ID: " . $permitId);
             return [
                 'success' => false,
                 'message' => 'Business permit not found'
@@ -243,6 +259,7 @@ function createTaxSummary($pdo, $permitId, $year = null) {
         $existing = $check_stmt->fetch();
         
         if ($existing) {
+            error_log("Tax summary already exists for business ID: " . $business['business_id'] . " year: " . $year);
             return [
                 'success' => false,
                 'message' => "Tax summary already exists for this business for year $year"
@@ -266,6 +283,7 @@ function createTaxSummary($pdo, $permitId, $year = null) {
         ]);
         
         $tax_summary_id = $pdo->lastInsertId();
+        error_log("Created tax summary ID: " . $tax_summary_id . " for business ID: " . $business['business_id']);
         
         return [
             'success' => true,
@@ -278,6 +296,7 @@ function createTaxSummary($pdo, $permitId, $year = null) {
         ];
         
     } catch (PDOException $e) {
+        error_log("Error in createTaxSummary: " . $e->getMessage());
         return [
             'success' => false,
             'message' => 'Failed to create tax summary: ' . $e->getMessage()
@@ -289,30 +308,49 @@ function createTaxSummary($pdo, $permitId, $year = null) {
 function approvePermit($pdo) {
     // Get input data
     $input = file_get_contents('php://input');
+    error_log("Raw input: " . $input);
+    
     $data = json_decode($input, true);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("JSON decode error: " . json_last_error_msg());
         http_response_code(400);
-        echo json_encode(["error" => "Invalid JSON data: " . json_last_error_msg()]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid JSON data: " . json_last_error_msg()
+        ]);
         return;
     }
 
+    error_log("Parsed data: " . print_r($data, true));
+
     // Validate required fields
     if (!isset($data['id']) || empty(trim($data['id']))) {
+        error_log("Missing required field: id");
         http_response_code(400);
-        echo json_encode(["error" => "Missing required field: id"]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Missing required field: id"
+        ]);
         return;
     }
 
     // Also validate tax fields
     if (!isset($data['total_tax']) || $data['total_tax'] <= 0) {
+        error_log("Invalid tax calculation");
         http_response_code(400);
-        echo json_encode(["error" => "Invalid tax calculation. Please calculate tax first"]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid tax calculation. Please calculate tax first"
+        ]);
         return;
     }
 
     $permit_id = intval($data['id']);
+    $user_id = isset($data['user_id']) ? intval($data['user_id']) : null;
     $current_year = date('Y');
+    
+    error_log("Processing approval - Permit ID: $permit_id, User ID: " . ($user_id ?? 'null'));
     
     try {
         // Get business permit details WITH tax_status field
@@ -327,15 +365,25 @@ function approvePermit($pdo) {
         $permit = $permit_stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$permit) {
+            error_log("Permit not found with ID: " . $permit_id);
             http_response_code(404);
-            echo json_encode(["error" => "Permit not found"]);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Permit not found"
+            ]);
             return;
         }
 
+        error_log("Current permit data: " . print_r($permit, true));
+
         // Check if permit is already approved
         if ($permit['permit_status'] === 'APPROVED' || $permit['permit_status'] === 'ACTIVE') {
+            error_log("Permit is already approved");
             http_response_code(400);
-            echo json_encode(["error" => "Permit is already approved"]);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Permit is already approved"
+            ]);
             return;
         }
 
@@ -349,7 +397,7 @@ function approvePermit($pdo) {
         $pdo->beginTransaction();
 
         try {
-            // 1. Update permit status, tax values, AND tax_status
+            // 1. Update permit status, tax values, tax_status, AND user_id
             $update_stmt = $pdo->prepare("
                 UPDATE business_permits 
                 SET permit_status = 'APPROVED', 
@@ -357,17 +405,28 @@ function approvePermit($pdo) {
                     tax_amount = :tax_amount,
                     tax_rate = :tax_rate,
                     total_tax = :total_tax,
+                    user_id = :user_id,
                     approved_date = NOW(),
                     updated_at = NOW()
                 WHERE id = :id
             ");
             
-            $update_stmt->execute([
+            $update_params = [
                 ':tax_amount' => $tax_amount,
                 ':tax_rate' => $tax_rate,
                 ':total_tax' => $total_tax,
+                ':user_id' => $user_id,
                 ':id' => $permit_id
-            ]);
+            ];
+            
+            error_log("Updating permit with params: " . print_r($update_params, true));
+            $update_stmt->execute($update_params);
+            
+            // Verify the update
+            $verify_stmt = $pdo->prepare("SELECT user_id, permit_status FROM business_permits WHERE id = ?");
+            $verify_stmt->execute([$permit_id]);
+            $updated = $verify_stmt->fetch();
+            error_log("After update - user_id: " . ($updated['user_id'] ?? 'null') . ", status: " . $updated['permit_status']);
 
             // 2. GENERATE QUARTERLY TAXES
             $taxable_amount = floatval($permit['taxable_amount']) ?: floatval($permit['capital_investment']);
@@ -386,11 +445,11 @@ function approvePermit($pdo) {
             $annual_payment_error = null;
             
             try {
-                if ($permit['user_id']) {
+                if ($user_id) {
                     $annual_payment_result = createAnnualPayment(
                         $pdo, 
                         $permit_id, 
-                        $permit['user_id'],
+                        $user_id,
                         $total_tax,
                         $current_year
                     );
@@ -399,10 +458,12 @@ function approvePermit($pdo) {
                         $annual_payment_error = $annual_payment_result['message'];
                     }
                 } else {
-                    $annual_payment_error = "No user_id found for permit. Annual payment skipped.";
+                    $annual_payment_error = "No user_id provided. Annual payment skipped.";
+                    error_log($annual_payment_error);
                 }
             } catch (Exception $e) {
                 $annual_payment_error = "Annual payment error: " . $e->getMessage();
+                error_log($annual_payment_error);
             }
 
             // 4. CREATE TAX SUMMARY RECORD WITH YEAR - Now using applicant_id
@@ -417,9 +478,11 @@ function approvePermit($pdo) {
                 }
             } catch (Exception $e) {
                 $tax_summary_error = "Tax summary error: " . $e->getMessage();
+                error_log($tax_summary_error);
             }
 
             $pdo->commit();
+            error_log("Transaction committed successfully for permit ID: " . $permit_id);
 
             // Prepare response data
             $response_data = [
@@ -430,6 +493,7 @@ function approvePermit($pdo) {
                 'owner_name' => $permit['owner_full_name'],
                 'new_status' => 'APPROVED',
                 'tax_status' => 'Approved',
+                'user_id' => $user_id,
                 'approved_date' => date('Y-m-d H:i:s'),
                 'year' => $current_year,
                 'totals' => [
@@ -486,6 +550,7 @@ function approvePermit($pdo) {
 
         } catch (Exception $e) {
             $pdo->rollBack();
+            error_log("Transaction rollback: " . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 "status" => "error",
@@ -494,6 +559,7 @@ function approvePermit($pdo) {
         }
 
     } catch (PDOException $e) {
+        error_log("PDO Error: " . $e->getMessage());
         http_response_code(500);
         echo json_encode([
             "status" => "error",
@@ -504,6 +570,7 @@ function approvePermit($pdo) {
 
 // Determine HTTP method and route
 $method = $_SERVER['REQUEST_METHOD'];
+error_log("Request method: " . $method);
 
 switch ($method) {
     case 'POST':
@@ -513,6 +580,7 @@ switch ($method) {
         http_response_code(200);
         exit();
     default:
+        error_log("Method not allowed: " . $method);
         http_response_code(405);
         echo json_encode([
             "status" => "error",
@@ -520,3 +588,6 @@ switch ($method) {
         ]);
         break;
 }
+
+error_log("=== update_permit_status.php completed ===");
+?>
