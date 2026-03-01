@@ -352,6 +352,45 @@ $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' 
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $base_url = $protocol . $host;
 $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
+
+// Quezon City Barangays by District
+$qc_barangays = [
+    1 => [
+        'Alicia', 'Amihan', 'Bagong Silangan', 'Batasan Hills', 'Commonwealth', 
+        'Holy Spirit', 'Matandang Balara', 'Payatas'
+    ],
+    2 => [
+        'Bagumbuhay', 'Bagumbong', 'Caloocan', 'Capitol Park', 'Diliman', 
+        'Project 6', 'Ramon Magsaysay', 'Sauyo', 'Talipapa', 'Tandang Sora', 
+        'Unang Sigaw', 'Veterans Village'
+    ],
+    3 => [
+        'Amoranto', 'Baesa', 'Balingasa', 'Bungad', 'Damar', 'Damayan', 
+        'Del Monte', 'Katipunan', 'Manresa', 'Mariblo', 'Masambong', 
+        'N.S. Amoranto', 'Pag-ibig', 'Paltok', 'Paraiso', 'Phil-Am', 
+        'Project 7', 'Project 8', 'San Antonio', 'San Isidro', 'San Jose', 
+        'San Vincente', 'Santa Cruz', 'Santa Teresita', 'Santo Cristo', 
+        'Santo Domingo', 'Siena', 'St. Peter', 'Tatalon', 'Valencia', 
+        'Vasra', 'West Triangle'
+    ],
+    4 => [
+        'Bagong Lipunan', 'Botocan', 'Central', 'Cubao', 'E. Rodriguez', 
+        'Immaculate Concepcion', 'Kaunlaran', 'Kristong Hari', 'Laging Handa', 
+        'Mangga', 'Mariana', 'Milagrosa', 'Obrero', 'Pinagkaisahan', 'Quirino', 
+        'Roxas', 'Sacred Heart', 'San Martin', 'San Vicente', 'Socorro', 
+        'Ugong Norte', 'Valencia', 'Xavierville'
+    ],
+    5 => [
+        'Bagbag', 'Capri', 'Fairview', 'Gulod', 'Greater Lagro', 'Kaligayahan', 
+        'Nagkaisang Nayon', 'North Fairview', 'Novaliches', 'Pasong Putik', 
+        'San Agustin', 'San Bartolome', 'Sta. Lucia', 'Sta. Monica'
+    ],
+    6 => [
+        'Apolonio Samson', 'Baesa', 'Balong Bato', 'Culiat', 'New Era', 
+        'Pasong Tamo', 'Sangandaan', 'Sauyo', 'Talipapa', 'Tandang Sora', 
+        'Unang Sigaw'
+    ]
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -595,6 +634,17 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             box-shadow: 0 6px 15px rgba(74, 144, 226, 0.3);
         }
 
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary), #8a949f);
+            color: white;
+            padding: 12px 32px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
         .checkbox-container {
             display: flex;
             align-items: flex-start;
@@ -683,6 +733,25 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             max-height: 80vh;
             object-fit: contain;
             display: block;
+        }
+
+        /* Barangay Select Styles */
+        .barangay-select {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .barangay-select optgroup {
+            font-weight: 600;
+            color: #374151;
+            background-color: #f9fafb;
+            padding: 0.5rem;
+        }
+        
+        .barangay-select option {
+            padding: 0.25rem 1rem;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
@@ -905,9 +974,19 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Barangay <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="barangay" required
-                                    value="<?php echo htmlspecialchars($form_data['barangay']); ?>"
-                                    class="input-field" placeholder="Barangay name">
+                                <select name="barangay" required class="input-field barangay-select">
+                                    <option value="">Select Barangay</option>
+                                    <?php foreach ($qc_barangays as $district_num => $barangays): ?>
+                                    <optgroup label="District <?php echo $district_num; ?>">
+                                        <?php foreach ($barangays as $barangay): ?>
+                                        <option value="<?php echo htmlspecialchars($barangay); ?>" 
+                                            <?php echo ($form_data['barangay'] ?? '') == $barangay ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($barangay); ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                             
                             <!-- District -->
@@ -915,7 +994,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     District <span class="text-red-500">*</span>
                                 </label>
-                                <select name="district" required class="input-field">
+                                <select name="district" required class="input-field" id="home_district">
                                     <option value="">Select District</option>
                                     <?php for ($i = 1; $i <= 6; $i++): ?>
                                         <option value="<?php echo $i; ?>" <?php echo ($form_data['district'] ?? '') == $i ? 'selected' : ''; ?>>
@@ -933,6 +1012,18 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <input type="text" name="city" required 
                                     value="<?php echo htmlspecialchars($form_data['city']); ?>"
                                     class="input-field" placeholder="City name">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
+                            </div>
+                            
+                            <!-- Province -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Province <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="province" required 
+                                    value="<?php echo htmlspecialchars($form_data['province']); ?>"
+                                    class="input-field" placeholder="Province">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Metro Manila</p>
                             </div>
                             
                             <!-- ZIP Code -->
@@ -943,6 +1034,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <input type="text" name="zip_code" required
                                     value="<?php echo htmlspecialchars($form_data['zip_code']); ?>"
                                     class="input-field" placeholder="1100">
+                                <p class="text-xs text-gray-500 mt-1">Quezon City ZIP codes: 1100-1128</p>
                             </div>
                         </div>
 
@@ -973,9 +1065,19 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
                                         Property Barangay <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" name="property_barangay" required
-                                        value="<?php echo htmlspecialchars($form_data['property_barangay'] ?? ''); ?>"
-                                        class="input-field" placeholder="Barangay name">
+                                    <select name="property_barangay" required class="input-field barangay-select" id="property_barangay">
+                                        <option value="">Select Barangay</option>
+                                        <?php foreach ($qc_barangays as $district_num => $barangays): ?>
+                                        <optgroup label="District <?php echo $district_num; ?>" data-district="<?php echo $district_num; ?>">
+                                            <?php foreach ($barangays as $barangay): ?>
+                                            <option value="<?php echo htmlspecialchars($barangay); ?>" 
+                                                <?php echo ($form_data['property_barangay'] ?? '') == $barangay ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($barangay); ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </optgroup>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                                 
                                 <!-- Property District -->
@@ -983,7 +1085,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
                                         Property District <span class="text-red-500">*</span>
                                     </label>
-                                    <select name="property_district" required class="input-field">
+                                    <select name="property_district" required class="input-field" id="property_district">
                                         <option value="">Select District</option>
                                         <?php for ($i = 1; $i <= 6; $i++): ?>
                                             <option value="<?php echo $i; ?>" <?php echo ($form_data['property_district'] ?? '') == $i ? 'selected' : ''; ?>>
@@ -991,6 +1093,28 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                             </option>
                                         <?php endfor; ?>
                                     </select>
+                                </div>
+                                
+                                <!-- Property City -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Property City <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="property_city" required 
+                                        value="<?php echo htmlspecialchars($form_data['property_city'] ?? 'Quezon City'); ?>"
+                                        class="input-field" placeholder="Quezon City">
+                                    <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
+                                </div>
+                                
+                                <!-- Property Province -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Property Province <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="property_province" required 
+                                        value="<?php echo htmlspecialchars($form_data['property_province'] ?? 'Metro Manila'); ?>"
+                                        class="input-field" placeholder="Metro Manila">
+                                    <p class="text-xs text-gray-500 mt-1">Fixed to Metro Manila</p>
                                 </div>
                                 
                                 <!-- Property ZIP Code -->
@@ -1001,6 +1125,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                     <input type="text" name="property_zip_code" required
                                         value="<?php echo htmlspecialchars($form_data['property_zip_code'] ?? ''); ?>"
                                         class="input-field" placeholder="1100">
+                                    <p class="text-xs text-gray-500 mt-1">Quezon City ZIP codes: 1100-1128</p>
                                 </div>
                                 
                                 <!-- Has Building -->
@@ -1199,7 +1324,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                             
                             <div class="flex gap-4 form-actions">
                                 <a href="../rpt_services.php" 
-                                   class="btn-secondary flex items-center justify-center" style="background: linear-gradient(135deg, var(--secondary), #8a949f); color: white; padding: 12px 32px; border-radius: 10px; font-weight: 600; transition: all 0.3s ease; border: none; cursor: pointer;">
+                                   class="btn-secondary flex items-center justify-center">
                                     <i class="fas fa-times mr-2"></i> Cancel
                                 </a>
                                 
@@ -1399,8 +1524,46 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         checkbox.checked = !checkbox.checked;
     }
     
-    // Form validation and submission
+    // Auto-select district based on barangay selection
     document.addEventListener('DOMContentLoaded', function() {
+        // For property barangay selection
+        const propertyBarangay = document.getElementById('property_barangay');
+        const propertyDistrict = document.getElementById('property_district');
+        
+        if (propertyBarangay && propertyDistrict) {
+            propertyBarangay.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const optgroup = selectedOption.parentElement;
+                
+                if (optgroup && optgroup.tagName === 'OPTGROUP') {
+                    const districtNum = optgroup.getAttribute('data-district');
+                    if (districtNum) {
+                        propertyDistrict.value = districtNum;
+                    }
+                }
+            });
+        }
+        
+        // For home address barangay selection
+        const homeBarangay = document.querySelector('select[name="barangay"]');
+        const homeDistrict = document.getElementById('home_district');
+        
+        if (homeBarangay && homeDistrict) {
+            homeBarangay.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const optgroup = selectedOption.parentElement;
+                
+                if (optgroup && optgroup.tagName === 'OPTGROUP') {
+                    const label = optgroup.label;
+                    const districtNum = label.replace('District ', '');
+                    if (districtNum && !isNaN(districtNum)) {
+                        homeDistrict.value = districtNum;
+                    }
+                }
+            });
+        }
+        
+        // Form validation and submission
         const form = document.getElementById('propertyForm');
         const submitButton = form ? form.querySelector('button[type="submit"]') : null;
         

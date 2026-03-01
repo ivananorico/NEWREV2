@@ -242,6 +242,32 @@
                 font-size: 3.5rem;
             }
         }
+
+        /* Barangay select styling */
+        .barangay-select {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .barangay-group {
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .barangay-group h4 {
+            font-weight: 600;
+            color: #374151;
+            padding: 0.25rem 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .barangay-group option {
+            padding: 0.25rem 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -493,7 +519,7 @@
                         </div>
                     </div>
 
-                    <!-- Address Information -->
+                    <!-- Address Information - Updated for Quezon City -->
                     <div class="border-b border-gray-200 pb-4">
                         <h3 class="text-lg font-semibold text-gray-700 mb-4">Address Information</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -512,19 +538,123 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
                                 <select name="barangay" required 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent">
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent barangay-select"
+                                        size="1">
                                     <option value="">Select Barangay</option>
-                                    <option value="Barangay 1">Barangay 1</option>
-                                    <option value="Barangay 2">Barangay 2</option>
-                                    <option value="Barangay 3">Barangay 3</option>
-                                    <option value="Barangay 4">Barangay 4</option>
-                                    <option value="Barangay 5">Barangay 5</option>
-                                    <option value="Barangay 6">Barangay 6</option>
-                                    <option value="Barangay 7">Barangay 7</option>
-                                    <option value="Barangay 8">Barangay 8</option>
-                                    <option value="Barangay 9">Barangay 9</option>
-                                    <option value="Barangay 10">Barangay 10</option>
+                                    <optgroup label="District 1">
+                                        <option value="Alicia">Alicia</option>
+                                        <option value="Amihan">Amihan</option>
+                                        <option value="Bagong Silangan">Bagong Silangan</option>
+                                        <option value="Batasan Hills">Batasan Hills</option>
+                                        <option value="Commonwealth">Commonwealth</option>
+                                        <option value="Holy Spirit">Holy Spirit</option>
+                                        <option value="Matandang Balara">Matandang Balara</option>
+                                        <option value="Payatas">Payatas</option>
+                                    </optgroup>
+                                    <optgroup label="District 2">
+                                        <option value="Bagumbuhay">Bagumbuhay</option>
+                                        <option value="Bagumbong">Bagumbong</option>
+                                        <option value="Caloocan">Caloocan</option>
+                                        <option value="Capitol Park">Capitol Park</option>
+                                        <option value="Diliman">Diliman</option>
+                                        <option value="Project 6">Project 6</option>
+                                        <option value="Ramon Magsaysay">Ramon Magsaysay</option>
+                                        <option value="Sauyo">Sauyo</option>
+                                        <option value="Talipapa">Talipapa</option>
+                                        <option value="Tandang Sora">Tandang Sora</option>
+                                        <option value="Unang Sigaw">Unang Sigaw</option>
+                                        <option value="Veterans Village">Veterans Village</option>
+                                    </optgroup>
+                                    <optgroup label="District 3">
+                                        <option value="Amoranto">Amoranto</option>
+                                        <option value="Baesa">Baesa</option>
+                                        <option value="Balingasa">Balingasa</option>
+                                        <option value="Bungad">Bungad</option>
+                                        <option value="Damar">Damar</option>
+                                        <option value="Damayan">Damayan</option>
+                                        <option value="Del Monte">Del Monte</option>
+                                        <option value="Katipunan">Katipunan</option>
+                                        <option value="Manresa">Manresa</option>
+                                        <option value="Mariblo">Mariblo</option>
+                                        <option value="Masambong">Masambong</option>
+                                        <option value="N.S. Amoranto">N.S. Amoranto</option>
+                                        <option value="Pag-ibig">Pag-ibig</option>
+                                        <option value="Paltok">Paltok</option>
+                                        <option value="Paraiso">Paraiso</option>
+                                        <option value="Phil-Am">Phil-Am</option>
+                                        <option value="Project 7">Project 7</option>
+                                        <option value="Project 8">Project 8</option>
+                                        <option value="San Antonio">San Antonio</option>
+                                        <option value="San Isidro">San Isidro</option>
+                                        <option value="San Jose">San Jose</option>
+                                        <option value="San Vincente">San Vincente</option>
+                                        <option value="Santa Cruz">Santa Cruz</option>
+                                        <option value="Santa Teresita">Santa Teresita</option>
+                                        <option value="Santo Cristo">Santo Cristo</option>
+                                        <option value="Santo Domingo">Santo Domingo</option>
+                                        <option value="Siena">Siena</option>
+                                        <option value="St. Peter">St. Peter</option>
+                                        <option value="Tatalon">Tatalon</option>
+                                        <option value="Valencia">Valencia</option>
+                                        <option value="Vasra">Vasra</option>
+                                        <option value="West Triangle">West Triangle</option>
+                                    </optgroup>
+                                    <optgroup label="District 4">
+                                        <option value="Bagong Lipunan">Bagong Lipunan</option>
+                                        <option value="Botocan">Botocan</option>
+                                        <option value="Central">Central</option>
+                                        <option value="Cubao">Cubao</option>
+                                        <option value="E. Rodriguez">E. Rodriguez</option>
+                                        <option value="Immaculate Concepcion">Immaculate Concepcion</option>
+                                        <option value="Kaunlaran">Kaunlaran</option>
+                                        <option value="Kristong Hari">Kristong Hari</option>
+                                        <option value="Laging Handa">Laging Handa</option>
+                                        <option value="Mangga">Mangga</option>
+                                        <option value="Mariana">Mariana</option>
+                                        <option value="Milagrosa">Milagrosa</option>
+                                        <option value="Obrero">Obrero</option>
+                                        <option value="Pinagkaisahan">Pinagkaisahan</option>
+                                        <option value="Quirino">Quirino</option>
+                                        <option value="Roxas">Roxas</option>
+                                        <option value="Sacred Heart">Sacred Heart</option>
+                                        <option value="San Martin">San Martin</option>
+                                        <option value="San Vicente">San Vicente</option>
+                                        <option value="Socorro">Socorro</option>
+                                        <option value="Ugong Norte">Ugong Norte</option>
+                                        <option value="Valencia">Valencia</option>
+                                        <option value="Xavierville">Xavierville</option>
+                                    </optgroup>
+                                    <optgroup label="District 5">
+                                        <option value="Bagbag">Bagbag</option>
+                                        <option value="Capri">Capri</option>
+                                        <option value="Fairview">Fairview</option>
+                                        <option value="Gulod">Gulod</option>
+                                        <option value="Greater Lagro">Greater Lagro</option>
+                                        <option value="Kaligayahan">Kaligayahan</option>
+                                        <option value="Nagkaisang Nayon">Nagkaisang Nayon</option>
+                                        <option value="North Fairview">North Fairview</option>
+                                        <option value="Novaliches">Novaliches</option>
+                                        <option value="Pasong Putik">Pasong Putik</option>
+                                        <option value="San Agustin">San Agustin</option>
+                                        <option value="San Bartolome">San Bartolome</option>
+                                        <option value="Sta. Lucia">Sta. Lucia</option>
+                                        <option value="Sta. Monica">Sta. Monica</option>
+                                    </optgroup>
+                                    <optgroup label="District 6">
+                                        <option value="Apolonio Samson">Apolonio Samson</option>
+                                        <option value="Baesa">Baesa</option>
+                                        <option value="Balong Bato">Balong Bato</option>
+                                        <option value="Culiat">Culiat</option>
+                                        <option value="New Era">New Era</option>
+                                        <option value="Pasong Tamo">Pasong Tamo</option>
+                                        <option value="Sangandaan">Sangandaan</option>
+                                        <option value="Sauyo">Sauyo</option>
+                                        <option value="Talipapa">Talipapa</option>
+                                        <option value="Tandang Sora">Tandang Sora</option>
+                                        <option value="Unang Sigaw">Unang Sigaw</option>
+                                    </optgroup>
                                 </select>
+                                <p class="text-xs text-gray-500 mt-1">Select your barangay from the list</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
@@ -534,14 +664,17 @@
                                     <option value="1">District 1</option>
                                     <option value="2">District 2</option>
                                     <option value="3">District 3</option>
+                                    <option value="4">District 4</option>
+                                    <option value="5">District 5</option>
+                                    <option value="6">District 6</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">City/Municipality *</label>
-                                <input type="text" name="city" value="Caloocan City" required 
+                                <input type="text" name="city" value="Quezon City" required 
                                        readonly
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
-                                <p class="text-xs text-gray-500 mt-1">Fixed to Caloocan City</p>
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
@@ -554,8 +687,8 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code *</label>
                                 <input type="text" name="zipCode" required 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent"
-                                       placeholder="1400" pattern="[0-9]{4}">
-                                <p class="text-xs text-gray-500 mt-1">Caloocan City ZIP code: 1400 (North) / 1403 (South)</p>
+                                       placeholder="1100" pattern="[0-9]{4}">
+                                <p class="text-xs text-gray-500 mt-1">Quezon City ZIP codes: 1100-1128</p>
                             </div>
                         </div>
                     </div>
@@ -991,6 +1124,7 @@
             setupOTPInputs();
             setupPasswordValidation();
             fixBackgroundImage();
+            setupBarangaySelect();
             
             // Load saved attempts from localStorage
             loadSavedAttempts();
@@ -998,6 +1132,88 @@
             // TEST: Uncomment to test the lockout feature
             // testLockoutFeature();
         });
+
+        // Setup Barangay select functionality
+        function setupBarangaySelect() {
+            const barangaySelect = document.querySelector('select[name="barangay"]');
+            const districtSelect = document.querySelector('select[name="district"]');
+            
+            if (barangaySelect) {
+                // Add search functionality
+                const searchInput = document.createElement('input');
+                searchInput.type = 'text';
+                searchInput.placeholder = 'Search barangay...';
+                searchInput.className = 'w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent';
+                
+                barangaySelect.parentNode.insertBefore(searchInput, barangaySelect);
+                
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const options = barangaySelect.querySelectorAll('option');
+                    const optgroups = barangaySelect.querySelectorAll('optgroup');
+                    
+                    let hasVisibleOptions = false;
+                    
+                    // Hide optgroups first
+                    optgroups.forEach(group => {
+                        group.style.display = 'none';
+                    });
+                    
+                    options.forEach(option => {
+                        if (option.value && option.text.toLowerCase().includes(searchTerm)) {
+                            option.style.display = '';
+                            // Show parent optgroup
+                            const parent = option.parentElement;
+                            if (parent.tagName === 'OPTGROUP') {
+                                parent.style.display = '';
+                            }
+                            hasVisibleOptions = true;
+                        } else if (option.value) {
+                            option.style.display = 'none';
+                        }
+                    });
+                    
+                    // If no options found, show message
+                    const noResults = barangaySelect.nextElementSibling;
+                    if (!hasVisibleOptions) {
+                        if (!noResults || !noResults.classList.contains('no-results')) {
+                            const msg = document.createElement('div');
+                            msg.className = 'no-results text-sm text-gray-500 mt-2 text-center';
+                            msg.textContent = 'No barangays found';
+                            barangaySelect.parentNode.insertBefore(msg, barangaySelect.nextSibling);
+                        }
+                    } else {
+                        if (noResults && noResults.classList.contains('no-results')) {
+                            noResults.remove();
+                        }
+                    }
+                });
+            }
+            
+            // Auto-select district based on barangay
+            if (barangaySelect && districtSelect) {
+                barangaySelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const optgroup = selectedOption.parentElement;
+                    
+                    if (optgroup && optgroup.tagName === 'OPTGROUP') {
+                        const districtMap = {
+                            'District 1': '1',
+                            'District 2': '2',
+                            'District 3': '3',
+                            'District 4': '4',
+                            'District 5': '5',
+                            'District 6': '6'
+                        };
+                        
+                        const districtName = optgroup.label;
+                        if (districtMap[districtName]) {
+                            districtSelect.value = districtMap[districtName];
+                        }
+                    }
+                });
+            }
+        }
 
         // ============================================
         // ATTEMPT MANAGEMENT - FIXED
@@ -1860,13 +2076,13 @@
                 return;
             }
             
-            if (!['1', '2', '3'].includes(data.district)) {
-                showNotification('Please select a valid district (1, 2, or 3)', 'error');
+            if (!['1', '2', '3', '4', '5', '6'].includes(data.district)) {
+                showNotification('Please select a valid district (1-6)', 'error');
                 return;
             }
             
-            if (data.city !== 'Caloocan City') {
-                showNotification('City must be Caloocan City', 'error');
+            if (data.city !== 'Quezon City') {
+                showNotification('City must be Quezon City', 'error');
                 return;
             }
             

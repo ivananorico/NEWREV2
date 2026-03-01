@@ -77,10 +77,51 @@ $autofill_data = [
     'house_number' => $user['house_number'] ?? '',
     'street' => $user['street'] ?? '',
     'barangay' => $user['barangay'] ?? '',
+    'district' => $user['district'] ?? '',
     'city' => $user['city'] ?? 'Quezon City',
     'province' => $user['province'] ?? 'Metro Manila',
     'zip_code' => $user['zip_code'] ?? '',
-    'birthdate' => $user['birthdate'] ?? ''
+    'birthdate' => $user['birthdate'] ?? '',
+    'gender' => $user['sex'] ?? ''
+];
+
+// Quezon City Barangays by District
+$qc_barangays = [
+    1 => [
+        'Alicia', 'Amihan', 'Bagong Silangan', 'Batasan Hills', 'Commonwealth', 
+        'Holy Spirit', 'Matandang Balara', 'Payatas'
+    ],
+    2 => [
+        'Bagumbuhay', 'Bagumbong', 'Caloocan', 'Capitol Park', 'Diliman', 
+        'Project 6', 'Ramon Magsaysay', 'Sauyo', 'Talipapa', 'Tandang Sora', 
+        'Unang Sigaw', 'Veterans Village'
+    ],
+    3 => [
+        'Amoranto', 'Baesa', 'Balingasa', 'Bungad', 'Damar', 'Damayan', 
+        'Del Monte', 'Katipunan', 'Manresa', 'Mariblo', 'Masambong', 
+        'N.S. Amoranto', 'Pag-ibig', 'Paltok', 'Paraiso', 'Phil-Am', 
+        'Project 7', 'Project 8', 'San Antonio', 'San Isidro', 'San Jose', 
+        'San Vincente', 'Santa Cruz', 'Santa Teresita', 'Santo Cristo', 
+        'Santo Domingo', 'Siena', 'St. Peter', 'Tatalon', 'Valencia', 
+        'Vasra', 'West Triangle'
+    ],
+    4 => [
+        'Bagong Lipunan', 'Botocan', 'Central', 'Cubao', 'E. Rodriguez', 
+        'Immaculate Concepcion', 'Kaunlaran', 'Kristong Hari', 'Laging Handa', 
+        'Mangga', 'Mariana', 'Milagrosa', 'Obrero', 'Pinagkaisahan', 'Quirino', 
+        'Roxas', 'Sacred Heart', 'San Martin', 'San Vicente', 'Socorro', 
+        'Ugong Norte', 'Valencia', 'Xavierville'
+    ],
+    5 => [
+        'Bagbag', 'Capri', 'Fairview', 'Gulod', 'Greater Lagro', 'Kaligayahan', 
+        'Nagkaisang Nayon', 'North Fairview', 'Novaliches', 'Pasong Putik', 
+        'San Agustin', 'San Bartolome', 'Sta. Lucia', 'Sta. Monica'
+    ],
+    6 => [
+        'Apolonio Samson', 'Baesa', 'Balong Bato', 'Culiat', 'New Era', 
+        'Pasong Tamo', 'Sangandaan', 'Sauyo', 'Talipapa', 'Tandang Sora', 
+        'Unang Sigaw'
+    ]
 ];
 
 // Handle form submission
@@ -209,11 +250,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     registration_id, user_id,
                     first_name, middle_name, last_name, suffix,
                     email, mobile, telephone,
-                    house_number, street, barangay, city, province, zip_code,
+                    house_number, street, barangay, district, city, province, zip_code,
                     birth_date, gender,
                     emergency_name, emergency_contact,
                     renter_code, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
             
             $city = $_POST['city'] ?? 'Quezon City';
@@ -239,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_POST['house_number'] ?? null,
                 $_POST['street'] ?? null,
                 $_POST['barangay'] ?? null,
+                $_POST['district'] ?? null,
                 $city,
                 $province,
                 $_POST['zip_code'] ?? null,
@@ -646,6 +688,25 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
             cursor: pointer;
         }
 
+        /* Barangay Select Styles */
+        .barangay-select {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .barangay-select optgroup {
+            font-weight: 600;
+            color: #374151;
+            background-color: #f9fafb;
+            padding: 0.5rem;
+        }
+        
+        .barangay-select option {
+            padding: 0.25rem 1rem;
+            font-size: 0.9rem;
+        }
+
         /* Main content centering */
         .main-content-wrapper {
             flex: 1 0 auto;
@@ -929,9 +990,34 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Barangay
                                 </label>
-                                <input type="text" name="barangay"
-                                    value="<?php echo htmlspecialchars($form_data['barangay']); ?>"
-                                    class="input-field" placeholder="Barangay name">
+                                <select name="barangay" class="input-field barangay-select">
+                                    <option value="">Select Barangay</option>
+                                    <?php foreach ($qc_barangays as $district_num => $barangays): ?>
+                                    <optgroup label="District <?php echo $district_num; ?>">
+                                        <?php foreach ($barangays as $barangay): ?>
+                                        <option value="<?php echo htmlspecialchars($barangay); ?>" 
+                                            <?php echo ($form_data['barangay'] ?? '') == $barangay ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($barangay); ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </optgroup>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <!-- District -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    District
+                                </label>
+                                <select name="district" class="input-field" id="home_district">
+                                    <option value="">Select District</option>
+                                    <?php for ($i = 1; $i <= 6; $i++): ?>
+                                        <option value="<?php echo $i; ?>" <?php echo ($form_data['district'] ?? '') == $i ? 'selected' : ''; ?>>
+                                            District <?php echo $i; ?>
+                                        </option>
+                                    <?php endfor; ?>
+                                </select>
                             </div>
                             
                             <!-- City -->
@@ -942,6 +1028,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <input type="text" name="city" required 
                                     value="<?php echo htmlspecialchars($form_data['city']); ?>"
                                     class="input-field" placeholder="City name">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Quezon City</p>
                             </div>
                             
                             <!-- Province -->
@@ -952,6 +1039,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <input type="text" name="province" required 
                                     value="<?php echo htmlspecialchars($form_data['province']); ?>"
                                     class="input-field" placeholder="Province name">
+                                <p class="text-xs text-gray-500 mt-1">Fixed to Metro Manila</p>
                             </div>
                             
                             <!-- ZIP Code -->
@@ -962,6 +1050,7 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
                                 <input type="text" name="zip_code"
                                     value="<?php echo htmlspecialchars($form_data['zip_code']); ?>"
                                     class="input-field" placeholder="1100">
+                                <p class="text-xs text-gray-500 mt-1">Quezon City ZIP codes: 1100-1128</p>
                             </div>
                         </div>
 
@@ -1381,8 +1470,27 @@ $bg_image_path = $base_url . '/revenue2/Login/images/gsmbg.png';
         checkbox.checked = !checkbox.checked;
     }
     
-    // Form validation and submission
+    // Auto-select district based on barangay selection
     document.addEventListener('DOMContentLoaded', function() {
+        const barangaySelect = document.querySelector('select[name="barangay"]');
+        const districtSelect = document.getElementById('home_district');
+        
+        if (barangaySelect && districtSelect) {
+            barangaySelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const optgroup = selectedOption.parentElement;
+                
+                if (optgroup && optgroup.tagName === 'OPTGROUP') {
+                    const label = optgroup.label;
+                    const districtNum = label.replace('District ', '');
+                    if (districtNum && !isNaN(districtNum)) {
+                        districtSelect.value = districtNum;
+                    }
+                }
+            });
+        }
+        
+        // Form validation and submission
         const form = document.getElementById('rentalForm');
         const submitButton = form ? form.querySelector('button[type="submit"]') : null;
         
