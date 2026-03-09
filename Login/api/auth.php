@@ -221,8 +221,9 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
-    if (!in_array($input['district'], ['1', '2', '3'])) {
-        $response['message'] = 'Please select a valid district (1, 2, or 3)';
+    // FIXED: Allow districts 1-6 (Quezon City has 6 districts)
+    if (!in_array($input['district'], ['1', '2', '3', '4', '5', '6'])) {
+        $response['message'] = 'Please select a valid district (1, 2, 3, 4, 5, or 6)';
         return;
     }
 
