@@ -88,8 +88,8 @@ $smtp_config = [
     'port' => 587,
     'username' => 'ivananorico123@gmail.com',
     'password' => 'jsqm woro uuma pwlx',
-    'from_email' => 'market@caloocan.gov.ph',
-    'from_name' => 'Caloocan City Market Administration'
+    'from_email' => 'market@Quezon.gov.ph',
+    'from_name' => 'Quezon City Market Administration'
 ];
 
 // Function to log email activity to file
@@ -110,10 +110,10 @@ function logEmailToFile($data) {
 
 // Function to get email template for market stall rentals
 function getEmailTemplate($type, $data, $customMessage = '') {
-    $lgu_name = "Caloocan City Government";
-    $market_contact = "market.admin@caloocan.gov.ph";
+    $lgu_name = "Quezon City Government";
+    $market_contact = "market.admin@Quezon.gov.ph";
     $market_phone = "(02) 1234-5678";
-    $market_address = "Caloocan City Public Market Administration Office";
+    $market_address = "Quezon City Public Market Administration Office";
     
     $amount = number_format(floatval($data['overdue_amount'] ?? 0), 2);
     $monthlyRent = number_format(floatval($data['monthly_rent'] ?? 0), 2);

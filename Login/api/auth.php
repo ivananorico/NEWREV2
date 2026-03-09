@@ -226,8 +226,8 @@ function handleRegister($db, $input, &$response) {
         return;
     }
 
-    if ($input['city'] !== 'Caloocan City') {
-        $response['message'] = 'City must be Caloocan City';
+    if ($input['city'] !== 'Quezon City') {
+        $response['message'] = 'City must be Quezon City';
         return;
     }
 

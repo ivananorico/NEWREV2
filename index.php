@@ -554,7 +554,7 @@
                                     <optgroup label="District 2">
                                         <option value="Bagumbuhay">Bagumbuhay</option>
                                         <option value="Bagumbong">Bagumbong</option>
-                                        <option value="Caloocan">Caloocan</option>
+                                        <option value="Quezon">Quezon</option>
                                         <option value="Capitol Park">Capitol Park</option>
                                         <option value="Diliman">Diliman</option>
                                         <option value="Project 6">Project 6</option>

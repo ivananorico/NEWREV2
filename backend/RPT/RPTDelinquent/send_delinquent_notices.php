@@ -45,8 +45,8 @@ $smtp_config = [
     'port' => 587,
     'username' => 'ivananorico123@gmail.com', // Replace with your email
     'password' => 'jsqm woro uuma pwlx',     // Replace with your app password
-    'from_email' => 'treasury@caloocan.gov.ph',
-    'from_name' => 'Caloocan City Treasury Department'
+    'from_email' => 'treasury@quezoncity.gov.ph',
+    'from_name' => 'Quezon City Treasury Department'
 ];
 
 // Function to log email activity to file
@@ -67,10 +67,10 @@ function logEmailToFile($data) {
 
 // Function to get email template
 function getEmailTemplate($type, $data, $customMessage = '') {
-    $lgu_name = "Caloocan City Government";
-    $treasury_contact = "treasury@caloocan.gov.ph";
+    $lgu_name = "Quezon City Government";
+    $treasury_contact = "treasury@Quezon.gov.ph";
     $treasury_phone = "(02) 1234-5678";
-    $treasury_address = "2nd Floor, City Hall Building, Caloocan City";
+    $treasury_address = "2nd Floor, City Hall Building, Quezon City";
     
     $amount = number_format(floatval($data['total_quarterly_tax'] ?? 0) + floatval($data['penalty_amount'] ?? 0), 2);
     $baseAmount = number_format(floatval($data['total_quarterly_tax'] ?? 0), 2);

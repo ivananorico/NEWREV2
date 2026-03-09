@@ -360,7 +360,7 @@ $qc_barangays = [
         'Holy Spirit', 'Matandang Balara', 'Payatas'
     ],
     2 => [
-        'Bagumbuhay', 'Bagumbong', 'Caloocan', 'Capitol Park', 'Diliman', 
+        'Bagumbuhay', 'Bagumbong', 'Quezon', 'Capitol Park', 'Diliman', 
         'Project 6', 'Ramon Magsaysay', 'Sauyo', 'Talipapa', 'Tandang Sora', 
         'Unang Sigaw', 'Veterans Village'
     ],

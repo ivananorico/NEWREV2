@@ -1089,7 +1089,7 @@ export default function RPTDelinquent() {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t text-center text-sm" 
              style={{ borderColor: COLORS.secondary, color: COLORS.secondary }}>
-          <p className="font-medium" style={{ color: COLORS.dark }}>Local Government Unit - Caloocan City - Delinquent Tax Management</p>
+          <p className="font-medium" style={{ color: COLORS.dark }}>Local Government Unit - Quezon City - Delinquent Tax Management</p>
           <p className="mt-1">Real Property Tax Collection System v2.0</p>
           <p className="mt-1 text-xs">
             Last updated: {new Date().toLocaleDateString('en-PH', { 
